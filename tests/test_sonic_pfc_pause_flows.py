@@ -59,9 +59,14 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
             pause_flow
         ]
     )
+    print(serializer.json(config))
 
     from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
+    # set the ixnetwork connection parameters
     api = IxNetworkApi('10.36.66.49', port=11009)
+    # clear the configuration on ixnetwork by passing in None
+    api.set_config(None)
+    # set the configuration on ixnetwork
     api.set_config(config)
 
 

@@ -19,33 +19,42 @@ class IxNetworkApi(Api):
         self._port = port
         self._running_config = None
         self._config = None
+        self._assistant = None
 
     def set_config(self, config):
-        if isinstance(config, Config) is False:
-            raise TypeError('The content must be of type(%s)' % Config.__class__)
+        if isinstance(config, (Config, type(None))) is False:
+            raise TypeError('The content must be of type (Config, type(None))' % Config.__class__)
         self._config = config
         self._unique_names = {}
         self.__check_unique_names(self._config)
 
-        self._assistant = SessionAssistant(IpAddress=self._address,
-            RestPort=self._port,
-            LogLevel=SessionAssistant.LOGLEVEL_INFO) 
-        self._ixnetwork = self._assistant.Ixnetwork
-        self._vport = self._ixnetwork.Vport
-        self._topology = self._ixnetwork.Topology
-        self._traffic_item = self._ixnetwork.Traffic.TrafficItem
-
-        self.__configure_ports()
-        self.__configure_topology()
-        self.__configure_flows()
-        # self.__connect_ports()
+        self.__connect()
+        if self._config is None:
+            self._ixnetwork.NewConfig()
+        else:
+            self.__configure_ports()
+            self.__configure_topology()
+            self.__configure_flows()
+            # self.__connect_ports()
         self._running_config = self._config
-        print(json.dumps(self._running_config, indent=2, default=lambda x: x.__dict__))
 
     def get_results(self, content):
         pass
 
+    def __connect(self):
+        if self._assistant is None:
+            self._assistant = SessionAssistant(IpAddress=self._address,
+                RestPort=self._port,
+                LogLevel=SessionAssistant.LOGLEVEL_INFO) 
+            self._ixnetwork = self._assistant.Ixnetwork
+            self._vport = self._ixnetwork.Vport
+            self._topology = self._ixnetwork.Topology
+            self._traffic = self._ixnetwork.Traffic
+            self._traffic_item = self._ixnetwork.Traffic.TrafficItem
+
     def __check_unique_names(self, config_item):
+        if config_item is None:
+            return
         for attr_name in dir(config_item):
             if attr_name.startswith('_'):
                 continue
@@ -57,15 +66,12 @@ class IxNetworkApi(Api):
                     raise NameError('%s.name: %s is not unique' % (config_item.__class__, attr_value))
                 else:
                     self._unique_names[attr_value] = config_item
-            elif attr_value is None:
-                pass
             elif isinstance(attr_value, list):
                 for item in attr_value:
                     self.__check_unique_names(item)
             elif '__module__' in dir(attr_value):
                 if attr_value.__module__.startswith('abstract_open_traffic_generator'):
                     self.__check_unique_names(attr_value)
-
 
     def __configure_ports(self):
         """Resolve src config with dst config
