@@ -13,7 +13,7 @@ class IxNetworkApi(Api):
     - address (str): The address of the IxNetwork API Server
     - port (str): The rest port of the IxNetwork API Server
     """
-    def __init__(self, address, port=None):
+    def __init__(self, address='127.0.0.1', port='11009'):
         super(IxNetworkApi, self)
         self._address = address
         self._port = port
@@ -25,8 +25,12 @@ class IxNetworkApi(Api):
         if isinstance(config, (Config, type(None))) is False:
             raise TypeError('The content must be of type (Config, type(None))' % Config.__class__)
         self._config = config
+        
         self._unique_names = {}
+        self._unique_name_errors = []
         self.__check_unique_names(self._config)
+        if len(self._unique_name_errors) > 0:
+            raise NameError('Unique name errors: \n%s' % '\n'.join(self._unique_name_errors))
 
         self.__connect()
         if self._config is None:
@@ -63,7 +67,9 @@ class IxNetworkApi(Api):
                 continue
             if attr_name == 'name':
                 if attr_value in self._unique_names:
-                    raise NameError('%s.name: %s is not unique' % (config_item.__class__, attr_value))
+                    self._unique_name_errors.append('%s.name: "%s" is not unique' % (config_item.__class__.__name__, attr_value))
+                if attr_value is None:
+                    self._unique_name_errors.append('%s.name: "None" is not allowed' % (config_item.__class__.__name__))
                 else:
                     self._unique_names[attr_value] = config_item
             elif isinstance(attr_value, list):
