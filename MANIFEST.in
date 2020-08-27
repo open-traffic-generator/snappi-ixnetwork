@@ -1,0 +1,11 @@
+global-exclude __pycache__
+global-exclude *.pyc
+
+include LICENSE
+include README.md
+include VERSION
+include setup.py
+include models/openapi.yaml
+
+recursive-include ixnetwork_open_traffic_generator *.py *.yaml
+
