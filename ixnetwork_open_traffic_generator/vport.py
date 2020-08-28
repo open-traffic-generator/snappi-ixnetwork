@@ -11,8 +11,8 @@ class Vport(object):
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         
-    def configure(self):
-        """Configure config.ports
+    def config(self):
+        """Configure config.ports onto Ixnetwork.Vport
         
         CRUD
         ----
@@ -20,11 +20,11 @@ class Vport(object):
         - CREATE vport for any config.ports[*].name that does not exist
         - UPDATE vport for any config.ports[*].name that does exist
         """
-        vport = self._api.assistant.Ixnetwork.Vport
-        for vport in vport.find():
+        vports = self._api.assistant.Ixnetwork.Vport
+        for vport in vports.find():
             if self._api.find_item(self._api.config.ports, 'name', vport.Name) is None:
                 vport.remove()
-        vports = vport.find()
+        vports.find()
 
         for port in self._api.config.ports:
             args = {
@@ -36,7 +36,9 @@ class Vport(object):
             else:
                 vport.update(**args)
 
-    def connect(self):
+    def state(self):
+        """Set state of config.ports onto Ixnetwork.Vport
+        """
         resource_manager = self._api.assistant.Ixnetwork.ResourceManager
         vports = json.loads(resource_manager.ExportConfig(['/vport'], True, 'json'))
         for port in self._api.config.ports:

@@ -3,7 +3,9 @@ from jsonpath_ng.ext import parse
 from ixnetwork_restpy import SessionAssistant
 from abstract_open_traffic_generator.api import Api
 from abstract_open_traffic_generator.config import Config
+from ixnetwork_open_traffic_generator.validation import Validation
 from ixnetwork_open_traffic_generator.vport import Vport
+from ixnetwork_open_traffic_generator.trafficitem import TrafficItem
 
 
 class IxNetworkApi(Api):
@@ -21,7 +23,9 @@ class IxNetworkApi(Api):
         self._running_config = None
         self._config = None
         self._assistant = None
+        self.validation = Validation(self)
         self.vport = Vport(self)
+        self.traffic_item = TrafficItem(self)
 
     @property
     def config(self):
@@ -35,22 +39,15 @@ class IxNetworkApi(Api):
         if isinstance(config, (Config, type(None))) is False:
             raise TypeError('The content must be of type (Config, type(None))' % Config.__class__)
         self._config = config
-        
-        self._unique_names = {}
-        self._unique_name_errors = []
-        self.__check_unique_names(self._config)
-        if len(self._unique_name_errors) > 0:
-            raise NameError(', '.join(self._unique_name_errors))
-
+        self.validation.validate_config()        
         self.__connect()
         if self._config is None:
             self._ixnetwork.NewConfig()
         else:
             self._ixn_ngpf_objects = {}
-            self.vport.configure()
+            self.vport.config()
             self.__configure_topology()
-            self.__configure_flows()
-            # self.__connect_ports()
+            self.traffic_item.config()
         self._running_config = self._config
 
     def get_results(self, content):
@@ -66,29 +63,6 @@ class IxNetworkApi(Api):
             self._topology = self._ixnetwork.Topology
             self._traffic = self._ixnetwork.Traffic
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
-
-    def __check_unique_names(self, config_item):
-        if config_item is None:
-            return
-        for attr_name in dir(config_item):
-            if attr_name.startswith('_'):
-                continue
-            attr_value = getattr(config_item, attr_name, None)
-            if callable(attr_value) is True:
-                continue
-            if attr_name == 'name':
-                if attr_value in self._unique_names:
-                    self._unique_name_errors.append('%s.name: "%s" is not unique' % (config_item.__class__.__name__, attr_value))
-                if attr_value is None:
-                    self._unique_name_errors.append('%s.name: "None" is not allowed' % (config_item.__class__.__name__))
-                else:
-                    self._unique_names[attr_value] = config_item
-            elif isinstance(attr_value, list):
-                for item in attr_value:
-                    self.__check_unique_names(item)
-            elif '__module__' in dir(attr_value):
-                if attr_value.__module__.startswith('abstract_open_traffic_generator'):
-                    self.__check_unique_names(attr_value)
 
     def __configure_topology(self):
         """Resolve abstract device_groups with ixnetwork topologies
@@ -209,30 +183,6 @@ class IxNetworkApi(Api):
             if self.find_item(self._config.devices, 'name', topology.Name) is None:
                 topology.remove()
         topologies = self._topology.find()
-
-    def __configure_flows(self):
-        # DELETE use case 
-        # a src config has items removed from arrays 
-        # the dst config must have those items removed
-        traffic_items = self._traffic_item.find()
-        for traffic_item in traffic_items:
-            if self.find_item(self._config.flows, 'name', traffic_items.Name) is None:
-                traffic_item.remove()
-        traffic_items = self._traffic_item.find()
-
-        # CREATE use case
-        # src config has items that do not exist in the dst config and should be created
-        # UPDATE use case
-        # src config has items that exist in the dst config and should be updated
-        for flow in self._config.flows:
-            args = {
-                'Name': flow.name
-            }
-            traffic_item = self.find_item(traffic_items, 'Name', flow.name)
-            if traffic_item is None:
-                traffic_items.add(**args)
-            else:
-                traffic_item.update(**args)
 
     def find_item(self, items, property_name, value):
         """Find an item in a list
