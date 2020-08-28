@@ -58,7 +58,7 @@ def b2b_ipv4_device_groups(tx_port, rx_port):
         devices_per_port=1,
         parent=None,
         protocols=[
-            Protocol(parent=None, choice=ethernet), 
+            Protocol(parent='Tx Devices', choice=ethernet), 
             Protocol(parent=ethernet.name, choice=vlan), 
             Protocol(parent=vlan.name, choice=ipv4)
         ]
@@ -78,7 +78,7 @@ def b2b_ipv4_device_groups(tx_port, rx_port):
         devices_per_port=1,
         parent=None,
         protocols=[
-            Protocol(parent=None, choice=ethernet), 
+            Protocol(parent='Rx Devices', choice=ethernet), 
             Protocol(parent=ethernet.name, choice=vlan), 
             Protocol(parent=vlan.name, choice=ipv4)
         ]
