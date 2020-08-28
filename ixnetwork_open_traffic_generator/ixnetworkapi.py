@@ -3,6 +3,7 @@ from jsonpath_ng.ext import parse
 from ixnetwork_restpy import SessionAssistant
 from abstract_open_traffic_generator.api import Api
 from abstract_open_traffic_generator.config import Config
+from ixnetwork_open_traffic_generator.vport import Vport
 
 
 class IxNetworkApi(Api):
@@ -14,12 +15,21 @@ class IxNetworkApi(Api):
     - port (str): The rest port of the IxNetwork API Server
     """
     def __init__(self, address='127.0.0.1', port='11009'):
-        super(IxNetworkApi, self)
+        super(IxNetworkApi, self).__init__()
         self._address = address
         self._port = port
         self._running_config = None
         self._config = None
         self._assistant = None
+        self.vport = Vport(self)
+
+    @property
+    def config(self):
+        return self._config
+
+    @property
+    def assistant(self):
+        return self._assistant
 
     def set_config(self, config):
         if isinstance(config, (Config, type(None))) is False:
@@ -37,7 +47,7 @@ class IxNetworkApi(Api):
             self._ixnetwork.NewConfig()
         else:
             self._ixn_ngpf_objects = {}
-            self.__configure_vports()
+            self.vport.configure()
             self.__configure_topology()
             self.__configure_flows()
             # self.__connect_ports()
@@ -80,32 +90,6 @@ class IxNetworkApi(Api):
                 if attr_value.__module__.startswith('abstract_open_traffic_generator'):
                     self.__check_unique_names(attr_value)
 
-    def __configure_vports(self):
-        """Resolve src config with dst config
-        """
-        # DELETE use case 
-        # a src config has items removed from arrays 
-        # the dst config must have those items removed
-        vports = self._vport.find()
-        for vport in vports:
-            if self.__find_item(self._config.ports, 'name', vport.Name) is None:
-                vport.remove()
-        vports = self._vport.find()
-
-        # CREATE use case
-        # src config has items that do not exist in the dst config and should be created
-        # UPDATE use case
-        # src config has items that exist in the dst config and should be updated
-        for port in self._config.ports:
-            args = {
-                'Name': port.name
-            }
-            vport = self.__find_item(vports, 'Name', port.name)
-            if vport is None:
-                vports.add(**args)
-            else:
-                vport.update(**args)
-
     def __configure_topology(self):
         """Resolve abstract device_groups with ixnetwork topologies
         """
@@ -113,7 +97,7 @@ class IxNetworkApi(Api):
         # a src config has items removed from arrays 
         # the dst config must have those items removed
         for topology in self._topology.find():
-            if self.__find_item(self._config.devices, 'name', topology.Name) is None:
+            if self.find_item(self._config.devices, 'name', topology.Name) is None:
                 topology.remove()
         self._topology.find()
 
@@ -126,7 +110,7 @@ class IxNetworkApi(Api):
             args = {
                 'Name': device_group.name
             }
-            topology = self.__find_item(self._topology, 'Name', device_group.name)
+            topology = self.find_item(self._topology, 'Name', device_group.name)
             if topology is None:
                 topology = self._topology.add(**args)[-1]
             else:
@@ -142,7 +126,7 @@ class IxNetworkApi(Api):
         """Resolve abstract devices with ixnetwork device_groups 
         """
         for ixn_device_group in ixn_device_groups.find():
-            if self.__find_item(devices, 'name', ixn_device_group.Name) is None:
+            if self.find_item(devices, 'name', ixn_device_group.Name) is None:
                 ixn_device_group.remove()
         ixn_device_groups.find()
 
@@ -151,7 +135,7 @@ class IxNetworkApi(Api):
             args = {
                 'Name': device.name
             }
-            ixn_device_group = self.__find_item(ixn_device_groups, 'Name', device.name)
+            ixn_device_group = self.find_item(ixn_device_groups, 'Name', device.name)
             if ixn_device_group is None:
                 ixn_device_group = ixn_device_groups.add(**args)[-1]
             else:
@@ -196,7 +180,7 @@ class IxNetworkApi(Api):
         args = {
             'Name': ethernet.name
         }
-        ixn_ethernet = self.__find_item(ixn_ethernets, 'Name', ethernet.name)
+        ixn_ethernet = self.find_item(ixn_ethernets, 'Name', ethernet.name)
         if ixn_ethernet is None:
             ixn_ethernet = ixn_ethernets.add(**args)[-1]
         else:
@@ -209,7 +193,7 @@ class IxNetworkApi(Api):
         # args = {
         #     'Name': vlan.name
         # }
-        # ixn_vlan = self.__find_item(ixn_vlan, 'Name', vlan.name)
+        # ixn_vlan = self.find_item(ixn_vlan, 'Name', vlan.name)
         # if ixn_vlan is None:
         #     ixn_ethernet = ixn_ethernet.add(**args)[-1]
         # else:
@@ -222,7 +206,7 @@ class IxNetworkApi(Api):
     def __resolve_lists(self, dst_obj, src_list):
         dst_list = dst_obj.find()
         for dst_item in dst_list:
-            if self.__find_item(self._config.devices, 'name', topology.Name) is None:
+            if self.find_item(self._config.devices, 'name', topology.Name) is None:
                 topology.remove()
         topologies = self._topology.find()
 
@@ -232,7 +216,7 @@ class IxNetworkApi(Api):
         # the dst config must have those items removed
         traffic_items = self._traffic_item.find()
         for traffic_item in traffic_items:
-            if self.__find_item(self._config.flows, 'name', traffic_items.Name) is None:
+            if self.find_item(self._config.flows, 'name', traffic_items.Name) is None:
                 traffic_item.remove()
         traffic_items = self._traffic_item.find()
 
@@ -244,18 +228,18 @@ class IxNetworkApi(Api):
             args = {
                 'Name': flow.name
             }
-            traffic_item = self.__find_item(traffic_items, 'Name', flow.name)
+            traffic_item = self.find_item(traffic_items, 'Name', flow.name)
             if traffic_item is None:
                 traffic_items.add(**args)
             else:
                 traffic_item.update(**args)
 
-    def __find_item(self, items, property_name, value):
+    def find_item(self, items, property_name, value):
         """Find an item in a list
 
         Args
         ----
-        - items (list): an iterable list of items
+        - items (list): an iterable list of config items
         - property_name (str): the name of a property that exists on each item in the list
         - value (str): the value to be compared against each items property_name
         """
@@ -266,10 +250,5 @@ class IxNetworkApi(Api):
                     return item
         return None
 
-    def __connect_ports(self):
-        vports = json.loads(self._ixnetwork.ResourceManager.ExportConfig(['/vport'], True, 'json'))
-        for port in self._config.ports:
-            vport = parse("$.vport[?(@.name='%s')]" % port.name).find(vports)
-            vport.location = port.location.physical
 
 
