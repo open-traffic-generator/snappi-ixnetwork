@@ -1,7 +1,4 @@
 import json
-from jsonpath_ng.ext import parse
-from ixnetwork_restpy import SessionAssistant
-from abstract_open_traffic_generator.config import Config
 
 
 class Vport(object):
