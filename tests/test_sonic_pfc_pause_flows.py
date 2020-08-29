@@ -52,7 +52,7 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
             tx_port, 
             rx_port
         ], 
-        devices=b2b_ipv4_device_groups,
+        device_groups=b2b_ipv4_device_groups,
         flows = [
             test_flow,
             background_flow,

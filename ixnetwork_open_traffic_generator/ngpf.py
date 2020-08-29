@@ -21,7 +21,7 @@ class Ngpf(object):
         - UPDATE ngpf object for any config...name that exists
         """
         self._ixn_ngpf_objects = {}
-        self._configure_topology(self._api.assistant.Ixnetwork.Topology, self._api.config.devices)
+        self._configure_topology(self._api.assistant.Ixnetwork.Topology, self._api.config.device_groups)
 
     def _remove(self, ixn_obj, items):
         """Remove any items that are not found
@@ -65,10 +65,23 @@ class Ngpf(object):
             self._configure_ethernet(ixn_device_group.Ethernet, device.ethernets)
             self._configure_device_group(ixn_device_group.DeviceGroup, device.devices)
 
+    def _configure_pattern(self, ixn_obj, pattern):
+        if pattern is None:
+            return
+        if pattern.choice == 'fixed':
+            ixn_obj.Single(pattern.fixed)
+        elif pattern.choice == 'list':
+            ixn_obj.ValueList(pattern.list)
+        elif pattern.choice == 'counter':
+            pass
+        elif pattern.choice == 'random':
+            pass
+
     def _configure_ethernet(self, ixn_ethernet, ethernets):
+        """Convert Device.Ethernet to /topology/.../ethernet
+        """
         self._remove(ixn_ethernet, ethernets)
         for ethernet in ethernets:
-            # TBD: translate the remaining abstract args to ixnetwork args
             args = {
                 'Name': ethernet.name,
             }
@@ -77,9 +90,8 @@ class Ngpf(object):
                 ixn_ethernet.add(**args)
             else:
                 ixn_ethernet.update(**args)
-            # if ethernet.mac is not None:
-            #     ixn_ethernet.Mac.Single()
-            # configure vlans
+            self._configure_pattern(ixn_ethernet.Mac, ethernet.mac)
+            self._configure_pattern(ixn_ethernet.Mtu, ethernet.mtu)
             ixn_ethernet.VlanCount = len(ethernet.vlans)
             ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
             self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)

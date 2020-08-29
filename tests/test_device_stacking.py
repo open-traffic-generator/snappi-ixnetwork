@@ -33,7 +33,7 @@ def test_device_stacking(serializer, tx_port):
         devices=[device])
     config = Config(
         ports=[tx_port],
-        devices=[device_group]
+        device_groups=[device_group]
     )
     print(serializer.json(config))
 
