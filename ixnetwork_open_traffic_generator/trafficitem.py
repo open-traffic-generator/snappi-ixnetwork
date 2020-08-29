@@ -35,6 +35,7 @@ class TrafficItem(object):
                 traffic_items.add(**args)
             else:
                 traffic_item.update(**args)
+            self._api.ixn_objects[flow.name] = traffic_item
 
     def state(self):
         """Set state of config.flows onto Ixnetwork.Traffic.TrafficItem

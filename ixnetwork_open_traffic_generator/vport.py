@@ -35,6 +35,7 @@ class Vport(object):
                 vports.add(**args)
             else:
                 vport.update(**args)
+            self._api.ixn_objects[port.name] = vport
 
     def state(self):
         """Set state of config.ports onto Ixnetwork.Vport

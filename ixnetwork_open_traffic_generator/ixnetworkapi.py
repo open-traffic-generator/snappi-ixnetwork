@@ -34,6 +34,18 @@ class IxNetworkApi(Api):
         return self._config
 
     @property
+    def config_objects(self):
+        """A dict of all unique names to abstract config objects
+        """
+        return self._config_objects
+
+    @property
+    def ixn_objects(self):
+        """A dict of all unique names to concrete ixn restpy objects
+        """
+        return self._ixn_objects 
+        
+    @property
     def assistant(self):
         return self._assistant
 
@@ -41,12 +53,13 @@ class IxNetworkApi(Api):
         if isinstance(config, (Config, type(None))) is False:
             raise TypeError('The content must be of type (Config, type(None))' % Config.__class__)
         self._config = config
+        self._config_objects = {}
+        self._ixn_objects = {}
         self.validation.validate_config()        
         self.__connect()
         if self._config is None:
             self._ixnetwork.NewConfig()
         else:
-            self._ixn_ngpf_objects = {}
             self.vport.config()
             self.ngpf.config()
             self.traffic_item.config()

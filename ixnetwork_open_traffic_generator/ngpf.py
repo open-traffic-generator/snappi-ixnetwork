@@ -20,112 +20,115 @@ class Ngpf(object):
         - CREATE ngpf object for any config.devices...name that does not exist
         - UPDATE ngpf object for any config...name that exists
         """
-        self._configure_topology()
+        self._ixn_ngpf_objects = {}
+        self._configure_topology(self._api.assistant.Ixnetwork.Topology, self._api.config.devices)
 
-    def _configure_topology(self):
+    def _remove(self, ixn_obj, items):
+        """Remove any items that are not found
+        """
+        item_names = [item.name for item in items]
+        for obj in ixn_obj.find():
+            if obj.Name not in item_names:
+                obj.remove()
+
+    def _configure_topology(self, ixn_topology, device_groups):
         """Resolve abstract device_groups with ixnetwork topologies
         """
-        self._topology = self._api.assistant.Ixnetwork.Topology
-        for topology in self._topology.find():
-            if self._api.find_item(self._api.config.devices, 'name', topology.Name) is None:
-                topology.remove()
-        self._topology.find()
-
-        for device_group in self._api.config.devices:
-            # TBD: translate the remaining abstract args to ixnetwork args
+        self._remove(ixn_topology, device_groups)
+        for device_group in device_groups:
+            port_regex = '^(%s)$' % '|'.join(device_group.ports)
             args = {
-                'Name': device_group.name
+                'Name': device_group.name,
+                'Ports': self._api.assistant.Ixnetwork.Vport.find(Name=port_regex)
             }
-            topology = self._api.find_item(self._topology, 'Name', device_group.name)
-            if topology is None:
-                topology = self._topology.add(**args)[-1]
+            ixn_topology.find(Name=device_group.name)
+            if len(ixn_topology) == 0:
+                ixn_topology.add(**args)[-1]
             else:
-                topology.update(**args)
-            self._configure_device_group(topology.DeviceGroup, device_group.devices)
+                ixn_topology.update(**args)
+            self._configure_device_group(ixn_topology.DeviceGroup, device_group.devices)
 
-    def _find(self, name):
-        """ use select to find a specific object
-        """
-        pass
-
-    def _configure_device_group(self, ixn_device_groups, devices):
+    def _configure_device_group(self, ixn_device_group, devices):
         """Resolve abstract devices with ixnetwork device_groups 
         """
-        for ixn_device_group in ixn_device_groups.find():
-            if self.find_item(devices, 'name', ixn_device_group.Name) is None:
-                ixn_device_group.remove()
-        ixn_device_groups.find()
-
+        self._remove(ixn_device_group, devices)
         for device in devices:
-            # TBD: translate the remaining abstract args to ixnetwork args
             args = {
-                'Name': device.name
+                'Name': device.name,
+                'Multiplier': device.devices_per_port
             }
-            ixn_device_group = self._api.find_item(ixn_device_groups, 'Name', device.name)
-            if ixn_device_group is None:
-                ixn_device_group = ixn_device_groups.add(**args)[-1]
+            ixn_device_group.find(Name=device.name)
+            if len(ixn_device_group) == 0:
+                ixn_device_group.add(**args)[-1]
             else:
                 ixn_device_group.update(**args)
-           
-            self._api._ixn_ngpf_objects[ixn_device_group.Name] = ixn_device_group
-            self._stack_protocols(ixn_device_group.Name, device.protocols)
+            self._configure_ethernet(ixn_device_group.Ethernet, device.ethernets)
 
-    def _stack_protocols(self, parent, items):
-        for protocol in self._get_child_protocols(parent, items):
-            if protocol.choice == 'ethernet':
-                protocol_name = protocol.ethernet.name
-                self._configure_ethernet(protocol)
-            elif protocol.choice == 'vlan':
-                protocol_name = protocol.vlan.name
-                self._configure_vlan(protocol, items)
-            elif protocol.choice == 'ipv4':
-                protocol_name = protocol.ipv4.name
-                self._configure_ipv4(protocol)
-            self._stack_protocols(protocol_name, items)
+    def _configure_ethernet(self, ixn_ethernet, ethernets):
+        self._remove(ixn_ethernet, ethernets)
+        for ethernet in ethernets:
+            # TBD: translate the remaining abstract args to ixnetwork args
+            args = {
+                'Name': ethernet.name,
+            }
+            ixn_ethernet.find(Name=ethernet.name)
+            if len(ixn_ethernet) == 0:
+                ixn_ethernet.add(**args)
+            else:
+                ixn_ethernet.update(**args)
+            # configure vlans
+            ixn_ethernet.VlanCount = len(ethernet.vlans)
+            ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
+            self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
+            self._configure_ipv4(ixn_ethernet.Ipv4, ethernet.ipv4)
+            self._configure_ipv6(ixn_ethernet.Ipv6, ethernet.ipv6)
 
-    def _get_child_protocols(self, parent, items):
-        """Find all the chidren of the current_items and return them
-        An item.parent is the top of hierarchy
-        current_item is the position in the hierarchy
-        find all items whose parent is current_item
-        Return an empty list if there are no other child items
+    def _configure_vlan(self, ixn_vlans, vlans):
         """
-        children = []
-        for item in items:
-            if item.parent == parent:
-                children.append(item)
-        return children
+        """
+        for i in range(0, len(ixn_vlans.find())):
+            args = {
+                'Name': vlans[i].name
+            }
+            ixn_vlan = ixn_vlans[i]
+            ixn_vlan.update(**args)
 
-    def _configure_ethernet(self, protocol):
-        ethernet = protocol.ethernet
-        ixn_ethernets = self._api._ixn_ngpf_objects[protocol.parent].Ethernet.find(Name=ethernet.name)
-        if len(ixn_ethernets) == 1 and ixn_ethernets.Name != ethernet.name:
-            ixn_ethernets.remove()
-
-        # TBD: translate the remaining abstract args to ixnetwork args
+    def _configure_ipv4(self, ixn_ipv4, ipv4):
+        if ipv4 is None:
+            return
+        ixn_ipv4.find('^((?!%s).)*$' % ipv4.name).remove()
         args = {
-            'Name': ethernet.name
+            'Name': ipv4.name,
         }
-        ixn_ethernet = self._api.find_item(ixn_ethernets, 'Name', ethernet.name)
-        if ixn_ethernet is None:
-            ixn_ethernet = ixn_ethernets.add(**args)[-1]
+        ixn_ipv4.find(Name=ipv4.name)
+        if len(ixn_ipv4) == 0:
+            ixn_ipv4.add(**args)[-1]
         else:
-            ixn_ethernet.update(**args)
-        self._api._ixn_ngpf_objects[ixn_ethernet.Name] = ixn_ethernet
+            ixn_ipv4.update(**args)
+        self._configure_bgpv4(ixn_ipv4.BgpIpv4Peer, ipv4.bgpv4)
 
-    def _configure_vlan(self, protocol, protocol_stack):
-        # vlan = protocol.vlan
-        # ixn_ethernet = self._ixn_ngpf_objects[protocol.parent].parent
-        # args = {
-        #     'Name': vlan.name
-        # }
-        # ixn_vlan = self.find_item(ixn_vlan, 'Name', vlan.name)
-        # if ixn_vlan is None:
-        #     ixn_ethernet = ixn_ethernet.add(**args)[-1]
-        # else:
-        #     ixn_ethernet.update(**args)
-        pass
+    def _configure_ipv6(self, ixn_ipv6, ipv6):
+        if ipv6 is None:
+            return
+        ixn_ipv6.find('^((?!%s).)*$' % ipv6.name).remove()
+        args = {
+            'Name': ipv6.name,
+        }
+        ixn_ipv6.find(Name=ipv6.name)
+        if len(ixn_ipv6) == 0:
+            ixn_ipv6.add(**args)[-1]
+        else:
+            ixn_ipv6.update(**args)
 
-    def _configure_ipv4(self, protocol):
-        ipv4 = protocol.ipv4
-
+    def _configure_bgpv4(self, ixn_bgpv4, bgpv4):
+        if bgpv4 is None:
+            return
+        ixn_bgpv4.find('^((?!%s).)*$' % bgpv4.name).remove()
+        args = {
+            'Name': bgpv4.name,
+        }
+        ixn_bgpv4.find(Name=bgpv4.name)
+        if len(ixn_bgpv4) == 0:
+            ixn_bgpv4.add(**args)[-1]
+        else:
+            ixn_bgpv4.update(**args)

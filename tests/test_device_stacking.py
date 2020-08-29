@@ -1,36 +1,33 @@
 import pytest
+from abstract_open_traffic_generator.config import Config
+from abstract_open_traffic_generator.device import *
 
 
 def test_device_stacking(serializer, tx_port):
     """Test the stacking of ngpf devices
     """
-    from abstract_open_traffic_generator.config import Config
-    from abstract_open_traffic_generator.device import Ethernet, Vlan, Ipv4, Device, DeviceGroup
-    from abstract_open_traffic_generator.device import Pattern, Protocol
-
-    eth1 = Ethernet(name='Eth1')
-    vlan1 = Vlan(name='Vlan1')
-    vlan2 = Vlan(name='Vlan2')
-    vlan3 = Vlan(name='Vlan3')
-    ipv41 = Ipv4(name='Ipv41')
-    ipv42 = Ipv4(name='Ipv42')
-    device = Device(name='Devices1',
-        parent='DeviceGroup1',
-        protocols=[
-            Protocol(parent='Devices1', choice=eth1), 
-            Protocol(parent=eth1.name, choice=vlan1), 
-            Protocol(parent=vlan1.name, choice=vlan2), 
-            Protocol(parent=vlan2.name, choice=vlan3), 
-            Protocol(parent=vlan3.name, choice=ipv41),
-            Protocol(parent=eth1.name, choice=ipv42)
-        ]
-    )
-    device_group = DeviceGroup(name='DeviceGroup1', 
+    bgpv4 = Bgpv4(name='bgpv4')
+    ipv4 = Ipv4(name='ipv4', 
+        bgpv4=bgpv4)
+    ipv61 = Ipv6(name='ipv6')
+    vlan1 = Vlan(name='vlan1')
+    vlan2 = Vlan(name='vlan2')
+    vlan3 = Vlan(name='vlan3')
+    eth1 = Ethernet(name='eth1', 
+        vlans=[vlan1, vlan2, vlan3], 
+        ipv4=ipv4, 
+        ipv6=ipv61)
+    ipv62 = Ipv6(name='ipv62')
+    eth2 = Ethernet(name='eth2', ipv6=ipv62)
+    device = Device(name='devices', 
+        devices_per_port=1, 
+        ethernets=[eth1, eth2])
+    device_group = DeviceGroup(name='devicegroup', 
         ports=[tx_port.name],
         devices=[device])
-
     config = Config(
-        devices=[device_group],
+        ports=[tx_port],
+        devices=[device_group]
     )
     print(serializer.json(config))
 

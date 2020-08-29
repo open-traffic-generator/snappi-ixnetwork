@@ -45,44 +45,40 @@ def b2b_ipv4_device_groups(tx_port, rx_port):
     Protocol stack is eth + vlan + ipv4
     Number of devices is 1
     """
-    from abstract_open_traffic_generator.device import Ethernet, Vlan, Ipv4, Device, DeviceGroup
-    from abstract_open_traffic_generator.device import Pattern, Protocol
-    ethernet = Ethernet(name='Tx Ethernet')
-    vlan = Vlan(name='Tx Vlan', 
-        id=Pattern('1'))
+    from abstract_open_traffic_generator.device import DeviceGroup, Device
+    from abstract_open_traffic_generator.device import Ethernet, Vlan, Ipv4
+    from abstract_open_traffic_generator.device import Pattern
+
+
     ipv4 = Ipv4(name='Tx Ipv4',
         address=Pattern('1.1.1.1'),
         prefix=Pattern('24'),
         gateway=Pattern('1.1.2.1'))
+    vlan = Vlan(name='Tx Vlan', 
+        id=Pattern('1'))
+    ethernet = Ethernet(name='Tx Ethernet',
+        vlans=[vlan],
+        ipv4=ipv4)
     device = Device(name='Tx Devices',
         devices_per_port=1,
-        parent=None,
-        protocols=[
-            Protocol(parent='Tx Devices', choice=ethernet), 
-            Protocol(parent=ethernet.name, choice=vlan), 
-            Protocol(parent=vlan.name, choice=ipv4)
-        ]
-    )
+        ethernets=[ethernet])
     tx_device_group = DeviceGroup(name='Tx Device Group', 
         ports=[tx_port.name],
         devices=[device])
     
-    ethernet = Ethernet(name='Rx Ethernet')
-    vlan = Vlan(name='Rx Vlan', 
-        id=Pattern('1'))
     ipv4 = Ipv4(name='Rx Ipv4',
         address=Pattern('1.1.2.1'),
         prefix=Pattern('24'),
         gateway=Pattern('1.1.1.1'))
+    vlan = Vlan(name='Rx Vlan', 
+        id=Pattern('1'))
+    ethernet = Ethernet(name='Rx Ethernet',
+        vlans=[vlan],
+        ipv4=ipv4)
     device = Device(name='Rx Devices',
         devices_per_port=1,
         parent=None,
-        protocols=[
-            Protocol(parent='Rx Devices', choice=ethernet), 
-            Protocol(parent=ethernet.name, choice=vlan), 
-            Protocol(parent=vlan.name, choice=ipv4)
-        ]
-    )
+        ethernets=[ethernet])
     rx_device_group = DeviceGroup(name='Rx Device Group', 
         ports=[rx_port.name],
         devices=[device])
