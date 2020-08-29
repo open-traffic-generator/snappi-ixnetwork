@@ -19,8 +19,14 @@ def test_device_stacking(serializer, tx_port):
         ipv6=ipv61)
     ipv62 = Ipv6(name='ipv62')
     eth2 = Ethernet(name='eth2', ipv6=ipv62)
+    eth3 = Ethernet(name='eth3')
+    eth4 = Ethernet(name='eth4')
     device = Device(name='devices', 
         devices_per_port=1, 
+        devices=[
+            Device(name='childdevice1', devices_per_port=1, ethernets=[eth3]),
+            Device(name='childdevice2', devices_per_port=1, ethernets=[eth4])
+        ],
         ethernets=[eth1, eth2])
     device_group = DeviceGroup(name='devicegroup', 
         ports=[tx_port.name],

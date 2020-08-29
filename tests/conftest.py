@@ -77,7 +77,6 @@ def b2b_ipv4_device_groups(tx_port, rx_port):
         ipv4=ipv4)
     device = Device(name='Rx Devices',
         devices_per_port=1,
-        parent=None,
         ethernets=[ethernet])
     rx_device_group = DeviceGroup(name='Rx Device Group', 
         ports=[rx_port.name],

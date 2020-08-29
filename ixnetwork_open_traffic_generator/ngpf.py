@@ -63,6 +63,7 @@ class Ngpf(object):
             else:
                 ixn_device_group.update(**args)
             self._configure_ethernet(ixn_device_group.Ethernet, device.ethernets)
+            self._configure_device_group(ixn_device_group.DeviceGroup, device.devices)
 
     def _configure_ethernet(self, ixn_ethernet, ethernets):
         self._remove(ixn_ethernet, ethernets)
@@ -76,6 +77,8 @@ class Ngpf(object):
                 ixn_ethernet.add(**args)
             else:
                 ixn_ethernet.update(**args)
+            # if ethernet.mac is not None:
+            #     ixn_ethernet.Mac.Single()
             # configure vlans
             ixn_ethernet.VlanCount = len(ethernet.vlans)
             ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
