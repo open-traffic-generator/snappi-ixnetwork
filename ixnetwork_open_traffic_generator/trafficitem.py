@@ -26,16 +26,17 @@ class TrafficItem(object):
                 traffic_item.remove()
         traffic_items.find()
 
-        for flow in self._api.config.flows:
-            args = {
-                'Name': flow.name
-            }
-            traffic_item = self._api.find_item(traffic_items, 'Name', flow.name)
-            if traffic_item is None:
-                traffic_items.add(**args)
-            else:
-                traffic_item.update(**args)
-            self._api.ixn_objects[flow.name] = traffic_item
+        if (self._api.config.flows) :
+            for flow in self._api.config.flows:
+                args = {
+                    'Name': flow.name
+                }
+                traffic_item = self._api.find_item(traffic_items, 'Name', flow.name)
+                if traffic_item is None:
+                    traffic_items.add(**args)
+                else:
+                    traffic_item.update(**args)
+                self._api.ixn_objects[flow.name] = traffic_item
 
     def state(self):
         """Set state of config.flows onto Ixnetwork.Traffic.TrafficItem

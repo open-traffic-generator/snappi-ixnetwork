@@ -26,10 +26,11 @@ class Ngpf(object):
     def _remove(self, ixn_obj, items):
         """Remove any items that are not found
         """
-        item_names = [item.name for item in items]
-        for obj in ixn_obj.find():
-            if obj.Name not in item_names:
-                obj.remove()
+        if (items) :  
+            item_names = [item.name for item in items]
+            for obj in ixn_obj.find():
+                if obj.Name not in item_names:
+                    obj.remove()
 
     def _configure_topology(self, ixn_topology, device_groups):
         """Resolve abstract device_groups with ixnetwork topologies
@@ -52,18 +53,19 @@ class Ngpf(object):
         """Resolve abstract devices with ixnetwork device_groups 
         """
         self._remove(ixn_device_group, devices)
-        for device in devices:
-            args = {
-                'Name': device.name,
-                'Multiplier': device.devices_per_port
-            }
-            ixn_device_group.find(Name=device.name)
-            if len(ixn_device_group) == 0:
-                ixn_device_group.add(**args)[-1]
-            else:
-                ixn_device_group.update(**args)
-            self._configure_ethernet(ixn_device_group.Ethernet, device.ethernets)
-            self._configure_device_group(ixn_device_group.DeviceGroup, device.devices)
+        if (devices) :
+            for device in devices:
+                args = {
+                    'Name': device.name,
+                    'Multiplier': device.devices_per_port
+                }
+                ixn_device_group.find(Name=device.name)
+                if len(ixn_device_group) == 0:
+                    ixn_device_group.add(**args)[-1]
+                else:
+                    ixn_device_group.update(**args)
+                self._configure_ethernet(ixn_device_group.Ethernet, device.ethernets)
+                self._configure_device_group(ixn_device_group.DeviceGroup, device.devices)
 
     def _configure_pattern(self, ixn_obj, pattern):
         if pattern is None:
@@ -92,9 +94,11 @@ class Ngpf(object):
                 ixn_ethernet.update(**args)
             self._configure_pattern(ixn_ethernet.Mac, ethernet.mac)
             self._configure_pattern(ixn_ethernet.Mtu, ethernet.mtu)
-            ixn_ethernet.VlanCount = len(ethernet.vlans)
-            ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
-            self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
+            if (ethernet.vlans) :
+                ixn_ethernet.VlanCount = len(ethernet.vlans)
+                ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
+                self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
+
             self._configure_ipv4(ixn_ethernet.Ipv4, ethernet.ipv4)
             self._configure_ipv6(ixn_ethernet.Ipv6, ethernet.ipv6)
 
