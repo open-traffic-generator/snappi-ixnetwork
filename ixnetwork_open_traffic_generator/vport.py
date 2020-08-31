@@ -26,6 +26,7 @@ class Vport(object):
                 vport.remove()
         vports.find()
 
+        test_ports = list()
         for port in self._api.config.ports:
             args = {
                 'Name': port.name
@@ -36,6 +37,12 @@ class Vport(object):
             else:
                 vport.update(**args)
             self._api.ixn_objects[port.name] = vport
+            
+            # TBD - We need to rework if that is not <chassis>;<cardId>;<portId> format
+            location = port.location.split(';')
+            test_ports.append(dict(Arg1 = location[0], Arg2 = location[1], Arg3 = location[2]))
+        
+        self._api.assistant.Ixnetwork.AssignPorts(test_ports, [], vports.find(), True)
 
     def state(self):
         """Set state of config.ports onto Ixnetwork.Vport
