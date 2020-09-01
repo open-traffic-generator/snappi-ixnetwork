@@ -16,6 +16,22 @@ class TrafficItem(object):
         'gbps' : 'mbytesPerSec'
     }
     
+    _PFC_PAUSE = {
+        'dst': 'pfcPause.header.header.dstAddress',
+        'src': 'pfcPause.header.header.srcAddress',
+        'ether_type': 'pfcPause.header.header.ethertype',
+        'control_op_code': 'pfcPause.header.macControl.controlOpcode',
+        'class_enable_vector': 'pfcPause.header.macControl.priorityEnableVector',
+        'pause_class_0': 'pfcPause.header.macControl.pauseQuanta.pfcQueue0',
+        'pause_class_1': 'pfcPause.header.macControl.pauseQuanta.pfcQueue1',
+        'pause_class_2': 'pfcPause.header.macControl.pauseQuanta.pfcQueue2',
+        'pause_class_3': 'pfcPause.header.macControl.pauseQuanta.pfcQueue3',
+        'pause_class_4': 'pfcPause.header.macControl.pauseQuanta.pfcQueue4',
+        'pause_class_5': 'pfcPause.header.macControl.pauseQuanta.pfcQueue5',
+        'pause_class_6': 'pfcPause.header.macControl.pauseQuanta.pfcQueue6',
+        'pause_class_7': 'pfcPause.header.macControl.pauseQuanta.pfcQueue7',
+    }
+    
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         
@@ -49,9 +65,9 @@ class TrafficItem(object):
                 
                 # TBD - Need to rework if EndpointSetId=1 will not true for all case
                 ixn_config_element = traffic_item.ConfigElement.find(EndpointSetId = 1)
+                self._configure_flow(ixn_config_element, flow.packet)
                 self._configure_size(ixn_config_element, flow.size)
                 self._configure_rate(ixn_config_element, flow.rate)
-                self._configure_flow(traffic_item, flow.packet)
 
     def _configure_endpoints(self, traffic_item, endpoints):
         """
@@ -102,7 +118,22 @@ class TrafficItem(object):
         ixn_endpoint = ixn_traffic.EndpointSet.add(**args)
 
 
-    def _configure_flow(self, ixn_traffic, packets):
+    def _configure_pattern(self, ixn_stack, field_name, pattern):
+        if pattern == None:
+            return
+    
+        ixn_field = ixn_stack.Field.find(FieldTypeId=field_name)
+        if pattern.choice == 'fixed':
+            ixn_field.update(ValueType='singleValue', SingleValue=pattern.fixed)
+        if pattern.choice == 'list':
+            pass
+        if pattern.choice == 'counter':
+            pass
+        if pattern.choice == 'random':
+            pass
+        
+
+    def _configure_flow(self, ixn_config_element, packets):
         """ Create Traffic Packet
         """
         for packet in packets:
@@ -112,13 +143,24 @@ class TrafficItem(object):
                 print("Error - Method %s not implimented" %packet.choice)
                 return
 
-            method(ixn_traffic, packet)
+            method(ixn_config_element, packet)
 
 
-    def _configure_pfcpause(self, ixn_traffic, packet):
+    def _configure_pfcpause(self, ixn_config_element, packet):
+        """ Create / Update pfcPause.
+        Then configure all attributes
+        """
         pfcpause = packet.pfcpause
-        pfcPause_template = self._api.assistant.Ixnetwork.Traffic.ProtocolTemplate.find(StackTypeId='^pfcPause')
-
+        ixn_pfcPause = ixn_config_element.Stack.find(StackTypeId='^pfcPause')
+        if not len(ixn_pfcPause):
+            stacks = ixn_config_element.Stack.find()
+            stack = stacks[len(stacks) - 2]
+            pfcPause_template = self._api.assistant.Ixnetwork.Traffic.ProtocolTemplate.find(StackTypeId='^pfcPause')
+            ixn_pfcPause = ixn_config_element.Stack.read(stack.AppendProtocol(pfcPause_template))
+        
+        for model_name, ixn_name in TrafficItem._PFC_PAUSE.items():
+            pattern = getattr(pfcpause, model_name)
+            self._configure_pattern(ixn_pfcPause, ixn_name, pattern)
 
     def _configure_size(self, ixn_config_element, size):
         """ Configure frameSize within /traffic/trafficItem[*]/configElement[*]/frameSize
