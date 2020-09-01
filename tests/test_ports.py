@@ -10,7 +10,10 @@ def test_ports(serializer, api):
     port2 = Port(name='ethernet port 2',
         location='10.36.74.26;02;14',
         link_state='up')
-    config = Config(ports=[port1, port2])
+    layer1 = Layer1(name='layer1', 
+        ports=[port1.name, port2.name],
+        choice=Ethernet(media='copper', auto_negotiate=True))
+    config = Config(ports=[port1, port2], layer1=[layer1])
     api.set_config(config)
 
 

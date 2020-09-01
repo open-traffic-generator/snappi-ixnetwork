@@ -79,15 +79,15 @@ class Vport(object):
     def _configure_ethernet(self, vport, ethernet):
         advertise = []
         if ethernet.advertise_one_thousand_mbps is True:
-            advertise.append(Vport._ADVERTISE_MAP[ethernet.advertise_one_thousand_mbps])
+            advertise.append(Vport._ADVERTISE_MAP['advertise_one_thousand_mbps'])
         if ethernet.advertise_one_hundred_fd_mbps is True:
-            advertise.append(Vport._ADVERTISE_MAP[ethernet.advertise_one_hundred_fd_mbps])
+            advertise.append(Vport._ADVERTISE_MAP['advertise_one_hundred_fd_mbps'])
         if ethernet.advertise_one_hundred_hd_mbps is True:
-            advertise.append(Vport._ADVERTISE_MAP[ethernet.advertise_one_hundred_hd_mbps])
+            advertise.append(Vport._ADVERTISE_MAP['advertise_one_hundred_hd_mbps'])
         if ethernet.advertise_ten_fd_mbps is True:
-            advertise.append(Vport._ADVERTISE_MAP[ethernet.advertise_ten_fd_mbps])
+            advertise.append(Vport._ADVERTISE_MAP['advertise_ten_fd_mbps'])
         if ethernet.advertise_ten_hd_mbps is True:
-            advertise.append(Vport._ADVERTISE_MAP[ethernet.advertise_ten_hd_mbps])
+            advertise.append(Vport._ADVERTISE_MAP['advertise_ten_hd_mbps'])
         return {
             'xpath': vport['xpath'] + '/l1Config/ethernet',
             'speed': Vport._SPEED_MAP[ethernet.speed],
