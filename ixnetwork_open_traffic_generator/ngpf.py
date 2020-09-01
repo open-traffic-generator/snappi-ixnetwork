@@ -15,6 +15,7 @@ class Ngpf(object):
         '9200': 'ethertype9200',
         '9300': 'ethertype9300',
     }
+    
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         
@@ -74,10 +75,12 @@ class Ngpf(object):
                 self._configure_ethernet(ixn_device_group.Ethernet, device.ethernets)
                 self._configure_device_group(ixn_device_group.DeviceGroup, device.devices)
 
-    def _configure_pattern(self, ixn_obj, pattern):
+    def _configure_pattern(self, ixn_obj, pattern, enum_map=None):
         if pattern is None:
             return
-        if pattern.choice == 'fixed':
+        elif enum_map is not None and pattern.fixed is not None:
+            ixn_obj.Single(enum_map[pattern.fixed])
+        elif pattern.choice == 'fixed':
             ixn_obj.Single(pattern.fixed)
         elif pattern.choice == 'list':
             ixn_obj.ValueList(pattern.list)
@@ -119,7 +122,7 @@ class Ngpf(object):
             ixn_vlan.update(**args)
             self._configure_pattern(ixn_vlan.VlanId, vlans[i].id)
             self._configure_pattern(ixn_vlan.Priority, vlans[i].priority)
-            ixn_vlan.Tpid.Single(Ngpf._TPID_MAP[vlans[i].tpid.fixed])
+            self._configure_pattern(ixn_vlan.Tpid, vlans[i].tpid, enum_map=Ngpf._TPID_MAP)
 
     def _configure_ipv4(self, ixn_ipv4, ipv4):
         """Transform Device.Ipv4 to /topology/.../ipv4
