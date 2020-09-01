@@ -9,6 +9,22 @@ class TrafficItem(object):
     - ixnetworkapi (IxNetworkApi): instance of the ixnetworkapi class
     
     """
+    _TYPE_TO_HEADER = {
+        'ethernet': 'ethernet',
+        'pfcPause': 'pfc_pause',
+        'vlan': 'vlan',
+        'ipv4': 'ipv4',
+        'custom': 'custom'
+    }
+
+    _HEADER_TO_TYPE = {
+        'ethernet': 'ethernet',
+        'pfcpause': 'pfcPause',
+        'vlan': 'vlan',
+        'ipv4': 'ipv4',
+        'custom': 'custom'
+    }
+
     _BIT_RATE_UNITS_TYPE = {
         'bps' : 'bitsPerSec',
         'kbps' : 'kbitsPerSec',
@@ -16,7 +32,7 @@ class TrafficItem(object):
         'gbps' : 'mbytesPerSec'
     }
     
-    _PFC_PAUSE = {
+    _PFCPAUSE = {
         'dst': 'pfcPause.header.header.dstAddress',
         'src': 'pfcPause.header.header.srcAddress',
         'ether_type': 'pfcPause.header.header.ethertype',
@@ -31,7 +47,19 @@ class TrafficItem(object):
         'pause_class_6': 'pfcPause.header.macControl.pauseQuanta.pfcQueue6',
         'pause_class_7': 'pfcPause.header.macControl.pauseQuanta.pfcQueue7',
     }
-    
+
+    _ETHERNET = {
+        'dst': 'ethernet.header.header.dstAddress',
+        'src': 'ethernet.header.header.srcAddress',
+        'ether_type': 'ethernet.header.header.ethertype',
+    }
+
+    _VLAN = {
+    }
+
+    _IPV4 = {
+    }   
+
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         
@@ -70,9 +98,10 @@ class TrafficItem(object):
                     ixn_traffic_item.update(**args)
                 self._configure_endpoint(ixn_traffic_item.EndpointSet, flow.endpoint)
                 ixn_stream = ixn_traffic_item.ConfigElement.find()
+                self._configure_stack(ixn_stream, flow.packet)
                 self._configure_size(ixn_stream, flow.size)
                 self._configure_rate(ixn_stream, flow.rate)
-                # self._configure_flow(ixn_stream, flow.packet)
+                self._configure_tx_control(ixn_stream, flow.duration)
 
     def _configure_endpoint(self, ixn_endpoint_set, endpoint):
         """Transform flow.endpoint to /trafficItem/endpointSet
@@ -94,44 +123,60 @@ class TrafficItem(object):
                 args['Destinations'].append(self._api.get_ixn_object(port_name))
             ixn_endpoint_set.add(**args)
 
-    def _configure_pattern(self, ixn_stack, field_name, pattern):
+    def _configure_stack(self, ixn_stream, packets):
+        """Transform flow.packets[0..n] to /traffic/trafficItem/configElement/stack 
+        """
+        stacks_to_remove = []
+        ixn_stack = ixn_stream.Stack.find()
+        for i in range(0, len(packets)):
+            stack = ixn_stack[i]
+            header = packets[i]
+            if TrafficItem._TYPE_TO_HEADER[stack.StackTypeId.lower()] != header.choice:
+                stacks_to_remove.append(stack)
+                type_id = TrafficItem._HEADER_TO_TYPE[header.choice]
+                template = self._api._traffic.ProtocolTemplate.find(StackTypeId=type_id)
+                new_header = stack.AppendProtocol(template)
+                stack = ixn_stream.Stack.read(new_header)
+            self._configure_field(stack.Field, header)
+        for stack in stacks_to_remove:
+            stack.Remove()
+
+    def _configure_field(self, ixn_field, header):
+        """Transform flow.packets[0..n].header.choice to /traffic/trafficItem/configElement/stack/field
+        """
+        field_map = getattr(self, '_%s' % header.choice.upper())
+        packet = getattr(header, header.choice)
+        for packet_field_name in dir(packet):
+            if packet_field_name in field_map:
+                pattern = getattr(packet, packet_field_name)
+                field_type_id = field_map[packet_field_name]
+                self._configure_pattern(ixn_field, field_type_id, pattern)
+
+    def _configure_pattern(self, ixn_field, field_type_id, pattern):
         if pattern == None:
             return
-        ixn_field = ixn_stack.Field.find(FieldTypeId=field_name)
+        ixn_field = ixn_field.find(FieldTypeId=field_type_id)
         if pattern.choice == 'fixed':
-            ixn_field.update(ValueType='singleValue', SingleValue=pattern.fixed)
-        if pattern.choice == 'list':
-            pass
-        if pattern.choice == 'counter':
-            pass
-        if pattern.choice == 'random':
-            pass        
-
-    def _configure_flow(self, ixn_stream, packets):
-        """ Create Traffic Packet
-        """
-        for header in packets:
-            try:
-                method = getattr(self, "_configure_%s" % header.choice)
-                method(ixn_stream, header)
-            except Exception as e:
-                print("Error - Method %s not implemented" % header.choice)
-
-    def _configure_pfcpause(self, ixn_config_element, packet):
-        """ Create / Update pfcPause.
-        Then configure all attributes
-        """
-        pfcpause = packet.pfcpause
-        ixn_pfcPause = ixn_config_element.Stack.find(StackTypeId='^pfcPause')
-        if not len(ixn_pfcPause):
-            stacks = ixn_config_element.Stack.find()
-            stack = stacks[len(stacks) - 2]
-            pfcPause_template = self._api.assistant.Ixnetwork.Traffic.ProtocolTemplate.find(StackTypeId='^pfcPause')
-            ixn_pfcPause = ixn_config_element.Stack.read(stack.AppendProtocol(pfcPause_template))
-        
-        for model_name, ixn_name in TrafficItem._PFC_PAUSE.items():
-            pattern = getattr(pfcpause, model_name)
-            self._configure_pattern(ixn_pfcPause, ixn_name, pattern)
+            ixn_field.update(Auto=False, ValueType='singleValue', SingleValue=pattern.fixed)
+        elif pattern.choice == 'list':
+            ixn_field.update(Auto=False, ValueType='valueList', ValueList=pattern.list)
+        elif pattern.choice == 'counter':
+            value_type = 'increment' if pattern.counter.up is True else 'decrement'
+            ixn_field.update(Auto=False, 
+                ValueType=value_type, 
+                StartValue=pattern.counter.start,
+                StepValue=pattern.counter.step,
+                CountValue=pattern.counter.count)
+        elif pattern.choice == 'random':
+            ixn_field.update(Auto=False, 
+                ValueType='repeatableRandomRange', 
+                MinValue=pattern.random.min,
+                MaxValue=pattern.random.max,
+                StepValue=pattern.random.step,
+                Seed=pattern.random.seed,
+                CountValue=pattern.random.count)
+        #TBD: set this based on the group_by field
+        # ixn_field.TrackingEnabled = True
 
     def _configure_size(self, ixn_stream, size):
         """ Configure frameSize within /traffic/trafficItem[*]/configElement[*]/frameSize
@@ -164,6 +209,17 @@ class TrafficItem(object):
             ixn_frame_rate.Type = 'bitsPerSecond'
             ixn_frame_rate.BitRateUnitsType = TrafficItem._BIT_RATE_UNITS_TYPE[rate.unit]
         ixn_frame_rate.Rate = rate.value
+
+    def _configure_tx_control(self, ixn_stream, duration):
+        ixn_tx_control = ixn_stream.TransmissionControl
+        if duration.choice == 'fixed':
+            ixn_tx_control.update(Type='fixedFrameCount', 
+                FrameCount=duration.fixed.packets,
+                StartDelay=duration.fixed.delay,
+                StartDelayUnits='bytes')
+        elif duration.choice == 'burst':
+            pass
+
 
     def state(self):
         """Set state of config.flows onto Ixnetwork.Traffic.TrafficItem

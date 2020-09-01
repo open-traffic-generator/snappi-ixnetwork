@@ -1,13 +1,12 @@
 import pytest
+from abstract_open_traffic_generator.flow import *
+from abstract_open_traffic_generator.flow_ipv4 import *
+from abstract_open_traffic_generator.config import *
 
 
 def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_groups, api):
-    from abstract_open_traffic_generator.flow import Flow, Endpoint, DeviceEndpoint, PortEndpoint
-    from abstract_open_traffic_generator.flow import Header, Ethernet, Vlan, Ipv4, PfcPause, Pattern
-    from abstract_open_traffic_generator.flow import Size, Duration, Rate, Fixed
-    from abstract_open_traffic_generator.flow_ipv4 import Priority, Dscp
-    from abstract_open_traffic_generator.config import Config
-    
+    """Pfc pause lossless test traffic configuration
+    """
     data_endpoint = DeviceEndpoint(tx_devices=[b2b_ipv4_device_groups[0].name],
         rx_devices=[b2b_ipv4_device_groups[1].name],
         packet_encap='ipv4',
@@ -44,7 +43,11 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
     pause = Header(PfcPause(
         dst=Pattern('01:80:C2:00:00:01'),
         class_enable_vector=Pattern('1'),
-        pause_class_0=Pattern('1')
+        pause_class_0=Pattern('3'),
+        pause_class_1=Pattern(Counter(start='2', step='6', count=99)),
+        pause_class_2=Pattern(Counter(start='1', step='6', count=99, up=False)),
+        pause_class_3=Pattern(['6', '9', '2', '39']),
+        pause_class_4=Pattern(Random(min='11', max='33', step=1, seed='4', count=10))
     ))
     pause_flow = Flow(name='Pause Storm',
         endpoint=Endpoint(pause_endpoint),

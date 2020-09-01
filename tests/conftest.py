@@ -34,7 +34,7 @@ def serializer(request):
 def tx_port():
     from abstract_open_traffic_generator.port import Port
     return Port(name='Tx Port',
-                location='10.36.74.17;2;1',
+                location='10.36.74.26;2;13',
                 link_state='up',
                 capture_state='stopped')
 
@@ -43,7 +43,7 @@ def tx_port():
 def rx_port():
     from abstract_open_traffic_generator.port import Port
     return Port(name='Rx Port',
-                location='10.36.74.17;2;2',
+                location='10.36.74.26;2;14',
                 link_state='up',
                 capture_state='stopped')
 
