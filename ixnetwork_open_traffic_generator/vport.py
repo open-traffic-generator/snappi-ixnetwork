@@ -8,6 +8,9 @@ class Vport(object):
     Transforms OpenAPI Port.Port, Port.Layer1 objects into IxNetwork 
     /vport and /vport/l1Config/... objects
 
+    Uses resourcemanager to set the vport location and l1Config as it is the
+    most efficient way. DO NOT use the AssignPorts API as it is too slow. 
+
     Args
     ----
     - ixnetworkapi (IxNetworkApi): instance of the ixnetworkapi class
