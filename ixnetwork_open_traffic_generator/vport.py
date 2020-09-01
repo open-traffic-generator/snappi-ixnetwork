@@ -41,7 +41,7 @@ class Vport(object):
         - CREATE vport for any config.ports[*].name that does not exist
         - UPDATE vport for any config.ports[*].name that does exist
         """
-        ixn_vport = self._api.assistant.Ixnetwork.Vport
+        ixn_vport = self._api._vport
         for vport in ixn_vport.find():
             if self._api.find_item(self._api.config.ports, 'name', vport.Name) is None:
                 vport.remove()
@@ -58,14 +58,16 @@ class Vport(object):
             self._api.ixn_objects[port.name] = ixn_vport.href
 
     def config_layer1(self):
-        resource_manager = self._api.assistant.Ixnetwork.ResourceManager
+        resource_manager = self._api._ixnetwork.ResourceManager
         vports = json.loads(resource_manager.ExportConfig(['/vport'], True, 'json'))
         imports = []
         for port in self._api.config.ports:
-            vport = parse('$.vport[?(@.name="%s")]' % port.name).find(vports)[0].value
-            vport['location'] = port.location
-            vport['rxMode'] = 'capture'
-            vport['txMode'] = 'interleaved'
+            vport = {
+                'xpath': parse('$.vport[?(@.name="%s")].xpath' % port.name).find(vports)[0].value,
+                'location': port.location,
+                'rxMode': 'capture',
+                'txMode': 'interleaved'
+            }
             imports.append(vport)
         for layer1 in self._api.config.layer1:
             for port_name in layer1.ports:

@@ -44,85 +44,59 @@ class TrafficItem(object):
         - CREATE TrafficItem for any config.flows[*].name that does not exist
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
-        traffic_items = self._api.assistant.Ixnetwork.Traffic.TrafficItem
-        for traffic_item in traffic_items.find():
+        ixn_traffic_item = self._api._traffic_item
+        for traffic_item in ixn_traffic_item.find():
             if self.find_item(self._config.flows, 'name', traffic_item.Name) is None:
                 traffic_item.remove()
-        traffic_items.find()
 
-        if (self._api.config.flows) :
+        if self._api.config.flows is not None:
             for flow in self._api.config.flows:
                 args = {
-                    'Name': flow.name
+                    'Name': flow.name,
+                    'TrafficItemType': 'l2L3'
                 }
-                traffic_item = self._api.find_item(traffic_items, 'Name', flow.name)
-                if traffic_item is None:
-                    traffic_item = traffic_items.add(**args)[-1]
+                if flow.endpoint is None:
+                    raise ValueError('%s endpoint cannot be None' % flow.name)
+                elif flow.endpoint.choice == 'port':
+                    args['TrafficType'] = 'raw'
+                elif flow.endpoint.device.packet_encap in ['ethernet', 'vlan']:
+                    args['TrafficType'] = 'ethernetVlan'
                 else:
-                    traffic_item.update(**args)
-                self._api.ixn_objects[flow.name] = traffic_item
-                
-                # TBD - Need to rework if EndpointSetId=1 will not true for all case
-                ixn_config_element = traffic_item.ConfigElement.find(EndpointSetId = 1)
-                
-                # Device Endpoint have some issue
-                if flow.endpoint.choice == 'port':
-                    self._configure_endpoints(traffic_item, flow.endpoint)
-                    self._configure_flow(ixn_config_element, flow.packet)
-                    self._configure_size(ixn_config_element, flow.size)
-                    self._configure_rate(ixn_config_element, flow.rate)
+                    args['TrafficType'] = flow.endpoint.device.packet_encap
+                ixn_traffic_item.find(Name=flow.name)
+                if len(ixn_traffic_item) == 0:
+                    ixn_traffic_item.add(**args)
+                else:
+                    ixn_traffic_item.update(**args)
+                self._configure_endpoint(ixn_traffic_item.EndpointSet, flow.endpoint)
+                ixn_stream = ixn_traffic_item.ConfigElement.find()
+                self._configure_size(ixn_stream, flow.size)
+                self._configure_rate(ixn_stream, flow.rate)
+                # self._configure_flow(ixn_stream, flow.packet)
 
-    def _configure_endpoints(self, traffic_item, endpoints):
-        """
-        Setting TrafficType according to choice then configured endpoint accordingly
-        """
-        if (endpoints.choice == "port"):
-            traffic_item.TrafficItemType = 'raw'
-            self._configure_port_endpoints(traffic_item, endpoints.port)
-        else:
-            traffic_item.TrafficItemType = 'l2L3'
-            self._configure_device_endpoints(traffic_item, endpoints.device)
-
-
-    def _get_ixn_ports(self, ports):
-        ixn_ports = list()
-        for port in ports:
-            vport = self._api.assistant.Ixnetwork.Vport.find(Name = port)
-            ixn_ports.append(vport.Protocols.find())
-        return ixn_ports
-
-    def _configure_port_endpoints(self, ixn_traffic, port):
-        """ Configure Port within Endpoint Set
+    def _configure_endpoint(self, ixn_endpoint_set, endpoint):
+        """Transform flow.endpoint to /trafficItem/endpointSet
+        The model allows for only one endpoint per traffic item
         """
         args = {
-            'Sources': self._get_ixn_ports([port.tx_port])[0],
-            'Destinations' : self._get_ixn_ports(port.rx_ports)
+            'Sources': [],
+            'Destinations' : []
         }
-        ixn_traffic.EndpointSet.add(**args)
-        
-
-    # TBD - Use self._api.ixn_objects To get that ixn_object
-    def _get_ixn_devices(self, devices):
-        ixn_devices = list()
-        for device in devices:
-            ixn_topology = self._api.assistant.Ixnetwork.Topology.find(Name = device)
-            if len(ixn_topology):
-                ixn_devices.append(ixn_topology[0])
-        return ixn_devices
-
-    def _configure_device_endpoints(self, ixn_traffic, device):
-        """ Configure Device (protocol or network group) within Endpoint Set
-        """
-        args = {
-                'Sources': self._get_ixn_devices(device.tx_devices),
-            }
-        ixn_endpoint = ixn_traffic.EndpointSet.add(**args)
-
+        if (endpoint.choice == "port"):
+            args['Sources'].append(self._api.get_ixn_object(endpoint.port.tx_port).Protocols.find())
+            for port_name in endpoint.port.rx_ports:
+                args['Destinations'].append(self._api.get_ixn_object(port_name).Protocols.find())
+            ixn_endpoint_set.add(**args)
+        else:
+            for port_name in endpoint.device.tx_devices:
+                args['Sources'].append(self._api.get_ixn_object(port_name))
+            for port_name in endpoint.device.rx_devices:
+                args['Destinations'].append(self._api.get_ixn_object(port_name))
+            ixn_endpoint_set.add(**args)
 
     def _configure_pattern(self, ixn_stack, field_name, pattern):
         if pattern == None:
             return
-    
         ixn_field = ixn_stack.Field.find(FieldTypeId=field_name)
         if pattern.choice == 'fixed':
             ixn_field.update(ValueType='singleValue', SingleValue=pattern.fixed)
@@ -131,21 +105,17 @@ class TrafficItem(object):
         if pattern.choice == 'counter':
             pass
         if pattern.choice == 'random':
-            pass
-        
+            pass        
 
-    def _configure_flow(self, ixn_config_element, packets):
+    def _configure_flow(self, ixn_stream, packets):
         """ Create Traffic Packet
         """
-        for packet in packets:
+        for header in packets:
             try:
-                method = getattr(self, "_configure_%s" %packet.choice)
+                method = getattr(self, "_configure_%s" % header.choice)
+                method(ixn_stream, header)
             except Exception as e:
-                print("Error - Method %s not implimented" %packet.choice)
-                return
-
-            method(ixn_config_element, packet)
-
+                print("Error - Method %s not implemented" % header.choice)
 
     def _configure_pfcpause(self, ixn_config_element, packet):
         """ Create / Update pfcPause.
@@ -163,12 +133,10 @@ class TrafficItem(object):
             pattern = getattr(pfcpause, model_name)
             self._configure_pattern(ixn_pfcPause, ixn_name, pattern)
 
-    def _configure_size(self, ixn_config_element, size):
+    def _configure_size(self, ixn_stream, size):
         """ Configure frameSize within /traffic/trafficItem[*]/configElement[*]/frameSize
         """
-
-        # TBD - IxNetwork is not accepting float in FixedSize
-        ixn_frame_size = ixn_config_element.FrameSize
+        ixn_frame_size = ixn_stream.FrameSize
         if size.choice == 'fixed':
             ixn_frame_size.Type = "fixed"
             ixn_frame_size.FixedSize = size.fixed
@@ -184,21 +152,18 @@ class TrafficItem(object):
         else:
             print('Warning - We need to implement this %s choice' %size.choice)
             
-    def _configure_rate(self, ixn_config_element, rate):
+    def _configure_rate(self, ixn_stream, rate):
         """ Configure frameRate within /traffic/trafficItem[*]/configElement[*]/frameRate
         """
-        ixn_frame_rate = ixn_config_element.FrameRate
-        if (rate.unit == 'line'):
+        ixn_frame_rate = ixn_stream.FrameRate
+        if rate.unit == 'line':
             ixn_frame_rate.Type = 'percentLineRate'
-        elif (rate.unit == 'pps'):
+        elif rate.unit == 'pps':
             ixn_frame_rate.Type = 'framesPerSecond'
         else:
             ixn_frame_rate.Type = 'bitsPerSecond'
             ixn_frame_rate.BitRateUnitsType = TrafficItem._BIT_RATE_UNITS_TYPE[rate.unit]
         ixn_frame_rate.Rate = rate.value
-        
-
-
 
     def state(self):
         """Set state of config.flows onto Ixnetwork.Traffic.TrafficItem

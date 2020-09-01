@@ -41,10 +41,16 @@ class IxNetworkApi(Api):
 
     @property
     def ixn_objects(self):
-        """A dict of all unique names to concrete ixn restpy objects
+        """A dict of all model unique names to ixn hrefs
         """
         return self._ixn_objects 
-        
+
+    def get_ixn_object(self, name):
+        """Returns a ixnetwork_restpy object given a unique configuration name
+        """
+        href = self._ixn_objects[name]
+        return self._assistant.Session.GetObjectFromHref(href)
+
     @property
     def assistant(self):
         return self._assistant

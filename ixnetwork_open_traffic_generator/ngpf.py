@@ -15,7 +15,7 @@ class Ngpf(object):
         '9200': 'ethertype9200',
         '9300': 'ethertype9300',
     }
-    
+
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         
@@ -29,7 +29,7 @@ class Ngpf(object):
         - UPDATE ngpf object for any config...name that exists
         """
         self._ixn_ngpf_objects = {}
-        self._configure_topology(self._api.assistant.Ixnetwork.Topology, self._api.config.device_groups)
+        self._configure_topology(self._api._topology, self._api.config.device_groups)
 
     def _remove(self, ixn_obj, items):
         """Remove any items that are not found
@@ -48,13 +48,14 @@ class Ngpf(object):
             port_regex = '^(%s)$' % '|'.join(device_group.ports)
             args = {
                 'Name': device_group.name,
-                'Ports': self._api.assistant.Ixnetwork.Vport.find(Name=port_regex)
+                'Ports': self._api._vport.find(Name=port_regex)
             }
             ixn_topology.find(Name=device_group.name)
             if len(ixn_topology) == 0:
                 ixn_topology.add(**args)[-1]
             else:
                 ixn_topology.update(**args)
+            self._api.ixn_objects[device_group.name] = ixn_topology.href
             self._configure_device_group(ixn_topology.DeviceGroup, device_group.devices)
 
     def _configure_device_group(self, ixn_device_group, devices):
@@ -72,6 +73,7 @@ class Ngpf(object):
                     ixn_device_group.add(**args)[-1]
                 else:
                     ixn_device_group.update(**args)
+                self._api.ixn_objects[device.name] = ixn_device_group.href
                 self._configure_ethernet(ixn_device_group.Ethernet, device.ethernets)
                 self._configure_device_group(ixn_device_group.DeviceGroup, device.devices)
 
@@ -102,6 +104,7 @@ class Ngpf(object):
                 ixn_ethernet.add(**args)
             else:
                 ixn_ethernet.update(**args)
+            self._api.ixn_objects[ethernet.name] = ixn_ethernet.href
             self._configure_pattern(ixn_ethernet.Mac, ethernet.mac)
             self._configure_pattern(ixn_ethernet.Mtu, ethernet.mtu)
             if (ethernet.vlans) :
@@ -120,6 +123,7 @@ class Ngpf(object):
             }
             ixn_vlan = ixn_vlans[i]
             ixn_vlan.update(**args)
+            self._api.ixn_objects[vlans[i].name] = ixn_vlan.href
             self._configure_pattern(ixn_vlan.VlanId, vlans[i].id)
             self._configure_pattern(ixn_vlan.Priority, vlans[i].priority)
             self._configure_pattern(ixn_vlan.Tpid, vlans[i].tpid, enum_map=Ngpf._TPID_MAP)
@@ -138,6 +142,7 @@ class Ngpf(object):
             ixn_ipv4.add(**args)[-1]
         else:
             ixn_ipv4.update(**args)
+        self._api.ixn_objects[ipv4.name] = ixn_ipv4.href
         self._configure_pattern(ixn_ipv4.Address, ipv4.address)
         self._configure_pattern(ixn_ipv4.GatewayIp, ipv4.gateway)
         self._configure_pattern(ixn_ipv4.Prefix, ipv4.prefix)
@@ -155,6 +160,7 @@ class Ngpf(object):
             ixn_ipv6.add(**args)[-1]
         else:
             ixn_ipv6.update(**args)
+        self._api.ixn_objects[ipv6.name] = ixn_ipv6.href
 
     def _configure_bgpv4(self, ixn_bgpv4, bgpv4):
         if bgpv4 is None:
@@ -168,3 +174,4 @@ class Ngpf(object):
             ixn_bgpv4.add(**args)[-1]
         else:
             ixn_bgpv4.update(**args)
+        self._api.ixn_objects[bgpv4.name] = ixn_bgpv4.href
