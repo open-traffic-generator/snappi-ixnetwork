@@ -1,18 +1,36 @@
 import json
+from jsonpath_ng.ext import parse
 
 
 class Vport(object):
     """Vport configuration
 
+    Transforms OpenAPI Port.Port, Port.Layer1 objects into IxNetwork 
+    /vport and /vport/l1Config/... objects
+
     Args
     ----
     - ixnetworkapi (IxNetworkApi): instance of the ixnetworkapi class
     """
+    _SPEED_MAP = {
+        'one_thousand_mbps': 'speed1000',
+        'one_hundred_fd_mbps': 'speed100fd',
+        'one_hundred_hd_mbps': 'speed100hd', 
+        'ten_fd_mbps': 'speed10fd', 
+        'ten_hd_mbps': 'speed10hd'        
+    }
+    _ADVERTISE_MAP = {
+        'advertise_one_thousand_mbps': 'speed1000',
+        'advertise_one_hundred_fd_mbps': 'speed100fd',
+        'advertise_one_hundred_hd_mbps': 'speed100hd', 
+        'advertise_ten_fd_mbps': 'speed10fd', 
+        'advertise_ten_hd_mbps': 'speed10hd'        
+    }
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         
     def config(self):
-        """Configure config.ports onto Ixnetwork.Vport
+        """Transform config.ports into Ixnetwork.Vport
         
         CRUD
         ----
@@ -20,29 +38,67 @@ class Vport(object):
         - CREATE vport for any config.ports[*].name that does not exist
         - UPDATE vport for any config.ports[*].name that does exist
         """
-        vports = self._api.assistant.Ixnetwork.Vport
-        for vport in vports.find():
+        ixn_vport = self._api.assistant.Ixnetwork.Vport
+        for vport in ixn_vport.find():
             if self._api.find_item(self._api.config.ports, 'name', vport.Name) is None:
                 vport.remove()
-        vports.find()
-
+        ixn_vport.find()
         for port in self._api.config.ports:
             args = {
                 'Name': port.name
             }
-            vport = self._api.find_item(vports, 'Name', port.name)
-            if vport is None:
-                vports.add(**args)
+            ixn_vport.find(Name=port.name)
+            if len(ixn_vport) == 0:
+                ixn_vport.add(**args)
             else:
-                vport.update(**args)
-            self._api.ixn_objects[port.name] = vport
+                ixn_vport.update(**args)
+            self._api.ixn_objects[port.name] = ixn_vport.href
 
-    def state(self):
-        """Set state of config.ports onto Ixnetwork.Vport
-        """
+    def config_layer1(self):
         resource_manager = self._api.assistant.Ixnetwork.ResourceManager
         vports = json.loads(resource_manager.ExportConfig(['/vport'], True, 'json'))
+        imports = []
         for port in self._api.config.ports:
-            vport = parse("$.vport[?(@.name='%s')]" % port.name).find(vports)
-            vport.location = port.location
-        resource_manager.ImportConfig(json.dumps(vports), False)
+            vport = parse('$.vport[?(@.name="%s")]' % port.name).find(vports)[0].value
+            vport['location'] = port.location
+            vport['rxMode'] = 'capture'
+            vport['txMode'] = 'interleaved'
+            imports.append(vport)
+        for layer1 in self._api.config.layer1:
+            for port_name in layer1.ports:
+                vport = parse('$.vport[?(@.name="%s")]' % port_name).find(vports)[0].value
+                if layer1.choice == 'ethernet':
+                    imports.append(self._configure_ethernet(vport, layer1.ethernet))
+                elif layer1.choice == 'one_hundred_gbe':
+                    imports.append(self._configure_uhd(vport, layer1.one_hundred_gbe))
+        resource_manager.ImportConfig(json.dumps(imports), False)
+
+    def _configure_ethernet(self, vport, ethernet):
+        advertise = []
+        if ethernet.advertise_one_thousand_mbps is True:
+            advertise.append(Vport._ADVERTISE_MAP[ethernet.advertise_one_thousand_mbps])
+        if ethernet.advertise_one_hundred_fd_mbps is True:
+            advertise.append(Vport._ADVERTISE_MAP[ethernet.advertise_one_hundred_fd_mbps])
+        if ethernet.advertise_one_hundred_hd_mbps is True:
+            advertise.append(Vport._ADVERTISE_MAP[ethernet.advertise_one_hundred_hd_mbps])
+        if ethernet.advertise_ten_fd_mbps is True:
+            advertise.append(Vport._ADVERTISE_MAP[ethernet.advertise_ten_fd_mbps])
+        if ethernet.advertise_ten_hd_mbps is True:
+            advertise.append(Vport._ADVERTISE_MAP[ethernet.advertise_ten_hd_mbps])
+        return {
+            'xpath': vport['xpath'] + '/l1Config/ethernet',
+            'speed': Vport._SPEED_MAP[ethernet.speed],
+            'media': ethernet.media,
+            'autoNegotiate': ethernet.auto_negotiate,
+            'speedAuto': advertise
+        }
+
+    def _configure_uhd(self, vport, one_hundred_gbe):
+        return {
+            'xpath': vport['xpath'] + '/l1Config/uhdOneHundredGigLan',
+            'ieeeL1Defaults': one_hundred_gbe.ieee_defaults,
+            'speed': Vport._SPEED_MAP[one_hundred_gbe.speed],
+            'enableAutoNegotiation': one_hundred_gbe.auto_negotiate,
+            'enableRsFec': one_hundred_gbe.rs_fec,
+            'linkTraining': one_hundred_gbe.link_training,
+        }

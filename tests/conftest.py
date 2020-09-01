@@ -1,4 +1,6 @@
 import pytest
+import json
+from collections import namedtuple
 
 
 @pytest.fixture(scope='module')
@@ -17,6 +19,13 @@ def serializer(request):
             import yaml
             yaml_str = yaml.dump(obj, indent=2)
             return '\n[%s] %s: %s\n' % (self.test_name, obj.__class__.__name__, yaml_str)
+
+        def obj(self, json_string): 
+            a_dict = json.loads(json_string)
+            return json.loads(json_string, object_hook=self._object_hook)
+        
+        def _object_hook(self, converted_dict): 
+            return namedtuple('X', converted_dict.keys())(*converted_dict.values())
 
     return Serializer(request)
 
@@ -39,7 +48,7 @@ def rx_port():
                 capture_state='stopped')
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def api():
     from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
     return IxNetworkApi('10.36.66.49', port=11009)

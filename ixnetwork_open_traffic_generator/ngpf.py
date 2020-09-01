@@ -8,6 +8,13 @@ class Ngpf(object):
     ----
     - ixnetworkapi (IxNetworkApi): instance of the ixnetworkapi class
     """
+    _TPID_MAP = {
+        '8100': 'ethertype8100',
+        '88a8': 'ethertype88a8',
+        '9100': 'ethertype9100',
+        '9200': 'ethertype9200',
+        '9300': 'ethertype9300',
+    }
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         
@@ -80,7 +87,7 @@ class Ngpf(object):
             pass
 
     def _configure_ethernet(self, ixn_ethernet, ethernets):
-        """Convert Device.Ethernet to /topology/.../ethernet
+        """Transform Device.Ethernet to /topology/.../ethernet
         """
         self._remove(ixn_ethernet, ethernets)
         for ethernet in ethernets:
@@ -98,12 +105,11 @@ class Ngpf(object):
                 ixn_ethernet.VlanCount = len(ethernet.vlans)
                 ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
                 self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
-
             self._configure_ipv4(ixn_ethernet.Ipv4, ethernet.ipv4)
             self._configure_ipv6(ixn_ethernet.Ipv6, ethernet.ipv6)
 
     def _configure_vlan(self, ixn_vlans, vlans):
-        """
+        """Transform Device.Vlan to /topology/.../vlan
         """
         for i in range(0, len(ixn_vlans.find())):
             args = {
@@ -111,8 +117,13 @@ class Ngpf(object):
             }
             ixn_vlan = ixn_vlans[i]
             ixn_vlan.update(**args)
+            self._configure_pattern(ixn_vlan.VlanId, vlans[i].id)
+            self._configure_pattern(ixn_vlan.Priority, vlans[i].priority)
+            ixn_vlan.Tpid.Single(Ngpf._TPID_MAP[vlans[i].tpid.fixed])
 
     def _configure_ipv4(self, ixn_ipv4, ipv4):
+        """Transform Device.Ipv4 to /topology/.../ipv4
+        """
         if ipv4 is None:
             return
         ixn_ipv4.find('^((?!%s).)*$' % ipv4.name).remove()
@@ -124,6 +135,9 @@ class Ngpf(object):
             ixn_ipv4.add(**args)[-1]
         else:
             ixn_ipv4.update(**args)
+        self._configure_pattern(ixn_ipv4.Address, ipv4.address)
+        self._configure_pattern(ixn_ipv4.GatewayIp, ipv4.gateway)
+        self._configure_pattern(ixn_ipv4.Prefix, ipv4.prefix)
         self._configure_bgpv4(ixn_ipv4.BgpIpv4Peer, ipv4.bgpv4)
 
     def _configure_ipv6(self, ixn_ipv6, ipv6):
