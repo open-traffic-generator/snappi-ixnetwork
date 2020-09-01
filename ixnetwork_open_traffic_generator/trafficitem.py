@@ -61,13 +61,16 @@ class TrafficItem(object):
                 else:
                     traffic_item.update(**args)
                 self._api.ixn_objects[flow.name] = traffic_item
-                self._configure_endpoints(traffic_item, flow.endpoint)
                 
                 # TBD - Need to rework if EndpointSetId=1 will not true for all case
                 ixn_config_element = traffic_item.ConfigElement.find(EndpointSetId = 1)
-                self._configure_flow(ixn_config_element, flow.packet)
-                self._configure_size(ixn_config_element, flow.size)
-                self._configure_rate(ixn_config_element, flow.rate)
+                
+                # Device Endpoint have some issue
+                if flow.endpoint.choice == 'port':
+                    self._configure_endpoints(traffic_item, flow.endpoint)
+                    self._configure_flow(ixn_config_element, flow.packet)
+                    self._configure_size(ixn_config_element, flow.size)
+                    self._configure_rate(ixn_config_element, flow.rate)
 
     def _configure_endpoints(self, traffic_item, endpoints):
         """
@@ -110,8 +113,6 @@ class TrafficItem(object):
     def _configure_device_endpoints(self, ixn_traffic, device):
         """ Configure Device (protocol or network group) within Endpoint Set
         """
-        return
-        
         args = {
                 'Sources': self._get_ixn_devices(device.tx_devices),
             }
