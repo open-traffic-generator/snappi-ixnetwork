@@ -18,7 +18,8 @@ class Vport(object):
     _SPEED_MAP = {
         'one_thousand_mbps': 'speed1000',
         'one_hundred_fd_mbps': 'speed100fd',
-        'one_hundred_hd_mbps': 'speed100hd', 
+        'one_hundred_hd_mbps': 'speed100hd',
+        'one_hundred_gbps': 'speed100g',
         'ten_fd_mbps': 'speed10fd', 
         'ten_hd_mbps': 'speed10hd'        
     }
@@ -101,7 +102,7 @@ class Vport(object):
     def _configure_uhd(self, vport, one_hundred_gbe):
         return {
             'xpath': vport['xpath'] + '/l1Config/uhdOneHundredGigLan',
-            'ieeeL1Defaults': one_hundred_gbe.ieee_defaults,
+            'ieeeL1Defaults': one_hundred_gbe.ieee_media_defaults,
             'speed': Vport._SPEED_MAP[one_hundred_gbe.speed],
             'enableAutoNegotiation': one_hundred_gbe.auto_negotiate,
             'enableRsFec': one_hundred_gbe.rs_fec,

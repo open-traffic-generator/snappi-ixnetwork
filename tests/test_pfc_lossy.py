@@ -31,25 +31,25 @@ def run_pfc_pause_lossy_traffic_test(serializer,
     tx_l1_oneHundredGbe = OneHundredGbe(link_training=True,
                                  ieee_media_defaults=False,
                                  auto_negotiate=False,
-                                 speed='100g',
+                                 speed='one_hundred_gbps',
                                  rs_fec=False)
 
     tx_l1_config = Layer1(name='Tx l1',
                           choice=tx_l1_oneHundredGbe,
-                          ports=[tx])
+                          ports=['Tx'])
 
     # RX port + L1
-    rx = Port(name='Rx', location=phy_tx_port, link_state='up')
+    rx = Port(name='Rx', location=phy_rx_port, link_state='up')
 
     rx_l1_oneHundredGbe = OneHundredGbe(link_training=True,
                                  ieee_media_defaults=False,
                                  auto_negotiate=False,
-                                 speed='100g',
+                                 speed='one_hundred_gbps',
                                  rs_fec=False)
 
     rx_l1_config = Layer1(name='Rx l1',
                           choice=rx_l1_oneHundredGbe,
-                          ports=[rx])
+                          ports=['Rx'])
 
     # Create TX stack configuration
     tx_ipv4 = Ipv4(name='Tx Ipv4',
