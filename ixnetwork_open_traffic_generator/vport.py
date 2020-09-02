@@ -16,10 +16,14 @@ class Vport(object):
     - ixnetworkapi (IxNetworkApi): instance of the ixnetworkapi class
     """
     _SPEED_MAP = {
+        'one_hundred_gbps': 'speed100g', 
+        'fifty_gbps': 'speed50g', 
+        'forty_gbps': 'speed40g', 
+        'twenty_five_gpbs': 'speed25g', 
+        'ten_gbps': 'speed10g',
         'one_thousand_mbps': 'speed1000',
         'one_hundred_fd_mbps': 'speed100fd',
         'one_hundred_hd_mbps': 'speed100hd',
-        'one_hundred_gbps': 'speed100g',
         'ten_fd_mbps': 'speed10fd', 
         'ten_hd_mbps': 'speed10hd'        
     }
@@ -72,14 +76,22 @@ class Vport(object):
             imports.append(vport)
         for layer1 in self._api.config.layer1:
             for port_name in layer1.ports:
-                vport = parse('$.vport[?(@.name="%s")]' % port_name).find(vports)[0].value
+                vport_xpath = parse('$.vport[?(@.name="%s")].xpath' % port_name).find(vports)[0].value
                 if layer1.choice == 'ethernet':
-                    imports.append(self._configure_ethernet(vport, layer1.ethernet))
+                    imports.append(self._configure_l1config(vport_xpath, 'ethernet'))
+                    imports.append(self._configure_ethernet(vport_xpath, layer1.ethernet))
                 elif layer1.choice == 'one_hundred_gbe':
-                    imports.append(self._configure_uhd(vport, layer1.one_hundred_gbe))
+                    imports.append(self._configure_l1config(vport_xpath, 'uhdOneHundredGigLan'))
+                    imports.append(self._configure_uhd(vport_xpath, layer1.one_hundred_gbe))
         resource_manager.ImportConfig(json.dumps(imports), False)
 
-    def _configure_ethernet(self, vport, ethernet):
+    def _configure_l1config(self, vport_xpath, current_type):
+        return {
+            'xpath': vport_xpath + '/l1Config',
+            'currentType': current_type 
+        }
+
+    def _configure_ethernet(self, vport_xpath, ethernet):
         advertise = []
         if ethernet.advertise_one_thousand_mbps is True:
             advertise.append(Vport._ADVERTISE_MAP['advertise_one_thousand_mbps'])
@@ -92,16 +104,16 @@ class Vport(object):
         if ethernet.advertise_ten_hd_mbps is True:
             advertise.append(Vport._ADVERTISE_MAP['advertise_ten_hd_mbps'])
         return {
-            'xpath': vport['xpath'] + '/l1Config/ethernet',
+            'xpath': vport_xpath + '/l1Config/ethernet',
             'speed': Vport._SPEED_MAP[ethernet.speed],
             'media': ethernet.media,
             'autoNegotiate': ethernet.auto_negotiate,
             'speedAuto': advertise
         }
 
-    def _configure_uhd(self, vport, one_hundred_gbe):
+    def _configure_uhd(self, vport_xpath, one_hundred_gbe):
         return {
-            'xpath': vport['xpath'] + '/l1Config/uhdOneHundredGigLan',
+            'xpath': vport_xpath + '/l1Config/uhdOneHundredGigLan',
             'ieeeL1Defaults': one_hundred_gbe.ieee_media_defaults,
             'speed': Vport._SPEED_MAP[one_hundred_gbe.speed],
             'enableAutoNegotiation': one_hundred_gbe.auto_negotiate,

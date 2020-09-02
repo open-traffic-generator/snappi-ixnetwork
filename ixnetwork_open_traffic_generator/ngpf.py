@@ -32,13 +32,16 @@ class Ngpf(object):
         self._configure_topology(self._api._topology, self._api.config.device_groups)
 
     def _remove(self, ixn_obj, items):
-        """Remove any items that are not found
+        """Remove any ixnetwork items that are not found in the configuration list.
+        If the list does not exist remove everything.
         """
-        if (items) :  
+        if items is not None:  
             item_names = [item.name for item in items]
             for obj in ixn_obj.find():
                 if obj.Name not in item_names:
                     obj.remove()
+        else:
+            ixn_obj.find().remove()
 
     def _configure_topology(self, ixn_topology, device_groups):
         """Resolve abstract device_groups with ixnetwork topologies
