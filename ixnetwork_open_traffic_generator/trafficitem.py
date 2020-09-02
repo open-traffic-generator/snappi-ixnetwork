@@ -9,6 +9,10 @@ class TrafficItem(object):
     - ixnetworkapi (IxNetworkApi): instance of the ixnetworkapi class
     
     """
+    _STACK_IGNORE = [
+        'ethernet.fcs'
+    ]
+
     _TYPE_TO_HEADER = {
         'ethernet': 'ethernet',
         'pfcPause': 'pfc_pause',
@@ -49,12 +53,17 @@ class TrafficItem(object):
     }
 
     _ETHERNET = {
-        'dst': 'ethernet.header.header.dstAddress',
-        'src': 'ethernet.header.header.srcAddress',
-        'ether_type': 'ethernet.header.header.ethertype',
+        'dst': 'ethernet.header.destinationAddress',
+        'src': 'ethernet.header.sourceAddress',
+        'ether_type': 'ethernet.header.etherType',
+        'pfc_queue': 'ethernet.header.pfcQueue',
     }
 
     _VLAN = {
+        'id': 'vlan.header.vlanTag.vlanID',
+        'cfi': 'vlan.header.vlanTag.cfi',
+        'priority': 'vlan.header.vlanTag.vlanUserPriority',
+        'protocol': 'vlan.header.protocolID'
     }
 
     _IPV4 = {
@@ -123,23 +132,39 @@ class TrafficItem(object):
                 args['Destinations'].append(self._api.get_ixn_object(port_name))
             ixn_endpoint_set.add(**args)
 
-    def _configure_stack(self, ixn_stream, packets):
+    def _configure_stack(self, ixn_stream, headers):
         """Transform flow.packets[0..n] to /traffic/trafficItem/configElement/stack 
+        The len of the headers list is the definitive list which means add/remove
+        any stack items so that the stack list matches the headers list.
+        If the headers list is empty then use the traffic generator default stack.
         """
         stacks_to_remove = []
         ixn_stack = ixn_stream.Stack.find()
-        for i in range(0, len(packets)):
-            stack = ixn_stack[i]
-            header = packets[i]
-            if TrafficItem._TYPE_TO_HEADER[stack.StackTypeId.lower()] != header.choice:
-                stacks_to_remove.append(stack)
-                type_id = TrafficItem._HEADER_TO_TYPE[header.choice]
-                template = self._api._traffic.ProtocolTemplate.find(StackTypeId=type_id)
-                new_header = stack.AppendProtocol(template)
-                stack = ixn_stream.Stack.read(new_header)
+        for i in range(0, len(headers)):
+            header = headers[i]
+            if len(ixn_stack) <= i:
+                stack = self._add_stack(ixn_stream, stack, header)
+            else:
+                stack_type_id = ixn_stack[i].StackTypeId
+                if stack_type_id in self._STACK_IGNORE:
+                    stack = self._add_stack(ixn_stream, stack, header)
+                elif stack_type_id not in TrafficItem._TYPE_TO_HEADER:
+                    stacks_to_remove.append(ixn_stack[i])
+                    stack = self._add_stack(ixn_stream, ixn_stack[i], header)
+                elif TrafficItem._TYPE_TO_HEADER[stack_type_id] != header.choice:
+                    stacks_to_remove.append(ixn_stack[i])
+                    stack = self._add_stack(ixn_stream, ixn_stack[i], header)
+                else:
+                    stack = ixn_stack[i]
             self._configure_field(stack.Field, header)
         for stack in stacks_to_remove:
             stack.Remove()
+    
+    def _add_stack(self, ixn_stream, ixn_stack, header):
+        type_id = '^%s$' % TrafficItem._HEADER_TO_TYPE[header.choice]
+        template = self._api._traffic.ProtocolTemplate.find(StackTypeId=type_id)
+        stack_href = ixn_stack.AppendProtocol(template)
+        return ixn_stream.Stack.read(stack_href)
 
     def _configure_field(self, ixn_field, header):
         """Transform flow.packets[0..n].header.choice to /traffic/trafficItem/configElement/stack/field
@@ -181,6 +206,8 @@ class TrafficItem(object):
     def _configure_size(self, ixn_stream, size):
         """ Configure frameSize within /traffic/trafficItem[*]/configElement[*]/frameSize
         """
+        if size is None:
+            return
         ixn_frame_size = ixn_stream.FrameSize
         if size.choice == 'fixed':
             ixn_frame_size.Type = "fixed"
@@ -200,6 +227,8 @@ class TrafficItem(object):
     def _configure_rate(self, ixn_stream, rate):
         """ Configure frameRate within /traffic/trafficItem[*]/configElement[*]/frameRate
         """
+        if rate is None:
+            return
         ixn_frame_rate = ixn_stream.FrameRate
         if rate.unit == 'line':
             ixn_frame_rate.Type = 'percentLineRate'
@@ -211,6 +240,8 @@ class TrafficItem(object):
         ixn_frame_rate.Rate = rate.value
 
     def _configure_tx_control(self, ixn_stream, duration):
+        if duration is None:
+            return
         ixn_tx_control = ixn_stream.TransmissionControl
         if duration.choice == 'fixed':
             if duration.fixed.packets <= 0:
