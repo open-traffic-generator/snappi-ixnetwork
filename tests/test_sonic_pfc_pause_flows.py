@@ -42,6 +42,7 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
     pause_endpoint = PortEndpoint(tx_port=tx_port.name)
     pause = Header(PfcPause(
         dst=Pattern('01:80:C2:00:00:01'),
+        src=Pattern('00:00:fa:ce:fa:ce'),
         class_enable_vector=Pattern('1'),
         pause_class_0=Pattern('3'),
         pause_class_1=Pattern(Counter(start='2', step='6', count=99)),

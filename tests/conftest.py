@@ -85,7 +85,7 @@ def b2b_ipv4_device_groups(tx_port, rx_port):
                 prefix=Pattern('24'),
                 gateway=Pattern('1.1.2.1'))
     vlan = Vlan(name='Tx Vlan',
-                id=Pattern('1'))
+                id=Pattern('3'))
     ethernet = Ethernet(name='Tx Ethernet',
                         vlans=[vlan],
                         ipv4=ipv4)
@@ -101,7 +101,7 @@ def b2b_ipv4_device_groups(tx_port, rx_port):
                 prefix=Pattern('24'),
                 gateway=Pattern('1.1.1.1'))
     vlan = Vlan(name='Rx Vlan',
-                id=Pattern('1'))
+                id=Pattern('3'))
     ethernet = Ethernet(name='Rx Ethernet',
                         vlans=[vlan],
                         ipv4=ipv4)
