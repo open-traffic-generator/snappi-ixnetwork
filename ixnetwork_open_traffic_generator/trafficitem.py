@@ -213,12 +213,17 @@ class TrafficItem(object):
     def _configure_tx_control(self, ixn_stream, duration):
         ixn_tx_control = ixn_stream.TransmissionControl
         if duration.choice == 'fixed':
-            ixn_tx_control.update(Type='fixedFrameCount', 
-                FrameCount=duration.fixed.packets,
-                StartDelay=duration.fixed.delay,
-                StartDelayUnits='bytes')
+            if duration.fixed.packets <= 0:
+                ixn_tx_control.update(Type='continuous')
+            else:
+                ixn_tx_control.update(Type='fixedFrameCount', 
+                    FrameCount=duration.fixed.packets,
+                    StartDelay=duration.fixed.delay,
+                    StartDelayUnits='bytes')
         elif duration.choice == 'burst':
-            pass
+                ixn_tx_control.update(Type='custom', 
+                    BurstPacketCount=duration.burst.packets,
+                    MinGapBytes=duration.burst.gap)
 
 
     def state(self):
