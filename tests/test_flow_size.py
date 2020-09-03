@@ -28,14 +28,6 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
                       size=Size(44),
                       rate=Rate('line', value=100),
                       duration=Duration(Fixed(packets=0)))
-
-    # TBD - Concrete Not map properly
-    # float_size = Flow(name='Float Size',
-    #                   endpoint=Endpoint(port_endpoint),
-    #                   packet=[pause],
-    #                   size=Size(33.6),
-    #                   rate=Rate('line', value=100),
-    #                   duration=Duration(Fixed(packets=0)))
     
     increment = SizeIncrement(start=100, end=1200, step=10)
     increment_size = Flow(name='Increment Size',
