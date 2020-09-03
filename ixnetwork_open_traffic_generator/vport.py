@@ -46,6 +46,7 @@ class Vport(object):
         - CREATE vport for any config.ports[*].name that does not exist
         - UPDATE vport for any config.ports[*].name that does exist
         """
+        self._resource_manager = self._api._ixnetwork.ResourceManager
         ixn_vport = self._api._vport
         for vport in ixn_vport.find():
             if self._api.find_item(self._api.config.ports, 'name', vport.Name) is None:
@@ -62,9 +63,10 @@ class Vport(object):
                 ixn_vport.update(**args)
             self._api.ixn_objects[port.name] = ixn_vport.href
 
-    def config_layer1(self):
-        resource_manager = self._api._ixnetwork.ResourceManager
-        vports = json.loads(resource_manager.ExportConfig(['/vport'], True, 'json'))
+    def config_location(self):
+        """Set the /vport -location
+        """
+        vports = json.loads(self._resource_manager.ExportConfig(['/vport'], False, 'json'))
         imports = []
         for port in self._api.config.ports:
             vport = {
@@ -74,24 +76,22 @@ class Vport(object):
                 'txMode': 'interleaved'
             }
             imports.append(vport)
+        self._resource_manager.ImportConfig(json.dumps(imports), False)
+        self._config_layer1()
+
+    def _config_layer1(self):
+        vports = json.loads(self._resource_manager.ExportConfig(['/vport'], False, 'json'))
+        imports = []
         for layer1 in self._api.config.layer1:
             for port_name in layer1.ports:
-                vport_xpath = parse('$.vport[?(@.name="%s")].xpath' % port_name).find(vports)[0].value
+                vport = parse('$.vport[?(@.name="%s")]' % port_name).find(vports)[0].value
                 if layer1.choice == 'ethernet':
-                    imports.append(self._configure_l1config(vport_xpath, 'ethernet'))
-                    imports.append(self._configure_ethernet(vport_xpath, layer1.ethernet))
+                    imports.append(self._configure_ethernet(vport, layer1.ethernet))
                 elif layer1.choice == 'one_hundred_gbe':
-                    imports.append(self._configure_l1config(vport_xpath, 'uhdOneHundredGigLan'))
-                    imports.append(self._configure_uhd(vport_xpath, layer1.one_hundred_gbe))
-        resource_manager.ImportConfig(json.dumps(imports), False)
+                    imports.append(self._configure_100gbe(vport, layer1.one_hundred_gbe))
+        self._resource_manager.ImportConfig(json.dumps(imports), False)
 
-    def _configure_l1config(self, vport_xpath, current_type):
-        return {
-            'xpath': vport_xpath + '/l1Config',
-            'currentType': current_type 
-        }
-
-    def _configure_ethernet(self, vport_xpath, ethernet):
+    def _configure_ethernet(self, vport, ethernet):
         advertise = []
         if ethernet.advertise_one_thousand_mbps is True:
             advertise.append(Vport._ADVERTISE_MAP['advertise_one_thousand_mbps'])
@@ -104,16 +104,16 @@ class Vport(object):
         if ethernet.advertise_ten_hd_mbps is True:
             advertise.append(Vport._ADVERTISE_MAP['advertise_ten_hd_mbps'])
         return {
-            'xpath': vport_xpath + '/l1Config/ethernet',
+            'xpath': vport['xpath'] + '/l1Config/' + vport['type'],
             'speed': Vport._SPEED_MAP[ethernet.speed],
             'media': ethernet.media,
             'autoNegotiate': ethernet.auto_negotiate,
             'speedAuto': advertise
         }
 
-    def _configure_uhd(self, vport_xpath, one_hundred_gbe):
+    def _configure_100gbe(self, vport, one_hundred_gbe):
         return {
-            'xpath': vport_xpath + '/l1Config/uhdOneHundredGigLan',
+            'xpath': vport['xpath'] + '/l1Config/' + vport['type'],
             'ieeeL1Defaults': one_hundred_gbe.ieee_media_defaults,
             'speed': Vport._SPEED_MAP[one_hundred_gbe.speed],
             'enableAutoNegotiation': one_hundred_gbe.auto_negotiate,

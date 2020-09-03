@@ -69,7 +69,7 @@ class IxNetworkApi(Api):
             self.vport.config()
             self.ngpf.config()
             self.traffic_item.config()
-            self.vport.config_layer1()
+            self.vport.config_location()
         self._running_config = self._config
 
     def get_results(self, content):
