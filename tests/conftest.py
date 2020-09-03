@@ -2,8 +2,22 @@ import pytest
 import json
 from collections import namedtuple
 
+API_SERVER='10.36.66.49'
+API_SERVER_PORT=11009
+TX_PORT_LOCATION=None # '10.36.74.26:02;13'
+RX_PORT_LOCATION=None # '10.36.74.26:02;14'
 
-@pytest.fixture(scope='module')
+
+@pytest.fixture(scope='session')
+def api():
+    """Change this to the ip address and rest port of the 
+    IxNetwork API Server to use for the api test fixture
+    """
+    from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
+    return IxNetworkApi(API_SERVER, port=API_SERVER_PORT)
+
+
+@pytest.fixture(scope='session')
 def serializer(request):
     class Serializer(object):
         def __init__(self, request):
@@ -30,22 +44,16 @@ def serializer(request):
     return Serializer(request)
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='session')
 def tx_port():
     from abstract_open_traffic_generator.port import Port
-    return Port(name='Tx Port')
+    return Port(name='Tx Port', location=TX_PORT_LOCATION)
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='session')
 def rx_port():
     from abstract_open_traffic_generator.port import Port
-    return Port(name='Rx Port')
-
-
-@pytest.fixture(scope='module')
-def api():
-    from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
-    return IxNetworkApi('10.36.66.49', port=11009)
+    return Port(name='Rx Port', location=RX_PORT_LOCATION)
 
 
 @pytest.fixture
@@ -56,7 +64,7 @@ def tx_config(tx_port):
     device = Device(name='tx devices',
                     devices_per_port=10)
     device_group = DeviceGroup(name='tx devicegroup',
-                               ports=[tx_port.name],
+                               port_names=[tx_port.name],
                                devices=[device])
     return Config(
         ports=[tx_port],
@@ -87,7 +95,7 @@ def b2b_ipv4_device_groups(tx_port, rx_port):
                     devices_per_port=1,
                     ethernets=[ethernet])
     tx_device_group = DeviceGroup(name='Tx Device Group',
-                                  ports=[tx_port.name],
+                                  port_names=[tx_port.name],
                                   devices=[device])
 
     ipv4 = Ipv4(name='Rx Ipv4',
@@ -103,7 +111,7 @@ def b2b_ipv4_device_groups(tx_port, rx_port):
                     devices_per_port=1,
                     ethernets=[ethernet])
     rx_device_group = DeviceGroup(name='Rx Device Group',
-                                  ports=[rx_port.name],
+                                  port_names=[rx_port.name],
                                   devices=[device])
 
     return [tx_device_group, rx_device_group]

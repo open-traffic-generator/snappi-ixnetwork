@@ -48,7 +48,7 @@ class Ngpf(object):
         """
         self._remove(ixn_topology, device_groups)
         for device_group in device_groups:
-            port_regex = '^(%s)$' % '|'.join(device_group.ports)
+            port_regex = '^(%s)$' % '|'.join(device_group.port_names)
             args = {
                 'Name': device_group.name,
                 'Ports': self._api._vport.find(Name=port_regex)

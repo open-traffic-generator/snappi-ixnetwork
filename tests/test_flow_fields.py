@@ -9,7 +9,7 @@ def test_flow_fields(serializer, api):
     This will test setting values for individual flow packet fields
     """
     port = Port(name='port')
-    port_endpoint = PortEndpoint(tx_port=port.name)
+    port_endpoint = PortEndpoint(tx_port_name=port.name)
 
     mac_counter = Counter(start='00:00:fa:ce:fa:ce',
         step='00:00:01:02:03:04',

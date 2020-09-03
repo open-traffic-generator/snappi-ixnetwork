@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_groups):
+def test_sonic_pfc_pause_flows(serializer, api, tx_port, rx_port, b2b_ipv4_device_groups):
     """
     This will test supported Flow Rate
         - unit (Union[pps, bps, kbps, mbps, gbps, line]): The value is a unit of this
@@ -15,7 +15,7 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
     from abstract_open_traffic_generator.config import Config
     from abstract_open_traffic_generator.flow import Size, SizeIncrement, SizeRandom
     
-    port_endpoint = PortEndpoint(tx_port=tx_port.name, rx_ports=[rx_port.name])
+    port_endpoint = PortEndpoint(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
     pause = Header(PfcPause(
         dst=Pattern('01:80:C2:00:00:01'),
         class_enable_vector=Pattern('1'),
@@ -72,12 +72,7 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
     )
     print(serializer.json(config))
     
-    from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
-    # set the ixnetwork connection parameters
-    api = IxNetworkApi('10.15.82.252', port=11009)
-    # clear the configuration on ixnetwork by passing in None
     api.set_config(None)
-    # set the configuration on ixnetwork
     api.set_config(config)
 
 

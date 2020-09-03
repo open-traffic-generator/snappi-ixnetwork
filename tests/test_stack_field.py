@@ -16,7 +16,7 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, api):
         pause_class_4=Pattern(Random(min='3', max='33', step=1, seed='4', count=10))
     )
     pause_flow = Flow(name='Pause Storm',
-        endpoint=Endpoint(PortEndpoint(tx_port=tx_port.name)),
+        endpoint=Endpoint(PortEndpoint(tx_port_name=tx_port.name)),
         packet=[Header(pause)],
         size=Size(412),
         rate=Rate('line', value=22.565),

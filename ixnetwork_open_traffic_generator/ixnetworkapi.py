@@ -71,8 +71,8 @@ class IxNetworkApi(Api):
             self.traffic_item.config()
         self._running_config = self._config
 
-    def get_results(self, content):
-        pass
+    def get_port_results(self, content):
+        return self.vport.results(content)
 
     def __connect(self):
         if self._assistant is None:
@@ -130,7 +130,8 @@ class IxNetworkApi(Api):
         url = '%s/operations/select?xpath=true' % self._ixnetwork.href
         results = self._ixnetwork._connection._execute(url, payload)
         vports = {}
-        for vport in results[0]['vport']:
-            vports[vport['name']] = vport
+        if 'vport' in results[0]:
+            for vport in results[0]['vport']:
+                vports[vport['name']] = vport
         return vports
 

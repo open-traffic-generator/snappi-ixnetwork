@@ -4,19 +4,17 @@ from abstract_open_traffic_generator.port import *
 
 
 def test_ports(serializer, api):
-    port1 = Port(name='ethernet port 1',
-        location='10.36.74.26;02;13',
-        link_state='up')
-    port2 = Port(name='ethernet port 2',
-        location='10.36.74.26;02;14',
-        link_state='up')
-    layer1 = Layer1(name='layer1', 
-        ports=[port1.name, port2.name],
-        choice=Ethernet(media='copper', auto_negotiate=True))
-    config = Config(ports=[port1, port2], layer1=[layer1])
+    ports = [
+        Port(name='port1', location='10.36.74.26;01;01'),
+        Port(name='port2', location='10.36.77.102;12;03'),
+        Port(name='port no location')
+    ]
+    config = Config(ports=ports)
     api.set_config(None)
     api.set_config(config)
-
+    results = api.get_results()
+    for result in results.port:
+        print(result)
 
 if __name__ == '__main__':
     pytest.main(['-s', __file__])

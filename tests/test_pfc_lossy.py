@@ -63,7 +63,7 @@ def run_pfc_pause_lossy_traffic_test(serializer,
 
     common_l1_config = Layer1(name='common L1 config',
                               choice=l1_oneHundredGbe,
-                              ports=[tx.name, rx.name])
+                              port_names=[tx.name, rx.name])
 
     ########################################################################### 
     # Create TX stack configuration
@@ -80,7 +80,7 @@ def run_pfc_pause_lossy_traffic_test(serializer,
                        ethernets=[tx_ethernet])
 
     tx_device_group = DeviceGroup(name='Tx Device Group',
-                                  ports=[tx.name],
+                                  port_names=[tx.name],
                                   devices=[tx_device])
 
     ########################################################################### 
@@ -98,7 +98,7 @@ def run_pfc_pause_lossy_traffic_test(serializer,
                        ethernets=[rx_ethernet])
 
     rx_device_group = DeviceGroup(name='Rx Device Group',
-                                  ports=[rx.name],
+                                  port_names=[rx.name],
                                   devices=[rx_device])
 
     ########################################################################### 
@@ -106,8 +106,8 @@ def run_pfc_pause_lossy_traffic_test(serializer,
     # COMMENT --> DSCP values are not getting set
     ########################################################################### 
     data_endpoint = DeviceEndpoint(
-        tx_devices=[tx_device.name],
-        rx_devices=[rx_device.name],
+        tx_device_names=[tx_device.name],
+        rx_device_names=[rx_device.name],
         packet_encap='ipv4',
         src_dst_mesh='',
         route_host_mesh='',
@@ -155,7 +155,7 @@ def run_pfc_pause_lossy_traffic_test(serializer,
     # AttributeError: 'Header' object has no attribute 'name'
     ########################################################################### 
     if (0) :
-        pause_endpoint = PortEndpoint(tx_port=rx.name)
+        pause_endpoint = PortEndpoint(tx_port_name=rx.name)
         pause = Header(
             choice=PfcPause(
             dst=PATTERN('01:80:C2:00:00:01'),

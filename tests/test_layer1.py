@@ -15,12 +15,12 @@ def test_layer1(serializer, api):
     port2 = Port(name='port2', location='10.36.77.102;12;03')
     port3 = Port(name='port no location')
     ethernet = Layer1(name='ethernet settings', 
-        ports=[port1.name, port3.name], 
+        port_names=[port1.name, port3.name], 
         choice=Ethernet(media='copper',
             speed='one_thousand_mbps',
             auto_negotiate=True))
     uhd = Layer1(name='uhd settings', 
-        ports=[port2.name], 
+        port_names=[port2.name], 
         choice=OneHundredGbe(ieee_media_defaults=False, 
             auto_negotiate=False,
             link_training=False,

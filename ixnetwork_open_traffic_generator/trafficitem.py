@@ -124,14 +124,14 @@ class TrafficItem(CustomField):
             'Destinations' : []
         }
         if (endpoint.choice == "port"):
-            args['Sources'].append(self._api.get_ixn_object(endpoint.port.tx_port).Protocols.find())
-            for port_name in endpoint.port.rx_ports:
+            args['Sources'].append(self._api.get_ixn_object(endpoint.port.tx_port_name).Protocols.find())
+            for port_name in endpoint.port.rx_port_names:
                 args['Destinations'].append(self._api.get_ixn_object(port_name).Protocols.find())
             ixn_endpoint_set.add(**args)
         else:
-            for port_name in endpoint.device.tx_devices:
+            for port_name in endpoint.device.tx_device_names:
                 args['Sources'].append(self._api.get_ixn_object(port_name))
-            for port_name in endpoint.device.rx_devices:
+            for port_name in endpoint.device.rx_device_names:
                 args['Destinations'].append(self._api.get_ixn_object(port_name))
             ixn_endpoint_set.add(**args)
 

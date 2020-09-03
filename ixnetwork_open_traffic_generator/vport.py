@@ -82,7 +82,7 @@ class Vport(object):
         vports = self._api.select_vports()
         imports = []
         for layer1 in self._api.config.layer1:
-            for port_name in layer1.ports:
+            for port_name in layer1.port_names:
                 vport = vports[port_name]
                 if vport['connectionState'] in ['connectedLinkUp', 'connectedLinkDown']:
                     if layer1.choice == 'ethernet':
@@ -128,6 +128,9 @@ class Vport(object):
     def control_capture_state(self, port_names, capture_state):
         pass
 
-    def results(self):
+    def results(self, request):
+        results = {
+            'ports': []
+        }
         stats = self._api.assistant.StatViewAssistant('Port Statistics')
         # add location state, link state, capture state into each port result

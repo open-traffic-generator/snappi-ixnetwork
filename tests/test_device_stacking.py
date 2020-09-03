@@ -3,7 +3,7 @@ from abstract_open_traffic_generator.config import Config
 from abstract_open_traffic_generator.device import *
 
 
-def test_device_stacking(serializer, tx_port):
+def test_device_stacking(serializer, api, tx_port):
     """Test the stacking of ngpf devices
     """
     bgpv4 = Bgpv4(name='bgpv4')
@@ -29,18 +29,13 @@ def test_device_stacking(serializer, tx_port):
         ],
         ethernets=[eth1, eth2])
     device_group = DeviceGroup(name='devicegroup', 
-        ports=[tx_port.name],
+        port_names=[tx_port.name],
         devices=[device])
     config = Config(
         ports=[tx_port],
         device_groups=[device_group]
     )
     print(serializer.json(config))
-
-    from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
-    # set the ixnetwork connection parameters
-    api = IxNetworkApi('10.36.66.49', port=11009)
-    # set the configuration on ixnetwork
     api.set_config(config)
 
 

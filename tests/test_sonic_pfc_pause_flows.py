@@ -7,8 +7,8 @@ from abstract_open_traffic_generator.config import *
 def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_groups, api):
     """Pfc pause lossless test traffic configuration
     """
-    data_endpoint = DeviceEndpoint(tx_devices=[b2b_ipv4_device_groups[0].name],
-        rx_devices=[b2b_ipv4_device_groups[1].name],
+    data_endpoint = DeviceEndpoint(tx_device_names=[b2b_ipv4_device_groups[0].name],
+        rx_device_names=[b2b_ipv4_device_groups[1].name],
         packet_encap='ipv4',
         src_dst_mesh='',
         route_host_mesh='',
@@ -39,7 +39,7 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
         rate=Rate('line', 50),
         duration=Duration(Fixed(packets=0)))
 
-    pause_endpoint = PortEndpoint(tx_port=tx_port.name)
+    pause_endpoint = PortEndpoint(tx_port_name=tx_port.name)
     pause = Header(PfcPause(
         dst=Pattern('01:80:C2:00:00:01'),
         src=Pattern('00:00:fa:ce:fa:ce'),
