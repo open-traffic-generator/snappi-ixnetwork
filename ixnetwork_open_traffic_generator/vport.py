@@ -85,10 +85,11 @@ class Vport(object):
         for layer1 in self._api.config.layer1:
             for port_name in layer1.ports:
                 vport = parse('$.vport[?(@.name="%s")]' % port_name).find(vports)[0].value
-                if layer1.choice == 'ethernet':
-                    imports.append(self._configure_ethernet(vport, layer1.ethernet))
-                elif layer1.choice == 'one_hundred_gbe':
-                    imports.append(self._configure_100gbe(vport, layer1.one_hundred_gbe))
+                if vport['connectionState'] in ['connectedLinkUp', 'connectedLinkDown']:
+                    if layer1.choice == 'ethernet':
+                        imports.append(self._configure_ethernet(vport, layer1.ethernet))
+                    elif layer1.choice == 'one_hundred_gbe':
+                        imports.append(self._configure_100gbe(vport, layer1.one_hundred_gbe))
         self._resource_manager.ImportConfig(json.dumps(imports), False)
 
     def _configure_ethernet(self, vport, ethernet):
