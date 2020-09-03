@@ -1,7 +1,7 @@
 import json
+from ixnetwork_open_traffic_generator.customfield import CustomField
 
-
-class TrafficItem(object):
+class TrafficItem(CustomField):
     """TrafficItem configuration
 
     Args
@@ -67,7 +67,10 @@ class TrafficItem(object):
     }
 
     _IPV4 = {
-    }   
+        'src' : 'ipv4.header.srcIp',
+        'dst' : 'ipv4.header.dstIp',
+        'priority' : '_ipv4_priority',
+    }
 
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
@@ -180,6 +183,12 @@ class TrafficItem(object):
     def _configure_pattern(self, ixn_field, field_type_id, pattern):
         if pattern == None:
             return
+        
+        custom_field = getattr(self, field_type_id, None)
+        if custom_field is not None:
+            custom_field(ixn_field, pattern)
+            return
+
         ixn_field = ixn_field.find(FieldTypeId=field_type_id)
         if pattern.choice == 'fixed':
             ixn_field.update(Auto=False, ValueType='singleValue', SingleValue=pattern.fixed)
