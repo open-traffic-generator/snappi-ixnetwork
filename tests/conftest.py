@@ -33,19 +33,13 @@ def serializer(request):
 @pytest.fixture(scope='module')
 def tx_port():
     from abstract_open_traffic_generator.port import Port
-    return Port(name='Tx Port',
-                location='10.36.74.26;2;13',
-                link_state='up',
-                capture_state='stopped')
+    return Port(name='Tx Port')
 
 
 @pytest.fixture(scope='module')
 def rx_port():
     from abstract_open_traffic_generator.port import Port
-    return Port(name='Rx Port',
-                location='10.36.74.26;2;14',
-                link_state='up',
-                capture_state='stopped')
+    return Port(name='Rx Port')
 
 
 @pytest.fixture(scope='module')

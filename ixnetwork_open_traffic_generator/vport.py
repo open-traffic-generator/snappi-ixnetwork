@@ -51,31 +51,29 @@ class Vport(object):
         for vport in ixn_vport.find():
             if self._api.find_item(self._api.config.ports, 'name', vport.Name) is None:
                 vport.remove()
+        port_map = self._api.assistant.PortMapAssistant()
         for port in self._api.config.ports:
-            args = {
-                'Name': port.name
-            }
             ixn_vport.find(Name=port.name)
             if len(ixn_vport) == 0:
-                ixn_vport.add(**args)
-            else:
-                ixn_vport.update(**args)
+                ixn_vport.add(Name=port.name)
             self._api.ixn_objects[port.name] = ixn_vport.href
-
-    def config_location(self):
-        """Set the /vport -location
-        """
-        vports = self._api.select_vports()
-        imports = []
         for port in self._api.config.ports:
-            vport = {
-                'xpath': vports[port.name]['xpath'],
-                'location': port.location,
-                'rxMode': 'capture',
-                'txMode': 'interleaved'
-            }
-            imports.append(vport)
-        self._resource_manager.ImportConfig(json.dumps(imports), False)
+            if port.location is not None:
+                port_map.Map(Name=port.name, Location=port.location)
+        if len(port_map._map) > 0:
+            port_map.Connect()
+        vports = self._api.select_vports()
+        for port in self._api.config.ports:
+            if port.location is None:
+                continue
+            vport = vports[port.name]
+            if vport['connectionState'] not in ['connectedLinkUp', 'connectedLinkDown']:
+                print(
+                    {
+                        'name': vport['name'],
+                        'error': 'Unable to connect port %s to test port location %s [%s]' % (port.name, port.location, vport['connectionState'])
+                    }
+                )
         self._config_layer1()
 
     def _config_layer1(self):
@@ -91,7 +89,8 @@ class Vport(object):
                         imports.append(self._configure_ethernet(vport, layer1.ethernet))
                     elif layer1.choice == 'one_hundred_gbe':
                         imports.append(self._configure_100gbe(vport, layer1.one_hundred_gbe))
-        self._resource_manager.ImportConfig(json.dumps(imports), False)
+        if len(imports) > 0:
+            self._resource_manager.ImportConfig(json.dumps(imports), False)
 
     def _configure_ethernet(self, vport, ethernet):
         advertise = []
@@ -122,3 +121,13 @@ class Vport(object):
             'enableRsFec': one_hundred_gbe.rs_fec,
             'linkTraining': one_hundred_gbe.link_training,
         }
+
+    def control_link_state(self, port_names, link_state):
+        pass
+
+    def control_capture_state(self, port_names, capture_state):
+        pass
+
+    def results(self):
+        stats = self._api.assistant.StatViewAssistant('Port Statistics')
+        # add location state, link state, capture state into each port result
