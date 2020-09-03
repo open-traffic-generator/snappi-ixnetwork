@@ -51,7 +51,6 @@ class Vport(object):
         for vport in ixn_vport.find():
             if self._api.find_item(self._api.config.ports, 'name', vport.Name) is None:
                 vport.remove()
-        ixn_vport.find()
         for port in self._api.config.ports:
             args = {
                 'Name': port.name
@@ -66,11 +65,11 @@ class Vport(object):
     def config_location(self):
         """Set the /vport -location
         """
-        vports = json.loads(self._resource_manager.ExportConfig(['/vport'], False, 'json'))
+        vports = self._api.select_vports()
         imports = []
         for port in self._api.config.ports:
             vport = {
-                'xpath': parse('$.vport[?(@.name="%s")].xpath' % port.name).find(vports)[0].value,
+                'xpath': vports[port.name]['xpath'],
                 'location': port.location,
                 'rxMode': 'capture',
                 'txMode': 'interleaved'
@@ -80,11 +79,13 @@ class Vport(object):
         self._config_layer1()
 
     def _config_layer1(self):
-        vports = json.loads(self._resource_manager.ExportConfig(['/vport'], False, 'json'))
+        """Set the /vport/l1Config/... properties
+        """
+        vports = self._api.select_vports()
         imports = []
         for layer1 in self._api.config.layer1:
             for port_name in layer1.ports:
-                vport = parse('$.vport[?(@.name="%s")]' % port_name).find(vports)[0].value
+                vport = vports[port_name]
                 if vport['connectionState'] in ['connectedLinkUp', 'connectedLinkDown']:
                     if layer1.choice == 'ethernet':
                         imports.append(self._configure_ethernet(vport, layer1.ethernet))

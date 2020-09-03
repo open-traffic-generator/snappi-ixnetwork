@@ -109,5 +109,29 @@ class IxNetworkApi(Api):
                     return item
         return None
 
-
+    def select_vports(self):
+        """Select all vports and return them in a dict keyed by vport name
+        """
+        payload = {
+            'selects': [
+                {
+                    'from': '/',
+                    'properties': [],
+                    'children': [
+                        {
+                            'child': 'vport',
+                            'properties': ['name', 'type', 'connectionState'],
+                            'filters': []
+                        }
+                    ],
+                    'inlines': []
+                }
+            ]
+        }
+        url = '%s/operations/select?xpath=true' % self._ixnetwork.href
+        results = self._ixnetwork._connection._execute(url, payload)
+        vports = {}
+        for vport in results[0]['vport']:
+            vports[vport['name']] = vport
+        return vports
 

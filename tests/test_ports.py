@@ -14,6 +14,7 @@ def test_ports(serializer, api):
         ports=[port1.name, port2.name],
         choice=Ethernet(media='copper', auto_negotiate=True))
     config = Config(ports=[port1, port2], layer1=[layer1])
+    api.set_config(None)
     api.set_config(config)
 
 
