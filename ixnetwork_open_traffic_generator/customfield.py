@@ -41,7 +41,7 @@ class CustomField(object):
             else:
                 value = phb_pattern.random.min
             
-            if (isinstance(value, int)):
+            if isinstance(value, int) is True:
                 value = str(value)
             if value not in CustomField._IPv4_DSCP_PHB:
                 field_type_id = CustomField._IPv4_DSCP_PHB['0']
