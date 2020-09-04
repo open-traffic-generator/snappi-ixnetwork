@@ -92,6 +92,18 @@ class IxNetworkApi(Api):
                 topology.remove()
         topologies = self._topology.find()
 
+    def _remove(self, ixn_obj, items):
+        """Remove any ixnetwork items that are not found in the configuration list.
+        If the list does not exist remove everything.
+        """
+        if items is not None:  
+            item_names = [item.name for item in items]
+            for obj in ixn_obj.find():
+                if obj.Name not in item_names:
+                    obj.remove()
+        else:
+            ixn_obj.find().remove()
+
     def find_item(self, items, property_name, value):
         """Find an item in a list
 

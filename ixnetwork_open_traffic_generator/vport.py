@@ -39,44 +39,44 @@ class Vport(object):
         
     def config(self):
         """Transform config.ports into Ixnetwork.Vport
-        
-        CRUD
-        ----
-        - DELETE any Ixnetwork.Vport.Name that does not exist in config.ports
-        - CREATE vport for any config.ports[*].name that does not exist
-        - UPDATE vport for any config.ports[*].name that does exist
+        1) delete any vport that is not part of the config
+        2) create a vport for every config.ports[] that is not present in IxNetwork
+        3) set config.ports[].location to /vport -location using resourcemanager
+        4) set /vport/l1Config/... properties using the corrected /vport -type
+        5) connectPorts to use new l1Config settings and clearownership
         """
-        self._resource_manager = self._api._ixnetwork.ResourceManager
-        ixn_vport = self._api._vport
-        for vport in ixn_vport.find():
-            if self._api.find_item(self._api.config.ports, 'name', vport.Name) is None:
-                vport.remove()
-        port_map = self._api.assistant.PortMapAssistant()
-        for port in self._api.config.ports:
-            ixn_vport.find(Name=port.name)
-            if len(ixn_vport) == 0:
-                ixn_vport.add(Name=port.name)
-            self._api.ixn_objects[port.name] = ixn_vport.href
-        for port in self._api.config.ports:
-            if port.location is not None:
-                port_map.Map(Name=port.name, Location=port.location)
-        if len(port_map._map) > 0:
-            port_map.Connect()
+        self._ixn_vport = self._api._vport
+        self._delete_vports()
+        self._create_vports()
+        self._set_location()
+        self._set_layer1()
+        self._connect()
+
+    def _delete_vports(self):
+        self._api._remove(self._ixn_vport, self._api.config.ports)
+    
+    def _create_vports(self):
         vports = self._api.select_vports()
         for port in self._api.config.ports:
-            if port.location is None:
-                continue
-            vport = vports[port.name]
-            if vport['connectionState'] not in ['connectedLinkUp', 'connectedLinkDown']:
-                print(
-                    {
-                        'name': vport['name'],
-                        'error': 'Unable to connect port %s to test port location %s [%s]' % (port.name, port.location, vport['connectionState'])
-                    }
-                )
-        self._config_layer1()
+            if port.name not in vports.keys():
+                self._ixn_vport.add(Name=port.name)
+    
+    def _set_location(self):
+        vports = self._api.select_vports()
+        imports = []
+        for port in self._api.config.ports:
+            self._api.ixn_objects[port.name] = vports[port.name]['href']
+            vport = {
+                'xpath': vports[port.name]['xpath'],
+                'location': port.location,
+                'rxMode': 'capture',
+                'txMode': 'interleaved'
+            }
+            imports.append(vport)
+        self._resource_manager = self._api._ixnetwork.ResourceManager
+        self._resource_manager.ImportConfig(json.dumps(imports), False)
 
-    def _config_layer1(self):
+    def _set_layer1(self):
         """Set the /vport/l1Config/... properties
         """
         vports = self._api.select_vports()
@@ -121,6 +121,10 @@ class Vport(object):
             'enableRsFec': one_hundred_gbe.rs_fec,
             'linkTraining': one_hundred_gbe.link_training,
         }
+
+    def _connect(self):
+        self._ixn_vport.find()
+        self._ixn_vport.ConnectPorts(True)
 
     def control_link_state(self, port_names, link_state):
         pass

@@ -28,25 +28,12 @@ class Ngpf(object):
         - CREATE ngpf object for any config.devices...name that does not exist
         - UPDATE ngpf object for any config...name that exists
         """
-        self._ixn_ngpf_objects = {}
         self._configure_topology(self._api._topology, self._api.config.device_groups)
-
-    def _remove(self, ixn_obj, items):
-        """Remove any ixnetwork items that are not found in the configuration list.
-        If the list does not exist remove everything.
-        """
-        if items is not None:  
-            item_names = [item.name for item in items]
-            for obj in ixn_obj.find():
-                if obj.Name not in item_names:
-                    obj.remove()
-        else:
-            ixn_obj.find().remove()
 
     def _configure_topology(self, ixn_topology, device_groups):
         """Resolve abstract device_groups with ixnetwork topologies
         """
-        self._remove(ixn_topology, device_groups)
+        self._api._remove(ixn_topology, device_groups)
         for device_group in device_groups:
             port_regex = '^(%s)$' % '|'.join(device_group.port_names)
             args = {
@@ -64,7 +51,7 @@ class Ngpf(object):
     def _configure_device_group(self, ixn_device_group, devices):
         """Resolve abstract devices with ixnetwork device_groups 
         """
-        self._remove(ixn_device_group, devices)
+        self._api._remove(ixn_device_group, devices)
         if (devices) :
             for device in devices:
                 args = {
@@ -97,7 +84,7 @@ class Ngpf(object):
     def _configure_ethernet(self, ixn_ethernet, ethernets):
         """Transform Device.Ethernet to /topology/.../ethernet
         """
-        self._remove(ixn_ethernet, ethernets)
+        self._api._remove(ixn_ethernet, ethernets)
         for ethernet in ethernets:
             args = {
                 'Name': ethernet.name,

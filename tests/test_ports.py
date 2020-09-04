@@ -10,11 +10,13 @@ def test_ports(serializer, api):
         Port(name='port no location')
     ]
     config = Config(ports=ports)
+
     api.set_config(None)
     api.set_config(config)
-    results = api.get_results()
-    for result in results.port:
-        print(result)
+
+    # results = api.get_results()
+    # for result in results.port:
+    #     print(result)
 
 if __name__ == '__main__':
     pytest.main(['-s', __file__])
