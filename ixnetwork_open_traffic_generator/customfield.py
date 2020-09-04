@@ -41,7 +41,13 @@ class CustomField(object):
             else:
                 value = phb_pattern.random.min
             
-            field_type_id = CustomField._IPv4_DSCP_PHB[value]
+            if (isinstance(value, int)):
+                value = str(value)
+            if value not in CustomField._IPv4_DSCP_PHB:
+                field_type_id = CustomField._IPv4_DSCP_PHB['0']
+            else:
+                field_type_id = CustomField._IPv4_DSCP_PHB[value]
+                
             ixn_field = ixn_field.find(FieldTypeId=field_type_id)
             ixn_field.update(Auto=False, ActiveFieldChoice=True)
             self._configure_pattern(ixn_field, field_type_id, phb_pattern)

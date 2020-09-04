@@ -42,12 +42,12 @@ def run_pfc_pause_lossy_traffic_test(serializer,
     ########################################################################### 
     # TX port 
     ########################################################################### 
-    tx = Port(name='Tx', location=phy_tx_port, link='up')
+    tx = Port(name='Tx', location=phy_tx_port)
 
     ########################################################################### 
     # RX port  
     ########################################################################### 
-    rx = Port(name='Rx', location=phy_rx_port, link='up')
+    rx = Port(name='Rx', location=phy_rx_port)
 
     ########################################################################### 
     # Tx + Rx port commom L1 config
