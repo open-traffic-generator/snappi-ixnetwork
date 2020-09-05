@@ -68,7 +68,7 @@ class Vport(object):
             self._api.ixn_objects[port.name] = vports[port.name]['href']
             vport = {
                 'xpath': vports[port.name]['xpath'],
-                'location': port.location,
+                'location': getattr(port, 'location', None),
                 'rxMode': 'capture',
                 'txMode': 'interleaved'
             }
@@ -81,14 +81,15 @@ class Vport(object):
         """
         vports = self._api.select_vports()
         imports = []
-        for layer1 in self._api.config.layer1:
-            for port_name in layer1.port_names:
-                vport = vports[port_name]
-                if vport['connectionState'] in ['connectedLinkUp', 'connectedLinkDown']:
-                    if layer1.choice == 'ethernet':
-                        imports.append(self._configure_ethernet(vport, layer1.ethernet))
-                    elif layer1.choice == 'one_hundred_gbe':
-                        imports.append(self._configure_100gbe(vport, layer1.one_hundred_gbe))
+        if hasattr(self._api.config, 'layer1') is True:
+            for layer1 in self._api.config.layer1:
+                for port_name in layer1.port_names:
+                    vport = vports[port_name]
+                    if vport['connectionState'] in ['connectedLinkUp', 'connectedLinkDown']:
+                        if layer1.choice == 'ethernet':
+                            imports.append(self._configure_ethernet(vport, layer1.ethernet))
+                        elif layer1.choice == 'one_hundred_gbe':
+                            imports.append(self._configure_100gbe(vport, layer1.one_hundred_gbe))
         if len(imports) > 0:
             self._resource_manager.ImportConfig(json.dumps(imports), False)
 

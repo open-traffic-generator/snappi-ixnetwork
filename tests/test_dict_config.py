@@ -41,7 +41,7 @@ def test_json_to_dict_to_config(serializer, api):
                         "name": "Tx Device"
                     }
                 ],
-                "ports": [
+                "port_names": [
                     "Tx"
                 ]
             },
@@ -80,7 +80,7 @@ def test_json_to_dict_to_config(serializer, api):
                         "name": "Rx Device"
                     }
                 ],
-                "ports": [
+                "port_names": [
                     "Rx"
                 ]
             }
@@ -88,22 +88,16 @@ def test_json_to_dict_to_config(serializer, api):
         "captures": null,
         "ports": [
             {
-                "link_state": "up",
-                "capture_state": null,
-                "name": "Tx",
-                "location": "10.36.78.53;9;2"
+                "name": "Tx"
             },
             {
-                "link_state": "up",
-                "capture_state": null,
-                "name": "Rx",
-                "location": "10.36.78.53;9;2"
+                "name": "Rx"
             }
         ],
         "flows": null
     }"""
-    # config = serializer.obj(config)
-    # api.set_config(config)
+    api.set_config(None)
+    api.set_config(config)
 
 
 if __name__ == '__main__':

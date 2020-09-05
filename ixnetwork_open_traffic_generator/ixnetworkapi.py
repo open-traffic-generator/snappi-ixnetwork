@@ -1,4 +1,5 @@
 import json
+from collections import namedtuple
 from jsonpath_ng.ext import parse
 from ixnetwork_restpy import SessionAssistant
 from abstract_open_traffic_generator.api import Api
@@ -56,8 +57,12 @@ class IxNetworkApi(Api):
         return self._assistant
 
     def set_config(self, config):
-        if isinstance(config, (Config, type(None))) is False:
-            raise TypeError('The content must be of type (Config, type(None))' % Config.__class__)
+        if isinstance(config, (Config, str, dict, type(None))) is False:
+            raise TypeError('The content must be of type (Config, str, dict, type(None))' % Config.__class__)
+        if isinstance(config, str) is True:
+            config = json.loads(config, object_hook = lambda otg : namedtuple('X', otg.keys()) (*otg.values())) 
+        elif isinstance(config, dict) is True:
+            config = namedtuple('otg', config.keys())(*config.values())
         self._config = config
         self._config_objects = {}
         self._ixn_objects = {}
@@ -85,13 +90,6 @@ class IxNetworkApi(Api):
             self._traffic = self._ixnetwork.Traffic
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
 
-    def __resolve_lists(self, dst_obj, src_list):
-        dst_list = dst_obj.find()
-        for dst_item in dst_list:
-            if self.find_item(self._config.devices, 'name', topology.Name) is None:
-                topology.remove()
-        topologies = self._topology.find()
-
     def _remove(self, ixn_obj, items):
         """Remove any ixnetwork items that are not found in the configuration list.
         If the list does not exist remove everything.
@@ -103,22 +101,6 @@ class IxNetworkApi(Api):
                     obj.remove()
         else:
             ixn_obj.find().remove()
-
-    def find_item(self, items, property_name, value):
-        """Find an item in a list
-
-        Args
-        ----
-        - items (list): an iterable list of config items
-        - property_name (str): the name of a property that exists on each item in the list
-        - value (str): the value to be compared against each items property_name
-        """
-        if items is not None:
-            for item in items:
-                property_value = getattr(item, property_name)
-                if property_value == value:
-                    return item
-        return None
 
     def select_vports(self):
         """Select all vports and return them in a dict keyed by vport name
