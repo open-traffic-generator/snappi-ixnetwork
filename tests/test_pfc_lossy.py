@@ -154,13 +154,12 @@ def run_pfc_pause_lossy_traffic_test(serializer,
     # ../ixnetwork_open_traffic_generator/trafficitem.py:92: AttributeError 
     # AttributeError: 'Header' object has no attribute 'name'
     ########################################################################### 
-    if (0) :
+    if (1) :
         pause_endpoint = PortEndpoint(tx_port_name=rx.name)
-        pause = Header(
-            choice=PfcPause(
+        pause = Header(PfcPause(
             dst=PATTERN('01:80:C2:00:00:01'),
             src=PATTERN('00:00:fa:ce:fa:ce'),
-            class_enable_vector=[0, 0, 0, 1, 1, 0, 0, 0],
+            class_enable_vector=PATTERN([0, 0, 0, 1, 1, 0, 0, 0]),
             pause_class_3=PATTERN('3'),
             pause_class_4=PATTERN('4'),
         ))
@@ -173,7 +172,7 @@ def run_pfc_pause_lossy_traffic_test(serializer,
             rate=Rate('line', value=100),
             duration=Duration(Fixed(packets=0))
         )
-        flows = [test_flow, background_flow, pause]
+        flows = [test_flow, background_flow, pause_flow]
     else :
        flows = [test_flow, background_flow]
 
