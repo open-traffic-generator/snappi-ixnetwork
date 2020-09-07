@@ -31,7 +31,9 @@ class CustomField(object):
     def _ipv4_priority(self, ixn_field, pattern):
         if pattern.choice == 'dscp':
             phb_pattern = pattern.dscp.phb
-            value = str()
+            if phb_pattern is None:
+                return
+
             if phb_pattern.choice == 'fixed':
                 value = phb_pattern.fixed
             elif phb_pattern.choice == 'list':
