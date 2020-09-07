@@ -115,7 +115,7 @@ def run_pfc_pause_lossy_traffic_test(serializer,
         allow_self_destined=False
     )
 
-    test_dscp = Priority(Dscp(phb=PATTERN([0, 1, 2, 5, 6, 7])))
+    test_dscp = Priority(Dscp(phb=PATTERN(choice=[0, 1, 2, 5, 6, 7])))
 
     test_flow = Flow(
         name='Test Data',
@@ -134,7 +134,7 @@ def run_pfc_pause_lossy_traffic_test(serializer,
     # Traffic configuration Background data
     # COMMENT --> DSCP values are not getting set
     ########################################################################### 
-    background_dscp = Priority(Dscp(phb=PATTERN([3, 4])))
+    background_dscp = Priority(Dscp(phb=PATTERN(choice=[3, 4])))
     background_flow = Flow(
         name='Background Data',
         endpoint=Endpoint(data_endpoint),
@@ -160,7 +160,7 @@ def run_pfc_pause_lossy_traffic_test(serializer,
             choice=PfcPause(
             dst=PATTERN('01:80:C2:00:00:01'),
             src=PATTERN('00:00:fa:ce:fa:ce'),
-            class_enable_vector=PATTERN([0, 0, 0, 1, 1, 0, 0, 0]),
+            class_enable_vector=[0, 0, 0, 1, 1, 0, 0, 0],
             pause_class_3=PATTERN('3'),
             pause_class_4=PATTERN('4'),
         ))
