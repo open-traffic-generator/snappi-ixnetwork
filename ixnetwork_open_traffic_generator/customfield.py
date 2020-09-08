@@ -34,25 +34,31 @@ class CustomField(object):
     def _ipv4_priority(self, ixn_field, pattern):
         if pattern.choice == 'dscp':
             phb_pattern = pattern.dscp.phb
-            if phb_pattern is None:
-                return
-
-            if phb_pattern.choice == 'fixed':
-                value = phb_pattern.fixed
-            elif phb_pattern.choice == 'list':
-                value = phb_pattern.list[0]
-            elif phb_pattern.choice == 'counter':
-                value = phb_pattern.counter.start
-            else:
-                value = phb_pattern.random.min
-            
-            if isinstance(value, int) is True:
-                value = str(value)
-            if value not in CustomField._IPv4_DSCP_PHB:
-                field_type_id = CustomField._IPv4_DSCP_PHB['0']
-            else:
-                field_type_id = CustomField._IPv4_DSCP_PHB[value]
+            if phb_pattern is not None:
+                if phb_pattern.choice == 'fixed':
+                    value = phb_pattern.fixed
+                elif phb_pattern.choice == 'list':
+                    value = phb_pattern.list[0]
+                elif phb_pattern.choice == 'counter':
+                    value = phb_pattern.counter.start
+                else:
+                    value = phb_pattern.random.min
                 
-            ixn_field = ixn_field.find(FieldTypeId=field_type_id)
-            ixn_field.update(Auto=False, ActiveFieldChoice=True)
-            self._configure_pattern(ixn_field, field_type_id, phb_pattern)
+                if isinstance(value, int) is True:
+                    value = str(value)
+                if value not in CustomField._IPv4_DSCP_PHB:
+                    field_type_id = CustomField._IPv4_DSCP_PHB['0']
+                else:
+                    field_type_id = CustomField._IPv4_DSCP_PHB[value]
+                    
+                ixn_dscp_phb = ixn_field.find(FieldTypeId=field_type_id)
+                ixn_dscp_phb.update(Auto=False, ActiveFieldChoice=True)
+                self._configure_pattern(ixn_field, field_type_id, phb_pattern)
+            
+            # Use defaultPHB.defaultPHB to configure ECN
+            ecn_pattern = pattern.dscp.ecn
+            if ecn_pattern is not None:
+                field_type_id = CustomField._IPv4_DSCP_PHB['0']
+                ixn_dscp_ecn= ixn_field.find(FieldTypeId=field_type_id)
+                ixn_dscp_ecn.update(Auto=False, ActiveFieldChoice=True)
+                self._configure_pattern(ixn_field, field_type_id, ecn_pattern)
