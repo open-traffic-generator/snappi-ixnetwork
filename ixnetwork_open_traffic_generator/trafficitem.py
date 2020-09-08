@@ -109,6 +109,8 @@ class TrafficItem(CustomField):
                 else:
                     ixn_traffic_item.update(**args)
                 self._configure_endpoint(ixn_traffic_item.EndpointSet, flow.endpoint)
+                if flow.enable is not None:
+                    ixn_traffic_item.Enabled = flow.enable
                 ixn_stream = ixn_traffic_item.ConfigElement.find()
                 self._configure_stack(ixn_stream, flow.packet)
                 self._configure_size(ixn_stream, flow.size)
