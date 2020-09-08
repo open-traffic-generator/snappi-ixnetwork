@@ -60,7 +60,7 @@ class IxNetworkApi(Api):
         if isinstance(config, (Config, str, dict, type(None))) is False:
             raise TypeError('The content must be of type (Config, str, dict, type(None))' % Config.__class__)
         if isinstance(config, str) is True:
-            config = json.loads(config, object_hook = lambda otg : namedtuple('X', otg.keys()) (*otg.values())) 
+            config = json.loads(config, object_hook = lambda otg : namedtuple('otg', otg.keys()) (*otg.values())) 
         elif isinstance(config, dict) is True:
             config = namedtuple('otg', config.keys())(*config.values())
         self._config = config
