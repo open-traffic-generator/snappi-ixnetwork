@@ -213,9 +213,11 @@ class TrafficItem(CustomField):
             # TBD: add to set_config errors - invalid pattern specified
             pass
             
-        #TBD: set this based on the group_by field
-        # ixn_field.TrackingEnabled = True
-
+        if pattern.group_by is not None:
+            ixn_field.TrackingEnabled = True
+            self._api.ixn_objects[pattern.group_by] = ixn_field.href
+            
+    
     def _configure_size(self, ixn_stream, size):
         """ Configure frameSize within /traffic/trafficItem[*]/configElement[*]/frameSize
         """

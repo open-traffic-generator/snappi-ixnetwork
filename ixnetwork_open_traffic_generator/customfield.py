@@ -1,6 +1,9 @@
 class CustomField(object):
     """
     Implemented All custom field which specify within TrafficItem class
+    Best Practice :
+        - Please use self._configure_pattern to setting Pattern
+        - Otherwise please handle group_by accordingly
     """
     
     ##########################      IPv4 stack      ##########################
