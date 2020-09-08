@@ -7,10 +7,11 @@ def test_layer1_fcoe(serializer, api):
     """Test that layer1 fcoe configuration settings are being applied correctly.
     """
     port1 = Port(name='port1', location='10.36.74.26;01;01')
-    fcoe = Fcoe(flow_control_type='none',
+    fcoe = Fcoe(flow_control_type='ieee_802_1qbb',
         pfc_delay_quanta=3,
-        pfc_delay_time=4.3,
-        pfc_class_0=[zero, three])
+        pfc_class_0='zero',
+        pfc_class_1='three',
+        pfc_class_4='seven')
     ethernet = Layer1(name='ethernet settings', 
         port_names=[port1.name], 
         choice=Ethernet(media='copper',
