@@ -210,7 +210,8 @@ class TrafficItem(CustomField):
                 Seed=pattern.random.seed,
                 CountValue=pattern.random.count)
         else:
-            #TBD: add to set_config errors - invalid pattern specified
+            # TBD: add to set_config errors - invalid pattern specified
+            pass
             
         #TBD: set this based on the group_by field
         # ixn_field.TrackingEnabled = True
