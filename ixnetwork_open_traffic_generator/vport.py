@@ -49,6 +49,28 @@ class Vport(object):
         'six': 6,
         'seven': 7
     }
+    _RESULT_COLUMNS = [
+        'name',
+        'location',
+        'link',
+        'capture',
+        'frames_tx',
+        'frames_rx',
+        'frames_tx_rate',
+        'frames_rx_rate',
+        'bytes_tx',
+        'bytes_rx',
+        'bytes_tx_rate',
+        'bytes_rx_rate',
+        'pfc_class_0_frames_rx',
+        'pfc_class_1_frames_rx',
+        'pfc_class_2_frames_rx',
+        'pfc_class_3_frames_rx',
+        'pfc_class_4_frames_rx',
+        'pfc_class_5_frames_rx',
+        'pfc_class_6_frames_rx',
+        'pfc_class_7_frames_rx'            
+    ]
 
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
@@ -201,8 +223,11 @@ class Vport(object):
             imports.append(fcoe)
 
     def _connect(self):
-        self._ixn_vport.find()
-        self._ixn_vport.ConnectPorts(True)
+        self._ixn_vport.find(ConnectionState='^((?!connectedLink).)*$')
+        try:
+            self._ixn_vport.ConnectPorts(True)
+        except Exception as e:
+            pass
 
     def control_link_state(self, port_names, link_state):
         pass
@@ -210,9 +235,44 @@ class Vport(object):
     def control_capture_state(self, port_names, capture_state):
         pass
 
+    def _set_result_value(self, row, column_name, column_value):
+        row[Vport._RESULT_COLUMNS.index(column_name)] = column_value
+
     def results(self, request):
-        results = {
-            'ports': []
+        """Return port results
+        """
+        port_rows = {}
+        for vport in self._api.select_vports().values():
+            port_row = [0 for i in range(len(Vport._RESULT_COLUMNS))]
+            self._set_result_value(port_row, 'name', vport['name'])
+            self._set_result_value(port_row, 'location', 'connected' if vport['connectionState'].startswith('connectedLink') is True else vport['connectionState'])
+            self._set_result_value(port_row, 'link', 'up' if vport['connectionState'] == 'connectedLinkUp' else 'down')
+            self._set_result_value(port_row, 'capture', 'stopped')
+            port_rows[vport['name']] = port_row
+        try:
+            table = self._api.assistant.StatViewAssistant('Port Statistics')
+            for row in table.Rows:
+                port_row = port_rows[row['Port Name']]
+                self._set_result_value(port_row, 'frames_tx', row['Frames Tx.'])
+                self._set_result_value(port_row, 'frames_rx', row['Valid Frames Rx.'])
+                self._set_result_value(port_row, 'frames_tx_rate', row['Frames Tx. Rate'])
+                self._set_result_value(port_row, 'frames_rx_rate', row['Valid Frames Rx. Rate'])
+                self._set_result_value(port_row, 'bytes_tx', row['Bytes Tx.'])
+                self._set_result_value(port_row, 'bytes_rx', row['Bytes Rx.'])
+                self._set_result_value(port_row, 'bytes_tx_rate', row['Bytes Tx. Rate'])
+                self._set_result_value(port_row, 'bytes_rx_rate', row['Bytes Rx. Rate'])
+                self._set_result_value(port_row, 'pfc_class_0_frames_rx', row['Rx Pause Priority Group 0 Frames'])
+                self._set_result_value(port_row, 'pfc_class_1_frames_rx', row['Rx Pause Priority Group 1 Frames'])
+                self._set_result_value(port_row, 'pfc_class_2_frames_rx', row['Rx Pause Priority Group 2 Frames'])
+                self._set_result_value(port_row, 'pfc_class_3_frames_rx', row['Rx Pause Priority Group 3 Frames'])
+                self._set_result_value(port_row, 'pfc_class_4_frames_rx', row['Rx Pause Priority Group 4 Frames'])
+                self._set_result_value(port_row, 'pfc_class_5_frames_rx', row['Rx Pause Priority Group 5 Frames'])
+                self._set_result_value(port_row, 'pfc_class_6_frames_rx', row['Rx Pause Priority Group 6 Frames'])
+                self._set_result_value(port_row, 'pfc_class_7_frames_rx', row['Rx Pause Priority Group 7 Frames'])
+        except:
+            pass
+        results = { 
+            'columns': Vport._RESULT_COLUMNS,
+            'rows': port_rows.values()
         }
-        stats = self._api.assistant.StatViewAssistant('Port Statistics')
-        # add location state, link state, capture state into each port result
+        return results

@@ -57,6 +57,8 @@ class IxNetworkApi(Api):
         return self._assistant
 
     def set_config(self, config):
+        """Abstract API implementation
+        """
         if isinstance(config, (Config, str, dict, type(None))) is False:
             raise TypeError('The content must be of type (Config, str, dict, type(None))' % Config.__class__)
         if isinstance(config, str) is True:
@@ -76,8 +78,15 @@ class IxNetworkApi(Api):
             self.traffic_item.config()
         self._running_config = self._config
 
-    def get_port_results(self, content):
-        return self.vport.results(content)
+    def set_flow_transmit(self, request):
+        """Abstract API implementation
+        """
+        return self.traffic_item.transmit(request)
+
+    def get_port_results(self, request):
+        """Abstract API implementation
+        """
+        return self.vport.results(request)
 
     def __connect(self):
         if self._assistant is None:
@@ -113,7 +122,7 @@ class IxNetworkApi(Api):
                     'children': [
                         {
                             'child': 'vport',
-                            'properties': ['name', 'type', 'connectionState'],
+                            'properties': ['name', 'type', 'location', 'connectionState'],
                             'filters': []
                         }
                     ],
