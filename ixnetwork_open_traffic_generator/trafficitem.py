@@ -218,7 +218,6 @@ class TrafficItem(CustomField):
         if pattern.group_by is not None:
             ixn_field.TrackingEnabled = True
             self._api.ixn_objects[pattern.group_by] = ixn_field.href
-            
     
     def _configure_size(self, ixn_stream, size):
         """ Configure frameSize within /traffic/trafficItem[*]/configElement[*]/frameSize
@@ -273,8 +272,12 @@ class TrafficItem(CustomField):
                     BurstPacketCount=duration.burst.packets,
                     MinGapBytes=duration.burst.gap)
 
-
-    def state(self):
-        """Set state of config.flows onto Ixnetwork.Traffic.TrafficItem
+    def transmit(self, request):
+        """Set flow transmit
         """
         pass
+
+    def results(self, request):
+        """Return flow results
+        """
+        return None

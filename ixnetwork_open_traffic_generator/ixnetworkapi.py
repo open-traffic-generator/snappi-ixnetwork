@@ -88,6 +88,11 @@ class IxNetworkApi(Api):
         """
         return self.vport.results(request)
 
+    def get_flow_results(self, request):
+        """Abstract API implementation
+        """
+        return self.traffic_item.results(request)
+
     def __connect(self):
         if self._assistant is None:
             self._assistant = SessionAssistant(IpAddress=self._address,
