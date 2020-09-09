@@ -107,7 +107,7 @@ class Vport(object):
             vport = {
                 'xpath': vports[port.name]['xpath'],
                 'location': getattr(port, 'location', None),
-                'rxMode': 'capture',
+                'rxMode': 'captureAndMeasure',
                 'txMode': 'interleaved'
             }
             imports.append(vport)

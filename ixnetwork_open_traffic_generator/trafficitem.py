@@ -111,6 +111,7 @@ class TrafficItem(CustomField):
                 self._configure_endpoint(ixn_traffic_item.EndpointSet, flow.endpoint)
                 if flow.enable is not None:
                     ixn_traffic_item.Enabled = flow.enable
+                ixn_traffic_item.Tracking.find().TrackBy = ['trackingenabled0']
                 ixn_stream = ixn_traffic_item.ConfigElement.find()
                 self._configure_stack(ixn_stream, flow.packet)
                 self._configure_size(ixn_stream, flow.size)
@@ -215,7 +216,7 @@ class TrafficItem(CustomField):
             # TBD: add to set_config errors - invalid pattern specified
             pass
             
-        if pattern.group_by is not None:
+        if pattern.drilldown_column_name is not None:
             ixn_field.TrackingEnabled = True
             self._api.ixn_objects[pattern.group_by] = ixn_field.href
     
@@ -263,8 +264,7 @@ class TrafficItem(CustomField):
         ixn_tx_control = ixn_stream.TransmissionControl
         if duration.choice == 'fixed':
             if duration.fixed.delay_unit not in ['bytes', 'nanoseconds', None]:
-                raise ValueError('flow.duration.fixed.delay_unit is accepting [bytes, nanoseconds] Not %s'
-                                 % duration.fixed.delay_unit);
+                duration.fixed.delay_unit = 'bytes'
             if duration.fixed.packets <= 0:
                 ixn_tx_control.update(Type='continuous',
                     MinGapBytes=duration.fixed.gap,
@@ -282,7 +282,7 @@ class TrafficItem(CustomField):
                 duration.burst.inter_burst_gap_unit is not None):
                 enable_gap = True
             if duration.burst.inter_burst_gap_unit not in ['bytes', 'nanoseconds', None]:
-                raise ValueError('flow.duration.fixed.inter_burst_gap_unit is accepting [bytes, nanoseconds] Not %s' % duration.fixed.delay_unit);
+                duration.burst.inter_burst_gap_unit = 'bytes'
             ixn_tx_control.update(Type='custom',
                 BurstPacketCount=duration.burst.packets,
                 MinGapBytes=duration.burst.gap,

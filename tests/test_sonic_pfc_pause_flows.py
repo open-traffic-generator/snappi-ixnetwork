@@ -17,7 +17,7 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
         bi_directional=False,
         allow_self_destined=False)
 
-    test_dscp = Priority(Dscp(phb=Pattern(Dscp.PHB_CS7)))
+    test_dscp = Priority(Dscp(phb=Pattern(Dscp.PHB_CS7, drilldown_column_name='phb')))
     test_flow = Flow(name='Test Data',
         endpoint=Endpoint(data_endpoint),
         packet=[
@@ -41,7 +41,8 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
         rate=Rate('line', 50),
         duration=Duration(Fixed(packets=0)))
 
-    pause_endpoint = PortEndpoint(tx_port_name=tx_port.name)
+    pause_endpoint = PortEndpoint(tx_port_name=tx_port.name,
+        rx_port_names=[rx_port.name])
     pause = Header(PfcPause(
         dst=Pattern('01:80:C2:00:00:01'),
         src=Pattern('00:00:fa:ce:fa:ce'),
