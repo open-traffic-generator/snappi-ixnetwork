@@ -245,7 +245,14 @@ class Vport(object):
         for vport in self._api.select_vports().values():
             port_row = [0 for i in range(len(Vport._RESULT_COLUMNS))]
             self._set_result_value(port_row, 'name', vport['name'])
-            self._set_result_value(port_row, 'location', 'connected' if vport['connectionState'].startswith('connectedLink') is True else vport['connectionState'])
+            location = vport['location']
+            if vport['connectionState'].startswith('connectedLink') is True:
+                location += ';connected'
+            elif len(location) > 0:
+                location += ';' + vport['connectionState']
+            else:
+                location = vport['connectionState']
+            self._set_result_value(port_row, 'location', location)
             self._set_result_value(port_row, 'link', 'up' if vport['connectionState'] == 'connectedLinkUp' else 'down')
             self._set_result_value(port_row, 'capture', 'stopped')
             port_rows[vport['name']] = port_row

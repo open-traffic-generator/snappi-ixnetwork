@@ -220,7 +220,7 @@ class TrafficItem(CustomField):
             self._api.ixn_objects[pattern.group_by] = ixn_field.href
     
     def _configure_size(self, ixn_stream, size):
-        """ Configure frameSize within /traffic/trafficItem[*]/configElement[*]/frameSize
+        """ Transform frameSize flows.size to /traffic/trafficItem[*]/configElement[*]/frameSize
         """
         if size is None:
             return
@@ -241,7 +241,7 @@ class TrafficItem(CustomField):
             print('Warning - We need to implement this %s choice' %size.choice)
             
     def _configure_rate(self, ixn_stream, rate):
-        """ Configure frameRate within /traffic/trafficItem[*]/configElement[*]/frameRate
+        """ Transform frameRate flows.rate to /traffic/trafficItem[*]/configElement[*]/frameRate
         """
         if rate is None:
             return
@@ -256,21 +256,39 @@ class TrafficItem(CustomField):
         ixn_frame_rate.Rate = rate.value
 
     def _configure_tx_control(self, ixn_stream, duration):
+        """Transform duration flows.duration to /traffic/trafficItem[*]/configElement[*]/TransmissionControl
+        """
         if duration is None:
             return
         ixn_tx_control = ixn_stream.TransmissionControl
         if duration.choice == 'fixed':
+            if duration.fixed.delay_unit not in ['bytes', 'nanoseconds', None]:
+                raise ValueError('flow.duration.fixed.delay_unit is accepting [bytes, nanoseconds] Not %s'
+                                 % duration.fixed.delay_unit);
             if duration.fixed.packets <= 0:
-                ixn_tx_control.update(Type='continuous')
+                ixn_tx_control.update(Type='continuous',
+                    MinGapBytes=duration.fixed.gap,
+                    StartDelay=duration.fixed.delay,
+                    StartDelayUnits=duration.fixed.delay_unit)
             else:
                 ixn_tx_control.update(Type='fixedFrameCount', 
                     FrameCount=duration.fixed.packets,
+                    MinGapBytes=duration.fixed.gap,
                     StartDelay=duration.fixed.delay,
-                    StartDelayUnits='bytes')
+                    StartDelayUnits=duration.fixed.delay_unit)
         elif duration.choice == 'burst':
-                ixn_tx_control.update(Type='custom', 
-                    BurstPacketCount=duration.burst.packets,
-                    MinGapBytes=duration.burst.gap)
+            enable_gap = False
+            if (duration.burst.inter_burst_gap is not None or
+                duration.burst.inter_burst_gap_unit is not None):
+                enable_gap = True
+            if duration.burst.inter_burst_gap_unit not in ['bytes', 'nanoseconds', None]:
+                raise ValueError('flow.duration.fixed.inter_burst_gap_unit is accepting [bytes, nanoseconds] Not %s' % duration.fixed.delay_unit);
+            ixn_tx_control.update(Type='custom',
+                BurstPacketCount=duration.burst.packets,
+                MinGapBytes=duration.burst.gap,
+                EnableInterBurstGap=enable_gap,
+                InterBurstGap=duration.burst.inter_burst_gap,
+                InterBurstGapUnits=duration.burst.inter_burst_gap_unit)
 
     def transmit(self, request):
         """Set flow transmit
