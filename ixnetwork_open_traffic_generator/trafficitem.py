@@ -292,13 +292,18 @@ class TrafficItem(CustomField):
 
     def transmit(self, request):
         """Set flow transmit
+        1) If start then start any device protocols that are traffic dependent
+        2) If start then generate and apply traffic
+        3) Execute requested transmit action (start|stop|pause|resume)
         """
         regex = None
         if request.names is not None and len(request.names) > 0:
             regex = '^(%s)$' % '|'.join(request.names)
-        self._api._traffic.Generate()
-        self._api._traffic.Apply()
         self._api._traffic_item.find(regex)
+        if request.state == 'start':
+            self._api._ixnetwork.StartAllProtocols('sync')
+            self._api._traffic.Generate()
+            self._api._traffic.Apply()
         if request.state == 'start':
             self._api._traffic_item.StartStatelessTraffic()
         elif request.state == 'stop':
@@ -307,6 +312,8 @@ class TrafficItem(CustomField):
             self._api._traffic_item.PauseStatelessTraffic(True)
         elif request.state == 'resume':
             self._api._traffic_item.PauseStatelessTraffic(False)
+
+
 
     def results(self, request):
         """Return flow results
