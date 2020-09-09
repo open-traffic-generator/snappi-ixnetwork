@@ -278,17 +278,17 @@ class TrafficItem(CustomField):
         regex = None
         if request.names is not None and len(request.names) > 0:
             regex = '^(%s)$' % '|'.join(request.names)
-        self._api.traffic.Generate()
-        self._api.traffic.Apply()
-        self._api.traffic_item.find(regex)
+        self._api._traffic.Generate()
+        self._api._traffic.Apply()
+        self._api._traffic_item.find(regex)
         if request.state == 'start':
-            self._api.traffic_item.StartStatelessTraffic()
+            self._api._traffic_item.StartStatelessTraffic()
         elif request.state == 'stop':
-            self._api.traffic_item.StopStatelessTraffic()
+            self._api._traffic_item.StopStatelessTraffic()
         elif request.state == 'pause':
-            self._api.traffic_item.PauseStatelessTraffic(True)
+            self._api._traffic_item.PauseStatelessTraffic(True)
         elif request.state == 'resume':
-            self._api.traffic_item.PauseStatelessTraffic(False)
+            self._api._traffic_item.PauseStatelessTraffic(False)
 
     def results(self, request):
         """Return flow results
