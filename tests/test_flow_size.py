@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_sonic_pfc_pause_flows(serializer, api, tx_port, rx_port, b2b_ipv4_device_groups):
+def test_flow_sizes(serializer, api, tx_port, rx_port, b2b_ipv4_device_groups):
     """
     This will test supported Flow Size
             'float': 'fixed',
