@@ -302,7 +302,7 @@ class TrafficItem(CustomField):
         self._api._traffic_item.find(regex)
         if request.state == 'start':
             self._api._ixnetwork.StartAllProtocols('sync')
-            self._api._traffic.Generate()
+            self._api._traffic_item.Generate()
             self._api._traffic.Apply()
         if request.state == 'start':
             self._api._traffic_item.StartStatelessTraffic()
@@ -312,8 +312,6 @@ class TrafficItem(CustomField):
             self._api._traffic_item.PauseStatelessTraffic(True)
         elif request.state == 'resume':
             self._api._traffic_item.PauseStatelessTraffic(False)
-
-
 
     def results(self, request):
         """Return flow results

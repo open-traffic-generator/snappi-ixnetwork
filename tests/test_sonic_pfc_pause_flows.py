@@ -3,6 +3,7 @@ from abstract_open_traffic_generator.flow import *
 from abstract_open_traffic_generator.flow_ipv4 import *
 from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.control import FlowTransmit
+from abstract_open_traffic_generator.request import Port as PortRequest
 
 
 def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_groups, api):
@@ -74,7 +75,21 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
 
     api.set_config(None)
     api.set_config(config)
-    api.set_flow_transmit(FlowTransmit(names=[], start='start'))
+    
+    api.set_flow_transmit(FlowTransmit(names=[], state='start'))
+    import time
+    time.sleep(10)
+    request = PortRequest()
+    results = api.get_port_results(request)
+    print(results['columns'])
+    for row in results['rows']:
+        print(row)
+    api.set_flow_transmit(FlowTransmit(names=[], state='stop'))
+    time.sleep(10)
+    results = api.get_port_results(request)
+    print(results['columns'])
+    for row in results['rows']:
+        print(row)
 
 
 if __name__ == '__main__':
