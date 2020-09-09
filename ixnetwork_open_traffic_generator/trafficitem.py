@@ -218,7 +218,7 @@ class TrafficItem(CustomField):
             
         if pattern.drilldown_column_name is not None:
             ixn_field.TrackingEnabled = True
-            self._api.ixn_objects[pattern.group_by] = ixn_field.href
+            self._api.ixn_objects[pattern.drilldown_column_name] = ixn_field.href
     
     def _configure_size(self, ixn_stream, size):
         """ Transform frameSize flows.size to /traffic/trafficItem[*]/configElement[*]/frameSize
