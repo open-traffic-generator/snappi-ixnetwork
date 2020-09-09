@@ -1,4 +1,5 @@
-from abstract_open_traffic_generator.port import Port, OneHundredGbe, Layer1
+from pprint import pprint
+from abstract_open_traffic_generator.port import Port, OneHundredGbe, Layer1, Fcoe
 from abstract_open_traffic_generator.device import DeviceGroup, Device
 from abstract_open_traffic_generator.device import Ethernet, Vlan, Ipv4
 from abstract_open_traffic_generator.device import Pattern
@@ -17,13 +18,15 @@ from abstract_open_traffic_generator.flow import Ipv4 as IPV4
 from abstract_open_traffic_generator.flow import Vlan as VLAN
 from abstract_open_traffic_generator.flow import Ethernet as ETHERNET
 from abstract_open_traffic_generator.flow_ipv4 import Priority, Dscp
+from abstract_open_traffic_generator.request import Port as Request
+
 
 from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
 
 
-TX_LOCATION = '10.36.78.53;9;1'
-RX_LOCATION = '10.36.78.53;9;2'
-API_SERVER  = '10.36.78.242'
+TX_LOCATION = '10.39.34.250;1;1'
+RX_LOCATION = '10.39.34.250;1;2'
+API_SERVER  = '10.39.32.100'
 PORT        = '443'
 
 def run_pfc_pause_lossy_traffic_test(serializer,
@@ -38,7 +41,8 @@ def run_pfc_pause_lossy_traffic_test(serializer,
                                      tx_ip_incr='0.0.0.0',
                                      rx_ip_incr='0.0.0.0',
                                      tx_gateway_incr='0.0.0.0',
-                                     rx_gateway_incr='0.0.0.0'):
+                                     rx_gateway_incr='0.0.0.0',
+                                     configure_pause_frame=True):
     ########################################################################### 
     # TX port 
     ########################################################################### 
@@ -61,9 +65,17 @@ def run_pfc_pause_lossy_traffic_test(serializer,
                                      speed='one_hundred_gbps',
                                      rs_fec=True)
 
+    fcoe = Fcoe(flow_control_type='ieee_802_1qbb',
+        pfc_delay_quanta=3,
+        pfc_class_0='zero',
+        pfc_class_1='three',
+        pfc_class_4='seven')
+
+
     common_l1_config = Layer1(name='common L1 config',
                               choice=l1_oneHundredGbe,
-                              port_names=[tx.name, rx.name])
+                              port_names=[tx.name, rx.name],
+                              fcoe=fcoe)
 
     ########################################################################### 
     # Create TX stack configuration
@@ -127,7 +139,7 @@ def run_pfc_pause_lossy_traffic_test(serializer,
         ],
         size=Size(128),
         rate=Rate('line', 50),
-        duration=Duration(Fixed(packets=0))
+        duration=Duration(Fixed(packets=0, delay=1000000000, delay_unit='nanoseconds'))
     )
 
     ########################################################################### 
@@ -145,7 +157,7 @@ def run_pfc_pause_lossy_traffic_test(serializer,
         ],
         size=Size(128),
         rate=Rate('line', 50),
-       duration=Duration(Fixed(packets=0))
+        duration=Duration(Fixed(packets=0, delay=1000000000, delay_unit='nanoseconds'))
     )
 
     ########################################################################### 
@@ -154,14 +166,20 @@ def run_pfc_pause_lossy_traffic_test(serializer,
     # ../ixnetwork_open_traffic_generator/trafficitem.py:92: AttributeError 
     # AttributeError: 'Header' object has no attribute 'name'
     ########################################################################### 
-    if (1) :
+    if (configure_pause_frame) :
         pause_endpoint = PortEndpoint(tx_port_name=rx.name)
         pause = Header(PfcPause(
-            dst=PATTERN('01:80:C2:00:00:01'),
-            src=PATTERN('00:00:fa:ce:fa:ce'),
-            class_enable_vector=PATTERN([0, 0, 0, 1, 1, 0, 0, 0]),
-            pause_class_3=PATTERN('3'),
-            pause_class_4=PATTERN('4'),
+            dst=PATTERN(choice='01:80:C2:00:00:01'),
+            src=PATTERN(choice='00:00:fa:ce:fa:ce'),
+            class_enable_vector=PATTERN(choice='E7'),
+            pause_class_0=PATTERN(choice='ffff'),
+            pause_class_1=PATTERN(choice='ffff'),
+            pause_class_2=PATTERN(choice='ffff'),
+            pause_class_3=PATTERN(choice='0'),
+            pause_class_4=PATTERN(choice='0'),
+            pause_class_5=PATTERN(choice='ffff'),
+            pause_class_6=PATTERN(choice='ffff'),
+            pause_class_7=PATTERN(choice='ffff'),
         ))
 
         pause_flow = Flow(
@@ -170,7 +188,7 @@ def run_pfc_pause_lossy_traffic_test(serializer,
             packet=[pause],
             size=Size(64),
             rate=Rate('line', value=100),
-            duration=Duration(Fixed(packets=0))
+            duration=Duration(Fixed(packets=0, delay=0, delay_unit='nanoseconds'))
         )
         flows = [test_flow, background_flow, pause_flow]
     else :
@@ -195,6 +213,21 @@ def run_pfc_pause_lossy_traffic_test(serializer,
     )
     print(serializer.json(config))
     api.set_config(config)
+
+    request = Request()
+    results = api.get_port_results(request)
+    #print(results['columns'])
+    #for row in results['rows']:
+    #    print(row)
+    stats = {}
+    for name in results['columns']:
+        val = []
+        col_index = results['columns'].index(name)
+        for row in results['rows']:
+            val.append(row[col_index])
+        stats[name] = val
+
+    pprint(stats)
 
 
 def test_start_lossy(serializer) :
