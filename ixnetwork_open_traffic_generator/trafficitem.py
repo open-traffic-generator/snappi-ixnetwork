@@ -305,13 +305,13 @@ class TrafficItem(CustomField):
             self._api._traffic_item.Generate()
             self._api._traffic.Apply()
         if request.state == 'start':
-            self._api._traffic_item.StartStatelessTraffic()
+            self._api._traffic_item.StartStatelessTrafficBlocking()
         elif request.state == 'stop':
-            self._api._traffic_item.StopStatelessTraffic()
+            self._api._traffic_item.StopStatelessTrafficBlocking()
         elif request.state == 'pause':
-            self._api._traffic_item.PauseStatelessTraffic(True)
+            self._api._traffic_item.PauseStatelessTrafficBlocking(True)
         elif request.state == 'resume':
-            self._api._traffic_item.PauseStatelessTraffic(False)
+            self._api._traffic_item.PauseStatelessTrafficBlocking(False)
 
     def results(self, request):
         """Return flow results
