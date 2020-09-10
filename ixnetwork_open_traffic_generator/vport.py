@@ -123,6 +123,7 @@ class Vport(object):
             return
         vports = self._api.select_vports()
         imports = []
+        reset_auto_negotiation = dict()
         for layer1 in self._api.config.layer1:
             for port_name in layer1.port_names:
                 vport = vports[port_name]
@@ -131,8 +132,19 @@ class Vport(object):
                     if layer1.choice == 'ethernet':
                         self._configure_ethernet(vport, layer1, imports)
                     elif layer1.choice == 'one_hundred_gbe':
+                        reset_auto_negotiation[port_name] = layer1.one_hundred_gbe.auto_negotiate is not None
                         self._configure_100gbe(vport, layer1, imports)
                     self._configure_fcoe(vport, layer1, imports)
+        if len(imports) > 0:
+            self._resource_manager.ImportConfig(json.dumps(imports), False)
+        
+        # Due to dependency attribute (ieeeL1Defaults) resetting enableAutoNegotiation
+        imports = []
+        for layer1 in self._api.config.layer1:
+            for port_name in layer1.port_names:
+                vport = vports[port_name]
+                if reset_auto_negotiation[port_name]:
+                    self._reset_auto_negotiation(vport, layer1, imports)
         if len(imports) > 0:
             self._resource_manager.ImportConfig(json.dumps(imports), False)
 
@@ -197,6 +209,16 @@ class Vport(object):
                     'enableAutoNegotiation': one_hundred_gbe.auto_negotiate,
                     'enableRsFec': one_hundred_gbe.rs_fec,
                     'linkTraining': one_hundred_gbe.link_training,
+                }
+            )
+    
+    def _reset_auto_negotiation(self, vport, layer1, imports):
+        if hasattr(layer1, 'one_hundred_gbe') is True and layer1.one_hundred_gbe is not None:
+            one_hundred_gbe = layer1.one_hundred_gbe
+            imports.append(
+                {
+                    'xpath': vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', ''),
+                    'enableAutoNegotiation': one_hundred_gbe.auto_negotiate,
                 }
             )
 
