@@ -143,7 +143,7 @@ class Vport(object):
         for layer1 in self._api.config.layer1:
             for port_name in layer1.port_names:
                 vport = vports[port_name]
-                if reset_auto_negotiation[port_name]:
+                if port_name in reset_auto_negotiation and reset_auto_negotiation[port_name]:
                     self._reset_auto_negotiation(vport, layer1, imports)
         if len(imports) > 0:
             self._resource_manager.ImportConfig(json.dumps(imports), False)
