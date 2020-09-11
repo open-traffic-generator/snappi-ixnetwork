@@ -147,7 +147,13 @@ class TrafficItem(CustomField):
                 args['Sources'].append(self._api.get_ixn_object(port_name))
             for port_name in endpoint.device.rx_device_names:
                 args['Destinations'].append(self._api.get_ixn_object(port_name))
+        ixn_endpoint_set.find()
+        if len(ixn_endpoint_set) > 1:
+            ixn_endpoint_set.remove()
+        if len(ixn_endpoint_set) == 0:
             ixn_endpoint_set.add(**args)
+        else:
+            ixn_endpoint_set.update(**args)
 
     def _configure_stack(self, ixn_stream, headers):
         """Transform flow.packets[0..n] to /traffic/trafficItem/configElement/stack 
