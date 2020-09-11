@@ -1,6 +1,6 @@
 import pytest
 from abstract_open_traffic_generator.config import Config
-from abstract_open_traffic_generator.request import Port as Request
+from abstract_open_traffic_generator.result import PortRequest
 
 
 def test_ports(serializer, api, tx_port, rx_port):
@@ -9,7 +9,7 @@ def test_ports(serializer, api, tx_port, rx_port):
     config = Config(ports=[tx_port, rx_port])
     api.set_config(config)
 
-    request = Request()
+    request = PortRequest()
     results = api.get_port_results(request)
     print(results['columns'])
     for row in results['rows']:

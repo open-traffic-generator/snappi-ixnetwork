@@ -216,9 +216,9 @@ class TrafficItem(CustomField):
             # TBD: add to set_config errors - invalid pattern specified
             pass
             
-        if pattern.drilldown_column_name is not None:
+        if pattern.ingress_result_name is not None:
             ixn_field.TrackingEnabled = True
-            self._api.ixn_objects[pattern.drilldown_column_name] = ixn_field.href
+            self._api.ixn_objects[pattern.ingress_result_name] = ixn_field.href
     
     def _configure_size(self, ixn_stream, size):
         """ Transform frameSize flows.size to /traffic/trafficItem[*]/configElement[*]/frameSize
@@ -316,4 +316,4 @@ class TrafficItem(CustomField):
     def results(self, request):
         """Return flow results
         """
-        return None
+        pass
