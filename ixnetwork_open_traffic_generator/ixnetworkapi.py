@@ -182,7 +182,12 @@ class IxNetworkApi(Api):
                     'children': [
                         {
                             'child': 'trafficItem',
-                            'properties': ['name', 'state', 'isTrafficRunning'],
+                            'properties': ['name', 'state', 'enabled'],
+                            'filters': filters
+                        },
+                        {
+                            'child': 'highLevelStream',
+                            'properties': ['txPortName', 'rxPortNames'],
                             'filters': filters
                         }
                     ],

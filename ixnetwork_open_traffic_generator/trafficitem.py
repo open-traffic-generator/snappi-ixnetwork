@@ -340,8 +340,9 @@ class TrafficItem(CustomField):
         for traffic_item in self._api.select_traffic_items().values():
             flow_row = [0 for i in range(len(TrafficItem._RESULT_COLUMNS))]
             self._set_result_value(flow_row, 'name', traffic_item['name'])
-            state = traffic_item['state']
-            self._set_result_value(flow_row, 'state', state)
+            self._set_result_value(flow_row, 'state', traffic_item['state'])
+            self._set_result_value(flow_row, 'port_tx', traffic_item['highLevelStream'][0]['txPortName'])
+            self._set_result_value(flow_row, 'port_rx', ' '.join(traffic_item['highLevelStream'][0]['rxPortNames']))
             flow_rows[traffic_item['name']] = flow_row
         try:
             table = self._api.assistant.StatViewAssistant('Traffic Item Statistics')
