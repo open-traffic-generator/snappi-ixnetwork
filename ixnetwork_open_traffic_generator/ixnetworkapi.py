@@ -18,10 +18,18 @@ class IxNetworkApi(Api):
     - address (str): The address of the IxNetwork API Server
     - port (str): The rest port of the IxNetwork API Server
     """
-    def __init__(self, address='127.0.0.1', port='11009'):
+    def __init__(self, address='127.0.0.1', port='11009', username='admin', password='admin'):
+        """Create a session
+        - address (str): The ip address of the TestPlatform to connect to where test sessions will be created or connected to.
+        - port (str): The rest port of the TestPlatform to connect to.
+        - username (str): The username to be used for authentication
+        - password (str): The password to be used for authentication
+        """
         super(IxNetworkApi, self).__init__()
         self._address = address
         self._port = port
+        self._username = username
+        self._password = password
         self._running_config = None
         self._config = None
         self._assistant = None
@@ -97,6 +105,8 @@ class IxNetworkApi(Api):
         if self._assistant is None:
             self._assistant = SessionAssistant(IpAddress=self._address,
                 RestPort=self._port,
+                UserName=self._username,
+                Password=self._password,
                 LogLevel=SessionAssistant.LOGLEVEL_INFO) 
             self._ixnetwork = self._assistant.Ixnetwork
             self._vport = self._ixnetwork.Vport
