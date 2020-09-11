@@ -9,15 +9,6 @@ RX_PORT_LOCATION='10.36.74.26;02;14'
 
 
 @pytest.fixture(scope='session')
-def api():
-    """Change this to the ip address and rest port of the 
-    IxNetwork API Server to use for the api test fixture
-    """
-    from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
-    return IxNetworkApi(API_SERVER, port=API_SERVER_PORT)
-
-
-@pytest.fixture(scope='session')
 def serializer(request):
     class Serializer(object):
         def __init__(self, request):
@@ -45,12 +36,30 @@ def serializer(request):
 
 
 @pytest.fixture(scope='session')
+def api():
+    """Change this to the ip address and rest port of the 
+    IxNetwork API Server to use for the api test fixture
+    """
+    from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
+    return IxNetworkApi(API_SERVER, port=API_SERVER_PORT)
+
+
+@pytest.fixture
+def options():
+    """Returns global options
+    """
+    from abstract_open_traffic_generator.config import Options
+    from abstract_open_traffic_generator.port import Options as PortOptions
+    return Options(PortOptions(location_preemption=True))
+
+
+@pytest.fixture
 def tx_port():
     from abstract_open_traffic_generator.port import Port
     return Port(name='Tx Port', location=TX_PORT_LOCATION)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def rx_port():
     from abstract_open_traffic_generator.port import Port
     return Port(name='Rx Port', location=RX_PORT_LOCATION)
@@ -72,7 +81,7 @@ def tx_config(tx_port):
     )
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def b2b_ipv4_device_groups(tx_port, rx_port):
     """Returns a B2B tuple of tx devices to rx devices
     Protocol stack is eth + vlan + ipv4

@@ -3,10 +3,10 @@ from abstract_open_traffic_generator.config import Config
 from abstract_open_traffic_generator.result import PortRequest
 
 
-def test_ports(serializer, api, tx_port, rx_port):
+def test_ports(serializer, api, options, tx_port, rx_port):
     """Demonstrates how to retrieve port results
     """
-    config = Config(ports=[tx_port, rx_port])
+    config = Config(ports=[tx_port, rx_port], options=options)
     api.set_config(config)
 
     request = PortRequest()

@@ -76,6 +76,7 @@ class IxNetworkApi(Api):
         self._config = config
         self._config_objects = {}
         self._ixn_objects = {}
+        self._errors = []
         self.validation.validate_config()        
         self.__connect()
         if self._config is None:
@@ -101,7 +102,17 @@ class IxNetworkApi(Api):
         """
         return self.traffic_item.results(request)
 
+    def add_error(self, error):
+        """Add an error to the global errors
+        """
+        if isinstance(error, str) is False:
+            self._errors.append(str(error))
+        else:
+            self._errors.append(error)
+
     def __connect(self):
+        """Connect to an IxNetwork API Server.
+        """
         if self._assistant is None:
             self._assistant = SessionAssistant(IpAddress=self._address,
                 RestPort=self._port,

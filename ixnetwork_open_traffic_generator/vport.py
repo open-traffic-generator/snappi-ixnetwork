@@ -247,9 +247,13 @@ class Vport(object):
     def _connect(self):
         self._ixn_vport.find(ConnectionState='^((?!connectedLink).)*$')
         try:
-            self._ixn_vport.ConnectPorts(True)
+            force_ownership = self._api.config.options.port_options.location_premption
+        except:
+            force_ownership = False
+        try:
+            self._ixn_vport.ConnectPorts(force_ownership)
         except Exception as e:
-            pass
+            self._api.add_error(e)
 
     def control_link_state(self, port_names, link_state):
         pass
