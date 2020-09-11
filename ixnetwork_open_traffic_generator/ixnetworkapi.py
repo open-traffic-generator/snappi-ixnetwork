@@ -138,7 +138,8 @@ class IxNetworkApi(Api):
             ixn_obj.find().remove()
 
     def select_vports(self):
-        """Select all vports and return them in a dict keyed by vport name
+        """Select all vports.
+        Return them in a dict keyed by vport name.
         """
         payload = {
             'selects': [
@@ -164,3 +165,37 @@ class IxNetworkApi(Api):
                 vports[vport['name']] = vport
         return vports
 
+    def select_traffic_items(self, filters=[]):
+        """Select all traffic items.
+        Return them in a dict keyed by traffic item name.
+
+        Args
+        ----
+        - filters (list(dict(property:'', 'regex':''))): A list of filters for the select.
+            A filter is a dict with a property name and a regex match
+        """
+        payload = {
+            'selects': [
+                {
+                    'from': '/traffic',
+                    'properties': [],
+                    'children': [
+                        {
+                            'child': 'trafficItem',
+                            'properties': ['name', 'state', 'isTrafficRunning'],
+                            'filters': filters
+                        }
+                    ],
+                    'inlines': []
+                }
+            ]
+        }
+        url = '%s/operations/select?xpath=true' % self._ixnetwork.href
+        results = self._ixnetwork._connection._execute(url, payload)
+        traffic_items = {}
+        try:
+            for traffic_item in results[0]['trafficItem']:
+                traffic_items[traffic_item['name']] = traffic_item
+        except:
+            pass
+        return traffic_items

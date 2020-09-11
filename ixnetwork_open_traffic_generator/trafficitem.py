@@ -9,6 +9,20 @@ class TrafficItem(CustomField):
     - ixnetworkapi (IxNetworkApi): instance of the ixnetworkapi class
     
     """
+    _RESULT_COLUMNS = [
+        'name',
+        'state',
+        'port_tx',
+        'port_rx',
+        'frames_tx',
+        'frames_rx',
+        'frames_tx_rate',
+        'frames_rx_rate',
+        'bytes_tx_rate',
+        'bytes_rx_rate',
+        'loss',
+    ]
+    
     _STACK_IGNORE = [
         'ethernet.fcs'
     ]
@@ -85,10 +99,7 @@ class TrafficItem(CustomField):
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
         ixn_traffic_item = self._api._traffic_item
-        for traffic_item in ixn_traffic_item.find():
-            if self.find_item(self._config.flows, 'name', traffic_item.Name) is None:
-                traffic_item.remove()
-
+        self._api._remove(ixn_traffic_item, self._api.config.flows)
         if self._api.config.flows is not None:
             for flow in self._api.config.flows:
                 args = {
@@ -313,7 +324,34 @@ class TrafficItem(CustomField):
         elif request.state == 'resume':
             self._api._traffic_item.PauseStatelessTrafficBlocking(False)
 
+    def _set_result_value(self, row, column_name, column_value):
+        row[TrafficItem._RESULT_COLUMNS.index(column_name)] = column_value
+
     def results(self, request):
         """Return flow results
         """
-        pass
+        flow_rows = {}
+        for traffic_item in self._api.select_traffic_items().values():
+            flow_row = [0 for i in range(len(TrafficItem._RESULT_COLUMNS))]
+            self._set_result_value(flow_row, 'name', traffic_item['name'])
+            state = traffic_item['state']
+            self._set_result_value(flow_row, 'state', state)
+            flow_rows[traffic_item['name']] = flow_row
+        try:
+            table = self._api.assistant.StatViewAssistant('Traffic Item Statistics')
+            for row in table.Rows:
+                flow_row = flow_rows[row['Traffic Item']]
+                self._set_result_value(flow_row, 'frames_tx', row['Tx Frames'])
+                self._set_result_value(flow_row, 'frames_rx', row['Rx Frames'])
+                self._set_result_value(flow_row, 'frames_tx_rate', row['Tx Frame Rate'])
+                self._set_result_value(flow_row, 'frames_rx_rate', row['Rx Frame Rate'])
+                self._set_result_value(flow_row, 'bytes_tx_rate', row['Tx Rate (Bps)'])
+                self._set_result_value(flow_row, 'bytes_rx_rate', row['Rx Rate (Bps)'])
+                self._set_result_value(flow_row, 'loss', row['Loss %'])
+        except Exception as e:
+            self._api.add_error(e)
+        results = { 
+            'columns': TrafficItem._RESULT_COLUMNS,
+            'rows': flow_rows.values()
+        }
+        return results
