@@ -18,6 +18,7 @@ def test_flow_results(serializer, api, options, tx_port, rx_port, b2b_ipv4_devic
         rate=Rate('pps', 10000),
         duration=Duration(Fixed(packets=0)))
 
+    api.set_config(None)
     import time
     start = time.time()
     config = Config(ports=[tx_port, rx_port], 
@@ -25,12 +26,12 @@ def test_flow_results(serializer, api, options, tx_port, rx_port, b2b_ipv4_devic
         flows=[flow], 
         options=options)
     api.set_config(config)
-    print('set_config %s' % str(time.time() - start))
+    print('set_config %0.2fs' % (time.time() - start))
 
     start = time.time()
     transmit = FlowTransmit(state='start')
     api.set_flow_transmit(transmit)
-    print('set_flow_transmit %s' % str(time.time() - start))
+    print('set_flow_transmit %0.2fs' % (time.time() - start))
 
     start = time.time()
     request = FlowRequest()
@@ -38,7 +39,7 @@ def test_flow_results(serializer, api, options, tx_port, rx_port, b2b_ipv4_devic
     print(results['columns'])
     for row in results['rows']:
         print(row)
-    print('get_flow_results %s' % str(time.time() - start))
+    print('get_flow_results %0.2fs' % (time.time() - start))
 
 
 if __name__ == '__main__':
