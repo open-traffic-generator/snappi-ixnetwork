@@ -1,5 +1,13 @@
-# This workflows will upload a Python Package using Twine when the 
-# VERSION file is updated
+# When a change to the VERSION file in the master branch is pushed this 
+# workflow does the following:
+#   - checkout all files
+#   - get the latest version number
+#   - setup python 3.x env
+#   - install python dependencies
+#   - build python distributions
+#   - create a tag and release
+#   - upload assets to the release
+#   - upload assets to pypi
 
 name: Build
 
