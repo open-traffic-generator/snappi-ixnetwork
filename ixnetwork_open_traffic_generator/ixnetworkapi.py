@@ -17,6 +17,10 @@ class IxNetworkApi(Api):
     ----
     - address (str): The address of the IxNetwork API Server
     - port (str): The rest port of the IxNetwork API Server
+    - username (str): The username for Linux IxNetwork API Server multi session environments
+        This is not required when connecting to single session environments
+    - password (str): The username for Linux IxNetwork API Server multi session environments
+        This is not required when connecting to single session environments
     """
     def __init__(self, address='127.0.0.1', port='11009', username='admin', password='admin'):
         """Create a session
