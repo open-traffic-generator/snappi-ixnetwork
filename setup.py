@@ -33,6 +33,7 @@ setup(
     include_package_data=True,
     python_requires='>=2.7, <4',
     install_requires=[
+        'jsonpath-ng'
         'abstract-open-traffic-generator', 
         'ixnetwork-restpy'
     ],
