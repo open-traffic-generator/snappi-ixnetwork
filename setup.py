@@ -1,8 +1,24 @@
 import os
 import shutil
 from setuptools import setup, find_namespace_packages
+import requests
 
 
+# download the latest version of the open-traffic-generator/models 
+# openapi.yaml spec which this package is based on
+latest = requests.request('GET', 
+    'https://github.com/open-traffic-generator/models/releases/latest/download',
+    allow_redirects=False)
+openapi_url = latest.headers['location'] + "/openapi.yaml"
+download = requests.request('GET', openapi_url)
+assert(download.status_code == 200)
+doc_dir = './ixnetwork_open_traffic_generator/docs'
+if os.path.exists(doc_dir) is False:
+    os.mkdir(doc_dir)
+with open(os.path.join(doc_dir, 'openapi.yaml'), 'wb') as fid:
+    fid.write(download.content)
+ 
+# read long description and version number
 pkg_name = 'ixnetwork_open_traffic_generator'
 base_dir = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(base_dir, 'README.md')) as fid:
