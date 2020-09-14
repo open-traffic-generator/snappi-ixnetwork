@@ -1,26 +1,33 @@
 import pytest
 from abstract_open_traffic_generator.port import *
 from abstract_open_traffic_generator.config import *
+from abstract_open_traffic_generator.layer1 import *
 
 
-def test_layer1_fcoe(serializer, api):
+def test_layer1_fcoe(serializer, api, tx_port, rx_port):
     """Test that layer1 fcoe configuration settings are being applied correctly.
     """
-    port1 = Port(name='port1', location='10.36.74.26;01;01')
-    fcoe = Fcoe(flow_control_type='ieee_802_1qbb',
-        pfc_delay_quanta=3,
-        pfc_class_0='zero',
-        pfc_class_1='three',
-        pfc_class_4='seven')
-    ethernet = Layer1(name='ethernet settings', 
-        port_names=[port1.name], 
-        choice=Ethernet(media='copper',
-            speed='one_thousand_mbps',
-            auto_negotiate=True),
-        fcoe=fcoe)
-    config = Config(ports=[port1], layer1=[ethernet])
+    pfc = Ieee8021qbb(pfc_delay=3,
+        pfc_class_0=1,
+        pfc_class_1=0,
+        pfc_class_4=7)
+    flowctl = FlowControl(directed_address='0180C2000001',
+        choice=pfc)
+    eth_fcoe = Ethernet(media='copper',
+        speed='one_thousand_mbps',
+        auto_negotiate=True,
+        flow_control=flowctl)
+    eth = Ethernet(media='copper',
+        speed='one_thousand_mbps',
+        auto_negotiate=True)
+    fcoe_layer1 = Layer1(name='ethernet fcoe settings', 
+        port_names=[rx_port.name], 
+        choice=eth_fcoe)
+    eth_layer1 = Layer1(name='ethernet settings', 
+        port_names=[tx_port.name], 
+        choice=eth)
+    config = Config(ports=[tx_port, rx_port], layer1=[fcoe_layer1, eth_layer1])
     serializer.json(config)
-    api.set_config(None)
     api.set_config(config)
 
 

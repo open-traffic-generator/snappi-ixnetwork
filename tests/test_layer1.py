@@ -1,6 +1,7 @@
 import pytest
 from abstract_open_traffic_generator.port import *
 from abstract_open_traffic_generator.config import *
+from abstract_open_traffic_generator.layer1 import *
 
 
 def test_layer1(serializer, api):
@@ -28,7 +29,6 @@ def test_layer1(serializer, api):
             speed='one_hundred_gbps'))
     config = Config(ports=[port1, port2, port3], layer1=[ethernet, uhd])
     serializer.json(config)
-    api.set_config(None)
     api.set_config(config)
 
 

@@ -38,17 +38,6 @@ class Vport(object):
         'ieee_802_1qbb': 'ieee802.1Qbb',
         'ieee_802_3x': 'ieee_802_3x'
     }
-    _PFC_CLASS_MAP = {
-        'none': -1,
-        'zero': 0,
-        'one': 1,
-        'two': 2,
-        'three': 3,
-        'four': 4,
-        'five': 5,
-        'six': 6,
-        'seven': 7
-    }
     _RESULT_COLUMNS = [
         'name',
         'location',
@@ -128,13 +117,11 @@ class Vport(object):
             for port_name in layer1.port_names:
                 vport = vports[port_name]
                 if vport['connectionState'] in ['connectedLinkUp', 'connectedLinkDown']:
-                    vport_type = self._configure_layer1_type(layer1, vport, imports)
                     if layer1.choice == 'ethernet':
                         self._configure_ethernet(vport, layer1, imports)
                     elif layer1.choice == 'one_hundred_gbe':
                         reset_auto_negotiation[port_name] = layer1.one_hundred_gbe.auto_negotiate is not None
                         self._configure_100gbe(vport, layer1, imports)
-                    self._configure_fcoe(vport, layer1, imports)
         if len(imports) > 0:
             self._resource_manager.ImportConfig(json.dumps(imports), False)
         
@@ -148,22 +135,27 @@ class Vport(object):
         if len(imports) > 0:
             self._resource_manager.ImportConfig(json.dumps(imports), False)
 
-    def _configure_layer1_type(self, layer1, vport, imports):
+    def _configure_layer1_type(self, interface, vport, imports):
         """Set the /vport -type
-        If the layer1.fcoe property is set then the -type attribute should 
+        
+        If flow_control is not None then the -type attribute should 
         be switched to a type with the Fcoe extension if it is allowed.
-        If the layer1.fcoe property does not exist or is None then the -type
-        attribute should be switched to a type without the Fcoe extension.
+
+        If flow_control is None then the -type attribute should 
+        be switched to a type without the Fcoe extension.
         """
+        fcoe = False
+        if hasattr(interface, 'flow_control') and interface.flow_control is not None:
+            fcoe = True
         vport_type = vport['type']
         elegible_fcoe_vport_types = [
             'ethernet', 'tenGigLan', 'fortyGigLan', 'tenGigWan', 'hundredGigLan',
             'tenFortyHundredGigLan', 'novusHundredGigLan', 'novusTenGigLan',
             'krakenFourHundredGigLan', 'aresOneHundredGigLan'
         ]
-        if layer1.fcoe is not None and vport_type in elegible_fcoe_vport_types:
+        if fcoe is True and vport_type in elegible_fcoe_vport_types:
             vport_type = vport_type + 'Fcoe'
-        if layer1.fcoe is None and vport_type.endswith('Fcoe'):
+        if fcoe is False and vport_type.endswith('Fcoe'):
             vport_type = vport_type.replace('Fcoe', '')
         if vport_type != vport['type']:
             imports.append(
@@ -172,10 +164,13 @@ class Vport(object):
                     'type': vport_type
                 }
             )
+        if fcoe is True and vport_type.endswith('Fcoe'):
+            self._configure_fcoe(vport, interface.flow_control, imports)
         return vport_type
 
     def _configure_ethernet(self, vport, layer1, imports):
         if hasattr(layer1, 'ethernet') is True and layer1.ethernet is not None:
+            self._configure_layer1_type(layer1.ethernet, vport, imports)
             ethernet = layer1.ethernet
             advertise = []
             if ethernet.advertise_one_thousand_mbps is True:
@@ -200,6 +195,7 @@ class Vport(object):
 
     def _configure_100gbe(self, vport, layer1, imports):
         if hasattr(layer1, 'one_hundred_gbe') is True and layer1.one_hundred_gbe is not None:
+            self._configure_layer1_type(layer1.one_hundred_gbe, vport, imports)
             one_hundred_gbe = layer1.one_hundred_gbe
             imports.append(
                 {
@@ -222,22 +218,23 @@ class Vport(object):
                 }
             )
 
-    def _configure_fcoe(self, vport, layer1, imports):
-        if hasattr(layer1, 'fcoe') is True and layer1.fcoe is not None:
+    def _configure_fcoe(self, vport, flow_control, imports):
+        if flow_control is not None and flow_control.choice == 'ieee_802_1qbb':
+            pfc = flow_control.ieee_802_1qbb
             fcoe = {
                 'xpath': vport['xpath'] + '/l1Config/' + vport['type'] + '/fcoe',
                 'enablePFCPauseDelay': True,
-                'flowControlType': Vport._FLOW_CONTROL_MAP[layer1.fcoe.flow_control_type],
-                'pfcPauseDelay': layer1.fcoe.pfc_delay_quanta,
+                'flowControlType': Vport._FLOW_CONTROL_MAP[flow_control.choice],
+                'pfcPauseDelay': pfc.pfc_delay,
                 'pfcPriorityGroups': [
-                    Vport._PFC_CLASS_MAP[layer1.fcoe.pfc_class_0],
-                    Vport._PFC_CLASS_MAP[layer1.fcoe.pfc_class_1],
-                    Vport._PFC_CLASS_MAP[layer1.fcoe.pfc_class_2],
-                    Vport._PFC_CLASS_MAP[layer1.fcoe.pfc_class_3],
-                    Vport._PFC_CLASS_MAP[layer1.fcoe.pfc_class_4],
-                    Vport._PFC_CLASS_MAP[layer1.fcoe.pfc_class_5],
-                    Vport._PFC_CLASS_MAP[layer1.fcoe.pfc_class_6],
-                    Vport._PFC_CLASS_MAP[layer1.fcoe.pfc_class_7],
+                    -1 if pfc.pfc_class_0 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_1 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_2 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_3 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_4 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_5 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_6 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_7 is None else pfc.pfc_class_0,
                 ],
                 'priorityGroupSize': 'priorityGroupSize-8',
                 'supportDataCenterMode': True

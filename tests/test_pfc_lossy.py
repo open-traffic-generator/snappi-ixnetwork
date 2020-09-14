@@ -3,9 +3,11 @@ Contains configurations for pfc lossy and pfc global pause
 """
 import json
 import sys
+import pytest
 
-from abstract_open_traffic_generator.port import\
-    Port, OneHundredGbe, Layer1, Fcoe
+from abstract_open_traffic_generator.port import Port
+from abstract_open_traffic_generator.layer1 import\
+    Layer1, OneHundredGbe, FlowControl, Ieee8021qbb, Ieee8023x
 from abstract_open_traffic_generator.device import\
     DeviceGroup, Device, Ethernet, Vlan, Ipv4, Pattern
 
@@ -19,8 +21,8 @@ from abstract_open_traffic_generator.flow import Ipv4 as IPV4
 from abstract_open_traffic_generator.flow import Vlan as VLAN
 from abstract_open_traffic_generator.flow import Ethernet as ETHERNET
 from abstract_open_traffic_generator.flow_ipv4 import Priority, Dscp
-from abstract_open_traffic_generator.request import Port as Request
-from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
+from abstract_open_traffic_generator.result import PortRequest
+
 
 def configure_pfc_lossy (api,
                          phy_tx_port,
@@ -44,28 +46,28 @@ def configure_pfc_lossy (api,
     #########################################################################
     # common L1 configuration
     #########################################################################
+    pfc = Ieee8021qbb(pfc_delay=1,
+                pfc_class_0=0,
+                pfc_class_1=1,
+                pfc_class_2=2,
+                pfc_class_3=3,
+                pfc_class_4=4,
+                pfc_class_5=5,
+                pfc_class_6=6,
+                pfc_class_7=7)
+    
+    flow_ctl = FlowControl(choice=pfc)
+
     l1_oneHundredGbe = OneHundredGbe(link_training=True,
                                      ieee_media_defaults=False,
                                      auto_negotiate=False,
                                      speed='one_hundred_gbps',
-                                     rs_fec=True)
-
-
-    fcoe = Fcoe(flow_control_type='ieee_802_1qbb',
-                pfc_delay_quanta=1,
-                pfc_class_0='zero',
-                pfc_class_1='one',
-                pfc_class_2='two',
-                pfc_class_3='three',
-                pfc_class_4='four',
-                pfc_class_5='five',
-                pfc_class_6='six',
-                pfc_class_7='seven')
+                                     rs_fec=True, 
+                                     flow_control=flow_ctl)
 
     common_l1_config = Layer1(name='common L1 config',
                               choice=l1_oneHundredGbe,
-                              port_names=[tx.name, rx.name],
-                              fcoe=fcoe)
+                              port_names=[tx.name, rx.name])
 
     ###########################################################################
     # Create TX stack configuration
