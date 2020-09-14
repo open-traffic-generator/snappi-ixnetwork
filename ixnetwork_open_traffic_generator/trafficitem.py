@@ -314,9 +314,9 @@ class TrafficItem(CustomField):
         3) Execute requested transmit action (start|stop|pause|resume)
         """
         regex = None
-        if request.names is not None and len(request.names) > 0:
-            regex = '^(%s)$' % '|'.join(request.names)
-        self._api._traffic_item.find(regex)
+        if request.flow_names is not None and len(request.flow_names) > 0:
+            regex = '^(%s)$' % '|'.join(request.flow_names)
+        self._api._traffic_item.find(Name=regex)
         if request.state == 'start':
             self._api._ixnetwork.StartAllProtocols('sync')
             self._api._traffic_item.Generate()
@@ -336,8 +336,14 @@ class TrafficItem(CustomField):
     def results(self, request):
         """Return flow results
         """
+        filter = {
+            'property': 'name',
+            'regex': '.*'
+        }
+        if request is not None and request.flow_names is not None and len(request.flow_names) > 0:
+            filter['regex'] = '^(%s)$' % '|'.join(request.flow_names)
         flow_rows = {}
-        for traffic_item in self._api.select_traffic_items().values():
+        for traffic_item in self._api.select_traffic_items(traffic_item_filters=[filter]).values():
             flow_row = [0 for i in range(len(TrafficItem._RESULT_COLUMNS))]
             self._set_result_value(flow_row, 'name', traffic_item['name'])
             self._set_result_value(flow_row, 'state', traffic_item['state'])
@@ -346,6 +352,7 @@ class TrafficItem(CustomField):
             flow_rows[traffic_item['name']] = flow_row
         try:
             table = self._api.assistant.StatViewAssistant('Traffic Item Statistics')
+            table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX, filter['regex'])
             for row in table.Rows:
                 flow_row = flow_rows[row['Traffic Item']]
                 self._set_result_value(flow_row, 'frames_tx', row['Tx Frames'])

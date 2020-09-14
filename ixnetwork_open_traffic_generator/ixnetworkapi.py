@@ -103,7 +103,20 @@ class IxNetworkApi(Api):
 
     def get_flow_results(self, request):
         """Abstract API implementation
+
+        Args
+        ----
+        - request (Union[FlowRequest, str, dict]): A request for flow results.
+            The request content MUST be based on the OpenAPI #/components/schemas/Result.FlowRequest model.
+            See the docs/openapi.yaml document for all model details.
         """
+        from abstract_open_traffic_generator.result import FlowRequest
+        if isinstance(request, (FlowRequest, str, dict)) is False:
+            raise TypeError('The content must be of type Union[FlowRequest, str, dict]')
+        if isinstance(request, str) is True:
+            request = json.loads(request, object_hook = lambda otg : namedtuple('otg', otg.keys()) (*otg.values())) 
+        elif isinstance(request, dict) is True:
+            request = namedtuple('otg', request.keys())(*request.values())
         return self.traffic_item.results(request)
 
     def add_error(self, error):
@@ -169,7 +182,7 @@ class IxNetworkApi(Api):
                 vports[vport['name']] = vport
         return vports
 
-    def select_traffic_items(self, filters=[]):
+    def select_traffic_items(self, traffic_item_filters=[]):
         """Select all traffic items.
         Return them in a dict keyed by traffic item name.
 
@@ -187,12 +200,12 @@ class IxNetworkApi(Api):
                         {
                             'child': 'trafficItem',
                             'properties': ['name', 'state', 'enabled'],
-                            'filters': filters
+                            'filters': traffic_item_filters
                         },
                         {
                             'child': 'highLevelStream',
                             'properties': ['txPortName', 'rxPortNames'],
-                            'filters': filters
+                            'filters': []
                         }
                     ],
                     'inlines': []
