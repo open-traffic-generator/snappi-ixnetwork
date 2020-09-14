@@ -35,14 +35,15 @@ def serializer(request):
     return Serializer(request)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture()
 def api():
     """Change this to the ip address and rest port of the 
     IxNetwork API Server to use for the api test fixture
     """
     from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
-    return IxNetworkApi(API_SERVER, port=API_SERVER_PORT)
-
+    ixNetworkApi = IxNetworkApi(API_SERVER, port=API_SERVER_PORT)
+    yield ixNetworkApi
+    ixNetworkApi.assistant.Session.remove()
 
 @pytest.fixture
 def options():
