@@ -4,16 +4,16 @@ from abstract_open_traffic_generator.flow_ipv4 import *
 from abstract_open_traffic_generator.config import *
 
 
-def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_groups, api):
+def test_ingress_result_name(serializer, tx_port, rx_port, b2b_ipv4_device_groups, api):
     """
     A unique name that can be used to drill down into flow results.
-    The name will appears as one of the group_by options in requesting flow results and as a property in a flow result
-    group_by will configure through Pattern. This test will covered following group_by within traffic items
+    The name will appears as one of the ingress_result_name options in requesting flow results and as a property in a flow result
+    ingress_result_name will configure through Pattern. This test will covered following ingress_result_name within traffic items
         -Test Data:
-            VLAN - priority (priority=Pattern(choice='1', group_by='VLAN priority'))
-            Ipv4 - src (src=Pattern(group_by='IPv4 src'))
+            VLAN - priority (priority=Pattern(choice='1', ingress_result_name='VLAN priority'))
+            Ipv4 - src (src=Pattern(ingress_result_name='IPv4 src'))
         - Pause Storm
-            PfcPause - src (src=Pattern('00:00:fa:ce:fa:ce', group_by='PfcPause src'))
+            PfcPause - src (src=Pattern('00:00:fa:ce:fa:ce', ingress_result_name='PfcPause src'))
     """
     data_endpoint = DeviceEndpoint(tx_device_names=[b2b_ipv4_device_groups[0].name],
         rx_device_names=[b2b_ipv4_device_groups[1].name],
@@ -28,8 +28,8 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
         endpoint=Endpoint(data_endpoint),
         packet=[
             Header(Ethernet()),
-            Header(Vlan(priority=Pattern(choice='1', group_by='VLAN priority'))),
-            Header(Ipv4(src=Pattern(group_by='IPv4 src'),priority=test_dscp))
+            Header(Vlan(priority=Pattern(choice='1', ingress_result_name='VLAN priority'))),
+            Header(Ipv4(priority=test_dscp))
         ],
         size=Size(128),
         rate=Rate('line', 50),
@@ -38,7 +38,7 @@ def test_sonic_pfc_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_gro
     pause_endpoint = PortEndpoint(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
     pause = Header(PfcPause(
         dst=Pattern('01:80:C2:00:00:01'),
-        src=Pattern('00:00:fa:ce:fa:ce', group_by='PfcPause src'),
+        src=Pattern('00:00:fa:ce:fa:ce', ingress_result_name='PfcPause src'),
         class_enable_vector=Pattern('1'),
         pause_class_0=Pattern('3'),
         pause_class_1=Pattern(Counter(start='2', step='6', count=99)),
