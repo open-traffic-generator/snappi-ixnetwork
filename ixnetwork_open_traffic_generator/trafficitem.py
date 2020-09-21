@@ -200,7 +200,7 @@ class TrafficItem(CustomField):
                 field_type_id = field_map[packet_field_name]
                 self._configure_pattern(ixn_field, field_type_id, pattern)
 
-    def _configure_pattern(self, ixn_field, field_type_id, pattern):
+    def _configure_pattern(self, ixn_field, field_type_id, pattern, field_choice=False):
         if pattern == None:
             return
         
@@ -211,18 +211,26 @@ class TrafficItem(CustomField):
 
         ixn_field = ixn_field.find(FieldTypeId=field_type_id)
         if pattern.choice == 'fixed':
-            ixn_field.update(Auto=False, ValueType='singleValue', SingleValue=pattern.fixed)
+            ixn_field.update(Auto=False, 
+                ActiveFieldChoice=field_choice,
+                ValueType='singleValue', 
+                SingleValue=pattern.fixed)
         elif pattern.choice == 'list':
-            ixn_field.update(Auto=False, ValueType='valueList', ValueList=pattern.list)
+            ixn_field.update(Auto=False, 
+                ActiveFieldChoice=field_choice,
+                ValueType='valueList', 
+                ValueList=pattern.list)
         elif pattern.choice == 'counter':
             value_type = 'increment' if pattern.counter.up is True else 'decrement'
             ixn_field.update(Auto=False, 
                 ValueType=value_type, 
+                ActiveFieldChoice=field_choice,
                 StartValue=pattern.counter.start,
                 StepValue=pattern.counter.step,
                 CountValue=pattern.counter.count)
         elif pattern.choice == 'random':
             ixn_field.update(Auto=False, 
+                ActiveFieldChoice=field_choice,
                 ValueType='repeatableRandomRange', 
                 MinValue=pattern.random.min,
                 MaxValue=pattern.random.max,

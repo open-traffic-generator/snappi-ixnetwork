@@ -3,10 +3,7 @@ class CustomField(object):
     Implemented All custom field which specify within TrafficItem class
     Best Practice :
         - Please use self._configure_pattern to setting Pattern
-        - Otherwise please handle group_by accordingly
     """
-    
-    ##########################      IPv4 stack      ##########################
     _IPv4_DSCP_PHB = {
         '0': 'ipv4.header.priority.ds.phb.defaultPHB.defaultPHB',
         '8': 'ipv4.header.priority.ds.phb.classSelectorPHB.classSelectorPHB',
@@ -30,35 +27,37 @@ class CustomField(object):
         '38': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
         '46': 'ipv4.header.priority.ds.phb.expeditedForwardingPHB.expeditedForwardingPHB'
     }
+    _IPv4_DSCP_ECN = {
+        'ipv4.header.priority.ds.phb.defaultPHB.defaultPHB': 'ipv4.header.priority.ds.phb.defaultPHB.unused',
+        'ipv4.header.priority.ds.phb.classSelectorPHB.classSelectorPHB': 'ipv4.header.priority.ds.phb.classSelectorPHB.unused',
+        'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.unused',
+        'ipv4.header.priority.ds.phb.expeditedForwardingPHB.expeditedForwardingPHB': 'ipv4.header.priority.ds.phb.expeditedForwardingPHB.unused'
+    }
+
+    _ETHERNETPAUSE = {
+        'dst': 'ethernet.header.destinationAddress',
+        'src': 'ethernet.header.sourceAddress',
+        'ether_type': 'ethernet.header.etherType',
+        'control_op_code': 'custom.header.length',
+        'time': 'custom.header.data',
+    }
+
+    def _ipv4_priority(self, ixn_field, priority):
+        if priority.choice == 'dscp':
+            field_type_id = None
+            if priority.dscp.phb.choice == 'fixed':
+                field_type_id = CustomField._IPv4_DSCP_PHB[priority.dscp.phb.fixed]
+            elif priority.dscp.phb.choice == 'list':
+                field_type_id = CustomField._IPv4_DSCP_PHB[priority.dscp.phb.list[0]]
+            elif priority.dscp.phb.choice == 'counter':
+                field_type_id = CustomField._IPv4_DSCP_PHB[priority.dscp.phb.counter.start]
+            elif priority.dscp.phb.choice == 'counter':
+                field_type_id = CustomField._IPv4_DSCP_PHB[priority.dscp.phb.random.min]
+            if field_type_id is not None:
+                self._configure_pattern(ixn_field, field_type_id, priority.dscp.phb, field_choice=True)
+                field_type_id = CustomField._IPv4_DSCP_ECN[field_type_id]
+                self._configure_pattern(ixn_field, field_type_id, priority.dscp.ecn, field_choice=True)
+
+    def _ethernet_pause(self, ixn_field, ethernet_pause):
+        pass
     
-    def _ipv4_priority(self, ixn_field, pattern):
-        if pattern.choice == 'dscp':
-            phb_pattern = pattern.dscp.phb
-            if phb_pattern is not None:
-                if phb_pattern.choice == 'fixed':
-                    value = phb_pattern.fixed
-                elif phb_pattern.choice == 'list':
-                    value = phb_pattern.list[0]
-                elif phb_pattern.choice == 'counter':
-                    value = phb_pattern.counter.start
-                else:
-                    value = phb_pattern.random.min
-                
-                if isinstance(value, int) is True:
-                    value = str(value)
-                if value not in CustomField._IPv4_DSCP_PHB:
-                    field_type_id = CustomField._IPv4_DSCP_PHB['0']
-                else:
-                    field_type_id = CustomField._IPv4_DSCP_PHB[value]
-                    
-                ixn_dscp_phb = ixn_field.find(FieldTypeId=field_type_id)
-                ixn_dscp_phb.update(Auto=False, ActiveFieldChoice=True)
-                self._configure_pattern(ixn_field, field_type_id, phb_pattern)
-            
-            # Use defaultPHB.defaultPHB to configure ECN
-            ecn_pattern = pattern.dscp.ecn
-            if ecn_pattern is not None:
-                field_type_id = CustomField._IPv4_DSCP_PHB['0']
-                ixn_dscp_ecn= ixn_field.find(FieldTypeId=field_type_id)
-                ixn_dscp_ecn.update(Auto=False, ActiveFieldChoice=True)
-                self._configure_pattern(ixn_field, field_type_id, ecn_pattern)
