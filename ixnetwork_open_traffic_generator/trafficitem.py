@@ -85,7 +85,9 @@ class TrafficItem(CustomField):
         'dst' : 'ipv4.header.dstIp',
         'priority' : '_ipv4_priority',
     }
-
+    
+    _CUSTOM = '_custom_headers'
+    
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         
@@ -156,13 +158,14 @@ class TrafficItem(CustomField):
             ixn_endpoint_set.update(**args)
 
     def _configure_stack(self, ixn_stream, headers):
-        """Transform flow.packets[0..n] to /traffic/trafficItem/configElement/stack 
+        """Transform flow.packets[0..n] to /traffic/trafficItem/configElement/stack
         The len of the headers list is the definitive list which means add/remove
         any stack items so that the stack list matches the headers list.
         If the headers list is empty then use the traffic generator default stack.
         """
         stacks_to_remove = []
         ixn_stack = ixn_stream.Stack.find()
+        headers = self.adjust_header(headers)
         for i in range(0, len(headers)):
             header = headers[i]
             if len(ixn_stack) <= i:
@@ -180,6 +183,7 @@ class TrafficItem(CustomField):
                 else:
                     stack = ixn_stack[i]
             self._configure_field(stack.Field, header)
+            self._api._traffic_item.Generate()
         for stack in stacks_to_remove:
             stack.Remove()
     
@@ -194,6 +198,11 @@ class TrafficItem(CustomField):
         """
         field_map = getattr(self, '_%s' % header.choice.upper())
         packet = getattr(header, header.choice)
+        if isinstance(field_map, dict) is False:
+            method = getattr(self, field_map)
+            method(ixn_field, packet)
+            return
+        
         for packet_field_name in dir(packet):
             if packet_field_name in field_map:
                 pattern = getattr(packet, packet_field_name)
@@ -211,27 +220,27 @@ class TrafficItem(CustomField):
 
         ixn_field = ixn_field.find(FieldTypeId=field_type_id)
         if pattern.choice == 'fixed':
-            ixn_field.update(Auto=False, 
+            ixn_field.update(Auto=False,
                 ActiveFieldChoice=field_choice,
-                ValueType='singleValue', 
+                ValueType='singleValue',
                 SingleValue=pattern.fixed)
         elif pattern.choice == 'list':
-            ixn_field.update(Auto=False, 
+            ixn_field.update(Auto=False,
                 ActiveFieldChoice=field_choice,
-                ValueType='valueList', 
+                ValueType='valueList',
                 ValueList=pattern.list)
         elif pattern.choice == 'counter':
             value_type = 'increment' if pattern.counter.up is True else 'decrement'
-            ixn_field.update(Auto=False, 
-                ValueType=value_type, 
+            ixn_field.update(Auto=False,
+                ValueType=value_type,
                 ActiveFieldChoice=field_choice,
                 StartValue=pattern.counter.start,
                 StepValue=pattern.counter.step,
                 CountValue=pattern.counter.count)
         elif pattern.choice == 'random':
-            ixn_field.update(Auto=False, 
+            ixn_field.update(Auto=False,
                 ActiveFieldChoice=field_choice,
-                ValueType='repeatableRandomRange', 
+                ValueType='repeatableRandomRange',
                 MinValue=pattern.random.min,
                 MaxValue=pattern.random.max,
                 StepValue=pattern.random.step,
@@ -296,7 +305,7 @@ class TrafficItem(CustomField):
                     StartDelay=duration.fixed.delay,
                     StartDelayUnits=duration.fixed.delay_unit)
             else:
-                ixn_tx_control.update(Type='fixedFrameCount', 
+                ixn_tx_control.update(Type='fixedFrameCount',
                     FrameCount=duration.fixed.packets,
                     MinGapBytes=duration.fixed.gap,
                     StartDelay=duration.fixed.delay,
@@ -372,7 +381,7 @@ class TrafficItem(CustomField):
                 self._set_result_value(flow_row, 'loss', row['Loss %'])
         except Exception as e:
             self._api.add_error(e)
-        results = { 
+        results = {
             'columns': TrafficItem._RESULT_COLUMNS,
             'rows': flow_rows.values()
         }

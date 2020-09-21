@@ -58,6 +58,44 @@ class CustomField(object):
                 field_type_id = CustomField._IPv4_DSCP_ECN[field_type_id]
                 self._configure_pattern(ixn_field, field_type_id, priority.dscp.ecn, field_choice=True)
 
-    def _ethernet_pause(self, ixn_field, ethernet_pause):
-        pass
+    def _get_first_value(self, phb_pattern):
+        if phb_pattern.choice == 'fixed':
+            value = phb_pattern.fixed
+        elif phb_pattern.choice == 'list':
+            value = phb_pattern.list[0]
+        elif phb_pattern.choice == 'counter':
+            value = phb_pattern.counter.start
+        else:
+            value = phb_pattern.random.min
+        return value
     
+    def adjust_header(self, headers):
+        new_headers = list()
+        for header in headers:
+            if header.choice == 'ethernetpause':
+                self._ethernet_pause(new_headers, header.ethernetpause)
+            else:
+                new_headers.append(header)
+        return new_headers
+
+    def _ethernet_pause(self, new_headers, ethernetpause):
+        ''' Current IxNetwork 9.10 do not have Global Pause support. Therefore using Ether > Custom header as work around.
+        We will remove these code and add EthernetPause in generic section.
+        The implementation will only support fixed patterns for control_op_code and time
+        '''
+        from abstract_open_traffic_generator.flow import Ethernet, Custom, Header, Pattern
+        ether = Ethernet(src=ethernetpause.src,
+                         dst=ethernetpause.dst,
+                         ether_type=Pattern('8808') if ethernetpause.ether_type == None else ethernetpause.ether_type)
+        new_headers.append(Header(ether))
+        control_op_code = '0001' if ethernetpause.control_op_code is None else self._get_first_value(ethernetpause.control_op_code).zfill(4)
+        time = 'FFFF' if ethernetpause.time is None else self._get_first_value(ethernetpause.time).zfill(4)
+        custom = Custom(bytes='{0}{1}'.format(control_op_code, time))
+        new_headers.append(Header(custom))
+
+    def _custom_headers(self, ixn_field, packet):
+        if packet.bytes is not None:
+            ixn_custom_length = ixn_field.find(FieldTypeId='custom.header.length')
+            ixn_custom_length.update(Auto=False, ValueType='singleValue', SingleValue=len(packet.bytes) * 4)
+            ixn_custom_data = ixn_field.find(FieldTypeId='custom.header.data')
+            ixn_custom_data.update(Auto=False, ValueType='singleValue', SingleValue=packet.bytes)
