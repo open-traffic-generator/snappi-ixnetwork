@@ -120,14 +120,13 @@ def configure_pfc_lossy (api,
         allow_self_destined=False
     )
 
-    test_dscp = Priority(Dscp(phb=PATTERN(choice=[0, 1, 2, 5, 6, 7])))
+    test_dscp = Priority(Dscp(phb=PATTERN(choice=["0", "1", "2", "5", "6", "7"])))
 
     test_flow = Flow(
         name='Test Data',
         endpoint=Endpoint(data_endpoint),
         packet=[
             Header(choice=ETHERNET()),
-            Header(choice=VLAN()),
             Header(choice=IPV4(priority=test_dscp))
         ],
         size=Size(128),
@@ -138,13 +137,12 @@ def configure_pfc_lossy (api,
     ###########################################################################
     # Traffic configuration Background data
     ###########################################################################
-    background_dscp = Priority(Dscp(phb=PATTERN(choice=[3, 4])))
+    background_dscp = Priority(Dscp(phb=PATTERN(choice=["0", "3", "4"])))
     background_flow = Flow(
         name='Background Data',
         endpoint=Endpoint(data_endpoint),
         packet=[
             Header(choice=ETHERNET()),
-            Header(choice=VLAN()),
             Header(choice=IPV4(priority=background_dscp))
         ],
         size=Size(128),
