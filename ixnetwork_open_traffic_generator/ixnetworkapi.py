@@ -46,11 +46,8 @@ class IxNetworkApi(Api):
     def config(self):
         return self._config
 
-    @property
-    def config_objects(self):
-        """A dict of all unique names to abstract config objects
-        """
-        return self._config_objects
+    def get_config_object(self, name):
+        return self._config_objects[name]
 
     @property
     def ixn_objects(self):
@@ -68,15 +65,27 @@ class IxNetworkApi(Api):
     def assistant(self):
         return self._assistant
 
+    def _dict_to_obj(self, source):
+        """Returns an object given a dict
+        """
+        if isinstance(source, list):
+            source = [self._dict_to_obj(x) for x in source]
+        if not isinstance(source, dict):
+            return source
+        o = lambda : None
+        for k, v in source.items():
+            o.__dict__[k] = self._dict_to_obj(v)
+        return o
+
     def set_config(self, config):
         """Abstract API implementation
         """
         if isinstance(config, (Config, str, dict, type(None))) is False:
             raise TypeError('The content must be of type (Config, str, dict, type(None))' % Config.__class__)
         if isinstance(config, str) is True:
-            config = json.loads(config, object_hook = lambda otg : namedtuple('otg', otg.keys()) (*otg.values())) 
+            config = self._dict_to_obj(json.loads(config)) 
         elif isinstance(config, dict) is True:
-            config = namedtuple('otg', config.keys())(*config.values())
+            config = self._dict_to_obj(config)
         self._config = config
         self._config_objects = {}
         self._ixn_objects = {}
@@ -154,6 +163,9 @@ class IxNetworkApi(Api):
         else:
             ixn_obj.find().remove()
 
+    def _get_topology_name(self, port_name):
+        return 'Topology %s' % port_name
+        
     def select_vports(self):
         """Select all vports.
         Return them in a dict keyed by vport name.

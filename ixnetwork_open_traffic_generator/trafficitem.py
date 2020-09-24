@@ -106,34 +106,42 @@ class TrafficItem(CustomField):
             for flow in self._api.config.flows:
                 args = {
                     'Name': flow.name,
-                    'TrafficItemType': 'l2L3'
+                    'TrafficItemType': 'l2L3',
+                    'TrafficType': self._get_traffic_type(flow)
                 }
-                if flow.endpoint is None:
-                    raise ValueError('%s endpoint cannot be None' % flow.name)
-                elif flow.endpoint.choice == 'port':
-                    args['TrafficType'] = 'raw'
-                elif flow.endpoint.device.packet_encap in ['ethernet', 'vlan']:
-                    args['TrafficType'] = 'ethernetVlan'
-                else:
-                    args['TrafficType'] = flow.endpoint.device.packet_encap
                 ixn_traffic_item.find(Name=flow.name)
                 if len(ixn_traffic_item) == 0:
                     ixn_traffic_item.add(**args)
                 else:
                     ixn_traffic_item.update(**args)
-                self._configure_endpoint(ixn_traffic_item.EndpointSet, flow.endpoint)
-                if flow.enable is not None:
-                    ixn_traffic_item.Enabled = flow.enable
+                self._configure_endpoint(ixn_traffic_item.EndpointSet, flow.tx_rx)
                 ixn_traffic_item.Tracking.find().TrackBy = ['trackingenabled0']
                 ixn_stream = ixn_traffic_item.ConfigElement.find()
                 self._configure_stack(ixn_stream, flow.packet)
                 self._configure_size(ixn_stream, flow.size)
                 self._configure_rate(ixn_stream, flow.rate)
                 self._configure_tx_control(ixn_stream, flow.duration)
+    
+    def _get_traffic_type(self, flow):
+        if flow.tx_rx is None:
+            raise ValueError('%s Flow.tx_rx property cannot be None' % flow.name)
+        elif flow.tx_rx.choice == 'port':
+            encap = 'raw'
+        else:
+            encap = None
+            for name in flow.tx_rx.device.tx_device_names:
+                device = self._api.get_config_object(name)
+                if device.choice == 'ethernet':
+                    encap = 'ethernetVlan'
+                elif device.choice == 'bgpv4':
+                    encap = 'ipv4'
+                else:
+                    encap = device.choice
+        return encap
 
     def _configure_endpoint(self, ixn_endpoint_set, endpoint):
-        """Transform flow.endpoint to /trafficItem/endpointSet
-        The model allows for only one endpoint per traffic item
+        """Transform flow.tx_rx to /trafficItem/endpointSet
+        The model allows for only one endpointSet per traffic item
         """
         args = {
             'Sources': [],

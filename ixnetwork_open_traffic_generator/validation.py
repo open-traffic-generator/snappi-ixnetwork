@@ -29,12 +29,12 @@ class Validation(object):
             if callable(attr_value) is True:
                 continue
             if attr_name == 'name':
-                if attr_value in self._api.config_objects:
+                if attr_value in self._api._config_objects:
                     self._unique_name_errors.append('%s.name: "%s" is not unique' % (config_item.__class__.__name__, attr_value))
                 if attr_value is None:
                     self._unique_name_errors.append('%s.name: "None" is not allowed' % (config_item.__class__.__name__))
                 else:
-                    self._api.config_objects[attr_value] = config_item
+                    self._api._config_objects[attr_value] = config_item
             elif isinstance(attr_value, list):
                 for item in attr_value:
                     self.__check_config_objects(item)

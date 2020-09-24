@@ -9,12 +9,12 @@ from abstract_open_traffic_generator.port import Port
 from abstract_open_traffic_generator.layer1 import\
     Layer1, OneHundredGbe, FlowControl, Ieee8021qbb, Ieee8023x
 from abstract_open_traffic_generator.device import\
-    DeviceGroup, Device, Ethernet, Vlan, Ipv4, Pattern
+    Device, Ethernet, Vlan, Ipv4, Pattern
 
 from abstract_open_traffic_generator.config import Config
 from abstract_open_traffic_generator.flow import\
-    DeviceEndpoint, Endpoint, Flow, Header, Size, Rate,\
-    Duration, Fixed, PortEndpoint, PfcPause, Counter, Random
+    TxRx, DeviceTxRx, PortTxRx, Flow, Header, Size, Rate,\
+    Duration, Fixed, PfcPause, Counter, Random
 
 from abstract_open_traffic_generator.flow import Pattern as PATTERN
 from abstract_open_traffic_generator.flow import Ipv4 as IPV4
@@ -75,18 +75,12 @@ def configure_pfc_lossy (api,
     tx_ipv4 = Ipv4(name='Tx Ipv4',
                    address=Pattern(tx_port_ip),
                    prefix=Pattern('24'),
-                   gateway=Pattern(tx_gateway_ip))
+                   gateway=Pattern(tx_gateway_ip),
+                   ethernet=Ethernet(name='Tx Ethernet'))
 
-    tx_ethernet = Ethernet(name='Tx Ethernet', ipv4=tx_ipv4)
-
-    tx_device = Device(name='Tx Device',
-                       devices_per_port=1,
-                       ethernets=[tx_ethernet])
-
-    tx_device_group = DeviceGroup(name='Tx Device Group',
-                                  port_names=[tx.name],
-                                  devices=[tx_device])
-
+    tx.devices.append(Device(name='Tx Device',
+                       device_count=1,
+                       choice=tx_ipv4))
 
     ###########################################################################
     # Create RX stack configuration
@@ -94,37 +88,25 @@ def configure_pfc_lossy (api,
     rx_ipv4 = Ipv4(name='Rx Ipv4',
                    address=Pattern(rx_port_ip),
                    prefix=Pattern('24'),
-                   gateway=Pattern(rx_gateway_ip))
+                   gateway=Pattern(rx_gateway_ip),
+                   ethernet=Ethernet(name='Rx Ethernet'))
 
-    rx_ethernet = Ethernet(name='Rx Ethernet', ipv4=rx_ipv4)
-
-    rx_device = Device(name='Rx Device',
-                       devices_per_port=1,
-                       ethernets=[rx_ethernet])
-
-    rx_device_group = DeviceGroup(name='Rx Device Group',
-                                  port_names=[rx.name],
-                                  devices=[rx_device])
-
+    rx.devices.append(Device(name='Rx Device',
+                       device_count=1,
+                       choice=rx_ipv4))
 
     ###########################################################################
     # Traffic configuration Test data
     ###########################################################################
-    data_endpoint = DeviceEndpoint(
-        tx_device_names=[tx_device.name],
-        rx_device_names=[rx_device.name],
-        packet_encap='ipv4',
-        src_dst_mesh='',
-        route_host_mesh='',
-        bi_directional=False,
-        allow_self_destined=False
-    )
+    data_endpoint = DeviceTxRx(
+        tx_device_names=[tx.devices[0].name],
+        rx_device_names=[rx.devices[0].name])
 
     test_dscp = Priority(Dscp(phb=PATTERN(choice=["0", "1", "2", "5", "6", "7"])))
 
     test_flow = Flow(
         name='Test Data',
-        endpoint=Endpoint(data_endpoint),
+        tx_rx=TxRx(data_endpoint),
         packet=[
             Header(choice=ETHERNET()),
             Header(choice=IPV4(priority=test_dscp))
@@ -140,7 +122,7 @@ def configure_pfc_lossy (api,
     background_dscp = Priority(Dscp(phb=PATTERN(choice=["0", "3", "4"])))
     background_flow = Flow(
         name='Background Data',
-        endpoint=Endpoint(data_endpoint),
+        tx_rx=TxRx(data_endpoint),
         packet=[
             Header(choice=ETHERNET()),
             Header(choice=IPV4(priority=background_dscp))
@@ -154,7 +136,7 @@ def configure_pfc_lossy (api,
     # Traffic configuration Pause
     ###########################################################################
     if (configure_pause_frame) :
-        pause_endpoint = PortEndpoint(tx_port_name=rx.name)
+        pause_endpoint = PortTxRx(tx_port_name=rx.name)
         pause = Header(PfcPause(
             dst=PATTERN(choice='01:80:C2:00:00:01'),
             src=PATTERN(choice='00:00:fa:ce:fa:ce'),
@@ -171,7 +153,7 @@ def configure_pfc_lossy (api,
 
         pause_flow = Flow(
             name='Pause Storm',
-            endpoint=Endpoint(pause_endpoint),
+            tx_rx=TxRx(pause_endpoint),
             packet=[pause],
             size=Size(64),
             rate=Rate('line', value=100),
@@ -185,12 +167,8 @@ def configure_pfc_lossy (api,
     # Set config
     ###########################################################################
     config = Config(
-        ports=[
-            tx,
-            rx
-        ],
+        ports=[tx, rx],
         layer1=[common_l1_config],
-        device_groups=[tx_device_group, rx_device_group],
         flows=flows
     )
 

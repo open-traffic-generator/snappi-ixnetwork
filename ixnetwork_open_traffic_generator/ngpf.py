@@ -20,52 +20,67 @@ class Ngpf(object):
         self._api = ixnetworkapi
         
     def config(self):
-        """Configure config.devices onto Ixnetwork.Topology
-        
-        CRUD
-        ----
-        - DELETE any ngpf object that does not exist in config.devices
-        - CREATE ngpf object for any config.devices...name that does not exist
-        - UPDATE ngpf object for any config...name that exists
+        """Transform /components/schemas/Device into /topology
         """
-        self._configure_topology(self._api._topology, self._api.config.device_groups)
+        self._imports = []
+        self._configure_topology(self._api._topology, self._api.config.ports)
 
-    def _configure_topology(self, ixn_topology, device_groups):
-        """Resolve abstract device_groups with ixnetwork topologies
+    def _configure_topology(self, ixn_topology, ports):
+        """One /topology for every port that has at least one device
+        Topology name is port.name
         """
-        self._api._remove(ixn_topology, device_groups)
-        for device_group in device_groups:
-            port_regex = '^(%s)$' % '|'.join(device_group.port_names)
+        topologies = []
+        for port in ports:
+            if port.devices is None or len(port.devices) == 0:
+                continue
+            topology = lambda : None
+            topology.name = self._api._get_topology_name(port.name)
+            topologies.append(topology)
+        self._api._remove(ixn_topology, topologies)
+        vports = self._api.select_vports()
+        for port in ports:
+            if port.devices is None or len(port.devices) == 0:
+                continue
             args = {
-                'Name': device_group.name,
-                'Ports': self._api._vport.find(Name=port_regex)
+                'Name': self._api._get_topology_name(port.name),
+                'Ports': [vports[port.name]['href']]
             }
-            ixn_topology.find(Name=device_group.name)
+            ixn_topology.find(Name=args['Name'])
             if len(ixn_topology) == 0:
                 ixn_topology.add(**args)[-1]
             else:
                 ixn_topology.update(**args)
-            self._api.ixn_objects[device_group.name] = ixn_topology.href
-            self._configure_device_group(ixn_topology.DeviceGroup, device_group.devices)
+            self._api.ixn_objects[ixn_topology.Name] = ixn_topology.href
+            self._configure_device_group(ixn_topology.DeviceGroup, port.devices)
 
     def _configure_device_group(self, ixn_device_group, devices):
-        """Resolve abstract devices with ixnetwork device_groups 
+        """Transform /components/schemas/Device into /topology/deviceGroup
+        One /topology/deviceGroup for every device in port.devices 
         """
         self._api._remove(ixn_device_group, devices)
-        if (devices) :
-            for device in devices:
-                args = {
-                    'Name': device.name,
-                    'Multiplier': device.devices_per_port
-                }
-                ixn_device_group.find(Name=device.name)
-                if len(ixn_device_group) == 0:
-                    ixn_device_group.add(**args)[-1]
-                else:
-                    ixn_device_group.update(**args)
-                self._api.ixn_objects[device.name] = ixn_device_group.href
-                self._configure_ethernet(ixn_device_group.Ethernet, device.ethernets)
-                self._configure_device_group(ixn_device_group.DeviceGroup, device.devices)
+        for device in [device for device in (devices or [])]:
+            args = {
+                'Name': device.name,
+                'Multiplier': device.device_count
+            }
+            ixn_device_group.find(Name=device.name)
+            if len(ixn_device_group) == 0:
+                ixn_device_group.add(**args)[-1]
+            else:
+                ixn_device_group.update(**args)
+            self._api.ixn_objects[device.name] = ixn_device_group.href
+            if device.choice == 'ethernet':
+                self._configure_ethernet(ixn_device_group.Ethernet, device.ethernet)
+            elif device.choice == 'ipv4':
+                ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet, device.ipv4.ethernet)
+                self._configure_ipv4(ixn_ethernet.Ipv4, device.ipv4)
+            elif device.choice == 'ipv6':
+                ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet, device.ipv6.ethernet)
+                self._configure_ipv6(ixn_ethernet.Ipv6, device.ipv6)
+            elif device.choice == 'bgpv4':
+                ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet, device.bgpv4.ipv4.ethernet)
+                ixn_ipv4 = self._configure_ipv4(ixn_ethernet.Ipv4, device.bgpv4.ipv4)
+                self._configure_bgpv4(ixn_ipv4.BgpIpv4Peer, device.bgpv4)
 
     def _configure_pattern(self, ixn_obj, pattern, enum_map=None):
         if pattern is None:
@@ -81,28 +96,26 @@ class Ngpf(object):
         elif pattern.choice == 'random':
             pass
 
-    def _configure_ethernet(self, ixn_ethernet, ethernets):
+    def _configure_ethernet(self, ixn_ethernet, ethernet):
         """Transform Device.Ethernet to /topology/.../ethernet
         """
-        self._api._remove(ixn_ethernet, ethernets)
-        for ethernet in ethernets:
-            args = {
-                'Name': ethernet.name,
-            }
-            ixn_ethernet.find(Name=ethernet.name)
-            if len(ixn_ethernet) == 0:
-                ixn_ethernet.add(**args)
-            else:
-                ixn_ethernet.update(**args)
-            self._api.ixn_objects[ethernet.name] = ixn_ethernet.href
-            self._configure_pattern(ixn_ethernet.Mac, ethernet.mac)
-            self._configure_pattern(ixn_ethernet.Mtu, ethernet.mtu)
-            if (ethernet.vlans) :
-                ixn_ethernet.VlanCount = len(ethernet.vlans)
-                ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
-                self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
-            self._configure_ipv4(ixn_ethernet.Ipv4, ethernet.ipv4)
-            self._configure_ipv6(ixn_ethernet.Ipv6, ethernet.ipv6)
+        self._api._remove(ixn_ethernet, [ethernet])
+        args = {
+            'Name': ethernet.name,
+        }
+        ixn_ethernet.find(Name=ethernet.name)
+        if len(ixn_ethernet) == 0:
+            ixn_ethernet.add(**args)
+        else:
+            ixn_ethernet.update(**args)
+        self._api.ixn_objects[ethernet.name] = ixn_ethernet.href
+        self._configure_pattern(ixn_ethernet.Mac, ethernet.mac)
+        self._configure_pattern(ixn_ethernet.Mtu, ethernet.mtu)
+        if ethernet.vlans is not None:
+            ixn_ethernet.VlanCount = len(ethernet.vlans)
+            ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
+            self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
+        return ixn_ethernet
 
     def _configure_vlan(self, ixn_vlans, vlans):
         """Transform Device.Vlan to /topology/.../vlan
@@ -121,9 +134,7 @@ class Ngpf(object):
     def _configure_ipv4(self, ixn_ipv4, ipv4):
         """Transform Device.Ipv4 to /topology/.../ipv4
         """
-        if ipv4 is None:
-            return
-        ixn_ipv4.find('^((?!%s).)*$' % ipv4.name).remove()
+        self._api._remove(ixn_ipv4, [ipv4])
         args = {
             'Name': ipv4.name,
         }
@@ -136,12 +147,10 @@ class Ngpf(object):
         self._configure_pattern(ixn_ipv4.Address, ipv4.address)
         self._configure_pattern(ixn_ipv4.GatewayIp, ipv4.gateway)
         self._configure_pattern(ixn_ipv4.Prefix, ipv4.prefix)
-        self._configure_bgpv4(ixn_ipv4.BgpIpv4Peer, ipv4.bgpv4)
+        return ixn_ipv4
 
     def _configure_ipv6(self, ixn_ipv6, ipv6):
-        if ipv6 is None:
-            return
-        ixn_ipv6.find('^((?!%s).)*$' % ipv6.name).remove()
+        self._api._remove(ixn_ipv6, [ipv6])
         args = {
             'Name': ipv6.name,
         }
@@ -151,11 +160,13 @@ class Ngpf(object):
         else:
             ixn_ipv6.update(**args)
         self._api.ixn_objects[ipv6.name] = ixn_ipv6.href
+        self._configure_pattern(ixn_ipv6.Address, ipv6.address)
+        self._configure_pattern(ixn_ipv6.GatewayIp, ipv6.gateway)
+        self._configure_pattern(ixn_ipv6.Prefix, ipv6.prefix)
+        return ipv6
 
     def _configure_bgpv4(self, ixn_bgpv4, bgpv4):
-        if bgpv4 is None:
-            return
-        ixn_bgpv4.find('^((?!%s).)*$' % bgpv4.name).remove()
+        self._api._remove(ixn_bgpv4, [bgpv4])
         args = {
             'Name': bgpv4.name,
         }

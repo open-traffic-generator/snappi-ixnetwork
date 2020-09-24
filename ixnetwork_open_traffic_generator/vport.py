@@ -3,17 +3,19 @@ from jsonpath_ng.ext import parse
 
 
 class Vport(object):
-    """Vport configuration
+    """Transforms OpenAPI objects into IxNetwork objects
 
-    Transforms OpenAPI Port.Port, Port.Layer1 objects into IxNetwork 
-    /vport and /vport/l1Config/... objects
+    - Port to /vport
+    - Port.Capture to /vport/capture
+    - Port.Layer1 to /vport/l1Config/...
 
     Uses resourcemanager to set the vport location and l1Config as it is the
-    most efficient way. DO NOT use the AssignPorts API as it is too slow. 
+    most efficient way.  
+    DO NOT use the AssignPorts API as it is too slow. 
 
     Args
     ----
-    - ixnetworkapi (IxNetworkApi): instance of the ixnetworkapi class
+    - ixnetworkapi (IxNetworkApi): instance of the IxNetworkApi class
     """
     _SPEED_MAP = {
         'one_hundred_gbps': 'speed100g', 
@@ -72,22 +74,73 @@ class Vport(object):
         4) set /vport/l1Config/... properties using the corrected /vport -type
         5) connectPorts to use new l1Config settings and clearownership
         """
+        self._resource_manager = self._api._ixnetwork.ResourceManager
         self._ixn_vport = self._api._vport
         self._delete_vports()
         self._create_vports()
+        self._create_capture()
         self._set_location()
         self._set_layer1()
         self._connect()
 
+    def _import(self, imports):
+        if len(imports) > 0:
+            self._resource_manager.ImportConfig(json.dumps(imports), False)
+
     def _delete_vports(self):
+        """Delete any vports from the api server that do not exist in the new config
+        """
         self._api._remove(self._ixn_vport, self._api.config.ports)
     
     def _create_vports(self):
+        """Add any vports to the api server that do not already exist
+        """
         vports = self._api.select_vports()
+        imports = []
         for port in self._api.config.ports:
             if port.name not in vports.keys():
-                self._ixn_vport.add(Name=port.name)
+                index = len(vports) + len(imports) + 1
+                imports.append(
+                    {
+                        'xpath': '/vport[%i]' % index,
+                        'name': port.name,
+                        'rxMode': 'captureAndMeasure',
+                        'txMode': 'interleaved'
+                    }
+                )
+        self._import(imports)
     
+    def _create_capture(self):
+        """Overwrite any capture settings
+        """
+        vports = self._api.select_vports()
+        imports = []
+        for port in self._api.config.ports:
+            capture = {
+                'xpath': vports[port.name]['xpath'] + '/capture',
+                'captureMode': 'captureTriggerMode',
+                'hardwareEnabled': False,
+                'softwareEnabled': False
+            }
+            filter = {
+                'xpath': capture['xpath'] + '/filterPallette'
+            }
+            if port.capture is not None and port.capture.basic is not None:
+                for basic in port.capture.basic:
+                    if basic.choice == 'source_address':
+                        filter['SA1'] = basic.source_address.value
+                        filter['SAMask1'] = basic.source_address.mask
+                    elif basic.choice == 'destination_address':
+                        filter['DA1'] = basic.destination_address.value
+                        filter['DAMask1'] = basic.destination_address.mask
+                    elif basic.choice == 'custom':
+                        filter['pattern1'] = basic.custom.value
+                        filter['patternMask1'] = basic.custom.pattern
+                        filter['patternOffset1'] = basic.custom.offset
+            imports.append(capture)
+            imports.append(filter)
+        self._import(imports)
+
     def _set_location(self):
         vports = self._api.select_vports()
         imports = []
@@ -96,12 +149,9 @@ class Vport(object):
             vport = {
                 'xpath': vports[port.name]['xpath'],
                 'location': getattr(port, 'location', None),
-                'rxMode': 'captureAndMeasure',
-                'txMode': 'interleaved'
             }
             imports.append(vport)
-        self._resource_manager = self._api._ixnetwork.ResourceManager
-        self._resource_manager.ImportConfig(json.dumps(imports), False)
+        self._import(imports)
 
     def _set_layer1(self):
         """Set the /vport/l1Config/... properties
@@ -122,8 +172,7 @@ class Vport(object):
                     elif layer1.choice == 'one_hundred_gbe':
                         reset_auto_negotiation[port_name] = layer1.one_hundred_gbe.auto_negotiate is not None
                         self._configure_100gbe(vport, layer1, imports)
-        if len(imports) > 0:
-            self._resource_manager.ImportConfig(json.dumps(imports), False)
+        self._import(imports)
         
         # Due to dependency attribute (ieeeL1Defaults) resetting enableAutoNegotiation
         imports = []
@@ -132,8 +181,7 @@ class Vport(object):
                 vport = vports[port_name]
                 if port_name in reset_auto_negotiation and reset_auto_negotiation[port_name]:
                     self._reset_auto_negotiation(vport, layer1, imports)
-        if len(imports) > 0:
-            self._resource_manager.ImportConfig(json.dumps(imports), False)
+        self._import(imports)
 
     def _configure_layer1_type(self, interface, vport, imports):
         """Set the /vport -type
