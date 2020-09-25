@@ -32,6 +32,7 @@ class TrafficItem(CustomField):
         'pfcPause': 'pfc_pause',
         'vlan': 'vlan',
         'ipv4': 'ipv4',
+        "tcp" : "tcp",
         'custom': 'custom'
     }
 
@@ -40,6 +41,7 @@ class TrafficItem(CustomField):
         'pfcpause': 'pfcPause',
         'vlan': 'vlan',
         'ipv4': 'ipv4',
+        "tcp" : "tcp",
         'custom': 'custom'
     }
 
@@ -84,6 +86,20 @@ class TrafficItem(CustomField):
         'src' : 'ipv4.header.srcIp',
         'dst' : 'ipv4.header.dstIp',
         'priority' : '_ipv4_priority',
+    }
+    
+    _TCP = {
+        "src_port" : "tcp.header.srcPort",
+        "dst_port" : "tcp.header.dstPort",
+        "ecn_ns" : "tcp.header.ecn.nsBit",
+        "ecn_cwr" : "tcp.header.ecn.cwrBit",
+        "ecn_echo" : "tcp.header.ecn.ecnEchoBit",
+        "ctl_urg" : "tcp.header.controlBits.urgBit",
+        "ctl_ack" : "tcp.header.controlBits.ackBit",
+        "ctl_psh" : "tcp.header.controlBits.pshBit",
+        "ctl_rst" : "tcp.header.controlBits.rstBit",
+        "ctl_syn" : "tcp.header.controlBits.synBit",
+        "ctl_fin" : "tcp.header.controlBits.finBit",
     }
     
     _CUSTOM = '_custom_headers'
