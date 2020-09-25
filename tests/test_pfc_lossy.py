@@ -119,7 +119,7 @@ def configure_pfc_lossy (api,
     ###########################################################################
     # Traffic configuration Background data
     ###########################################################################
-    background_dscp = Priority(Dscp(phb=PATTERN(choice=["0", "3", "4"])))
+    background_dscp = Priority(Dscp(phb=PATTERN(choice=["3", "4"])))
     background_flow = Flow(
         name='Background Data',
         tx_rx=TxRx(data_endpoint),

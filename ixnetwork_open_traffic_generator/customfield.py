@@ -45,14 +45,11 @@ class CustomField(object):
     def _ipv4_priority(self, ixn_field, priority):
         if priority.choice == 'dscp':
             field_type_id = None
-            if priority.dscp.phb.choice == 'fixed':
-                field_type_id = CustomField._IPv4_DSCP_PHB[priority.dscp.phb.fixed]
-            elif priority.dscp.phb.choice == 'list':
-                field_type_id = CustomField._IPv4_DSCP_PHB[priority.dscp.phb.list[0]]
-            elif priority.dscp.phb.choice == 'counter':
-                field_type_id = CustomField._IPv4_DSCP_PHB[priority.dscp.phb.counter.start]
-            elif priority.dscp.phb.choice == 'counter':
-                field_type_id = CustomField._IPv4_DSCP_PHB[priority.dscp.phb.random.min]
+            first_value = str(self._get_first_value(priority.dscp.phb))
+            if first_value in CustomField._IPv4_DSCP_PHB:
+                field_type_id = CustomField._IPv4_DSCP_PHB[first_value]
+            else:
+                field_type_id = CustomField._IPv4_DSCP_PHB["0"]
             if field_type_id is not None:
                 self._configure_pattern(ixn_field, field_type_id, priority.dscp.phb, field_choice=True)
                 field_type_id = CustomField._IPv4_DSCP_ECN[field_type_id]
