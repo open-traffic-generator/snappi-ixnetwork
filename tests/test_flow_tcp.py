@@ -2,12 +2,9 @@ import pytest
 from abstract_open_traffic_generator.flow import *
 from abstract_open_traffic_generator.flow_ipv4 import *
 from abstract_open_traffic_generator.config import *
-from abstract_open_traffic_generator.control import FlowTransmit
-from abstract_open_traffic_generator.result import PortRequest, FlowRequest
-
 
 def test_flow_tcp(serializer, tx_port, rx_port, b2b_simple_device, api):
-    """Pfc pause lossless test traffic configuration
+    """TCP Flow test traffic configuration
     """
     tcp_endpoint = DeviceTxRx(tx_device_names=[b2b_simple_device[0].devices[0].name],
                                    rx_device_names=[b2b_simple_device[1].devices[0].name])

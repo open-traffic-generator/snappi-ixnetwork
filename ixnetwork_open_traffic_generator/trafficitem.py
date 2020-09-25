@@ -33,6 +33,7 @@ class TrafficItem(CustomField):
         'vlan': 'vlan',
         'ipv4': 'ipv4',
         "tcp" : "tcp",
+        "udp" : "udp",
         'custom': 'custom'
     }
 
@@ -42,6 +43,7 @@ class TrafficItem(CustomField):
         'vlan': 'vlan',
         'ipv4': 'ipv4',
         "tcp" : "tcp",
+        "udp" : "udp",
         'custom': 'custom'
     }
 
@@ -100,6 +102,13 @@ class TrafficItem(CustomField):
         "ctl_rst" : "tcp.header.controlBits.rstBit",
         "ctl_syn" : "tcp.header.controlBits.synBit",
         "ctl_fin" : "tcp.header.controlBits.finBit",
+    }
+    
+    _UDP = {
+        "src_port" : "udp.header.srcPort",
+        "dst_port" : "udp.header.dstPort",
+        "length" : "udp.header.length",
+        "checksum" : "udp.header.checksum",
     }
     
     _CUSTOM = '_custom_headers'

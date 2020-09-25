@@ -141,3 +141,36 @@ def b2b_devices(tx_port, rx_port):
         )
     ]
     return [tx_port, rx_port]
+
+
+@pytest.fixture
+def b2b_simple_device(tx_port, rx_port):
+    """Returns a B2B tuple of tx port and rx port each with distinct device
+        groups of ethernet and ipv4 devices
+        """
+    from abstract_open_traffic_generator.device import Device, Ethernet, Vlan, Ipv4
+    from abstract_open_traffic_generator.device import Pattern
+
+    tx_port.devices = [
+        Device(name='Tx Devices Ipv4',
+               device_count=1,
+               choice=Ipv4(name='Tx Ipv4',
+                           address=Pattern('1.1.1.1'),
+                           prefix=Pattern('24'),
+                           gateway=Pattern('1.1.2.1'),
+                           ethernet=Ethernet(name='Tx Ipv4 Eth', vlans=[Vlan(name='Tx Ipv4 Vlan')])
+                           )
+               )
+    ]
+    rx_port.devices = [
+        Device(name='Rx Devices Ipv4',
+               device_count=1,
+               choice=Ipv4(name='Rx Ipv4',
+                           address=Pattern('1.1.1.1'),
+                           prefix=Pattern('24'),
+                           gateway=Pattern('1.1.2.1'),
+                           ethernet=Ethernet(name='Rx Ipv4 Eth', vlans=[Vlan(name='Rx Ipv4 Vlan')])
+                           )
+               ),
+    ]
+    return [tx_port, rx_port]
