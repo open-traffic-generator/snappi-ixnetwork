@@ -5,28 +5,26 @@ from abstract_open_traffic_generator.control import FlowTransmit
 from abstract_open_traffic_generator.result import FlowRequest
 
 
-def test_flow_results(serializer, api, options, tx_port, rx_port, b2b_ipv4_device_groups):
+def test_flow_results(serializer, api, options, b2b_simple_device):
     """Demonstrates how to retrieve flow results
     """
-    device_endpoint = DeviceEndpoint(tx_device_names=[b2b_ipv4_device_groups[0].name],
-        rx_device_names=[b2b_ipv4_device_groups[1].name],
-        packet_encap='ipv4')
+    device_endpoint = DeviceTxRx(tx_device_names=[b2b_simple_device[0].devices[0].name],
+        rx_device_names=[b2b_simple_device[1].devices[0].name])
 
     flow1 = Flow(name='B2B Flow 1',
-        endpoint=Endpoint(device_endpoint),
+        tx_rx=TxRx(device_endpoint),
         size=Size(128),
         rate=Rate('pps', 10000),
         duration=Duration(Fixed(packets=0)))
     flow2 = Flow(name='B2B Flow 2',
-        endpoint=Endpoint(device_endpoint),
+        tx_rx=TxRx(device_endpoint),
         size=Size(128),
         rate=Rate('pps', 100),
         duration=Duration(Fixed(packets=0)))
 
     import time
     start = time.time()
-    config = Config(ports=[tx_port, rx_port], 
-        device_groups=b2b_ipv4_device_groups, 
+    config = Config(ports=b2b_simple_device, 
         flows=[flow1, flow2], 
         options=options)
     api.set_config(config)

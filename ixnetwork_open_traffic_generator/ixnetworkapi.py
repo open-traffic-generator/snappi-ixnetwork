@@ -149,13 +149,17 @@ class IxNetworkApi(Api):
             See the docs/openapi.yaml document for all model details.
         """
         from abstract_open_traffic_generator.result import FlowRequest
+        self._errors = []
         if isinstance(request, (FlowRequest, str, dict)) is False:
             raise TypeError('The content must be of type Union[FlowRequest, str, dict]')
         if isinstance(request, str) is True:
             request = json.loads(request, object_hook = lambda otg : namedtuple('otg', otg.keys()) (*otg.values())) 
         elif isinstance(request, dict) is True:
             request = namedtuple('otg', request.keys())(*request.values())
-        return self.traffic_item.results(request)
+        response = self.traffic_item.results(request)
+        if len(self._errors) > 0:
+            raise Exception('\n'.join(self._errors))
+        return response
 
     def add_error(self, error):
         """Add an error to the global errors
