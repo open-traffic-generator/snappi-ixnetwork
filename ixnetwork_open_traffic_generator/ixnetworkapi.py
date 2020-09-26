@@ -91,7 +91,7 @@ class IxNetworkApi(Api):
         self._ixn_objects = {}
         self._errors = []
         self.validation.validate_config()        
-        self.__connect()
+        self._connect()
         if self._config is None:
             self._ixnetwork.NewConfig()
         else:
@@ -104,6 +104,35 @@ class IxNetworkApi(Api):
         """Abstract API implementation
         """
         return self.traffic_item.transmit(request)
+
+    def set_port_capture(self, request):
+        """Starts capture on all ports that have capture enabled.
+        """
+        payload = { 'arg1': [] }
+        for name in request.port_names:
+            payload['arg1'].append(self._vport.find(Name=name).href)
+        url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
+        self._request('POST', url, payload)
+        self._ixnetwork.StartCapture()
+
+    def get_capture_results(self, request):
+        """Gets capture file and returns it as a byte stream
+        """
+        capture = self._vport.find(Name=request.port_name).Capture
+        capture.Stop('allTraffic')
+
+        payload = { 'arg1': [self._vport.href] }
+        url = '%s/vport/operations/getCaptureInfos' % self._ixnetwork.href
+        response = self._request('POST', url, payload)
+
+        url = '%s/vport/operations/saveCaptureInfo' % self._ixnetwork.href
+        payload = { 'arg1': [self._vport.href], 'arg2': 1 }
+        self._request('POST', url, payload)
+
+        path = '%s/capture' % self._ixnetwork.Globals.PersistencePath
+        url = '%s/files?absolute=%s&filename=%s' % (self._ixnetwork.href, path, response['arg6'])
+        pcap_file_bytes = self.request('GET', url)
+        return pcap_file_bytes
 
     def get_port_results(self, request):
         """Abstract API implementation
@@ -136,7 +165,7 @@ class IxNetworkApi(Api):
         else:
             self._errors.append(error)
 
-    def __connect(self):
+    def _connect(self):
         """Connect to an IxNetwork API Server.
         """
         if self._assistant is None:
@@ -150,6 +179,15 @@ class IxNetworkApi(Api):
             self._topology = self._ixnetwork.Topology
             self._traffic = self._ixnetwork.Traffic
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
+
+    def _request(self, method, url, payload=None):
+        response = self._assistant.Session._connection._session.request(method, url, payload)
+        if response.headers['content-type'] == 'application/json':
+            return response.json
+        elif response.headers['content-type'] == 'application/octet-stream':
+            return response.content
+        else:
+            return response
 
     def _remove(self, ixn_obj, items):
         """Remove any ixnetwork items that are not found in the configuration list.

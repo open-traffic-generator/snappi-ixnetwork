@@ -122,22 +122,38 @@ class Vport(object):
                 'hardwareEnabled': False,
                 'softwareEnabled': False
             }
-            filter = {
+            pallette = {
                 'xpath': capture['xpath'] + '/filterPallette'
             }
+            filter = {
+                'xpath': capture['xpath'] + '/filter'
+            }
+            trigger = {
+                'xpath': capture['xpath'] + '/trigger'
+            }
             if port.capture is not None and port.capture.basic is not None:
+                capture['hardwareEnabled'] = True
+                filter['captureFilterEnable'] = True
+                trigger['captureTriggerEnable'] = True
                 for basic in port.capture.basic:
-                    if basic.choice == 'source_address':
-                        filter['SA1'] = basic.source_address.value
-                        filter['SAMask1'] = basic.source_address.mask
-                    elif basic.choice == 'destination_address':
-                        filter['DA1'] = basic.destination_address.value
-                        filter['DAMask1'] = basic.destination_address.mask
+                    if basic.choice == 'mac_address' and basic.mac_address.mac == 'source':
+                        pallette['SA1'] = basic.mac_address.filter
+                        pallette['SAMask1'] = basic.mac_address.mask
+                        filter['captureFilterSA'] = 'notAddr1' if basic.not_operator is True else 'addr1'
+                        trigger['triggerFilterSA'] = filter['captureFilterSA']
+                    elif basic.choice == 'mac_address' and basic.mac_address.mac == 'destination':
+                        pallette['DA1'] = basic.mac_address.filter
+                        pallette['DAMask1'] = basic.mac_address.mask
+                        filter['captureFilterDA'] = 'notAddr1' if basic.not_operator is True else 'addr1'
+                        trigger['triggerFilterDA'] = filter['captureFilterDA']
                     elif basic.choice == 'custom':
-                        filter['pattern1'] = basic.custom.value
-                        filter['patternMask1'] = basic.custom.pattern
-                        filter['patternOffset1'] = basic.custom.offset
+                        pallette['pattern1'] = basic.custom.filter
+                        pallette['patternMask1'] = basic.custom.mask
+                        pallette['patternOffset1'] = basic.custom.offset
+                        filter['captureFilterPattern'] = 'notPattern1' if basic.not_operator is True else 'pattern1'
+                        trigger['triggerFilterPattern'] = filter['captureFilterPattern']
             imports.append(capture)
+            imports.append(pallette)
             imports.append(filter)
         self._import(imports)
 
@@ -299,12 +315,6 @@ class Vport(object):
             self._ixn_vport.ConnectPorts(force_ownership)
         except Exception as e:
             self._api.add_error(e)
-
-    def control_link_state(self, port_names, link_state):
-        pass
-
-    def control_capture_state(self, port_names, capture_state):
-        pass
 
     def _set_result_value(self, row, column_name, column_value):
         row[Vport._RESULT_COLUMNS.index(column_name)] = column_value
