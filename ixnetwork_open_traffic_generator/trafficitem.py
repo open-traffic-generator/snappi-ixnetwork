@@ -91,6 +91,15 @@ class TrafficItem(CustomField):
         'dst' : 'ipv4.header.dstIp',
         'priority' : '_ipv4_priority',
     }
+
+    _TOS = {
+        "precedence": "ipv4.header.priority.tos.precedence",
+        "delay": "ipv4.header.priority.tos.delay",
+        "throughput": "ipv4.header.priority.tos.throughput",
+        "reliability": "ipv4.header.priority.tos.reliability",
+        "monetary": "ipv4.header.priority.tos.monetary",
+        "unused": "ipv4.header.priority.tos.unused"
+    }
     
     _TCP = {
         "src_port" : "tcp.header.srcPort",
@@ -228,7 +237,7 @@ class TrafficItem(CustomField):
         stack_href = ixn_stack.AppendProtocol(template)
         return ixn_stream.Stack.read(stack_href)
 
-    def _configure_field(self, ixn_field, header):
+    def _configure_field(self, ixn_field, header, field_choice=False):
         """Transform flow.packets[0..n].header.choice to /traffic/trafficItem/configElement/stack/field
         """
         field_map = getattr(self, '_%s' % header.choice.upper())
@@ -242,7 +251,7 @@ class TrafficItem(CustomField):
             if packet_field_name in field_map:
                 pattern = getattr(packet, packet_field_name)
                 field_type_id = field_map[packet_field_name]
-                self._configure_pattern(ixn_field, field_type_id, pattern)
+                self._configure_pattern(ixn_field, field_type_id, pattern, field_choice)
 
     def _configure_pattern(self, ixn_field, field_type_id, pattern, field_choice=False):
         if pattern == None:
