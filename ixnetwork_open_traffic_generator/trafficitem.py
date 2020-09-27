@@ -227,7 +227,7 @@ class TrafficItem(CustomField):
                 else:
                     stack = ixn_stack[i]
             self._configure_field(stack.Field, header)
-            self._api._traffic_item.Generate()
+        self._api._traffic_item.Generate()
         for stack in stacks_to_remove:
             stack.Remove()
     
