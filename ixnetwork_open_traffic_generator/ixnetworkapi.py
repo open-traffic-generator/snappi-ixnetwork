@@ -1,4 +1,5 @@
 import json
+import time
 from collections import namedtuple
 from jsonpath_ng.ext import parse
 from ixnetwork_restpy import SessionAssistant
@@ -123,17 +124,20 @@ class IxNetworkApi(Api):
         """
         capture = self._vport.find(Name=request.port_name).Capture
         capture.Stop('allTraffic')
-
+        time.sleep(3)
+        
         payload = { 'arg1': [self._vport.href] }
         url = '%s/vport/operations/getCaptureInfos' % self._ixnetwork.href
         response = self._request('POST', url, payload)
+        file_name = response['result'][0]['arg6']
+        file_id = response['result'][0]['arg1']
 
         url = '%s/vport/operations/saveCaptureInfo' % self._ixnetwork.href
-        payload = { 'arg1': self._vport.href, 'arg2': response['result'][0]['arg1'] }
-        self._request('POST', url, payload)
+        payload = { 'arg1': self._vport.href, 'arg2': file_id }
+        response = self._request('POST', url, payload)
 
         path = '%s/capture' % self._ixnetwork.Globals.PersistencePath
-        url = '%s/files?absolute=%s&filename=%s.cap' % (self._ixnetwork.href, path, response['result'][0]['arg6'])
+        url = '%s/files?absolute=%s&filename=%s.cap' % (self._ixnetwork.href, path, file_name)
         pcap_file_bytes = self._request('GET', url)
         return pcap_file_bytes
 
@@ -195,6 +199,11 @@ class IxNetworkApi(Api):
             headers['Content-Type'] = 'application/json'
         response = self._assistant.Session._connection._session.request(method, url, headers=headers, data=payload, verify=False)
         response.raise_for_status()
+        if response.status_code == 202:
+            content = response.json()
+            while content['state'] == 'IN_PROGRESS':
+                time.sleep(1)
+                response = self._request('GET', content['url'])
         if response.headers.get('Content-Type'):
             if response.headers['Content-Type'] == 'application/json':
                 return response.json()
