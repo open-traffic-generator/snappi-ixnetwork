@@ -135,6 +135,7 @@ class Vport(object):
                 capture['hardwareEnabled'] = True
                 filter['captureFilterEnable'] = True
                 trigger['captureTriggerEnable'] = True
+                filter['captureFilterEnable'] = True
                 for basic in port.capture.basic:
                     if basic.choice == 'mac_address' and basic.mac_address.mac == 'source':
                         pallette['SA1'] = basic.mac_address.filter
@@ -155,6 +156,7 @@ class Vport(object):
             imports.append(capture)
             imports.append(pallette)
             imports.append(filter)
+            imports.append(trigger)
         self._import(imports)
 
     def _set_location(self):

@@ -382,6 +382,7 @@ class TrafficItem(CustomField):
             self._api._ixnetwork.StartAllProtocols('sync')
             self._api._traffic_item.Generate()
             self._api._traffic.Apply()
+            self._api._start_capture()
         if request.state == 'start':
             self._api._traffic_item.StartStatelessTrafficBlocking()
         elif request.state == 'stop':
