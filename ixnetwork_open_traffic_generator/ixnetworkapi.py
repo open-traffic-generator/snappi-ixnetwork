@@ -90,6 +90,7 @@ class IxNetworkApi(Api):
         self._config = config
         self._config_objects = {}
         self._ixn_objects = {}
+        self._capture_request = None
         self._errors = []
         self.validation.validate_config()        
         self._connect()
@@ -111,13 +112,14 @@ class IxNetworkApi(Api):
         """
         self._capture_request = request
 
-    def _start_capture(self):       
-        payload = { 'arg1': [] }
-        for name in self._capture_request.port_names:
-            payload['arg1'].append(self._vport.find(Name=name).href)
-        url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
-        response = self._request('POST', url, payload)
-        self._ixnetwork.StartCapture()
+    def _start_capture(self):    
+        if self._capture_request is not None:   
+            payload = { 'arg1': [] }
+            for name in self._capture_request.port_names:
+                payload['arg1'].append(self._vport.find(Name=name).href)
+            url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
+            response = self._request('POST', url, payload)
+            self._ixnetwork.StartCapture()
 
     def get_capture_results(self, request):
         """Gets capture file and returns it as a byte stream
@@ -125,7 +127,7 @@ class IxNetworkApi(Api):
         capture = self._vport.find(Name=request.port_name).Capture
         capture.Stop('allTraffic')
         time.sleep(3)
-        
+
         payload = { 'arg1': [self._vport.href] }
         url = '%s/vport/operations/getCaptureInfos' % self._ixnetwork.href
         response = self._request('POST', url, payload)

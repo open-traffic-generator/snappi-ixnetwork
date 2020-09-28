@@ -377,12 +377,14 @@ class TrafficItem(CustomField):
         regex = None
         if request.flow_names is not None and len(request.flow_names) > 0:
             regex = '^(%s)$' % '|'.join(request.flow_names)
-        self._api._traffic_item.find(Name=regex)
         if request.state == 'start':
+            self._api._traffic_item.find(Name=regex, State='unapplied')
             self._api._ixnetwork.StartAllProtocols('sync')
-            self._api._traffic_item.Generate()
-            self._api._traffic.Apply()
+            if len(self._api._traffic_item) > 0:
+                self._api._traffic_item.Generate()
+                self._api._traffic.Apply()
             self._api._start_capture()
+        self._api._traffic_item.find(Name=regex)
         if request.state == 'start':
             self._api._traffic_item.StartStatelessTrafficBlocking()
         elif request.state == 'stop':
