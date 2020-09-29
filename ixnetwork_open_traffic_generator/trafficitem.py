@@ -157,9 +157,20 @@ class TrafficItem(CustomField):
                 self._configure_size(ixn_stream, flow.size)
                 self._configure_rate(ixn_stream, flow.rate)
                 self._configure_tx_control(ixn_stream, flow.duration)
+                self._configure_options(flow)
             self._api._traffic_item.find()
             self._api._traffic_item.Generate()
     
+    def _configure_options(self, flow):
+        enable_min_frame_size = False
+        if (len(flow.packet) == 1 and 
+            flow.packet[0].choice == 'pfcpause' and 
+            flow.size.choice == 'fixed' and 
+            flow.size.fixed <= 64):
+            enable_min_frame_size = True
+        if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:
+            self._api._traffic.EnableMinFrameSize = enable_min_frame_size
+
     def _get_traffic_type(self, flow):
         if flow.tx_rx is None:
             raise ValueError('%s Flow.tx_rx property cannot be None' % flow.name)
