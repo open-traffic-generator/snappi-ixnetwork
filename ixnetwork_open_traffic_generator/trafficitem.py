@@ -157,6 +157,8 @@ class TrafficItem(CustomField):
                 self._configure_size(ixn_stream, flow.size)
                 self._configure_rate(ixn_stream, flow.rate)
                 self._configure_tx_control(ixn_stream, flow.duration)
+            self._api._traffic_item.find()
+            self._api._traffic_item.Generate()
     
     def _get_traffic_type(self, flow):
         if flow.tx_rx is None:
@@ -227,7 +229,6 @@ class TrafficItem(CustomField):
                 else:
                     stack = ixn_stack[i]
             self._configure_field(stack.Field, header)
-        self._api._traffic_item.Generate()
         for stack in stacks_to_remove:
             stack.Remove()
     
