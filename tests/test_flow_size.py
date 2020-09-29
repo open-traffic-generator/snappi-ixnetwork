@@ -1,4 +1,6 @@
 import pytest
+from abstract_open_traffic_generator.flow import *
+from abstract_open_traffic_generator.config import *
 
 
 def test_flow_sizes(serializer, api, tx_port, rx_port, b2b_ipv4_device_groups):
@@ -9,13 +11,6 @@ def test_flow_sizes(serializer, api, tx_port, rx_port, b2b_ipv4_device_groups):
             'SizeIncrement': 'increment',
             'SizeRandom': 'random',
     """
-    
-    from abstract_open_traffic_generator.flow import Flow, Endpoint, DeviceEndpoint, PortEndpoint
-    from abstract_open_traffic_generator.flow import Header, PfcPause, Pattern
-    from abstract_open_traffic_generator.flow import Duration, Rate, Fixed
-    from abstract_open_traffic_generator.config import Config
-    from abstract_open_traffic_generator.flow import Size, SizeIncrement, SizeRandom
-    
     port_endpoint = PortEndpoint(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
     pause = Header(PfcPause(
         dst=Pattern('01:80:C2:00:00:01'),
@@ -27,7 +22,7 @@ def test_flow_sizes(serializer, api, tx_port, rx_port, b2b_ipv4_device_groups):
                       packet=[pause],
                       size=Size(44),
                       rate=Rate('line', value=100),
-                      duration=Duration(Fixed(packets=0)))
+                      duration=Duration(FixedPackets(packets=0)))
     
     increment = SizeIncrement(start=100, end=1200, step=10)
     increment_size = Flow(name='Increment Size',
@@ -35,7 +30,7 @@ def test_flow_sizes(serializer, api, tx_port, rx_port, b2b_ipv4_device_groups):
                       packet=[pause],
                       size=Size(increment),
                       rate=Rate('line', value=100),
-                      duration=Duration(Fixed(packets=0)))
+                      duration=Duration(FixedPackets(packets=0)))
     
     random = SizeRandom()
     random_size = Flow(name='Random Size',
@@ -43,7 +38,7 @@ def test_flow_sizes(serializer, api, tx_port, rx_port, b2b_ipv4_device_groups):
                       packet=[pause],
                       size=Size(random),
                       rate=Rate('line', value=100),
-                      duration=Duration(Fixed(packets=0)))
+                      duration=Duration(FixedPackets(packets=0)))
     
     config = Config(
         ports=[

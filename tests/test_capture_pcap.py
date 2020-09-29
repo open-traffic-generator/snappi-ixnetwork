@@ -1,23 +1,22 @@
 import pytest
 import time
+from abstract_open_traffic_generator.config import *
+from abstract_open_traffic_generator.port import *
+from abstract_open_traffic_generator.flow import *
+from abstract_open_traffic_generator.control import *
+from abstract_open_traffic_generator.result import *
 
 
 def test_capture_pcap(serializer, api, tx_port, rx_port):
     """Demonstrates how to start capture and get capture results
     """
-    from abstract_open_traffic_generator.config import Config
-    from abstract_open_traffic_generator.port import Capture, BasicFilter, MacAddressFilter
-    from abstract_open_traffic_generator.flow import Flow, TxRx, PortTxRx, Duration, Fixed
-    from abstract_open_traffic_generator.control import FlowTransmit, PortCapture
-    from abstract_open_traffic_generator.result import CaptureRequest
-
     # configure capture
     filter = MacAddressFilter(mac='source', filter='000000000000')
     rx_port.capture = Capture(choice=[BasicFilter(filter)], enable=True)
 
     # configure flow
     tx_rx = PortTxRx(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
-    flow = Flow(name='capture', tx_rx=TxRx(tx_rx), duration=Duration(Fixed(packets=100)))
+    flow = Flow(name='capture', tx_rx=TxRx(tx_rx), duration=Duration(FixedPackets(packets=100)))
     config = Config(ports=[tx_port, rx_port], flows=[flow])
     api.set_config(config)
 

@@ -352,31 +352,28 @@ class TrafficItem(CustomField):
         if duration is None:
             return
         ixn_tx_control = ixn_stream.TransmissionControl
-        if duration.choice == 'fixed':
-            if duration.fixed.delay_unit not in ['bytes', 'nanoseconds', None]:
-                duration.fixed.delay_unit = 'bytes'
-            if duration.fixed.packets <= 0:
-                ixn_tx_control.update(Type='continuous',
-                    MinGapBytes=duration.fixed.gap,
-                    StartDelay=duration.fixed.delay,
-                    StartDelayUnits=duration.fixed.delay_unit)
-            else:
-                ixn_tx_control.update(Type='fixedFrameCount',
-                    FrameCount=duration.fixed.packets,
-                    MinGapBytes=duration.fixed.gap,
-                    StartDelay=duration.fixed.delay,
-                    StartDelayUnits=duration.fixed.delay_unit)
+        if duration.choice == 'continuous':
+            ixn_tx_control.update(Type='continuous',
+                MinGapBytes=duration.continuous.gap,
+                StartDelay=duration.continuous.delay,
+                StartDelayUnits=duration.continuous.delay_unit)
+        elif duration.choice == 'packets':
+            ixn_tx_control.update(Type='fixedFrameCount',
+                FrameCount=duration.packets.packets,
+                MinGapBytes=duration.packets.gap,
+                StartDelay=duration.packets.delay,
+                StartDelayUnits=duration.packets.delay_unit)
+        elif duration.choice == 'seconds':
+            ixn_tx_control.update(Type='fixedDuration',
+                Duration=duration.seconds.seconds,
+                MinGapBytes=duration.seconds.gap,
+                StartDelay=duration.seconds.delay,
+                StartDelayUnits=duration.seconds.delay_unit)
         elif duration.choice == 'burst':
-            enable_gap = False
-            if (duration.burst.inter_burst_gap is not None or
-                duration.burst.inter_burst_gap_unit is not None):
-                enable_gap = True
-            if duration.burst.inter_burst_gap_unit not in ['bytes', 'nanoseconds', None]:
-                duration.burst.inter_burst_gap_unit = 'bytes'
             ixn_tx_control.update(Type='custom',
                 BurstPacketCount=duration.burst.packets,
                 MinGapBytes=duration.burst.gap,
-                EnableInterBurstGap=enable_gap,
+                EnableInterBurstGap=True if duration.burst.gap > 0 else False,
                 InterBurstGap=duration.burst.inter_burst_gap,
                 InterBurstGapUnits=duration.burst.inter_burst_gap_unit)
 

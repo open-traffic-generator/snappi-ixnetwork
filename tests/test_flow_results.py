@@ -15,12 +15,12 @@ def test_flow_results(serializer, api, options, b2b_simple_device):
         tx_rx=TxRx(device_endpoint),
         size=Size(128),
         rate=Rate('pps', 10000),
-        duration=Duration(Fixed(packets=0)))
+        duration=Duration(FixedPackets(packets=0)))
     flow2 = Flow(name='B2B Flow 2',
         tx_rx=TxRx(device_endpoint),
         size=Size(128),
         rate=Rate('pps', 100),
-        duration=Duration(Fixed(packets=0)))
+        duration=Duration(FixedPackets(packets=0)))
 
     import time
     start = time.time()

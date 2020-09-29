@@ -54,7 +54,7 @@ def port_configs():
 def flow_configs(port_configs):
     """This fixture demonstrates adding flows to port configurations.
     """
-    from abstract_open_traffic_generator.flow import DeviceTxRx, Duration, Fixed, Flow, Rate, Size, TxRx
+    from abstract_open_traffic_generator.flow import DeviceTxRx, Duration, FixedPackets, Flow, Rate, Size, TxRx
 
     for config in port_configs:
         device_tx_rx = DeviceTxRx(
@@ -65,7 +65,7 @@ def flow_configs(port_configs):
                 tx_rx=TxRx(device_tx_rx),
                 size=Size(128),
                 rate=Rate(unit='pps', value=50000),
-                duration=Duration(Fixed(packets=10000000))
+                duration=Duration(FixedPackets(packets=10000000))
             )
         )
     return port_configs

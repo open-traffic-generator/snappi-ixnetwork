@@ -20,7 +20,7 @@ def test_ethernet_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_grou
                       packet=[default_pause],
                       size=Size(64),
                       rate=Rate('line', value=100),
-                      duration=Duration(Fixed(packets=100)))
+                      duration=Duration(FixedPackets(packets=100)))
     
     data_pause = Header(EthernetPause(
         dst=Pattern('01:80:C2:00:00:01'),
@@ -33,7 +33,7 @@ def test_ethernet_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_grou
                       packet=[data_pause],
                       size=Size(64),
                       rate=Rate('line', value=100),
-                      duration=Duration(Fixed(packets=100)))
+                      duration=Duration(FixedPackets(packets=100)))
     
     config = Config(
         ports=[

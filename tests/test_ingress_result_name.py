@@ -33,7 +33,7 @@ def test_ingress_result_name(serializer, tx_port, rx_port, b2b_ipv4_device_group
         ],
         size=Size(128),
         rate=Rate('line', 50),
-        duration=Duration(Fixed(packets=0)))
+        duration=Duration(FixedPackets(packets=0)))
 
     pause_endpoint = PortEndpoint(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
     pause = Header(PfcPause(
@@ -51,7 +51,7 @@ def test_ingress_result_name(serializer, tx_port, rx_port, b2b_ipv4_device_group
         packet=[pause],
         size=Size(64),
         rate=Rate('line', value=100),
-        duration=Duration(Fixed(packets=0)))
+        duration=Duration(FixedPackets(packets=0)))
 
     config = Config(
         ports=[

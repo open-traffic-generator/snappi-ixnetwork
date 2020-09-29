@@ -23,7 +23,7 @@ def test_flow_udp(serializer, tx_port, rx_port, b2b_simple_device, api):
                     ],
                     size=Size(128),
                     rate=Rate('line', 50),
-                    duration=Duration(Fixed(packets=0)))
+                    duration=Duration(FixedPackets(packets=0)))
     
     config = Config(
         ports=[

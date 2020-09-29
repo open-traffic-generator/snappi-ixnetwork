@@ -20,7 +20,7 @@ def test_flow_ipv4(serializer, tx_port, rx_port, b2b_simple_device, api):
                     ],
                     size=Size(128),
                     rate=Rate('line', 50),
-                    duration=Duration(Fixed(packets=0)))
+                    duration=Duration(FixedPackets(packets=0)))
     
     # Probably Tos.HIGH rather than Tos.LOW
     test_tos = Priority(Tos(precedence=Pattern(Tos.PRE_FLASH_OVERRIDE, ingress_result_name='tos precedence'),
@@ -38,7 +38,7 @@ def test_flow_ipv4(serializer, tx_port, rx_port, b2b_simple_device, api):
                         ],
                         size=Size(128),
                         rate=Rate('line', 50),
-                        duration=Duration(Fixed(packets=0)))
+                        duration=Duration(FixedPackets(packets=0)))
     
     config = Config(
         ports=[

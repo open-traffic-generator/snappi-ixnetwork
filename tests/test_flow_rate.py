@@ -1,4 +1,6 @@
 import pytest
+from abstract_open_traffic_generator.flow import *
+from abstract_open_traffic_generator.config import *
 
 
 def test_flow_rates(serializer, api, tx_port, rx_port):
@@ -8,13 +10,6 @@ def test_flow_rates(serializer, api, tx_port, rx_port):
         - value (Union[float, int]): The actual rate
         - gap (Union[float, int]): The minimum gap in bytes between packets
     """
-    
-    from abstract_open_traffic_generator.flow import Flow, TxRx, PortTxRx
-    from abstract_open_traffic_generator.flow import Header, PfcPause, Pattern
-    from abstract_open_traffic_generator.flow import Duration, Rate, Fixed
-    from abstract_open_traffic_generator.config import Config
-    from abstract_open_traffic_generator.flow import Size, SizeIncrement, SizeRandom
-    
     port_endpoint = PortTxRx(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
     pause = Header(PfcPause(
         dst=Pattern('01:80:C2:00:00:01'),
@@ -27,35 +22,35 @@ def test_flow_rates(serializer, api, tx_port, rx_port):
                       packet=[pause],
                       size=Size(44),
                       rate=Rate('line', value=100),
-                      duration=Duration(Fixed(packets=0)))
+                      duration=Duration(FixedPackets(packets=0)))
 
     rate_pps = Flow(name='pps Rate',
                      tx_rx=TxRx(port_endpoint),
                      packet=[pause],
                      size=Size(44),
                      rate=Rate('pps', value=2000),
-                     duration=Duration(Fixed(packets=0)))
+                     duration=Duration(FixedPackets(packets=0)))
 
     rate_bps = Flow(name='bps Rate',
                     tx_rx=TxRx(port_endpoint),
                     packet=[pause],
                     size=Size(44),
                     rate=Rate('bps', value=700),
-                    duration=Duration(Fixed(packets=0)))
+                    duration=Duration(FixedPackets(packets=0)))
 
     rate_kbps = Flow(name='kbps Rate',
                     tx_rx=TxRx(port_endpoint),
                     packet=[pause],
                     size=Size(44),
                     rate=Rate('kbps', value=800),
-                    duration=Duration(Fixed(packets=0)))
+                    duration=Duration(FixedPackets(packets=0)))
 
     rate_gbps = Flow(name='gbps Rate',
                      tx_rx=TxRx(port_endpoint),
                      packet=[pause],
                      size=Size(44),
                      rate=Rate('gbps', value=800),
-                     duration=Duration(Fixed(packets=0)))
+                     duration=Duration(FixedPackets(packets=0)))
     
     config = Config(
         ports=[

@@ -14,7 +14,7 @@ from abstract_open_traffic_generator.device import\
 from abstract_open_traffic_generator.config import Config
 from abstract_open_traffic_generator.flow import\
     TxRx, DeviceTxRx, PortTxRx, Flow, Header, Size, Rate,\
-    Duration, Fixed, PfcPause, Counter, Random
+    Duration, FixedPackets, PfcPause, Counter, Random
 
 from abstract_open_traffic_generator.flow import Pattern as PATTERN
 from abstract_open_traffic_generator.flow import Ipv4 as IPV4
@@ -113,7 +113,7 @@ def configure_pfc_lossy (api,
         ],
         size=Size(128),
         rate=Rate('line', 50),
-        duration=Duration(Fixed(packets=0, delay=1000000000, delay_unit='nanoseconds'))
+        duration=Duration(FixedPackets(packets=0, delay=1000000000, delay_unit='nanoseconds'))
     )
 
     ###########################################################################
@@ -129,7 +129,7 @@ def configure_pfc_lossy (api,
         ],
         size=Size(128),
         rate=Rate('line', 50),
-        duration=Duration(Fixed(packets=0, delay=1000000000, delay_unit='nanoseconds'))
+        duration=Duration(FixedPackets(packets=0, delay=1000000000, delay_unit='nanoseconds'))
     )
 
     ###########################################################################
@@ -157,7 +157,7 @@ def configure_pfc_lossy (api,
             packet=[pause],
             size=Size(64),
             rate=Rate('line', value=100),
-            duration=Duration(Fixed(packets=0, delay=0, delay_unit='nanoseconds'))
+            duration=Duration(FixedPackets(packets=0, delay=0, delay_unit='nanoseconds'))
         )
         flows = [test_flow, background_flow, pause_flow]
     else :
