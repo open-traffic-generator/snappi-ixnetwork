@@ -306,3 +306,7 @@ class IxNetworkApi(Api):
         except:
             pass
         return traffic_items
+
+    def get_config(self):
+        return self._config
+        
