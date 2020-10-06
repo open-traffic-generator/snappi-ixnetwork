@@ -2,8 +2,7 @@ import pytest
 from abstract_open_traffic_generator.flow import *
 from abstract_open_traffic_generator.flow_ipv4 import *
 from abstract_open_traffic_generator.config import *
-from abstract_open_traffic_generator.control import FlowTransmit
-from abstract_open_traffic_generator.result import PortRequest, FlowRequest
+from abstract_open_traffic_generator.control import *
 
 
 def test_ethernet_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_groups, api):
@@ -46,10 +45,8 @@ def test_ethernet_pause_flows(serializer, tx_port, rx_port, b2b_ipv4_device_grou
             data_pause_flow
         ]
     )
-    print(serializer.json(config))
-    
-    api.set_config(None)
-    api.set_config(config)
+    api.set_state(State(ConfigState(config=config, state='set')))
+
 
 if __name__ == '__main__':
     pytest.main(['-s', __file__])

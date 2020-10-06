@@ -6,4 +6,6 @@ build
 __pycache__
 *.pyc
 *.log
+*.pcap
+*.cap
 ixnetwork_open_traffic_generator/docs

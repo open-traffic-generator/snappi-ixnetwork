@@ -2,6 +2,7 @@ import pytest
 from abstract_open_traffic_generator.flow import *
 from abstract_open_traffic_generator.flow_ipv4 import *
 from abstract_open_traffic_generator.config import *
+from abstract_open_traffic_generator.control import *
 
 
 def test_flow_udp(serializer, tx_port, rx_port, b2b_simple_device, api):
@@ -34,10 +35,7 @@ def test_flow_udp(serializer, tx_port, rx_port, b2b_simple_device, api):
             udp_flow
         ]
     )
-    print(serializer.json(config))
-    
-    api.set_config(None)
-    api.set_config(config)
+    api.set_state(State(ConfigState(config=config, state='set')))
 
 
 if __name__ == '__main__':

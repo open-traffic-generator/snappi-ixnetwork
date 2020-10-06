@@ -2,6 +2,7 @@ import pytest
 from abstract_open_traffic_generator.port import *
 from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.layer1 import *
+from abstract_open_traffic_generator.config import *
 
 
 def test_layer1_fcoe(serializer, api, tx_port, rx_port):
@@ -27,8 +28,7 @@ def test_layer1_fcoe(serializer, api, tx_port, rx_port):
         port_names=[tx_port.name], 
         choice=eth)
     config = Config(ports=[tx_port, rx_port], layer1=[fcoe_layer1, eth_layer1])
-    serializer.json(config)
-    api.set_config(config)
+    api.set_state(State(ConfigState(config=config, state='set')))
 
 
 if __name__ == '__main__':

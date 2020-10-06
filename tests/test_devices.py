@@ -2,6 +2,7 @@ import pytest
 from abstract_open_traffic_generator.port import Port
 from abstract_open_traffic_generator.device import *
 from abstract_open_traffic_generator.config import Config
+from abstract_open_traffic_generator.control import *
 
 
 def test_device_ipv4_fixed(serializer, api):
@@ -22,7 +23,8 @@ def test_device_ipv4_fixed(serializer, api):
             )
         )
     ]
-    api.set_config(Config(ports=[port]))
+    config = Config(ports=[port])
+    api.set_state(State(ConfigState(config=config, state='set')))
 
 
 def test_device_ipv4value_list(serializer, api):
@@ -43,7 +45,8 @@ def test_device_ipv4value_list(serializer, api):
             )
         )
     ]
-    api.set_config(Config(ports=[port]))
+    config = ConfigState(ports=[port])
+    api.set_state(State(ConfigState(config=config, state='set')))
 
 
 if __name__ == '__main__':

@@ -159,7 +159,8 @@ class TrafficItem(CustomField):
                 self._configure_tx_control(ixn_stream, flow.duration)
                 self._configure_options(flow)
             self._api._traffic_item.find()
-            self._api._traffic_item.Generate()
+            if len(self._api._traffic_item) > 0:
+                self._api._traffic_item.Generate()
     
     def _configure_options(self, flow):
         enable_min_frame_size = False
@@ -404,7 +405,7 @@ class TrafficItem(CustomField):
             self._api._traffic_item.PauseStatelessTrafficBlocking(False)
 
     def _set_result_value(self, row, column_name, column_value):
-        row[TrafficItem._RESULT_COLUMNS.index(column_name)] = column_value
+        row[column_name] = column_value
 
     def results(self, request):
         """Return flow results
@@ -417,7 +418,7 @@ class TrafficItem(CustomField):
             filter['regex'] = '^(%s)$' % '|'.join(request.flow_names)
         flow_rows = {}
         for traffic_item in self._api.select_traffic_items(traffic_item_filters=[filter]).values():
-            flow_row = [0 for i in range(len(TrafficItem._RESULT_COLUMNS))]
+            flow_row = {}
             self._set_result_value(flow_row, 'name', traffic_item['name'])
             self._set_result_value(flow_row, 'state', traffic_item['state'])
             self._set_result_value(flow_row, 'port_tx', traffic_item['highLevelStream'][0]['txPortName'])
@@ -437,8 +438,4 @@ class TrafficItem(CustomField):
                 self._set_result_value(flow_row, 'loss', row['Loss %'])
         except Exception as e:
             self._api.add_error(e)
-        results = {
-            'columns': TrafficItem._RESULT_COLUMNS,
-            'rows': flow_rows.values()
-        }
-        return results
+        return flow_rows.values()

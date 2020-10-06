@@ -1,6 +1,7 @@
 import pytest
 from abstract_open_traffic_generator.config import Config
 from abstract_open_traffic_generator.port import *
+from abstract_open_traffic_generator.control import *
 
 
 def test_ports(serializer, api, options):
@@ -10,13 +11,7 @@ def test_ports(serializer, api, options):
         Port(name='port no location')
     ]
     config = Config(ports=ports, options=options)
-
-    api.set_config(None)
-    api.set_config(config)
-
-    # results = api.get_results()
-    # for result in results.port:
-    #     print(result)
+    api.set_state(State(ConfigState(config=config, state='set')))
 
 if __name__ == '__main__':
     pytest.main(['-s', __file__])

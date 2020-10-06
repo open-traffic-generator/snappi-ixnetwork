@@ -2,7 +2,8 @@ import pytest
 from abstract_open_traffic_generator.port import Port
 from abstract_open_traffic_generator.flow import *
 from abstract_open_traffic_generator.config import Config
-    
+from abstract_open_traffic_generator.control import *
+
 
 def test_flow_fields(serializer, api):
     """
@@ -30,11 +31,8 @@ def test_flow_fields(serializer, api):
             Header(ipv4)
         ]
     )
-
     config = Config(ports=[port], flows=[flow])
-    serializer.json(config)
-    api.set_config(None)
-    api.set_config(config)
+    api.set_state(State(ConfigState(config=config, state='set')))
 
 
 if __name__ == '__main__':

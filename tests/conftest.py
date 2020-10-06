@@ -45,7 +45,8 @@ def api():
     from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
     ixnetwork_api = IxNetworkApi(API_SERVER, port=API_SERVER_PORT)
     yield ixnetwork_api
-    ixnetwork_api.assistant.Session.remove()
+    if ixnetwork_api.assistant is not None:
+        ixnetwork_api.assistant.Session.remove()
 
 
 @pytest.fixture
@@ -166,9 +167,9 @@ def b2b_simple_device(tx_port, rx_port):
         Device(name='Rx Devices Ipv4',
                device_count=1,
                choice=Ipv4(name='Rx Ipv4',
-                           address=Pattern('1.1.1.1'),
+                           address=Pattern('1.1.2.1'),
                            prefix=Pattern('24'),
-                           gateway=Pattern('1.1.2.1'),
+                           gateway=Pattern('1.1.1.1'),
                            ethernet=Ethernet(name='Rx Ipv4 Eth', vlans=[Vlan(name='Rx Ipv4 Vlan')])
                            )
                ),

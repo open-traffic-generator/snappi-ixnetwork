@@ -319,14 +319,14 @@ class Vport(object):
             self._api.add_error(e)
 
     def _set_result_value(self, row, column_name, column_value):
-        row[Vport._RESULT_COLUMNS.index(column_name)] = column_value
+        row[column_name] = column_value
 
     def results(self, request):
         """Return port results
         """
         port_rows = {}
         for vport in self._api.select_vports().values():
-            port_row = [0 for i in range(len(Vport._RESULT_COLUMNS))]
+            port_row = {}
             self._set_result_value(port_row, 'name', vport['name'])
             location = vport['location']
             if vport['connectionState'].startswith('connectedLink') is True:
@@ -361,8 +361,4 @@ class Vport(object):
                 self._set_result_value(port_row, 'pfc_class_7_frames_rx', row['Rx Pause Priority Group 7 Frames'])
         except:
             pass
-        results = { 
-            'columns': Vport._RESULT_COLUMNS,
-            'rows': port_rows.values()
-        }
-        return results
+        return port_rows.values()

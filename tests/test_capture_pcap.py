@@ -4,7 +4,7 @@ from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.port import *
 from abstract_open_traffic_generator.flow import *
 from abstract_open_traffic_generator.control import *
-from abstract_open_traffic_generator.result import *
+from abstract_open_traffic_generator.result import CaptureRequest
 
 
 def test_capture_pcap(serializer, api, tx_port, rx_port):
@@ -15,16 +15,21 @@ def test_capture_pcap(serializer, api, tx_port, rx_port):
     rx_port.capture = Capture(choice=[BasicFilter(filter)], enable=True)
 
     # configure flow
-    tx_rx = PortTxRx(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
-    flow = Flow(name='capture', tx_rx=TxRx(tx_rx), duration=Duration(FixedPackets(packets=100)))
+    port_tx_rx = PortTxRx(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
+    flow = Flow(name='capture', 
+        tx_rx=TxRx(port_tx_rx), 
+        packet=[],
+        size=Size(128),
+        rate=Rate(unit='pps', value=100),
+        duration=Duration(FixedPackets(packets=100)))
     config = Config(ports=[tx_port, rx_port], flows=[flow])
-    api.set_config(config)
+    api.set_state(State(ConfigState(config=config, state='set')))
 
     # start capture
-    api.set_port_capture(PortCapture(port_names=[rx_port.name]))
+    api.set_state(State(PortCaptureState(port_names=[rx_port.name], state='start')))
 
     # start transmit
-    api.set_flow_transmit(FlowTransmit(state='start'))
+    api.set_state(State(FlowTransmitState(state='start')))
     time.sleep(5)
 
     # stop the capture and receive the capture as a stream of bytes
@@ -40,6 +45,7 @@ def test_capture_pcap(serializer, api, tx_port, rx_port):
     for item in reader:
         print(item.time)
         item.show()
+
 
 if __name__ == '__main__':
     pytest.main(['-s', __file__])

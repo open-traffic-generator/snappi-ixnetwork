@@ -1,5 +1,6 @@
 import copy
 import pytest
+from abstract_open_traffic_generator.control import *
 
 
 @pytest.fixture
@@ -75,7 +76,7 @@ def test_fixtures(flow_configs, api):
     """Iterate through the flow configs using each config to run a test.
     """
     for config in flow_configs:
-        api.set_config(config)
+        api.set_state(State(ConfigState(config=config, state='set')))
 
 
 if __name__ == '__main__':

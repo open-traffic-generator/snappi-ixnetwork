@@ -3,8 +3,9 @@ import time
 from collections import namedtuple
 from jsonpath_ng.ext import parse
 from ixnetwork_restpy import SessionAssistant
-from abstract_open_traffic_generator.api import Api
-from abstract_open_traffic_generator.config import Config
+from abstract_open_traffic_generator.api import *
+from abstract_open_traffic_generator.config import *
+from abstract_open_traffic_generator.control import *
 from ixnetwork_open_traffic_generator.validation import Validation
 from ixnetwork_open_traffic_generator.vport import Vport
 from ixnetwork_open_traffic_generator.ngpf import Ngpf
@@ -78,16 +79,26 @@ class IxNetworkApi(Api):
             o.__dict__[k] = self._dict_to_obj(v)
         return o
 
-    def set_config(self, config):
+    def set_state(self, state):
         """Abstract API implementation
         """
-        if isinstance(config, (Config, str, dict, type(None))) is False:
+        if isinstance(state, (State, str, dict, type(None))) is False:
             raise TypeError('The content must be of type (Config, str, dict, type(None))' % Config.__class__)
-        if isinstance(config, str) is True:
-            config = self._dict_to_obj(json.loads(config)) 
-        elif isinstance(config, dict) is True:
-            config = self._dict_to_obj(config)
-        self._config = config
+        if isinstance(state, str) is True:
+            state = self._dict_to_obj(json.loads(state)) 
+        elif isinstance(state, dict) is True:
+            state = self._dict_to_obj(state)
+        if state.choice == 'config_state':
+            self._set_config_state(state.config_state)
+        elif state.choice == 'flow_transmit_state':
+            self._set_flow_transmit_state(state.flow_transmit_state)
+        elif state.choice == 'port_capture_state':
+            self._set_port_capture_state(state.port_capture_state)
+
+    def _set_config_state(self, config_state):
+        """Set or update the configuration
+        """
+        self._config = config_state.config
         self._config_objects = {}
         self._ixn_objects = {}
         self._capture_request = None
@@ -102,12 +113,12 @@ class IxNetworkApi(Api):
             self.traffic_item.config()
         self._running_config = self._config
 
-    def set_flow_transmit(self, request):
-        """Abstract API implementation
+    def _set_flow_transmit_state(self, flow_transmit_state):
+        """Set the transmit state of flows
         """
-        return self.traffic_item.transmit(request)
+        return self.traffic_item.transmit(flow_transmit_state)
 
-    def set_port_capture(self, request):
+    def _set_port_capture_state(self, request):
         """Starts capture on all ports that have capture enabled.
         """
         self._capture_request = request

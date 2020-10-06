@@ -1,11 +1,12 @@
 import pytest
+from abstract_open_traffic_generator.config import Config
+from abstract_open_traffic_generator.port import Capture, BasicFilter, MacAddressFilter, CustomFilter
+from abstract_open_traffic_generator.control import *
 
 
 def test_capture_settings(serializer, api, tx_port):
     """Demonstrates how to configure basic capture settings
     """
-    from abstract_open_traffic_generator.config import Config
-    from abstract_open_traffic_generator.port import Capture, BasicFilter, MacAddressFilter, CustomFilter
 
     src = MacAddressFilter(mac='source', filter='0000faceface', mask='000000000000')
     dst = MacAddressFilter(mac='destination', filter='0000faceface', mask='000000000000')
@@ -18,7 +19,7 @@ def test_capture_settings(serializer, api, tx_port):
     ])
 
     config = Config(ports=[tx_port])
-    api.set_config(config)
+    api.set_state(State(ConfigState(config=config, state='set')))
 
 
 if __name__ == '__main__':

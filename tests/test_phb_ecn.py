@@ -2,6 +2,7 @@ import pytest
 from abstract_open_traffic_generator.flow import *
 from abstract_open_traffic_generator.flow_ipv4 import *
 from abstract_open_traffic_generator.config import Config
+from abstract_open_traffic_generator.control import *
 
 
 def test_phb_ecn(serializer, api, tx_port, rx_port):
@@ -18,8 +19,7 @@ def test_phb_ecn(serializer, api, tx_port, rx_port):
         tx_rx=TxRx(port_endpoint),
         packet=[Header(Ethernet()), Header(ipv4)])
     config = Config(ports=[tx_port, rx_port], flows=[flow])
-    print(serializer.json(config))
-    api.set_config(config)
+    api.set_state(State(ConfigState(config=config, state='set')))
 
 
 if __name__ == '__main__':
