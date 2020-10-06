@@ -409,6 +409,25 @@ class TrafficItem(CustomField):
     def _set_result_value(self, row, column_name, column_value):
         row[column_name] = column_value
 
+    def _get_state(self, state):
+        """IxNetwork traffic item states
+            error, locked, started, 
+            startedWaitingForStats, startedWaitingForStreams, stopped, 
+            stoppedWaitingForStats, txStopWatchExpected, unapplied
+        """
+        started_states =  [
+            'txStopWatchExpected', 
+            'locked', 
+            'started', 
+            'startedWaitingForStats', 
+            'startedWaitingForStreams', 
+            'stoppedWaitingForStats'
+        ]
+        if state in started_states:
+            return 'started'
+        else:
+            return 'stopped'
+            
     def results(self, request):
         """Return flow results
         """
@@ -422,7 +441,7 @@ class TrafficItem(CustomField):
         for traffic_item in self._api.select_traffic_items(traffic_item_filters=[filter]).values():
             flow_row = {}
             self._set_result_value(flow_row, 'name', traffic_item['name'])
-            self._set_result_value(flow_row, 'state', traffic_item['state'])
+            self._set_result_value(flow_row, 'transmit', self._get_state(traffic_item['state']))
             self._set_result_value(flow_row, 'port_tx', traffic_item['highLevelStream'][0]['txPortName'])
             self._set_result_value(flow_row, 'port_rx', ' '.join(traffic_item['highLevelStream'][0]['rxPortNames']))
             flow_rows[traffic_item['name']] = flow_row
@@ -431,13 +450,14 @@ class TrafficItem(CustomField):
             table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX, filter['regex'])
             for row in table.Rows:
                 flow_row = flow_rows[row['Traffic Item']]
-                self._set_result_value(flow_row, 'frames_tx', row['Tx Frames'])
-                self._set_result_value(flow_row, 'frames_rx', row['Rx Frames'])
-                self._set_result_value(flow_row, 'frames_tx_rate', row['Tx Frame Rate'])
-                self._set_result_value(flow_row, 'frames_rx_rate', row['Rx Frame Rate'])
-                self._set_result_value(flow_row, 'bytes_tx_rate', row['Tx Rate (Bps)'])
-                self._set_result_value(flow_row, 'bytes_rx_rate', row['Rx Rate (Bps)'])
-                self._set_result_value(flow_row, 'loss', row['Loss %'])
+                self._set_result_value(flow_row, 'frames_tx', int(row['Tx Frames']))
+                self._set_result_value(flow_row, 'frames_rx', int(row['Rx Frames']))
+                self._set_result_value(flow_row, 'bytes_rx', int(row['Rx Bytes']))
+                self._set_result_value(flow_row, 'frames_tx_rate', float(row['Tx Frame Rate']))
+                self._set_result_value(flow_row, 'frames_rx_rate', float(row['Rx Frame Rate']))
+                self._set_result_value(flow_row, 'bytes_tx_rate', float(row['Tx Rate (Bps)']))
+                self._set_result_value(flow_row, 'bytes_rx_rate', float(row['Rx Rate (Bps)']))
+                self._set_result_value(flow_row, 'loss', float(row['Loss %']))
         except Exception as e:
             self._api.add_error(e)
         return flow_rows.values()
