@@ -39,7 +39,7 @@ def test_get_ingress_results(serializer, options, tx_port, rx_port, api):
         results = api.get_flow_results(request)
         df = DataFrame.from_dict(results)
         print(df)
-        if (df.transmit == 'stopped').all():
+        if df.frames_tx.sum() >= 10000 and df.frames_tx_rate.sum() == 0:
             break
 
 

@@ -318,12 +318,24 @@ class Vport(object):
         except Exception as e:
             self._api.add_error(e)
 
-    def _set_result_value(self, row, column_name, column_value):
-        row[column_name] = column_value
+    def _set_result_value(self, row, column_name, column_value, column_type = str):
+        if len(self._column_names) > 0 and column_name not in self._column_names:
+            return
+        try:
+            row[column_name] = column_type(column_value)
+        except:
+            if column_type.__name__ in ['float', 'int']:
+                row[column_name] = 0
+            else:
+                row[column_type] = column_value
 
     def results(self, request):
         """Return port results
         """
+        if request.column_names is None:
+            self._column_names = []
+        else:
+            self._column_names = request.column_names
         port_rows = {}
         for vport in self._api.select_vports().values():
             port_row = {}
@@ -343,22 +355,22 @@ class Vport(object):
             table = self._api.assistant.StatViewAssistant('Port Statistics')
             for row in table.Rows:
                 port_row = port_rows[row['Port Name']]
-                self._set_result_value(port_row, 'frames_tx', int(row['Frames Tx.']))
-                self._set_result_value(port_row, 'frames_rx', int(row['Valid Frames Rx.']))
-                self._set_result_value(port_row, 'frames_tx_rate', float(row['Frames Tx. Rate']))
-                self._set_result_value(port_row, 'frames_rx_rate', float(row['Valid Frames Rx. Rate']))
-                self._set_result_value(port_row, 'bytes_tx', int(row['Bytes Tx.']))
-                self._set_result_value(port_row, 'bytes_rx', int(row['Bytes Rx.']))
-                self._set_result_value(port_row, 'bytes_tx_rate', float(row['Bytes Tx. Rate']))
-                self._set_result_value(port_row, 'bytes_rx_rate', float(row['Bytes Rx. Rate']))
-                self._set_result_value(port_row, 'pfc_class_0_frames_rx', int(row['Rx Pause Priority Group 0 Frames']))
-                self._set_result_value(port_row, 'pfc_class_1_frames_rx', int(row['Rx Pause Priority Group 1 Frames']))
-                self._set_result_value(port_row, 'pfc_class_2_frames_rx', int(row['Rx Pause Priority Group 2 Frames']))
-                self._set_result_value(port_row, 'pfc_class_3_frames_rx', int(row['Rx Pause Priority Group 3 Frames']))
-                self._set_result_value(port_row, 'pfc_class_4_frames_rx', int(row['Rx Pause Priority Group 4 Frames']))
-                self._set_result_value(port_row, 'pfc_class_5_frames_rx', int(row['Rx Pause Priority Group 5 Frames']))
-                self._set_result_value(port_row, 'pfc_class_6_frames_rx', int(row['Rx Pause Priority Group 6 Frames']))
-                self._set_result_value(port_row, 'pfc_class_7_frames_rx', int(row['Rx Pause Priority Group 7 Frames']))
+                self._set_result_value(port_row, 'frames_tx', row['Frames Tx.'], int)
+                self._set_result_value(port_row, 'frames_rx', row['Valid Frames Rx.'], int)
+                self._set_result_value(port_row, 'frames_tx_rate', row['Frames Tx. Rate'], float)
+                self._set_result_value(port_row, 'frames_rx_rate', row['Valid Frames Rx. Rate'], float)
+                self._set_result_value(port_row, 'bytes_tx', row['Bytes Tx.'], int)
+                self._set_result_value(port_row, 'bytes_rx', row['Bytes Rx.'], int)
+                self._set_result_value(port_row, 'bytes_tx_rate', row['Bytes Tx. Rate'], float)
+                self._set_result_value(port_row, 'bytes_rx_rate', row['Bytes Rx. Rate'], float)
+                self._set_result_value(port_row, 'pfc_class_0_frames_rx', row['Rx Pause Priority Group 0 Frames'], int)
+                self._set_result_value(port_row, 'pfc_class_1_frames_rx', row['Rx Pause Priority Group 1 Frames'], int)
+                self._set_result_value(port_row, 'pfc_class_2_frames_rx', row['Rx Pause Priority Group 2 Frames'], int)
+                self._set_result_value(port_row, 'pfc_class_3_frames_rx', row['Rx Pause Priority Group 3 Frames'], int)
+                self._set_result_value(port_row, 'pfc_class_4_frames_rx', row['Rx Pause Priority Group 4 Frames'], int)
+                self._set_result_value(port_row, 'pfc_class_5_frames_rx', row['Rx Pause Priority Group 5 Frames'], int)
+                self._set_result_value(port_row, 'pfc_class_6_frames_rx', row['Rx Pause Priority Group 6 Frames'], int)
+                self._set_result_value(port_row, 'pfc_class_7_frames_rx', row['Rx Pause Priority Group 7 Frames'], int)
         except:
             pass
         return port_rows.values()
