@@ -49,7 +49,7 @@ def api():
         ixnetwork_api.assistant.Session.remove()
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def options():
     """Returns global options
     """
@@ -58,7 +58,7 @@ def options():
     return Options(PortOptions(location_preemption=True))
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def tx_port():
     """Returns a transmit port
     """
@@ -66,7 +66,7 @@ def tx_port():
     return Port(name='Tx Port', location=TX_PORT_LOCATION)
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def rx_port():
     """Returns a receive port
     """
@@ -74,7 +74,7 @@ def rx_port():
     return Port(name='Rx Port', location=RX_PORT_LOCATION)
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def b2b_devices(tx_port, rx_port):
     """Returns a B2B tuple of tx port and rx port each with distinct device 
     groups of ethernet, ipv4, ipv6 and bgpv4 devices
@@ -144,7 +144,7 @@ def b2b_devices(tx_port, rx_port):
     return [tx_port, rx_port]
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def b2b_simple_device(tx_port, rx_port):
     """Returns a B2B tuple of tx port and rx port each with distinct device
         groups of ethernet and ipv4 devices
@@ -175,3 +175,47 @@ def b2b_simple_device(tx_port, rx_port):
                ),
     ]
     return [tx_port, rx_port]
+
+
+@pytest.fixture(scope='session')
+def b2b_port_flow_config(options, tx_port, rx_port):
+    """Returns a configuration with an ipv4 flow.
+    The ipv4 flow uses a DeviceTxRx endpoint.
+    """    
+    from abstract_open_traffic_generator.config import Config
+    from abstract_open_traffic_generator.flow import Flow, TxRx, PortTxRx, Size, Rate, Duration, FixedPackets
+
+    endpoint = PortTxRx(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
+    flow = Flow(name='Port Flow',
+                    tx_rx=TxRx(endpoint),
+                    size=Size(128),
+                    rate=Rate(unit='pps', value=1000),
+                    duration=Duration(FixedPackets(packets=10000)))
+    config = Config(ports=[tx_port, rx_port],
+        flows=[flow],
+        options=options
+    )
+    return config
+
+
+@pytest.fixture(scope='session')
+def b2b_ipv4_flow_config(options, b2b_simple_device):
+    """Returns a configuration with an ipv4 flow.
+    The ipv4 flow uses a DeviceTxRx endpoint.
+    """    
+    from abstract_open_traffic_generator.config import Config
+    from abstract_open_traffic_generator.flow import Flow, TxRx, DeviceTxRx, Size, Rate, Duration, FixedPackets
+
+    tx_rx_devices = DeviceTxRx(
+        tx_device_names=[b2b_simple_device[0].port.devices[0].name],
+        rx_device_names=[b2b_simple_device[1].port.devices[0].name])
+    flow = Flow(name='Ipv4 Flow',
+        tx_rx=TxRx(tx_rx_devices),
+        size=Size('512'),
+        rate=Rate(unit='pps', value=100000),
+        duration=Duration(FixedPackets(1000000))
+    )
+    config = Config(ports=b2b_simple_device, 
+        flows=[flow],
+        options=options)
+    return config
