@@ -391,7 +391,8 @@ class TrafficItem(CustomField):
             regex = '^(%s)$' % '|'.join(request.flow_names)
         if request.state == 'start':
             self._api._traffic_item.find(Name=regex, State='unapplied')
-            self._api._ixnetwork.StartAllProtocols('sync')
+            if len(self._api._topology.find()) > 0:
+                self._api._ixnetwork.StartAllProtocols('sync')
             if len(self._api._traffic_item) > 0:
                 self._api._traffic_item.Generate()
                 self._api._traffic.Apply()

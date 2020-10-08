@@ -207,11 +207,11 @@ def b2b_ipv4_flow_config(options, b2b_simple_device):
     from abstract_open_traffic_generator.flow import Flow, TxRx, DeviceTxRx, Size, Rate, Duration, FixedPackets
 
     tx_rx_devices = DeviceTxRx(
-        tx_device_names=[b2b_simple_device[0].port.devices[0].name],
-        rx_device_names=[b2b_simple_device[1].port.devices[0].name])
+        tx_device_names=[b2b_simple_device[0].devices[0].name],
+        rx_device_names=[b2b_simple_device[1].devices[0].name])
     flow = Flow(name='Ipv4 Flow',
         tx_rx=TxRx(tx_rx_devices),
-        size=Size('512'),
+        size=Size(512),
         rate=Rate(unit='pps', value=100000),
         duration=Duration(FixedPackets(1000000))
     )

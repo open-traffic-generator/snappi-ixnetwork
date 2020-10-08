@@ -310,7 +310,7 @@ class Vport(object):
     def _connect(self):
         self._ixn_vport.find(ConnectionState='^((?!connectedLink).)*$')
         try:
-            force_ownership = self._api.config.options.port_options.location_premption
+            force_ownership = self._api.config.options.port_options.location_preemption
         except:
             force_ownership = False
         try:

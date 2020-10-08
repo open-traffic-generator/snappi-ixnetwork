@@ -4,7 +4,10 @@ from abstract_open_traffic_generator.result import PortRequest, Port
 
 
 def test_ports(serializer, api, b2b_port_flow_config):
-    """Demonstrates how to retrieve port results
+    """Demonstrates the following:
+    - Retrieving a subset of port results
+    - Use pandas to display the results in a table format
+    - Use pandas to end the script when a condition is met
     """
     state = State(ConfigState(config=b2b_port_flow_config, state='set'))
     print(serializer.json(state))
