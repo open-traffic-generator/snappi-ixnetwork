@@ -8,4 +8,5 @@ __pycache__
 *.log
 *.pcap
 *.cap
+.vscode
 ixnetwork_open_traffic_generator/docs
