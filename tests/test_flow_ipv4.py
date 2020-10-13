@@ -17,7 +17,9 @@ def test_flow_ipv4(serializer, tx_port, rx_port, b2b_simple_device, api):
                     packet=[
                         Header(Ethernet()),
                         Header(Vlan()),
-                        Header(Ipv4(priority=test_dscp)),
+                        Header(Ipv4(priority=test_dscp,
+                                    identification=Pattern(Counter(start='1', step='2',count=4)),
+                                    total_length=Pattern('90'))),
                     ],
                     size=Size(128),
                     rate=Rate('line', 50),

@@ -87,9 +87,20 @@ class TrafficItem(CustomField):
     }
 
     _IPV4 = {
-        'src' : 'ipv4.header.srcIp',
-        'dst' : 'ipv4.header.dstIp',
+        'version' : 'ipv4.header.version',
+        'header_length' : 'ipv4.header.headerLength',
         'priority' : '_ipv4_priority',
+        'total_length': 'ipv4.header.totalLength',
+        'identification' : 'ipv4.header.identification',
+        'reserved' : 'ipv4.header.flags.reserved',
+        'dont_fragment' : 'ipv4.header.flags.fragment',
+        'more_fragments' : 'ipv4.header.flags.lastFragment',
+        'fragment_offset' : 'ipv4.header.fragmentOffset',
+        'time_to_live' : 'ipv4.header.ttl',
+        'protocol' : 'ipv4.header.protocol',
+        'header_checksum' : 'ipv4.header.checksum',
+        'src': 'ipv4.header.srcIp',
+        'dst': 'ipv4.header.dstIp',
     }
 
     _TOS = {
