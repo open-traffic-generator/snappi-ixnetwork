@@ -2,7 +2,6 @@ import pytest
 import json
 import yaml
 
-
 API_SERVER = '10.36.66.49'
 API_SERVER_PORT = 11009
 TX_PORT_LOCATION = '10.36.74.26;02;13'
@@ -34,6 +33,7 @@ def serializer(request):
             """Return a dict from a yaml string serialization
             """
             return yaml.load(yaml_string)
+
     return Serializer()
 
 
@@ -76,115 +76,111 @@ def rx_port():
 
 @pytest.fixture(scope='session')
 def b2b_devices(tx_port, rx_port):
-    """Returns a B2B tuple of tx port and rx port each with distinct device
+    """Returns a B2B tuple of tx devices and rx devices each with distinct device
     groups of ethernet, ipv4, ipv6 and bgpv4 devices
     """
     from abstract_open_traffic_generator.device import Device, Ethernet, Vlan
     from abstract_open_traffic_generator.device import Ipv4, Ipv6, Bgpv4
     from abstract_open_traffic_generator.device import Pattern
 
-    tx_port.devices = [
+    devices = [
         Device(name='Tx Devices Eth',
+               container_name=tx_port.name,
                device_count=1,
                choice=Ethernet(name='Tx Eth',
-                               vlans=[Vlan(name='Tx Eth Vlan')])
-               ),
+                               vlans=[Vlan(name='Tx Eth Vlan')])),
         Device(name='Tx Devices Ipv4',
+               container_name=tx_port.name,
                device_count=2,
                choice=Ipv4(name='Tx Ipv4',
                            address=Pattern('1.1.1.1'),
                            prefix=Pattern('24'),
                            gateway=Pattern('1.1.2.1'),
                            ethernet=Ethernet(name='Tx Ipv4 Eth',
-                                             vlans=[Vlan(name='Tx Ipv4 Vlan')])
-                           )
-               ),
+                                             vlans=[Vlan(name='Tx Ipv4 Vlan')
+                                                    ]))),
         Device(name='Tx Devices Ipv6',
+               container_name=tx_port.name,
                device_count=3,
                choice=Ipv6(name='Tx Ipv6',
                            ethernet=Ethernet(name='Tx Ipv6 Eth',
-                                             vlans=[Vlan(name='Tx Ipv6 Vlan')])
-                           )
-               ),
+                                             vlans=[Vlan(name='Tx Ipv6 Vlan')
+                                                    ]))),
         Device(name='Tx Devices Bgpv4',
+               container_name=tx_port.name,
                device_count=10,
                choice=Bgpv4(name='Tx Bgpv4',
                             ipv4=Ipv4(name='Tx Bgpv4 Ipv4',
-                                      ethernet=Ethernet(name='Tx Bgpv4 Eth',
-                                                        vlans=[Vlan(name='Tx Bgpv4 Vlan')])
-                                      )
-                            )
-               )
-    ]
-    rx_port.devices = [
+                                      ethernet=Ethernet(
+                                          name='Tx Bgpv4 Eth',
+                                          vlans=[Vlan(name='Tx Bgpv4 Vlan')
+                                                 ])))),
         Device(name='Rx Devices Eth',
+               container_name=rx_port.name,
                device_count=1,
                choice=Ethernet(name='Rx Eth',
-                               vlans=[Vlan(name='Rx Eth Vlan')])
-               ),
+                               vlans=[Vlan(name='Rx Eth Vlan')])),
         Device(name='Rx Devices Ipv4',
+               container_name=rx_port.name,
                device_count=2,
                choice=Ipv4(name='Rx Ipv4',
                            address=Pattern('1.1.1.1'),
                            prefix=Pattern('24'),
                            gateway=Pattern('1.1.2.1'),
                            ethernet=Ethernet(name='Rx Ipv4 Eth',
-                                             vlans=[Vlan(name='Rx Ipv4 Vlan')])
-                           )
-               ),
+                                             vlans=[Vlan(name='Rx Ipv4 Vlan')
+                                                    ]))),
         Device(name='Rx Devices Ipv6',
+               container_name=rx_port.name,
                device_count=3,
                choice=Ipv6(name='Rx Ipv6',
                            ethernet=Ethernet(name='Rx Ipv6 Eth',
-                                             vlans=[Vlan(name='Rx Ipv6 Vlan')])
-                           )
-               ),
+                                             vlans=[Vlan(name='Rx Ipv6 Vlan')
+                                                    ]))),
         Device(name='Rx Devices Bgpv4',
+               container_name=rx_port.name,
                device_count=10,
                choice=Bgpv4(name='Rx Bgpv4',
                             ipv4=Ipv4(name='Rx Bgpv4 Ipv4',
-                                      ethernet=Ethernet(name='Rx Bgpv4 Eth',
-                                                        vlans=[Vlan(name='Rx Bgpv4 Vlan')])
-                                      )
-                            )
-               )
+                                      ethernet=Ethernet(
+                                          name='Rx Bgpv4 Eth',
+                                          vlans=[Vlan(name='Rx Bgpv4 Vlan')
+                                                 ]))))
     ]
-    return [tx_port, rx_port]
+    return devices
 
 
 @pytest.fixture(scope='session')
-def b2b_simple_device(tx_port, rx_port):
-    """Returns a B2B tuple of tx port and rx port each with distinct device
-        groups of ethernet and ipv4 devices
-        """
+def b2b_ipv4_devices(tx_port, rx_port):
+    """Returns a list of ipv4 tx device and rx device objects
+    Each device object is ipv4, ethernet and vlan
+    """
     from abstract_open_traffic_generator.device import Device, Ethernet, Vlan, Ipv4
     from abstract_open_traffic_generator.device import Pattern
 
-    tx_port.devices = [
-        Device(name='Tx Devices Ipv4',
-               device_count=1,
-               choice=Ipv4(name='Tx Ipv4',
-                           address=Pattern('1.1.1.1'),
-                           prefix=Pattern('24'),
-                           gateway=Pattern('1.1.2.1'),
-                           ethernet=Ethernet(name='Tx Ipv4 Eth',
-                                             vlans=[Vlan(name='Tx Ipv4 Vlan')])
-                           )
-               )
-    ]
-    rx_port.devices = [
-        Device(name='Rx Devices Ipv4',
-               device_count=1,
-               choice=Ipv4(name='Rx Ipv4',
-                           address=Pattern('1.1.2.1'),
-                           prefix=Pattern('24'),
-                           gateway=Pattern('1.1.1.1'),
-                           ethernet=Ethernet(name='Rx Ipv4 Eth',
-                                             vlans=[Vlan(name='Rx Ipv4 Vlan')])
-                           )
-               ),
-    ]
-    return [tx_port, rx_port]
+    tx_device = Device(name='Tx Devices Ipv4',
+                       container_name=tx_port.name,
+                       device_count=1,
+                       choice=Ipv4(name='Tx Ipv4',
+                                   address=Pattern('1.1.1.1'),
+                                   prefix=Pattern('24'),
+                                   gateway=Pattern('1.1.2.1'),
+                                   ethernet=Ethernet(
+                                       name='Tx Ipv4 Eth',
+                                       vlans=[Vlan(name='Tx Ipv4 Vlan')])))
+
+    rx_device = Device(name='Rx Devices Ipv4',
+                       container_name=rx_port.name,
+                       device_count=1,
+                       choice=Ipv4(name='Rx Ipv4',
+                                   address=Pattern('1.1.2.1'),
+                                   prefix=Pattern('24'),
+                                   gateway=Pattern('1.1.1.1'),
+                                   ethernet=Ethernet(
+                                       name='Rx Ipv4 Eth',
+                                       vlans=[Vlan(name='Rx Ipv4 Vlan')])))
+
+    return [tx_device, rx_device]
 
 
 @pytest.fixture(scope='session')
@@ -196,7 +192,8 @@ def b2b_port_flow_config(options, tx_port, rx_port):
     from abstract_open_traffic_generator.flow import Flow, TxRx, PortTxRx, \
         Size, Rate, Duration, FixedPackets, Header, Ethernet
 
-    endpoint = PortTxRx(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
+    endpoint = PortTxRx(tx_port_name=tx_port.name,
+                        rx_port_names=[rx_port.name])
     flow = Flow(name='Port Flow',
                 tx_rx=TxRx(endpoint),
                 packet=[Header(Ethernet())],
@@ -207,7 +204,7 @@ def b2b_port_flow_config(options, tx_port, rx_port):
 
 
 @pytest.fixture(scope='session')
-def b2b_ipv4_flow_config(options, b2b_simple_device):
+def b2b_ipv4_flow_config(options, tx_port, rx_port, b2b_ipv4_devices):
     """Returns a configuration with an ipv4 flow.
     The flow uses a DeviceTxRx endpoint.
     """
@@ -215,14 +212,17 @@ def b2b_ipv4_flow_config(options, b2b_simple_device):
     from abstract_open_traffic_generator.flow import Flow, TxRx, DeviceTxRx, \
         Size, Rate, Duration, FixedPackets, Header, Ethernet, Vlan, Ipv4
 
-    tx_rx_devices = DeviceTxRx(
-        tx_device_names=[b2b_simple_device[0].devices[0].name],
-        rx_device_names=[b2b_simple_device[1].devices[0].name])
+    tx_rx_devices = DeviceTxRx(tx_device_names=[b2b_ipv4_devices[0].name],
+                               rx_device_names=[b2b_ipv4_devices[1].name])
     flow = Flow(name='Ipv4 Flow',
                 tx_rx=TxRx(tx_rx_devices),
-                packet=[Header(Ethernet()), Header(Vlan()), Header(Ipv4())],
+                packet=[Header(Ethernet()),
+                        Header(Vlan()),
+                        Header(Ipv4())],
                 size=Size(512),
                 rate=Rate(unit='pps', value=100000),
-                duration=Duration(FixedPackets(1000000))
-                )
-    return Config(ports=b2b_simple_device, flows=[flow], options=options)
+                duration=Duration(FixedPackets(1000000)))
+    return Config(ports=[tx_port, rx_port],
+                  devices=b2b_ipv4_devices,
+                  flows=[flow],
+                  options=options)

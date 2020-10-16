@@ -5,15 +5,17 @@ from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.control import *
 
 
-def test_flow_tcp(serializer, tx_port, rx_port, b2b_simple_device, api):
+def test_flow_tcp(serializer, tx_port, rx_port, b2b_ipv4_devices, api):
     """TCP Flow test traffic configuration
     """
-    tcp_endpoint = DeviceTxRx(tx_device_names=[b2b_simple_device[0].devices[0].name],
-                              rx_device_names=[b2b_simple_device[1].devices[0].name])
+    tcp_endpoint = DeviceTxRx(tx_device_names=[b2b_ipv4_devices[0].name],
+                              rx_device_names=[b2b_ipv4_devices[1].name])
 
-    test_dscp = Priority(Dscp(phb=Pattern(Dscp.PHB_CS7, ingress_result_name='phb')))
+    test_dscp = Priority(
+        Dscp(phb=Pattern(Dscp.PHB_CS7, ingress_result_name='phb')))
     tcp_header = Tcp(src_port=Pattern("11102"),
-                     dst_port=Pattern("443", ingress_result_name="Tcp Dst Port"),
+                     dst_port=Pattern("443",
+                                      ingress_result_name="Tcp Dst Port"),
                      ecn_ns=Pattern("1"),
                      ecn_cwr=Pattern("0"),
                      ecn_echo=Pattern("1"),
@@ -26,24 +28,18 @@ def test_flow_tcp(serializer, tx_port, rx_port, b2b_simple_device, api):
     tcp_flow = Flow(name='TCP Flow',
                     tx_rx=TxRx(tcp_endpoint),
                     packet=[
-                         Header(Ethernet()),
-                         Header(Vlan()),
-                         Header(Ipv4(priority=test_dscp)),
-                         Header(tcp_header)
+                        Header(Ethernet()),
+                        Header(Vlan()),
+                        Header(Ipv4(priority=test_dscp)),
+                        Header(tcp_header)
                     ],
                     size=Size(128),
                     rate=Rate('line', 50),
                     duration=Duration(FixedPackets(packets=0)))
 
-    config = Config(
-        ports=[
-            tx_port,
-            rx_port
-        ],
-        flows=[
-            tcp_flow
-        ]
-    )
+    config = Config(ports=[tx_port, rx_port],
+                    devices=b2b_ipv4_devices,
+                    flows=[tcp_flow])
     api.set_state(State(ConfigState(config=config, state='set')))
 
 

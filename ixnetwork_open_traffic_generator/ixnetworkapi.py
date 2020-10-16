@@ -126,8 +126,8 @@ class IxNetworkApi(Api):
     def _start_capture(self):    
         if self._capture_request is not None:   
             payload = { 'arg1': [] }
-            for name in self._capture_request.port_names:
-                payload['arg1'].append(self._vport.find(Name=name).href)
+            for vport in self.select_vports().values():
+                payload['arg1'].append(vport['href'])
             url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
             response = self._request('POST', url, payload)
             self._ixnetwork.StartCapture()
@@ -225,16 +225,14 @@ class IxNetworkApi(Api):
         return response
 
     def _remove(self, ixn_obj, items):
-        """Remove any ixnetwork items that are not found in the configuration list.
-        If the list does not exist remove everything.
+        """Remove any ixnetwork objects that are not found in the items list.
+        If the items list does not exist remove everything.
         """
-        if items is not None:  
-            item_names = [item.name for item in items]
-            for obj in ixn_obj.find():
-                if obj.Name not in item_names:
-                    obj.remove()
-        else:
+        if items is None or len(items) == 0:
             ixn_obj.find().remove()
+        else:
+            regex = '^((?!(%s)).)*$' % '|'.join([item.name for item in items])
+            ixn_obj.find(Name=regex).remove()
 
     def _get_topology_name(self, port_name):
         return 'Topology %s' % port_name

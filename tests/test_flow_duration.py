@@ -5,7 +5,7 @@ from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.control import *
 
 
-def test_flow_duration(serializer, api, b2b_devices):
+def test_flow_duration(serializer, api, tx_port, rx_port, b2b_ipv4_devices):
     """
     This will test different transmit durations:
     [1] Fixed : A fixed number of packets will be transmitted after which the flow will stop
@@ -25,61 +25,57 @@ def test_flow_duration(serializer, api, b2b_devices):
         - inter_burst_gap (int): The gap between the transmission of each burst. A value of 0 means there is no gap between bursts
         - inter_burst_gap_unit (Union[bytes, nanoseconds]): The inter burst gap expressed as a number of this value
     """
-    data_endpoint = DeviceTxRx(tx_device_names=[b2b_devices[0].devices[0].name],
-        rx_device_names=[b2b_devices[1].devices[1].name])
+    data_endpoint = DeviceTxRx(tx_device_names=[b2b_ipv4_devices[0].name],
+                               rx_device_names=[b2b_ipv4_devices[1].name])
 
     # Test for Continuous Flow
-    test_continuous = Flow(name='Continuous Duration',
+    test_continuous = Flow(
+        name='Continuous Duration',
         tx_rx=TxRx(data_endpoint),
-        packet=[
-            Header(Ethernet()),
-            Header(Vlan()),
-            Header(Ipv4())
-        ],
-        duration=Duration(Continuous())
-    )
+        packet=[Header(Ethernet()),
+                Header(Vlan()),
+                Header(Ipv4())],
+        duration=Duration(Continuous()))
 
     # Test for Fix packet with Gap and Delay
-    test_fixed_packet = Flow(name='Fixed Packet Duration',
+    test_fixed_packet = Flow(
+        name='Fixed Packet Duration',
         tx_rx=TxRx(data_endpoint),
-        packet=[
-            Header(Ethernet()),
-            Header(Vlan()),
-            Header(Ipv4())
-        ],
-        duration=Duration(FixedPackets(packets=125, gap=2, delay=8, delay_unit='bytes'))
-    )
+        packet=[Header(Ethernet()),
+                Header(Vlan()),
+                Header(Ipv4())],
+        duration=Duration(
+            FixedPackets(packets=125, gap=2, delay=8, delay_unit='bytes')))
 
     # Test for Fix second with Gap and Delay
-    test_fixed_second = Flow(name='Fixed Second Duration',
+    test_fixed_second = Flow(
+        name='Fixed Second Duration',
         tx_rx=TxRx(data_endpoint),
-        packet=[
-            Header(Ethernet()),
-            Header(Vlan()),
-            Header(Ipv4())
-        ],
-        duration=Duration(FixedSeconds(seconds=312, gap=2, delay=8, delay_unit='bytes'))
-    )
+        packet=[Header(Ethernet()),
+                Header(Vlan()),
+                Header(Ipv4())],
+        duration=Duration(
+            FixedSeconds(seconds=312, gap=2, delay=8, delay_unit='bytes')))
 
     # Test for Burst Duration with Gap and inter burst gap
-    test_burst = Flow(name='Burst Duration',
+    test_burst = Flow(
+        name='Burst Duration',
         tx_rx=TxRx(data_endpoint),
-        packet=[
-            Header(Ethernet()),
-            Header(Vlan()),
-            Header(Ipv4())
-        ],
-        duration=Duration(Burst(packets=700, gap=8, inter_burst_gap=4, inter_burst_gap_unit='nanoseconds'))
-    )
+        packet=[Header(Ethernet()),
+                Header(Vlan()),
+                Header(Ipv4())],
+        duration=Duration(
+            Burst(packets=700,
+                  gap=8,
+                  inter_burst_gap=4,
+                  inter_burst_gap_unit='nanoseconds')))
 
-    config = Config(ports=b2b_devices,
-        flows = [
-            test_continuous,
-            test_fixed_packet,
-            test_fixed_second,
-            test_burst
-        ]
-    )
+    config = Config(ports=[tx_port, rx_port],
+                    devices=b2b_ipv4_devices,
+                    flows=[
+                        test_continuous, test_fixed_packet, test_fixed_second,
+                        test_burst
+                    ])
     api.set_state(State(ConfigState(config=config, state='set')))
 
 

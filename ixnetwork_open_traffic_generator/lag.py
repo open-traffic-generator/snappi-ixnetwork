@@ -2,67 +2,15 @@ import json
 from jsonpath_ng.ext import parse
 
 
-class Vport(object):
+class Lag(object):
     """Transforms OpenAPI objects into IxNetwork objects
 
-    - Port to /vport
-    - Port.Capture to /vport/capture
-    - Port.Layer1 to /vport/l1Config/...
-
-    Uses resourcemanager to set the vport location and l1Config as it is the
-    most efficient way.  
-    DO NOT use the AssignPorts API as it is too slow. 
+    - Lag to /lag
 
     Args
     ----
     - ixnetworkapi (IxNetworkApi): instance of the IxNetworkApi class
     """
-    _SPEED_MAP = {
-        'one_hundred_gbps': 'speed100g', 
-        'fifty_gbps': 'speed50g', 
-        'forty_gbps': 'speed40g', 
-        'twenty_five_gpbs': 'speed25g', 
-        'ten_gbps': 'speed10g',
-        'one_thousand_mbps': 'speed1000',
-        'one_hundred_fd_mbps': 'speed100fd',
-        'one_hundred_hd_mbps': 'speed100hd',
-        'ten_fd_mbps': 'speed10fd', 
-        'ten_hd_mbps': 'speed10hd'        
-    }
-    _ADVERTISE_MAP = {
-        'advertise_one_thousand_mbps': 'speed1000',
-        'advertise_one_hundred_fd_mbps': 'speed100fd',
-        'advertise_one_hundred_hd_mbps': 'speed100hd', 
-        'advertise_ten_fd_mbps': 'speed10fd', 
-        'advertise_ten_hd_mbps': 'speed10hd'        
-    }
-    _FLOW_CONTROL_MAP = {
-        'ieee_802_1qbb': 'ieee802.1Qbb',
-        'ieee_802_3x': 'ieee_802_3x'
-    }
-    _RESULT_COLUMNS = [
-        'name',
-        'location',
-        'link',
-        'capture',
-        'frames_tx',
-        'frames_rx',
-        'frames_tx_rate',
-        'frames_rx_rate',
-        'bytes_tx',
-        'bytes_rx',
-        'bytes_tx_rate',
-        'bytes_rx_rate',
-        'pfc_class_0_frames_rx',
-        'pfc_class_1_frames_rx',
-        'pfc_class_2_frames_rx',
-        'pfc_class_3_frames_rx',
-        'pfc_class_4_frames_rx',
-        'pfc_class_5_frames_rx',
-        'pfc_class_6_frames_rx',
-        'pfc_class_7_frames_rx'            
-    ]
-
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         
@@ -75,13 +23,13 @@ class Vport(object):
         5) connectPorts to use new l1Config settings and clearownership
         """
         self._resource_manager = self._api._ixnetwork.ResourceManager
-        self._ixn_vport = self._api._vport
-        self._delete_vports()
-        self._create_vports()
-        self._create_capture()
-        self._set_location()
-        self._set_layer1()
-        self._connect()
+        self._ixn_vport = self._api._lag
+        self._delete_lags()
+        # self._create_vports()
+        # self._create_capture()
+        # self._set_location()
+        # self._set_layer1()
+        # self._connect()
 
     def _import(self, imports):
         if len(imports) > 0:
@@ -90,7 +38,7 @@ class Vport(object):
     def _delete_vports(self):
         """Delete any vports from the api server that do not exist in the new config
         """
-        self._api._remove(self._ixn_vport, self._api.config.ports)
+        self._api._remove(self._ixn_lag, self._api.config.lags)
     
     def _create_vports(self):
         """Add any vports to the api server that do not already exist
@@ -113,61 +61,50 @@ class Vport(object):
     def _create_capture(self):
         """Overwrite any capture settings
         """
-        if self._api.config.captures is None:
-            self._api.config.captures = []
-        imports = []
         vports = self._api.select_vports()
-        for vport in vports.values():
+        imports = []
+        for port in self._api.config.ports:
             capture = {
-                'xpath': vport['xpath'] + '/capture',
+                'xpath': vports[port.name]['xpath'] + '/capture',
                 'captureMode': 'captureTriggerMode',
                 'hardwareEnabled': False,
                 'softwareEnabled': False
             }
+            pallette = {
+                'xpath': capture['xpath'] + '/filterPallette'
+            }
+            filter = {
+                'xpath': capture['xpath'] + '/filter'
+            }
+            trigger = {
+                'xpath': capture['xpath'] + '/trigger'
+            }
+            if port.capture is not None and port.capture.basic is not None:
+                capture['hardwareEnabled'] = True
+                filter['captureFilterEnable'] = True
+                trigger['captureTriggerEnable'] = True
+                filter['captureFilterEnable'] = True
+                for basic in port.capture.basic:
+                    if basic.choice == 'mac_address' and basic.mac_address.mac == 'source':
+                        pallette['SA1'] = basic.mac_address.filter
+                        pallette['SAMask1'] = basic.mac_address.mask
+                        filter['captureFilterSA'] = 'notAddr1' if basic.not_operator is True else 'addr1'
+                        trigger['triggerFilterSA'] = filter['captureFilterSA']
+                    elif basic.choice == 'mac_address' and basic.mac_address.mac == 'destination':
+                        pallette['DA1'] = basic.mac_address.filter
+                        pallette['DAMask1'] = basic.mac_address.mask
+                        filter['captureFilterDA'] = 'notAddr1' if basic.not_operator is True else 'addr1'
+                        trigger['triggerFilterDA'] = filter['captureFilterDA']
+                    elif basic.choice == 'custom':
+                        pallette['pattern1'] = basic.custom.filter
+                        pallette['patternMask1'] = basic.custom.mask
+                        pallette['patternOffset1'] = basic.custom.offset
+                        filter['captureFilterPattern'] = 'notPattern1' if basic.not_operator is True else 'pattern1'
+                        trigger['triggerFilterPattern'] = filter['captureFilterPattern']
             imports.append(capture)
-        for capture_item in self._api.config.captures:
-            for port_name in capture_item.port_names:
-                capture = {
-                    'xpath': vports[port_name]['xpath'] + '/capture',
-                    'captureMode': 'captureTriggerMode',
-                    'hardwareEnabled': False,
-                    'softwareEnabled': False
-                }
-                pallette = {
-                    'xpath': capture['xpath'] + '/filterPallette'
-                }
-                filter = {
-                    'xpath': capture['xpath'] + '/filter'
-                }
-                trigger = {
-                    'xpath': capture['xpath'] + '/trigger'
-                }
-                if capture_item.basic is not None:
-                    capture['hardwareEnabled'] = True
-                    filter['captureFilterEnable'] = True
-                    trigger['captureTriggerEnable'] = True
-                    filter['captureFilterEnable'] = True
-                    for basic in capture_item.basic:
-                        if basic.choice == 'mac_address' and basic.mac_address.mac == 'source':
-                            pallette['SA1'] = basic.mac_address.filter
-                            pallette['SAMask1'] = basic.mac_address.mask
-                            filter['captureFilterSA'] = 'notAddr1' if basic.not_operator is True else 'addr1'
-                            trigger['triggerFilterSA'] = filter['captureFilterSA']
-                        elif basic.choice == 'mac_address' and basic.mac_address.mac == 'destination':
-                            pallette['DA1'] = basic.mac_address.filter
-                            pallette['DAMask1'] = basic.mac_address.mask
-                            filter['captureFilterDA'] = 'notAddr1' if basic.not_operator is True else 'addr1'
-                            trigger['triggerFilterDA'] = filter['captureFilterDA']
-                        elif basic.choice == 'custom':
-                            pallette['pattern1'] = basic.custom.filter
-                            pallette['patternMask1'] = basic.custom.mask
-                            pallette['patternOffset1'] = basic.custom.offset
-                            filter['captureFilterPattern'] = 'notPattern1' if basic.not_operator is True else 'pattern1'
-                            trigger['triggerFilterPattern'] = filter['captureFilterPattern']
-                imports.append(capture)
-                imports.append(pallette)
-                imports.append(filter)
-                imports.append(trigger)
+            imports.append(pallette)
+            imports.append(filter)
+            imports.append(trigger)
         self._import(imports)
 
     def _set_location(self):
@@ -305,13 +242,13 @@ class Vport(object):
                 'pfcPauseDelay': pfc.pfc_delay,
                 'pfcPriorityGroups': [
                     -1 if pfc.pfc_class_0 is None else pfc.pfc_class_0,
-                    -1 if pfc.pfc_class_1 is None else pfc.pfc_class_1,
-                    -1 if pfc.pfc_class_2 is None else pfc.pfc_class_2,
-                    -1 if pfc.pfc_class_3 is None else pfc.pfc_class_3,
-                    -1 if pfc.pfc_class_4 is None else pfc.pfc_class_4,
-                    -1 if pfc.pfc_class_5 is None else pfc.pfc_class_5,
-                    -1 if pfc.pfc_class_6 is None else pfc.pfc_class_6,
-                    -1 if pfc.pfc_class_7 is None else pfc.pfc_class_7,
+                    -1 if pfc.pfc_class_1 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_2 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_3 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_4 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_5 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_6 is None else pfc.pfc_class_0,
+                    -1 if pfc.pfc_class_7 is None else pfc.pfc_class_0,
                 ],
                 'priorityGroupSize': 'priorityGroupSize-8',
                 'supportDataCenterMode': True

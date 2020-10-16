@@ -10,25 +10,42 @@ def test_staggered_flow_start(serializer, api, tx_port, rx_port):
     """
     # configure flows
     tx_rx = PortTxRx(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
-    config = Config(ports=[tx_port, rx_port], 
-        flows=[
-            Flow(name='flow1', tx_rx=TxRx(tx_rx), rate=Rate('pps', value=1000), duration=Duration(FixedPackets())),
-            Flow(name='flow2', tx_rx=TxRx(tx_rx), rate=Rate('pps', value=1000), duration=Duration(FixedPackets())),
-            Flow(name='flow3', tx_rx=TxRx(tx_rx), rate=Rate('pps', value=1000), duration=Duration(FixedPackets()))
-        ]
-    )
+    config = Config(ports=[tx_port, rx_port],
+                    flows=[
+                        Flow(name='flow1',
+                             tx_rx=TxRx(tx_rx),
+                             rate=Rate('pps', value=1000),
+                             duration=Duration(FixedPackets())),
+                        Flow(name='flow2',
+                             tx_rx=TxRx(tx_rx),
+                             rate=Rate('pps', value=1000),
+                             duration=Duration(FixedPackets())),
+                        Flow(name='flow3',
+                             tx_rx=TxRx(tx_rx),
+                             rate=Rate('pps', value=1000),
+                             duration=Duration(FixedPackets()))
+                    ])
     api.set_state(State(ConfigState(config=config, state='set')))
 
     # start flow1 transmit
-    api.set_state(State(FlowTransmitState(flow_names=[config.flows[0].name], state='start')))
+    api.set_state(
+        State(
+            FlowTransmitState(flow_names=[config.flows[0].name],
+                              state='start')))
     time.sleep(5)
 
     # start flow2 transmit
-    api.set_state(State(FlowTransmitState(flow_names=[config.flows[1].name], state='start')))
+    api.set_state(
+        State(
+            FlowTransmitState(flow_names=[config.flows[1].name],
+                              state='start')))
     time.sleep(5)
 
     # start flow3 transmit
-    api.set_state(State(FlowTransmitState(flow_names=[config.flows[2].name], state='start')))
+    api.set_state(
+        State(
+            FlowTransmitState(flow_names=[config.flows[2].name],
+                              state='start')))
     time.sleep(5)
 
     # stop all flows

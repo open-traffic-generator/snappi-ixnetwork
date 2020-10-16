@@ -4,11 +4,18 @@ import abstract_open_traffic_generator.config as config
 import abstract_open_traffic_generator.control as control
 
 
-def test_ports(serializer, api, options):
-    """Demonstrates adding ports to a configuration and setting the
-    configuration on the traffic generator.
-    The traffic generator should have no  items configured other than
-    the ports in this test.
+def test_lag(serializer, api, options):
+    """Demonstrates the following:
+    1) Creating a lag comprised of multiple ports
+    2) Creating emulated devices over the lag
+    3) Creating traffic over the emulated devices that will transmit traffic to a single rx port.
+
+        TX LAG              DUT             RX
+        ------+         +---------+
+        port 1|         |
+        ..    | ------> | 
+        port n|         |
+        ------+
     """
     ports = [
         port.Port(name='port1', location='10.36.74.26;01;01'),
@@ -16,8 +23,7 @@ def test_ports(serializer, api, options):
         port.Port(name='port no location')
     ]
     configuration = config.Config(ports=ports, options=options)
-    state = control.State(
-        control.ConfigState(config=configuration, state='set'))
+    state = control.State(control.ConfigState(config=configuration, state='set'))
     api.set_state(state)
 
 

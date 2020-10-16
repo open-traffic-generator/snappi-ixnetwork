@@ -10,7 +10,7 @@ def test_flow_fields(serializer, api):
     This will test setting values for individual flow packet fields
     """
     port = Port(name='port')
-    port_endpoint = PortEndpoint(tx_port_name=port.name)
+    endpoint = PortTxRx(tx_port_name=port.name)
 
     mac_counter = Counter(start='00:00:fa:ce:fa:ce',
         step='00:00:01:02:03:04',
@@ -22,8 +22,8 @@ def test_flow_fields(serializer, api):
         id=Pattern(Counter(start='67', step='3', count=9)))
     vlan2 = Vlan(id=Pattern(Counter(start='34', step='2', count=5)))
     ipv4 = Ipv4()
-    flow = Flow(name=__name__,
-        endpoint=Endpoint(port_endpoint),
+    flow = Flow(name='Flow fields',
+        tx_rx=TxRx(endpoint),
         packet=[
             Header(ethernet),
             Header(vlan1),
