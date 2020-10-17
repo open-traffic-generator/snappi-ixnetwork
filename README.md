@@ -14,10 +14,10 @@ pip install --upgrade ixnetwork-open-traffic-generator
 ## Start scripting
 ```python
 """A simple test that demonstrates the following:
-- Create 2 ports that transmit an ethernet/vlan/ipv4/tcp flow 
-for a specified duration. 
-- While the flow is transmitting print out tx and rx statistics.
-- End the test once all packets have been transmitted. 
+- A port that transmits an ethernet/vlan/ipv4/tcp flow 
+for a specified duration and a port that receives the packets.
+- While the flow is transmitting the script prints out tx and rx statistics.
+- Once all the packets have been transmitted the script will end. 
 """
 import abstract_open_traffic_generator.port as port
 import abstract_open_traffic_generator.flow as flow
