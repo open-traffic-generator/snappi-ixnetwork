@@ -408,6 +408,8 @@ class TrafficItem(CustomField):
                 self._api._traffic_item.Generate()
                 self._api._traffic.Apply()
             self._api._start_capture()
+            self._api._ixnetwork.ClearStats(
+                ['waitForPortStatsRefresh', 'waitForTrafficStatsRefresh'])
         self._api._traffic_item.find(Name=regex)
         if request.state == 'start':
             self._api._traffic_item.StartStatelessTrafficBlocking()
