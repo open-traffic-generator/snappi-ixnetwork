@@ -12,7 +12,7 @@ def test_ports(serializer, api, options):
     """
     ports = [
         port.Port(name='port1', location='10.36.74.26;01;01'),
-        port.Port(name='port2', location='10.36.77.102;12;03'),
+        port.Port(name='port2', location='10.36.74.26;01;02'),
         port.Port(name='port no location')
     ]
     configuration = config.Config(ports=ports, options=options)

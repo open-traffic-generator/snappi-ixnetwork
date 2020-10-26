@@ -1,5 +1,6 @@
 import json
 from jsonpath_ng.ext import parse
+import time
 
 
 class Vport(object):
@@ -170,17 +171,57 @@ class Vport(object):
                 imports.append(trigger)
         self._import(imports)
 
+    def _add_hosts(self, HostReadyTimeout):
+        chassis = self._api._ixnetwork.AvailableHardware.Chassis
+        ip_addresses = []
+        for port in self._api.config.ports:
+            if port.location is not None and ';' in port.location:
+                chassis_address = port.location.split(';')[0]
+                chassis.find(Hostname='^(%s)$' % chassis_address)
+                if len(chassis) == 0:
+                    ip_addresses.append(chassis_address)
+        ip_addresses = set(ip_addresses)
+        if len(ip_addresses) == 0:
+            return
+        self._api._ixnetwork.info('Adding location hosts [%s]...' % ', '.join(ip_addresses))
+        for ip_address in ip_addresses:
+            chassis.add(Hostname=ip_address)
+        start_time = time.time()
+        while True:
+            chassis.find(Hostname='^(%s)$' % '|'.join(ip_addresses), State='^ready$')
+            if len(chassis) == len(ip_addresses):
+                break
+            if time.time() - start_time > HostReadyTimeout:
+                raise RuntimeError('After %s seconds, not all location hosts [%s] are reachable' % (HostReadyTimeout, ', '.join(ip_addresses)))
+            time.sleep(2)
+
     def _set_location(self):
+        locations = []
+        self._add_hosts(10)
         vports = self._api.select_vports()
         imports = []
         for port in self._api.config.ports:
             self._api.ixn_objects[port.name] = vports[port.name]['href']
+            location = getattr(port, 'location', None)
             vport = {
                 'xpath': vports[port.name]['xpath'],
-                'location': getattr(port, 'location', None),
+                'location': location
             }
             imports.append(vport)
+            if location is not None and len(location) > 0:
+                locations.append(port.name)
+        self._api._ixnetwork.info('Connecting locations [%s]...' % ', '.join(locations))
         self._import(imports)
+        self._api._ixnetwork.info('Checking location state [%s]...' % ', '.join(locations))
+        start = time.time()
+        timeout = 30
+        while True:
+            self._api._vport.find(Name='^(%s)$' % '|'.join(locations), ConnectionState='^connectedLink')
+            if len(self._api._vport) == len(locations):
+                break
+            if time.time() - start > timeout:
+                raise RuntimeError('After %s seconds, not all locations [%s] are reachable' % (timeout, ', '.join(locations)))
+            time.sleep(2)
 
     def _set_layer1(self):
         """Set the /vport/l1Config/... properties
