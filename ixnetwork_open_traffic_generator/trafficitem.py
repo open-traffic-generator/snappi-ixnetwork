@@ -157,12 +157,10 @@ class TrafficItem(CustomField):
                     'TrafficType': self._get_traffic_type(flow)
                 }
                 ixn_traffic_item.find(Name=flow.name, TrafficType=args['TrafficType'])
-                if len(ixn_traffic_item) == 1:
-                    ixn_traffic_item.remove()
                 if len(ixn_traffic_item) == 0:
                     ixn_traffic_item.add(**args)
                 else:
-                    ixn_traffic_item.update(**args)
+                    self._update(ixn_traffic_item, **args)
                 self._configure_endpoint(ixn_traffic_item.EndpointSet, flow.tx_rx)
                 ixn_traffic_item.Tracking.find().TrackBy = ['trackingenabled0']
                 ixn_stream = ixn_traffic_item.ConfigElement.find()
@@ -212,9 +210,8 @@ class TrafficItem(CustomField):
         }
         if (endpoint.choice == "port"):
             args['Sources'].append(self._api.get_ixn_object(endpoint.port.tx_port_name).Protocols.find())
-            for port_name in endpoint.port.rx_port_names:
-                args['Destinations'].append(self._api.get_ixn_object(port_name).Protocols.find())
-            ixn_endpoint_set.add(**args)
+            if endpoint.port.rx_port_name != None:
+                args['Destinations'].append(self._api.get_ixn_object(endpoint.port.rx_port_name).Protocols.find())
         else:
             for port_name in endpoint.device.tx_device_names:
                 args['Sources'].append(self._api.get_ixn_object(port_name))
@@ -226,7 +223,20 @@ class TrafficItem(CustomField):
         if len(ixn_endpoint_set) == 0:
             ixn_endpoint_set.add(**args)
         else:
-            ixn_endpoint_set.update(**args)
+            self._update(ixn_endpoint_set, **args)
+
+    def _update(self, ixn_object, **kwargs):
+        from ixnetwork_restpy.base import Base
+        update = False
+        for name, value in kwargs.items():
+            if isinstance(value, list) and len(value) > 0 and isinstance(value[0], Base):
+                value = [item.href for item in value]
+            elif isinstance(value, Base):
+                value = value.href
+            if getattr(ixn_object, name) != value:
+                update = True
+        if update is True:
+            ixn_object.update(**kwargs)
 
     def _configure_stack(self, ixn_stream, headers):
         """Transform flow.packets[0..n] to /traffic/trafficItem/configElement/stack

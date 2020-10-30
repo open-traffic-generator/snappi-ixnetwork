@@ -12,7 +12,7 @@ def test_flow_rates(serializer, api, tx_port, rx_port):
         - gap (Union[float, int]): The minimum gap in bytes between packets
     """
     port_endpoint = PortTxRx(tx_port_name=tx_port.name,
-                             rx_port_names=[rx_port.name])
+                             rx_port_name=rx_port.name)
     pause = Header(
         PfcPause(dst=Pattern('01:80:C2:00:00:01'),
                  class_enable_vector=Pattern('1'),

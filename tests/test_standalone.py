@@ -17,7 +17,7 @@ rx_port = port.Port(name='Rx Port', location='10.36.74.26;02;14')
 flow = flow.Flow(name='Tx Port to Rx Port Flow',
                  tx_rx=flow.TxRx(
                      flow.PortTxRx(tx_port_name=tx_port.name,
-                                   rx_port_names=[rx_port.name])),
+                                   rx_port_name=rx_port.name)),
                  packet=[
                      flow.Header(flow.Ethernet()),
                      flow.Header(flow.Vlan()),

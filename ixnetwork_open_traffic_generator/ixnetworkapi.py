@@ -108,9 +108,15 @@ class IxNetworkApi(Api):
         if self._config is None:
             self._ixnetwork.NewConfig()
         else:
+            start = time.time()
             self.vport.config()
+            self._ixnetwork.info('ports configuration %ss' % str(time.time() - start))
+            start = time.time()
             self.ngpf.config()
+            self._ixnetwork.info('devices configuration %ss' % str(time.time() - start))
+            start = time.time()
             self.traffic_item.config()
+            self._ixnetwork.info('flows configuration %ss' % str(time.time() - start))
         self._running_config = self._config
 
     def _set_flow_transmit_state(self, flow_transmit_state):
@@ -228,11 +234,13 @@ class IxNetworkApi(Api):
         """Remove any ixnetwork objects that are not found in the items list.
         If the items list does not exist remove everything.
         """
-        if items is None or len(items) == 0:
-            ixn_obj.find().remove()
-        else:
-            regex = '^((?!(%s)).)*$' % '|'.join([item.name for item in items])
-            ixn_obj.find(Name=regex).remove()
+        valid_names = [item.name for item in items]
+        invalid_names = []
+        for item in ixn_obj.find():
+            if item.Name not in valid_names:
+                invalid_names.append(item.Name)
+        if len(invalid_names) > 0:
+            ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names)).remove()
 
     def _get_topology_name(self, port_name):
         return 'Topology %s' % port_name
@@ -250,6 +258,16 @@ class IxNetworkApi(Api):
                         {
                             'child': 'vport',
                             'properties': ['name', 'type', 'location', 'connectionState'],
+                            'filters': []
+                        },
+                        {
+                            'child': 'l1Config',
+                            'properties': ['currentType'],
+                            'filters': []
+                        },
+                        {
+                            'child': '^(eth.*|novus.*|uhd.*|atlas.*|ares.*|star.*)$',
+                            'properties': ['*'],
                             'filters': []
                         }
                     ],

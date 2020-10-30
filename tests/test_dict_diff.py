@@ -59,6 +59,18 @@ def test_recursive_compare():
     assert(len(diff['c'].keys()) == 1)
     assert(diff['b'] == 'three')
     assert(diff['c']['d'] == 3)
+
+def test_obj_compare():
+    a = lambda: None
+    a.name = 'asdf'
+    b = lambda: None
+    b.name = 'asdf'
+    a.c = lambda: None
+    b.c = lambda: None
+    a.c.name ='asdf'
+    b.c.name = 'ddd'
+    diff = Compare().diff(a, b)
+    assert(len(diff.keys))
     
 
 if __name__ == '__main__':

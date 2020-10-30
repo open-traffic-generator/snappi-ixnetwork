@@ -9,7 +9,7 @@ def test_flow_udp(serializer, options, tx_port, rx_port, api):
     """UDP Flow test traffic configuration
     """
     udp_endpoint = PortTxRx(tx_port_name=tx_port.name,
-                            rx_port_names=[rx_port.name])
+                            rx_port_name=rx_port.name)
     test_dscp = Priority(
         Dscp(phb=Pattern(Dscp.PHB_CS7, ingress_result_name='phb')))
     udp_header = Udp(src_port=Pattern(Counter(start="12001",

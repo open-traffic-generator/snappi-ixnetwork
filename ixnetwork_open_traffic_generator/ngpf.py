@@ -18,12 +18,20 @@ class Ngpf(object):
 
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
-        
+
     def config(self):
         """Transform /components/schemas/Device into /topology
         """
         self._imports = []
         self._configure_topology(self._api._topology, self._api.config.devices)
+
+    def _update(self, ixn_object, **kwargs):
+        update = False
+        for name, value in kwargs.items():
+            if getattr(ixn_object, name) != value:
+                update = True
+        if update is True:
+            ixn_object.update(**kwargs)
 
     def _configure_topology(self, ixn_topology, devices):
         """One /topology for every unique device.container_name
@@ -31,12 +39,13 @@ class Ngpf(object):
         """
         topologies = {}
         for device in devices:
-            topology = lambda : None
+            topology = lambda: None
             topology.name = self._api._get_topology_name(device.container_name)
             topologies[topology.name] = topology
         self._api._remove(ixn_topology, topologies.values())
         for device in devices:
-            ixn_topology.find(Name=self._api._get_topology_name(device.container_name))
+            ixn_topology.find(
+                Name=self._api._get_topology_name(device.container_name))
             if len(ixn_topology) > 0:
                 self._api._remove(ixn_topology.DeviceGroup, [device])
         for device in devices:
@@ -48,7 +57,7 @@ class Ngpf(object):
             if len(ixn_topology) == 0:
                 ixn_topology.add(**args)
             else:
-                ixn_topology.update(Ports=[self._api.ixn_objects[device.container_name]])
+                self._update(ixn_topology, **args)
             self._api.ixn_objects[ixn_topology.Name] = ixn_topology.href
             self._configure_device_group(ixn_topology.DeviceGroup, device)
 
@@ -56,27 +65,29 @@ class Ngpf(object):
         """Transform /components/schemas/Device into /topology/deviceGroup
         One /topology/deviceGroup for every device in port.devices 
         """
-        args = {
-            'Name': device.name,
-            'Multiplier': device.device_count
-        }
+        args = {'Name': device.name, 'Multiplier': device.device_count}
         ixn_device_group.find(Name=device.name)
         if len(ixn_device_group) == 0:
             ixn_device_group.add(**args)[-1]
         else:
-            ixn_device_group.update(**args)
+            self._update(ixn_device_group, **args)
         self._api.ixn_objects[device.name] = ixn_device_group.href
         if device.choice == 'ethernet':
-            self._configure_ethernet(ixn_device_group.Ethernet, device.ethernet)
+            self._configure_ethernet(ixn_device_group.Ethernet,
+                                     device.ethernet)
         elif device.choice == 'ipv4':
-            ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet, device.ipv4.ethernet)
+            ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet,
+                                                    device.ipv4.ethernet)
             self._configure_ipv4(ixn_ethernet.Ipv4, device.ipv4)
         elif device.choice == 'ipv6':
-            ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet, device.ipv6.ethernet)
+            ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet,
+                                                    device.ipv6.ethernet)
             self._configure_ipv6(ixn_ethernet.Ipv6, device.ipv6)
         elif device.choice == 'bgpv4':
-            ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet, device.bgpv4.ipv4.ethernet)
-            ixn_ipv4 = self._configure_ipv4(ixn_ethernet.Ipv4, device.bgpv4.ipv4)
+            ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet,
+                                                    device.bgpv4.ipv4.ethernet)
+            ixn_ipv4 = self._configure_ipv4(ixn_ethernet.Ipv4,
+                                            device.bgpv4.ipv4)
             self._configure_bgpv4(ixn_ipv4.BgpIpv4Peer, device.bgpv4)
 
     def _configure_pattern(self, ixn_obj, pattern, enum_map=None):
@@ -104,7 +115,7 @@ class Ngpf(object):
         if len(ixn_ethernet) == 0:
             ixn_ethernet.add(**args)
         else:
-            ixn_ethernet.update(**args)
+            self._update(ixn_ethernet, **args)
         self._api.ixn_objects[ethernet.name] = ixn_ethernet.href
         self._configure_pattern(ixn_ethernet.Mac, ethernet.mac)
         self._configure_pattern(ixn_ethernet.Mtu, ethernet.mtu)
@@ -118,15 +129,15 @@ class Ngpf(object):
         """Transform Device.Vlan to /topology/.../vlan
         """
         for i in range(0, len(ixn_vlans.find())):
-            args = {
-                'Name': vlans[i].name
-            }
+            args = {'Name': vlans[i].name}
             ixn_vlan = ixn_vlans[i]
-            ixn_vlan.update(**args)
+            self._update(ixn_vlan, **args)
             self._api.ixn_objects[vlans[i].name] = ixn_vlan.href
             self._configure_pattern(ixn_vlan.VlanId, vlans[i].id)
             self._configure_pattern(ixn_vlan.Priority, vlans[i].priority)
-            self._configure_pattern(ixn_vlan.Tpid, vlans[i].tpid, enum_map=Ngpf._TPID_MAP)
+            self._configure_pattern(ixn_vlan.Tpid,
+                                    vlans[i].tpid,
+                                    enum_map=Ngpf._TPID_MAP)
 
     def _configure_ipv4(self, ixn_ipv4, ipv4):
         """Transform Device.Ipv4 to /topology/.../ipv4
@@ -139,7 +150,7 @@ class Ngpf(object):
         if len(ixn_ipv4) == 0:
             ixn_ipv4.add(**args)[-1]
         else:
-            ixn_ipv4.update(**args)
+            self._update(ixn_ipv4, **args)
         self._api.ixn_objects[ipv4.name] = ixn_ipv4.href
         self._configure_pattern(ixn_ipv4.Address, ipv4.address)
         self._configure_pattern(ixn_ipv4.GatewayIp, ipv4.gateway)
@@ -155,7 +166,7 @@ class Ngpf(object):
         if len(ixn_ipv6) == 0:
             ixn_ipv6.add(**args)[-1]
         else:
-            ixn_ipv6.update(**args)
+            self.update(ixn_ipv6, **args)
         self._api.ixn_objects[ipv6.name] = ixn_ipv6.href
         self._configure_pattern(ixn_ipv6.Address, ipv6.address)
         self._configure_pattern(ixn_ipv6.GatewayIp, ipv6.gateway)
@@ -171,5 +182,5 @@ class Ngpf(object):
         if len(ixn_bgpv4) == 0:
             ixn_bgpv4.add(**args)[-1]
         else:
-            ixn_bgpv4.update(**args)
+            self._update(ixn_bgpv4, **args)
         self._api.ixn_objects[bgpv4.name] = ixn_bgpv4.href

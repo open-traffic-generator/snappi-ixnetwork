@@ -9,7 +9,7 @@ def test_ethernet_pause_flows(api, tx_port, rx_port, b2b_ipv4_devices):
     """EthernetPause test traffic configuration
     """
     pause_endpoint = PortTxRx(tx_port_name=tx_port.name,
-                              rx_port_names=[rx_port.name])
+                              rx_port_name=rx_port.name)
     default_pause = Header(
         EthernetPause(dst=Pattern('01:80:C2:00:00:01'),
                       src=Pattern('00:00:fa:ce:fa:ce')))
