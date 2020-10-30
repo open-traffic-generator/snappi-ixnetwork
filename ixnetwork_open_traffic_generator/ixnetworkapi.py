@@ -244,7 +244,44 @@ class IxNetworkApi(Api):
 
     def _get_topology_name(self, port_name):
         return 'Topology %s' % port_name
-        
+
+    def select_chassis_card(self, vport):
+        pieces = vport['location'].split(';')
+        payload = {
+            'selects': [
+                {
+                    'from': '/availableHardware',
+                    'properties': [],
+                    'children': [
+                        {
+                            'child': 'chassis',
+                            'properties': [],
+                            'filters': [
+                                {
+                                    'property': 'hostname',
+                                    'regex': '^%s$' % pieces[0]
+                                }
+                            ]
+                        },
+                        {
+                            'child': 'card',
+                            'properties': ['*'],
+                            'filters': [
+                                {
+                                    'property': 'cardId',
+                                    'regex': '^%s$' % int(pieces[1])
+                                }
+                            ]
+                        }
+                    ],
+                    'inlines': []
+                }
+            ]
+        }
+        url = '%s/operations/select?xpath=true' % self._ixnetwork.href
+        results = self._ixnetwork._connection._execute(url, payload)
+        return results[0]['chassis'][0]['card'][0]
+
     def select_vports(self):
         """Select all vports.
         Return them in a dict keyed by vport name.

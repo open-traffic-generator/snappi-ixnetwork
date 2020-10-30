@@ -26,7 +26,7 @@ def test_layer1(serializer, api):
     uhd = Layer1(name='uhd settings',
                  port_names=[port2.name],
                  speed='speed_100_gbps',
-                 ieee_media_defaults=False,
+                 ieee_media_defaults=True,
                  auto_negotiate=False,
                  auto_negotiation=AutoNegotiation(link_training=False,
                                                   rs_fec=False))

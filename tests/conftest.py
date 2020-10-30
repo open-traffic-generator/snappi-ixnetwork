@@ -193,7 +193,7 @@ def b2b_port_flow_config(options, tx_port, rx_port):
         Size, Rate, Duration, FixedPackets, Header, Ethernet
 
     endpoint = PortTxRx(tx_port_name=tx_port.name,
-                        rx_port_names=[rx_port.name])
+                        rx_port_name=rx_port.name)
     flow = Flow(name='Port Flow',
                 tx_rx=TxRx(endpoint),
                 packet=[Header(Ethernet())],

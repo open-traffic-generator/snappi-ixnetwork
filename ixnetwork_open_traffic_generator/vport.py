@@ -222,6 +222,8 @@ class Vport(object):
 
     def _set_layer1(self):
         """Set the /vport/l1Config/... properties
+        This should only happen if the vport connectionState is connectedLink...
+        as it determines the ./l1Config child node.
         """
         if hasattr(self._api.config, 'layer1') is False:
             return
@@ -233,19 +235,8 @@ class Vport(object):
         for layer1 in self._api.config.layer1:
             for port_name in layer1.port_names:
                 vport = vports[port_name]
-                if vport['connectionState'] in [
-                        'connectedLinkUp', 'connectedLinkDown'
-                ]:
-                    if layer1.speed in [
-                            'speed_10_mbps', 'speed_100_mbps', 'speed_1_gbps'
-                    ]:
-                        self._configure_ethernet(vport, layer1, imports)
-                    else:
-                        reset_auto_negotiation[
-                            port_name] = layer1.auto_negotiate
-                        self._configure_100gbe(vport, layer1, imports)
+                self._set_l1config_properties(vport, layer1, imports)
         self._import(imports)
-
         # Due to dependency attribute (ieeeL1Defaults) resetting enableAutoNegotiation
         imports = []
         for layer1 in self._api.config.layer1:
@@ -256,7 +247,49 @@ class Vport(object):
                     self._reset_auto_negotiation(vport, layer1, imports)
         self._import(imports)
 
-    def _configure_layer1_type(self, interface, vport, imports):
+    def _set_l1config_properties(self, vport, layer1, imports):
+        """Set vport l1config properties
+        """
+        if vport['connectionState'] not in ['connectedLinkUp', 'connectedLinkDown']:
+            return
+        self._set_vport_type(vport, layer1, imports)
+        self._set_card_resource_mode(vport, layer1, imports)
+        self._set_auto_negotiation(vport, layer1, imports)
+
+    def _set_card_resource_mode(self, vport, layer1, imports):
+        """If the card has an aggregation mode set it according to the speed
+        """
+        speed_mode_map = {
+            'speed_1_gbps': 'normal',
+            'speed_10_gbps': 'tengig',
+            'speed_25_gbps': 'twentyfivegig',
+            'speed_40_gbps': 'fortygig',
+            'speed_50_gbps': 'fiftygig',
+            'speed_100_gbps': 'hundredgig'
+        }
+        aggregation_mode = None
+        if layer1.speed in speed_mode_map:
+            mode = speed_mode_map[layer1.speed]
+            card = self._api.select_chassis_card(vport)
+            for available_mode in card['availableModes']:
+                if mode in available_mode.lower():
+                    aggregation_mode = available_mode
+                    break
+        if aggregation_mode is not None and aggregation_mode != card['aggregationMode']:
+            imports.append(
+                {
+                    'xpath': card['xpath'], 
+                    'aggregationMode': aggregation_mode            
+                }
+            )
+
+    def _set_auto_negotiation(self, vport, layer1, imports):
+        if layer1.speed.endswith('_mbps') or layer1.speed == 'speed_1_gbps':
+            self._set_ethernet_auto_negotiation(vport, layer1, imports)
+        else:
+            self._set_gigabit_auto_negotiation(vport, layer1, imports)
+
+    def _set_vport_type(self, vport, layer1, imports):
         """Set the /vport -type
         
         If flow_control is not None then the -type attribute should 
@@ -266,8 +299,8 @@ class Vport(object):
         be switched to a type without the Fcoe extension.
         """
         fcoe = False
-        if hasattr(interface,
-                   'flow_control') and interface.flow_control is not None:
+        if hasattr(layer1,
+                   'flow_control') and layer1.flow_control is not None:
             fcoe = True
         vport_type = vport['type']
         elegible_fcoe_vport_types = [
@@ -282,12 +315,10 @@ class Vport(object):
         if vport_type != vport['type']:
             imports.append({'xpath': vport['xpath'], 'type': vport_type})
         if fcoe is True and vport_type.endswith('Fcoe'):
-            self._configure_fcoe(vport, interface.flow_control, imports)
+            self._configure_fcoe(vport, layer1.flow_control, imports)
         return vport_type
 
-    def _configure_ethernet(self, vport, layer1, imports):
-        self._configure_layer1_type(layer1, vport, imports)
-        ethernet = layer1.auto_negotiation
+    def _set_ethernet_auto_negotiation(self, vport, layer1, imports):
         advertise = []
         if layer1.speed == 'speed_1_gbps':
             advertise.append(
@@ -302,7 +333,7 @@ class Vport(object):
             advertise.append(Vport._ADVERTISE_MAP['advertise_ten_fd_mbps'])
         if layer1.speed == 'speed_10_hd_mbps':
             advertise.append(Vport._ADVERTISE_MAP['advertise_ten_hd_mbps'])
-        ethernet_import = {
+        proposed_import = {
             'xpath':
             vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', ''),
             'speed':
@@ -314,22 +345,20 @@ class Vport(object):
             'speedAuto':
             advertise
         }
-        if self._set_l1config_ethernet(vport, ethernet_import) is True:
-            imports.append(ethernet_import)
+        self._add_l1config_import(vport, proposed_import, imports)
     
-    def _set_l1config_ethernet(self, vport, ethernet):
-        if vport['type'] != 'ethernet':
-            return True
-        for name in ['speed', 'media', 'autoNegotiate', 'speedAuto']:
-            if ethernet[name] == None:
+    def _add_l1config_import(self, vport, proposed_import, imports):
+        type = vport['type'].replace('Fcoe', '')
+        l1config = vport['l1Config'][type]
+        for key in proposed_import:
+            if key == 'xpath':
                 continue
-            if ethernet[name] != vport['l1Config']['ethernet'][name]:
-                return True
-        return False
+            if key in l1config and l1config[key] != proposed_import[key]:
+                imports.append(proposed_import)
+                return
 
-    def _configure_100gbe(self, vport, layer1, imports):
-        self._configure_layer1_type(layer1, vport, imports)
-        imports.append({
+    def _set_gigabit_auto_negotiation(self, vport, layer1, imports):
+        proposed_import = {
             'xpath':
             vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', ''),
             'ieeeL1Defaults':
@@ -342,18 +371,17 @@ class Vport(object):
             layer1.auto_negotiation.rs_fec,
             'linkTraining':
             layer1.auto_negotiation.link_training,
-        })
+        }
+        self._add_l1config_import(vport, proposed_import, imports)
 
     def _reset_auto_negotiation(self, vport, layer1, imports):
-        if hasattr(layer1, 'one_hundred_gbe'
-                   ) is True and layer1.one_hundred_gbe is not None:
-            one_hundred_gbe = layer1.one_hundred_gbe
+        if layer1.speed.endswith('_mbps') is False and layer1.speed != 'speed_1_gbps':
             imports.append({
                 'xpath':
                 vport['xpath'] + '/l1Config/' +
                 vport['type'].replace('Fcoe', ''),
                 'enableAutoNegotiation':
-                one_hundred_gbe.auto_negotiate,
+                layer1.auto_negotiate,
             })
 
     def _configure_fcoe(self, vport, flow_control, imports):
