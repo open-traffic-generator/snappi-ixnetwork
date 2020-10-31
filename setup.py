@@ -54,8 +54,6 @@ setup(
     python_requires='>=2.7, <4',
     install_requires=[
         'pyaml',
-        'pandas',
-        'dpkt',
         'jsonpath-ng',
         'abstract-open-traffic-generator==0.0.63', 
         'ixnetwork-restpy>=1.0.52'
