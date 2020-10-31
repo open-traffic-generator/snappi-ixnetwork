@@ -57,7 +57,7 @@ setup(
         'pandas',
         'dpkt',
         'jsonpath-ng',
-        'abstract-open-traffic-generator==0.0.15', 
+        'abstract-open-traffic-generator==0.0.62', 
         'ixnetwork-restpy>=1.0.52'
     ],
     tests_require=[
