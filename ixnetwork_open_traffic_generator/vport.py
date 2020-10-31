@@ -1,6 +1,7 @@
 import json
 from jsonpath_ng.ext import parse
 import time
+import re
 
 
 class Vport(object):
@@ -265,14 +266,16 @@ class Vport(object):
             'speed_25_gbps': 'twentyfivegig',
             'speed_40_gbps': 'fortygig',
             'speed_50_gbps': 'fiftygig',
-            'speed_100_gbps': 'hundredgig'
+            'speed_100_gbps': '^(?!.*(twohundredgig|fourhundredgig)).*hundredgig.*$',
+            'speed_200_gbps': 'twohundredgig',
+            'speed_400_gbps': 'fourhundredgig'
         }
         aggregation_mode = None
         if layer1.speed in speed_mode_map:
             mode = speed_mode_map[layer1.speed]
             card = self._api.select_chassis_card(vport)
             for available_mode in card['availableModes']:
-                if mode in available_mode.lower():
+                if re.match(mode, available_mode.lower()) is not None:
                     aggregation_mode = available_mode
                     break
         if aggregation_mode is not None and aggregation_mode != card['aggregationMode']:
