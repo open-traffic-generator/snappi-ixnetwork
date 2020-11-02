@@ -10,7 +10,7 @@ def test_pfc_pause_config(api, tx_port, rx_port):
     """Configure only a pfc pause frame
     """
     tx_rx_map = PortTxRx(tx_port_name=tx_port.name,
-                         rx_port_names=[rx_port.name])
+                         rx_port_name=rx_port.name)
     pause = PfcPause()
     flow = Flow(name='Pause',
                 tx_rx=TxRx(tx_rx_map),

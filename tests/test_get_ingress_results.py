@@ -10,7 +10,7 @@ def test_get_ingress_results(serializer, options, tx_port, rx_port, api):
     """UDP Flow test traffic configuration
     """
     udp_endpoint = PortTxRx(tx_port_name=tx_port.name,
-                            rx_port_names=[rx_port.name])
+                            rx_port_name=rx_port.name)
     udp_header = Udp(src_port=Pattern(Counter(start="12001",
                                               step="2",
                                               count=100),

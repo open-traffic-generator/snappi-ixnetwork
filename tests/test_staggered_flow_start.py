@@ -9,7 +9,7 @@ def test_staggered_flow_start(serializer, api, tx_port, rx_port):
     """Demonstrates how to incrementally start transmit on flows
     """
     # configure flows
-    tx_rx = PortTxRx(tx_port_name=tx_port.name, rx_port_names=[rx_port.name])
+    tx_rx = PortTxRx(tx_port_name=tx_port.name, rx_port_name=rx_port.name)
     config = Config(ports=[tx_port, rx_port],
                     flows=[
                         Flow(name='flow1',

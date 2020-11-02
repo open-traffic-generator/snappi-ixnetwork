@@ -35,7 +35,7 @@ def test_ingress_result_name(tx_port, rx_port, b2b_ipv4_devices, api):
         duration=Duration(FixedPackets(packets=0)))
 
     pause_endpoint = PortTxRx(tx_port_name=tx_port.name,
-                              rx_port_names=[rx_port.name])
+                              rx_port_name=rx_port.name)
     pause = Header(
         PfcPause(dst=Pattern('01:80:C2:00:00:01'),
                  src=Pattern('00:00:fa:ce:fa:ce',
