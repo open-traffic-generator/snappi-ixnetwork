@@ -22,7 +22,7 @@ def test_capture_pcap(serializer, api, tx_port, rx_port):
 
     # configure flow
     port_tx_rx = PortTxRx(tx_port_name=tx_port.name,
-                          rx_port_names=[rx_port.name])
+                          rx_port_name=rx_port.name)
     config.flows.append(
         Flow(name='capture',
              tx_rx=TxRx(port_tx_rx),
