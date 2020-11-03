@@ -156,7 +156,7 @@ class TrafficItem(CustomField):
                     'TrafficItemType': 'l2L3',
                     'TrafficType': self._get_traffic_type(flow)
                 }
-                ixn_traffic_item.find(Name=flow.name, TrafficType=args['TrafficType'])
+                ixn_traffic_item.find(Name='^%s$' % flow.name, TrafficType=args['TrafficType'])
                 if len(ixn_traffic_item) == 0:
                     ixn_traffic_item.add(**args)
                 else:
