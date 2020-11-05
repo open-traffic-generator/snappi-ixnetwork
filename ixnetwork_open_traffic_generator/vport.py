@@ -170,7 +170,7 @@ class Vport(object):
         ip_addresses = set(ip_addresses)
         if len(ip_addresses) == 0:
             return
-        self._api._ixnetwork.info('Adding location hosts [%s]...' %
+        self._api.info('Adding location hosts [%s]...' %
                                   ', '.join(ip_addresses))
         for ip_address in ip_addresses:
             chassis.add(Hostname=ip_address)
@@ -187,24 +187,6 @@ class Vport(object):
             time.sleep(2)
 
     def _set_location(self):
-        # try:
-        #     force_ownership = self._api.config.options.port_options.location_preemption
-        # except:
-        #     force_ownership = False
-        # port_map = self._api.assistant.PortMapAssistant()
-        # vports = self._api.select_vports()
-        # for port in self._api.config.ports:
-        #     if vports[port.name]['connectionState'].startswith('connectedLink'):
-        #         continue
-        #     if len(vports[port.name]['assignedTo']) > 0:
-        #         continue
-        #     if port.location is None or len(port.location) == 0:
-        #         continue
-        #     port_map.Map(Location=port.location, Name=port.name)
-        # if len(port_map._map) > 0:
-        #     port_map.Connect(ForceOwnership=force_ownership,
-        #                     HostReadyTimeout=20,
-        #                     LinkUpTimeout=90)
         location_supported = True
         try:
             self._api._ixnetwork._connection._options(self._api._ixnetwork.href + '/locations')
@@ -242,10 +224,10 @@ class Vport(object):
                 clear_locations.append(location)
                 locations.append(port.name)
         self._clear_ownership(clear_locations)
-        self._api._ixnetwork.info('Connecting locations [%s]...' %
+        self._api.info('Connecting locations [%s]...' %
                                   ', '.join(locations))
         self._import(imports)
-        self._api._ixnetwork.info('Checking location state [%s]...' %
+        self._api.info('Checking location state [%s]...' %
                                   ', '.join(locations))
         self._api._vport.find(ConnectionState='^(?!connectedLink).*$')
         if len(self._api._vport) > 0:

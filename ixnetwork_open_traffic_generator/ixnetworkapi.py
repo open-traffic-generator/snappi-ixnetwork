@@ -412,7 +412,7 @@ class IxNetworkApi(Api):
 
     def clear_ownership(self, hrefs):
         if len(hrefs) > 0:
-            self._ixnetwork.info('Premption of locations [%s]' %
+            self.info('Pre-empting locations [%s]' %
                                  ', '.join([href for href in hrefs.keys()]))
             url = '%s/operations/clearownership' % [
                 href for href in hrefs.values()
