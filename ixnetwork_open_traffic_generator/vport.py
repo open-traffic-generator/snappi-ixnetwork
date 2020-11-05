@@ -70,7 +70,6 @@ class Vport(object):
         self._create_capture()
         self._set_location()
         self._set_layer1()
-        self._connect()
 
     def _import(self, imports):
         if len(imports) > 0:
@@ -192,6 +191,7 @@ class Vport(object):
         self._add_hosts(10)
         vports = self._api.select_vports()
         imports = []
+        clear_locations = []
         for port in self._api.config.ports:
             vport = vports[port.name]
             location = getattr(port, 'location', None)
@@ -202,7 +202,9 @@ class Vport(object):
             vport = {'xpath': vports[port.name]['xpath'], 'location': location}
             imports.append(vport)
             if location is not None and len(location) > 0:
+                clear_locations.append(location)
                 locations.append(port.name)
+        self._clear_ownership(clear_locations)
         self._api._ixnetwork.info('Connecting locations [%s]...' %
                                   ', '.join(locations))
         self._import(imports)
@@ -251,7 +253,9 @@ class Vport(object):
     def _set_l1config_properties(self, vport, layer1, imports):
         """Set vport l1config properties
         """
-        if vport['connectionState'] not in ['connectedLinkUp', 'connectedLinkDown']:
+        if vport['connectionState'] not in [
+                'connectedLinkUp', 'connectedLinkDown'
+        ]:
             return
         self._set_vport_type(vport, layer1, imports)
         self._set_card_resource_mode(vport, layer1, imports)
@@ -266,7 +270,8 @@ class Vport(object):
             'speed_25_gbps': 'twentyfivegig',
             'speed_40_gbps': 'fortygig',
             'speed_50_gbps': 'fiftygig',
-            'speed_100_gbps': '^(?!.*(twohundredgig|fourhundredgig)).*hundredgig.*$',
+            'speed_100_gbps':
+            '^(?!.*(twohundredgig|fourhundredgig)).*hundredgig.*$',
             'speed_200_gbps': 'twohundredgig',
             'speed_400_gbps': 'fourhundredgig'
         }
@@ -278,13 +283,12 @@ class Vport(object):
                 if re.match(mode, available_mode.lower()) is not None:
                     aggregation_mode = available_mode
                     break
-        if aggregation_mode is not None and aggregation_mode != card['aggregationMode']:
-            imports.append(
-                {
-                    'xpath': card['xpath'], 
-                    'aggregationMode': aggregation_mode            
-                }
-            )
+        if aggregation_mode is not None and aggregation_mode != card[
+                'aggregationMode']:
+            imports.append({
+                'xpath': card['xpath'],
+                'aggregationMode': aggregation_mode
+            })
 
     def _set_auto_negotiation(self, vport, layer1, imports):
         if layer1.speed.endswith('_mbps') or layer1.speed == 'speed_1_gbps':
@@ -302,8 +306,7 @@ class Vport(object):
         be switched to a type without the Fcoe extension.
         """
         fcoe = False
-        if hasattr(layer1,
-                   'flow_control') and layer1.flow_control is not None:
+        if hasattr(layer1, 'flow_control') and layer1.flow_control is not None:
             fcoe = True
         vport_type = vport['type']
         elegible_fcoe_vport_types = [
@@ -349,7 +352,7 @@ class Vport(object):
             advertise
         }
         self._add_l1config_import(vport, proposed_import, imports)
-    
+
     def _add_l1config_import(self, vport, proposed_import, imports):
         type = vport['type'].replace('Fcoe', '')
         l1config = vport['l1Config'][type]
@@ -378,7 +381,8 @@ class Vport(object):
         self._add_l1config_import(vport, proposed_import, imports)
 
     def _reset_auto_negotiation(self, vport, layer1, imports):
-        if layer1.speed.endswith('_mbps') is False and layer1.speed != 'speed_1_gbps':
+        if layer1.speed.endswith(
+                '_mbps') is False and layer1.speed != 'speed_1_gbps':
             imports.append({
                 'xpath':
                 vport['xpath'] + '/l1Config/' +
@@ -416,16 +420,21 @@ class Vport(object):
             }
             imports.append(fcoe)
 
-    def _connect(self):
-        self._ixn_vport.find(ConnectionState='^((?!connectedLink).)*$')
+    def _clear_ownership(self, locations):
         try:
             force_ownership = self._api.config.options.port_options.location_preemption
         except:
             force_ownership = False
-        try:
-            self._ixn_vport.ConnectPorts(force_ownership)
-        except Exception as e:
-            self._api.add_error(e)
+        if force_ownership is True:
+            hrefs = {}
+            chassis = self._api._ixnetwork.AvailableHardware.Chassis
+            for location in locations:
+                clp = location.split(';')
+                chassis.find(Hostname=clp[0])
+                if len(chassis) == 1:
+                    hrefs[location] = '%s/card/%s/port/%s' % (
+                        chassis.href, abs(int(clp[1])), abs(int(clp[2])))
+            self._api.clear_ownership(hrefs)
 
     def _set_result_value(self,
                           row,

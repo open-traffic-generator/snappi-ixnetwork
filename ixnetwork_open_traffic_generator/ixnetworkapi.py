@@ -360,5 +360,14 @@ class IxNetworkApi(Api):
             pass
         return traffic_items
 
+    def clear_ownership(self, hrefs):
+        if len(hrefs) > 0:
+            self._ixnetwork.info('Clearing ownership on locations [%s]' % ', '.join([href for href in hrefs.keys()]))
+            url = '%s/operations/clearownership' % [href for href in hrefs.values()][0]
+            payload = {
+                'arg1': [href for href in hrefs.values()]
+            }
+            results = self._ixnetwork._connection._execute(url, payload)
+
     def get_config(self):
         return self._config
