@@ -247,7 +247,9 @@ class Vport(object):
         self._import(imports)
         self._api._ixnetwork.info('Checking location state [%s]...' %
                                   ', '.join(locations))
-        self._api._vport.find(ConnectionState='^(?!connectedLink).*$').ConnectPorts()
+        self._api._vport.find(ConnectionState='^(?!connectedLink).*$')
+        if len(self._api._vport) > 0:
+            self._api._vport.ConnectPorts()
         start = time.time()
         timeout = 30
         while True:
