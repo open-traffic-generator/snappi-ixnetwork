@@ -246,7 +246,7 @@ class IxNetworkApi(Api):
         return 'Topology %s' % port_name
 
     def select_chassis_card(self, vport):
-        pieces = vport['location'].split(';')
+        pieces = vport['connectionStatus'].split(';')
         payload = {
             'selects': [
                 {
@@ -294,7 +294,7 @@ class IxNetworkApi(Api):
                     'children': [
                         {
                             'child': 'vport',
-                            'properties': ['name', 'type', 'location', 'connectionState', 'assignedTo', 'connectedTo'],
+                            'properties': ['name', 'type', 'location', 'connectionState', 'connectionStatus', 'assignedTo', 'connectedTo'],
                             'filters': []
                         },
                         {
