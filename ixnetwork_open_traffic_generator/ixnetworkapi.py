@@ -24,9 +24,14 @@ class IxNetworkApi(Api):
     - password (str): The password for Linux IxNetwork API Server multi session environments
         This is not required when connecting to single session environments
     """
-    def __init__(self, address='127.0.0.1', port='11009', username='admin', password='admin'):
+    def __init__(self,
+                 address='127.0.0.1',
+                 port='11009',
+                 username='admin',
+                 password='admin'):
         """Create a session
-        - address (str): The ip address of the TestPlatform to connect to where test sessions will be created or connected to.
+        - address (str): The ip address of the TestPlatform to connect to 
+        where test sessions will be created or connected to.
         - port (str): The rest port of the TestPlatform to connect to.
         - username (str): The username to be used for authentication
         - password (str): The password to be used for authentication
@@ -55,7 +60,7 @@ class IxNetworkApi(Api):
     def ixn_objects(self):
         """A dict of all model unique names to ixn hrefs
         """
-        return self._ixn_objects 
+        return self._ixn_objects
 
     def get_ixn_object(self, name):
         """Returns a ixnetwork_restpy object given a unique configuration name
@@ -74,7 +79,7 @@ class IxNetworkApi(Api):
             source = [self._dict_to_obj(x) for x in source]
         if not isinstance(source, dict):
             return source
-        o = lambda : None
+        o = lambda: None
         for k, v in source.items():
             o.__dict__[k] = self._dict_to_obj(v)
         return o
@@ -83,9 +88,11 @@ class IxNetworkApi(Api):
         """Abstract API implementation
         """
         if isinstance(state, (State, str, dict, type(None))) is False:
-            raise TypeError('The content must be of type (Config, str, dict, type(None))' % Config.__class__)
+            raise TypeError(
+                'The content must be of type (Config, str, dict, type(None))' %
+                Config.__class__)
         if isinstance(state, str) is True:
-            state = self._dict_to_obj(json.loads(state)) 
+            state = self._dict_to_obj(json.loads(state))
         elif isinstance(state, dict) is True:
             state = self._dict_to_obj(state)
         if state.choice == 'config_state':
@@ -103,20 +110,23 @@ class IxNetworkApi(Api):
         self._ixn_objects = {}
         self._capture_request = None
         self._errors = []
-        self.validation.validate_config()        
+        self.validation.validate_config()
         self._connect()
         if self._config is None:
             self._ixnetwork.NewConfig()
         else:
             start = time.time()
             self.vport.config()
-            self._ixnetwork.info('ports configuration %ss' % str(time.time() - start))
+            self.info('ports configuration %ssecs' %
+                                 str(time.time() - start))
             start = time.time()
             self.ngpf.config()
-            self._ixnetwork.info('devices configuration %ss' % str(time.time() - start))
+            self.info('devices configuration %ssecs' %
+                                 str(time.time() - start))
             start = time.time()
             self.traffic_item.config()
-            self._ixnetwork.info('flows configuration %ss' % str(time.time() - start))
+            self.info('flows configuration %ssecs' %
+                                 str(time.time() - start))
         self._running_config = self._config
 
     def _set_flow_transmit_state(self, flow_transmit_state):
@@ -129,9 +139,9 @@ class IxNetworkApi(Api):
         """
         self._capture_request = request
 
-    def _start_capture(self):    
-        if self._capture_request is not None:   
-            payload = { 'arg1': [] }
+    def _start_capture(self):
+        if self._capture_request is not None:
+            payload = {'arg1': []}
             for vport in self.select_vports().values():
                 payload['arg1'].append(vport['href'])
             url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
@@ -145,18 +155,19 @@ class IxNetworkApi(Api):
         capture.Stop('allTraffic')
         time.sleep(3)
 
-        payload = { 'arg1': [self._vport.href] }
+        payload = {'arg1': [self._vport.href]}
         url = '%s/vport/operations/getCaptureInfos' % self._ixnetwork.href
         response = self._request('POST', url, payload)
         file_name = response['result'][0]['arg6']
         file_id = response['result'][0]['arg1']
 
         url = '%s/vport/operations/saveCaptureInfo' % self._ixnetwork.href
-        payload = { 'arg1': self._vport.href, 'arg2': file_id }
+        payload = {'arg1': self._vport.href, 'arg2': file_id}
         response = self._request('POST', url, payload)
 
         path = '%s/capture' % self._ixnetwork.Globals.PersistencePath
-        url = '%s/files?absolute=%s&filename=%s.cap' % (self._ixnetwork.href, path, file_name)
+        url = '%s/files?absolute=%s&filename=%s.cap' % (self._ixnetwork.href,
+                                                        path, file_name)
         pcap_file_bytes = self._request('GET', url)
         return pcap_file_bytes
 
@@ -177,9 +188,13 @@ class IxNetworkApi(Api):
         from abstract_open_traffic_generator.result import FlowRequest
         self._errors = []
         if isinstance(request, (FlowRequest, str, dict)) is False:
-            raise TypeError('The content must be of type Union[FlowRequest, str, dict]')
+            raise TypeError(
+                'The content must be of type Union[FlowRequest, str, dict]')
         if isinstance(request, str) is True:
-            request = json.loads(request, object_hook = lambda otg : namedtuple('otg', otg.keys()) (*otg.values())) 
+            request = json.loads(
+                request,
+                object_hook=lambda otg: namedtuple('otg', otg.keys())
+                (*otg.values()))
         elif isinstance(request, dict) is True:
             request = namedtuple('otg', request.keys())(*request.values())
         response = self.traffic_item.results(request)
@@ -199,11 +214,12 @@ class IxNetworkApi(Api):
         """Connect to an IxNetwork API Server.
         """
         if self._assistant is None:
-            self._assistant = SessionAssistant(IpAddress=self._address,
+            self._assistant = SessionAssistant(
+                IpAddress=self._address,
                 RestPort=self._port,
                 UserName=self._username,
                 Password=self._password,
-                LogLevel=SessionAssistant.LOGLEVEL_INFO) 
+                LogLevel=SessionAssistant.LOGLEVEL_INFO)
             self._ixnetwork = self._assistant.Ixnetwork
             self._vport = self._ixnetwork.Vport
             self._topology = self._ixnetwork.Topology
@@ -211,12 +227,14 @@ class IxNetworkApi(Api):
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
 
     def _request(self, method, url, payload=None):
-        connection, url = self._assistant.Session._connection._normalize_url(url)
+        connection, url = self._assistant.Session._connection._normalize_url(
+            url)
         headers = {}
         if payload is not None:
             payload = json.dumps(payload)
             headers['Content-Type'] = 'application/json'
-        response = self._assistant.Session._connection._session.request(method, url, headers=headers, data=payload, verify=False)
+        response = self._assistant.Session._connection._session.request(
+            method, url, headers=headers, data=payload, verify=False)
         response.raise_for_status()
         if response.status_code == 202:
             content = response.json()
@@ -226,7 +244,8 @@ class IxNetworkApi(Api):
         if response.headers.get('Content-Type'):
             if response.headers['Content-Type'] == 'application/json':
                 return response.json()
-            elif response.headers['Content-Type'] == 'application/octet-stream':
+            elif response.headers[
+                    'Content-Type'] == 'application/octet-stream':
                 return response.content
         return response
 
@@ -248,35 +267,29 @@ class IxNetworkApi(Api):
     def select_chassis_card(self, vport):
         pieces = vport['connectionStatus'].split(';')
         payload = {
-            'selects': [
-                {
-                    'from': '/availableHardware',
+            'selects': [{
+                'from':
+                '/availableHardware',
+                'properties': [],
+                'children': [{
+                    'child':
+                    'chassis',
                     'properties': [],
-                    'children': [
-                        {
-                            'child': 'chassis',
-                            'properties': [],
-                            'filters': [
-                                {
-                                    'property': 'hostname',
-                                    'regex': '^%s$' % pieces[0]
-                                }
-                            ]
-                        },
-                        {
-                            'child': 'card',
-                            'properties': ['*'],
-                            'filters': [
-                                {
-                                    'property': 'cardId',
-                                    'regex': '^%s$' % int(pieces[1])
-                                }
-                            ]
-                        }
-                    ],
-                    'inlines': []
-                }
-            ]
+                    'filters': [{
+                        'property': 'hostname',
+                        'regex': '^%s$' % pieces[0]
+                    }]
+                }, {
+                    'child':
+                    'card',
+                    'properties': ['*'],
+                    'filters': [{
+                        'property': 'cardId',
+                        'regex': '^%s$' % int(pieces[1])
+                    }]
+                }],
+                'inlines': []
+            }]
         }
         url = '%s/operations/select?xpath=true' % self._ixnetwork.href
         results = self._ixnetwork._connection._execute(url, payload)
@@ -287,30 +300,29 @@ class IxNetworkApi(Api):
         Return them in a dict keyed by vport name.
         """
         payload = {
-            'selects': [
-                {
-                    'from': '/',
-                    'properties': [],
-                    'children': [
-                        {
-                            'child': 'vport',
-                            'properties': ['name', 'type', 'location', 'connectionState', 'connectionStatus', 'assignedTo', 'connectedTo'],
-                            'filters': []
-                        },
-                        {
-                            'child': 'l1Config',
-                            'properties': ['currentType'],
-                            'filters': []
-                        },
-                        {
-                            'child': '^(eth.*|novus.*|uhd.*|atlas.*|ares.*|star.*)$',
-                            'properties': ['*'],
-                            'filters': []
-                        }
+            'selects': [{
+                'from':
+                '/',
+                'properties': [],
+                'children': [{
+                    'child':
+                    'vport',
+                    'properties': [
+                        'name', 'type', 'location', 'connectionState',
+                        'connectionStatus', 'assignedTo', 'connectedTo'
                     ],
-                    'inlines': []
-                }
-            ]
+                    'filters': []
+                }, {
+                    'child': 'l1Config',
+                    'properties': ['currentType'],
+                    'filters': []
+                }, {
+                    'child': '^(eth.*|novus.*|uhd.*|atlas.*|ares.*|star.*)$',
+                    'properties': ['*'],
+                    'filters': []
+                }],
+                'inlines': []
+            }]
         }
         url = '%s/operations/select?xpath=true' % self._ixnetwork.href
         results = self._ixnetwork._connection._execute(url, payload)
@@ -330,25 +342,21 @@ class IxNetworkApi(Api):
             A filter is a dict with a property name and a regex match
         """
         payload = {
-            'selects': [
-                {
-                    'from': '/traffic',
-                    'properties': [],
-                    'children': [
-                        {
-                            'child': 'trafficItem',
-                            'properties': ['name', 'state', 'enabled'],
-                            'filters': traffic_item_filters
-                        },
-                        {
-                            'child': 'highLevelStream',
-                            'properties': ['txPortName', 'rxPortNames'],
-                            'filters': []
-                        }
-                    ],
-                    'inlines': []
-                }
-            ]
+            'selects': [{
+                'from':
+                '/traffic',
+                'properties': [],
+                'children': [{
+                    'child': 'trafficItem',
+                    'properties': ['name', 'state', 'enabled'],
+                    'filters': traffic_item_filters
+                }, {
+                    'child': 'highLevelStream',
+                    'properties': ['txPortName', 'rxPortNames'],
+                    'filters': []
+                }],
+                'inlines': []
+            }]
         }
         url = '%s/operations/select?xpath=true' % self._ixnetwork.href
         results = self._ixnetwork._connection._execute(url, payload)
@@ -366,59 +374,70 @@ class IxNetworkApi(Api):
         """
         (hostname, cardid, portid) = location.split(';')
         payload = {
-            'selects': [
-                {
-                    'from': '/availableHardware',
+            'selects': [{
+                'from':
+                '/availableHardware',
+                'properties': [],
+                'children': [{
+                    'child':
+                    'chassis',
                     'properties': [],
-                    'children': [
-                        {
-                            'child': 'chassis',
-                            'properties': [],
-                            'filters': [
-                                {
-                                    'property': 'hostname',
-                                    'regex': '^%s$' % hostname
-                                }
-                            ]
-                        },
-                        {
-                            'child': 'card',
-                            'properties': [],
-                            'filters': [
-                                {
-                                    'property': 'cardId',
-                                    'regex': '^%s$' % abs(int(cardid))
-                                }
-                            ]
-                        },
-                        {
-                            'child': 'port',
-                            'properties': [],
-                            'filters': [
-                                {
-                                    'property': 'portId',
-                                    'regex': '^%s$' % abs(int(portid))
-                                }
-                            ]
-                        }
-                    ],
-                    'inlines': []
-                }
-            ]
+                    'filters': [{
+                        'property': 'hostname',
+                        'regex': '^%s$' % hostname
+                    }]
+                }, {
+                    'child':
+                    'card',
+                    'properties': [],
+                    'filters': [{
+                        'property': 'cardId',
+                        'regex': '^%s$' % abs(int(cardid))
+                    }]
+                }, {
+                    'child':
+                    'port',
+                    'properties': [],
+                    'filters': [{
+                        'property': 'portId',
+                        'regex': '^%s$' % abs(int(portid))
+                    }]
+                }],
+                'inlines': []
+            }]
         }
         url = '%s/operations/select?xpath=true' % self._ixnetwork.href
         results = self._ixnetwork._connection._execute(url, payload)
         return results[0]['chassis'][0]['card'][0]['port'][0]['xpath']
- 
+
     def clear_ownership(self, hrefs):
         if len(hrefs) > 0:
-            self._ixnetwork.info('Premption of locations [%s]' % ', '.join([href for href in hrefs.keys()]))
-            url = '%s/operations/clearownership' % [href for href in hrefs.values()][0]
-            payload = {
-                'arg1': [href for href in hrefs.values()]
-            }
+            self._ixnetwork.info('Premption of locations [%s]' %
+                                 ', '.join([href for href in hrefs.keys()]))
+            url = '%s/operations/clearownership' % [
+                href for href in hrefs.values()
+            ][0]
+            payload = {'arg1': [href for href in hrefs.values()]}
             results = self._ixnetwork._connection._execute(url, payload)
             time.sleep(2)
 
     def get_config(self):
         return self._config
+
+    def protocol_statistics(self):
+        # from ixnetwork_restpy import StatViewAssistant
+        # view = StatViewAssistant(self._ixnetwork,
+        #                          'Protocols Summary',
+        #                          Timeout=10,
+        #                          PrintColumns=[
+        #                              'Protocol Name', 'Sessions Up',
+        #                              'Sessions Down', 'Sessions Total'
+        #                          ],
+        #                          PrintFormat=StatViewAssistant.TABLE)
+        # for topology in self._topology.find():
+        #     self._ixnetwork.info('%s protocols total:%s started:%s' % (topology.stat))
+        # self._ixnetwork.info(view)
+        pass
+
+    def info(self, info):
+        self._ixnetwork.info('[ixn-otg] %s' % info)

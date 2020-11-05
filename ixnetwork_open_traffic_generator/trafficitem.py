@@ -1,4 +1,5 @@
 import json
+import time
 from ixnetwork_open_traffic_generator.customfield import CustomField
 from ixnetwork_restpy import StatViewAssistant
 
@@ -407,22 +408,32 @@ class TrafficItem(CustomField):
         2) If start then generate and apply traffic
         3) Execute requested transmit action (start|stop|pause|resume)
         """
-        regex = None
+        regex = ''
         if request.flow_names is not None and len(request.flow_names) > 0:
             regex = '^(%s)$' % '|'.join(request.flow_names)
         if request.state == 'start':
             self._api._traffic_item.find(Name=regex, State='unapplied')
             if len(self._api._topology.find()) > 0:
+                start = time.time()
                 self._api._ixnetwork.StartAllProtocols('sync')
+                self._api.info('protocols start %ssecs' % str(time.time() - start))
+                self._api.protocol_statistics()
             if len(self._api._traffic_item) > 0:
+                start = time.time()
                 self._api._traffic_item.Generate()
                 self._api._traffic.Apply()
+                self._api.info('flow generate apply %ssecs' % str(time.time() - start))
             self._api._start_capture()
-            self._api._ixnetwork.ClearStats(
-                ['waitForPortStatsRefresh', 'waitForTrafficStatsRefresh'])
+            if len(self._api._traffic_item) > 0:
+                start = time.time()
+                self._api._ixnetwork.ClearStats(
+                    ['waitForPortStatsRefresh', 'waitForTrafficStatsRefresh'])
+                self._api.info('flow clear statistics %ssecs' % str(time.time() - start))
         self._api._traffic_item.find(Name=regex)
         if request.state == 'start':
+            start = time.time()
             self._api._traffic_item.StartStatelessTrafficBlocking()
+            self._api.info('flow start %ssecs' % str(time.time() - start))
         elif request.state == 'stop':
             self._api._traffic_item.StopStatelessTrafficBlocking()
         elif request.state == 'pause':
