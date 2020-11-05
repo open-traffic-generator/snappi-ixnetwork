@@ -187,6 +187,30 @@ class Vport(object):
             time.sleep(2)
 
     def _set_location(self):
+        # try:
+        #     force_ownership = self._api.config.options.port_options.location_preemption
+        # except:
+        #     force_ownership = False
+        # port_map = self._api.assistant.PortMapAssistant()
+        # vports = self._api.select_vports()
+        # for port in self._api.config.ports:
+        #     if vports[port.name]['connectionState'].startswith('connectedLink'):
+        #         continue
+        #     if len(vports[port.name]['assignedTo']) > 0:
+        #         continue
+        #     if port.location is None or len(port.location) == 0:
+        #         continue
+        #     port_map.Map(Location=port.location, Name=port.name)
+        # if len(port_map._map) > 0:
+        #     port_map.Connect(ForceOwnership=force_ownership,
+        #                     HostReadyTimeout=20,
+        #                     LinkUpTimeout=90)
+        location_supported = True
+        try:
+            self._api._ixnetwork._connection._options(self._api._ixnetwork.href + '/locations')
+        except:
+            location_supported = False
+
         locations = []
         self._add_hosts(10)
         vports = self._api.select_vports()
@@ -195,11 +219,24 @@ class Vport(object):
         for port in self._api.config.ports:
             vport = vports[port.name]
             location = getattr(port, 'location', None)
-            if vport['location'] == location and vport[
-                    'connectionState'].startswith('connectedLink'):
-                continue
+            if location_supported is True:
+                if vport['location'] == location and vport[
+                        'connectionState'].startswith('connectedLink'):
+                    continue
+            else:
+                if len(vport['connectedTo']) > 0 and vport[
+                        'connectionState'].startswith('connectedLink'):
+                    continue
             self._api.ixn_objects[port.name] = vport['href']
-            vport = {'xpath': vports[port.name]['xpath'], 'location': location}
+            vport = {'xpath': vports[port.name]['xpath']}
+            if location_supported is True:
+                vport['location'] = location
+            else:
+                if location is not None:
+                    xpath = self._api.select_chassis_card_port(location)
+                    vport['connectedTo'] = xpath
+                else:
+                    vport['connectedTo'] = ''
             imports.append(vport)
             if location is not None and len(location) > 0:
                 clear_locations.append(location)
@@ -210,6 +247,7 @@ class Vport(object):
         self._import(imports)
         self._api._ixnetwork.info('Checking location state [%s]...' %
                                   ', '.join(locations))
+        self._api._vport.find(ConnectionState='^(?!connectedLink).*$').ConnectPorts()
         start = time.time()
         timeout = 30
         while True:

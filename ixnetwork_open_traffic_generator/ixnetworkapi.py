@@ -294,7 +294,7 @@ class IxNetworkApi(Api):
                     'children': [
                         {
                             'child': 'vport',
-                            'properties': ['name', 'type', 'location', 'connectionState'],
+                            'properties': ['name', 'type', 'location', 'connectionState', 'assignedTo', 'connectedTo'],
                             'filters': []
                         },
                         {
@@ -360,14 +360,65 @@ class IxNetworkApi(Api):
             pass
         return traffic_items
 
+    def select_chassis_card_port(self, location):
+        """Select all availalehardware.
+        Return them in a dict keyed by vport name.
+        """
+        (hostname, cardid, portid) = location.split(';')
+        payload = {
+            'selects': [
+                {
+                    'from': '/availableHardware',
+                    'properties': [],
+                    'children': [
+                        {
+                            'child': 'chassis',
+                            'properties': [],
+                            'filters': [
+                                {
+                                    'property': 'hostname',
+                                    'regex': '^%s$' % hostname
+                                }
+                            ]
+                        },
+                        {
+                            'child': 'card',
+                            'properties': [],
+                            'filters': [
+                                {
+                                    'property': 'cardId',
+                                    'regex': '^%s$' % abs(int(cardid))
+                                }
+                            ]
+                        },
+                        {
+                            'child': 'port',
+                            'properties': [],
+                            'filters': [
+                                {
+                                    'property': 'portId',
+                                    'regex': '^%s$' % abs(int(portid))
+                                }
+                            ]
+                        }
+                    ],
+                    'inlines': []
+                }
+            ]
+        }
+        url = '%s/operations/select?xpath=true' % self._ixnetwork.href
+        results = self._ixnetwork._connection._execute(url, payload)
+        return results[0]['chassis'][0]['card'][0]['port'][0]['xpath']
+ 
     def clear_ownership(self, hrefs):
         if len(hrefs) > 0:
-            self._ixnetwork.info('Clearing ownership on locations [%s]' % ', '.join([href for href in hrefs.keys()]))
+            self._ixnetwork.info('Premption of locations [%s]' % ', '.join([href for href in hrefs.keys()]))
             url = '%s/operations/clearownership' % [href for href in hrefs.values()][0]
             payload = {
                 'arg1': [href for href in hrefs.values()]
             }
             results = self._ixnetwork._connection._execute(url, payload)
+            time.sleep(2)
 
     def get_config(self):
         return self._config
