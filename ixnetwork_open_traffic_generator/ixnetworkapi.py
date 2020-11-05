@@ -2,7 +2,7 @@ import json
 import time
 from collections import namedtuple
 from jsonpath_ng.ext import parse
-from ixnetwork_restpy import SessionAssistant
+from ixnetwork_restpy import SessionAssistant, StatViewAssistant
 from abstract_open_traffic_generator.api import *
 from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.control import *
@@ -424,20 +424,10 @@ class IxNetworkApi(Api):
     def get_config(self):
         return self._config
 
-    def protocol_statistics(self):
-        # from ixnetwork_restpy import StatViewAssistant
-        # view = StatViewAssistant(self._ixnetwork,
-        #                          'Protocols Summary',
-        #                          Timeout=10,
-        #                          PrintColumns=[
-        #                              'Protocol Name', 'Sessions Up',
-        #                              'Sessions Down', 'Sessions Total'
-        #                          ],
-        #                          PrintFormat=StatViewAssistant.TABLE)
-        # for topology in self._topology.find():
-        #     self._ixnetwork.info('%s protocols total:%s started:%s' % (topology.stat))
-        # self._ixnetwork.info(view)
-        pass
+    def check_protocol_statistics(self):
+        view = StatViewAssistant(self._ixnetwork, 'Protocols Summary')
+        view.CheckCondition('Sessions Not Started', StatViewAssistant.EQUAL, 0)
+        view.CheckCondition('Sessions Down', StatViewAssistant.EQUAL, 0)
 
     def info(self, info):
         self._ixnetwork.info('[ixn-otg] %s' % info)

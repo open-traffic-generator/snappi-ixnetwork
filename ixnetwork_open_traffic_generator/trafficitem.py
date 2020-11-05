@@ -417,7 +417,7 @@ class TrafficItem(CustomField):
                 start = time.time()
                 self._api._ixnetwork.StartAllProtocols('sync')
                 self._api.info('protocols start %ssecs' % str(time.time() - start))
-                self._api.protocol_statistics()
+                self._api.check_protocol_statistics()
             if len(self._api._traffic_item) > 0:
                 start = time.time()
                 self._api._traffic_item.Generate()
