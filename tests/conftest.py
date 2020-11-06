@@ -4,8 +4,18 @@ import yaml
 
 API_SERVER = '10.36.66.49'
 API_SERVER_PORT = 11009
-TX_PORT_LOCATION = '10.36.74.26;02;13'
-RX_PORT_LOCATION = '10.36.74.26;02;14'
+LICENSE_SERVERS = ['10.36.66.226']
+TX_PORT_LOCATION = '10.36.66.226;01;01' # vmone
+RX_PORT_LOCATION = '10.36.66.226;01;02' # vmone
+LICENSE_SERVERS = []
+# TX_PORT_LOCATION = '10.36.67.236/31' # uhd
+# RX_PORT_LOCATION = '10.36.67.236/32' # uhd
+# TX_PORT_LOCATION = '10.36.67.4;01;41' # ares
+# RX_PORT_LOCATION = '10.36.67.4;01;42' # ares
+# TX_PORT_LOCATION = '10.36.74.26;02;13' # optixia xm2
+# RX_PORT_LOCATION = '10.36.74.26;02;14' # optixia xm2
+# TX_PORT_LOCATION = '10.36.66.226;61;22' # negative test
+# RX_PORT_LOCATION = '10.36.66.226;92;88' # negative test
 
 
 @pytest.fixture(scope='session')
@@ -43,10 +53,12 @@ def api():
     IxNetwork API Server to use for the api test fixture
     """
     from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
-    ixnetwork_api = IxNetworkApi(API_SERVER, port=API_SERVER_PORT)
-    yield ixnetwork_api
-    if ixnetwork_api.assistant is not None:
-        ixnetwork_api.assistant.Session.remove()
+    api = IxNetworkApi(API_SERVER,
+                       port=API_SERVER_PORT,
+                       license_servers=LICENSE_SERVERS)
+    yield api
+    if api.assistant is not None:
+        api.assistant.Session.remove()
 
 
 @pytest.fixture(scope='session')
@@ -192,8 +204,7 @@ def b2b_port_flow_config(options, tx_port, rx_port):
     from abstract_open_traffic_generator.flow import Flow, TxRx, PortTxRx, \
         Size, Rate, Duration, FixedPackets, Header, Ethernet
 
-    endpoint = PortTxRx(tx_port_name=tx_port.name,
-                        rx_port_name=rx_port.name)
+    endpoint = PortTxRx(tx_port_name=tx_port.name, rx_port_name=rx_port.name)
     flow = Flow(name='Port Flow',
                 tx_rx=TxRx(endpoint),
                 packet=[Header(Ethernet())],
@@ -220,8 +231,8 @@ def b2b_ipv4_flow_config(options, tx_port, rx_port, b2b_ipv4_devices):
                         Header(Vlan()),
                         Header(Ipv4())],
                 size=Size(512),
-                rate=Rate(unit='pps', value=100000),
-                duration=Duration(FixedPackets(1000000)))
+                rate=Rate(unit='pps', value=10000),
+                duration=Duration(FixedPackets(100000)))
     return Config(ports=[tx_port, rx_port],
                   devices=b2b_ipv4_devices,
                   flows=[flow],

@@ -28,7 +28,8 @@ class IxNetworkApi(Api):
                  address='127.0.0.1',
                  port='11009',
                  username='admin',
-                 password='admin'):
+                 password='admin',
+                 license_servers=[]):
         """Create a session
         - address (str): The ip address of the TestPlatform to connect to 
         where test sessions will be created or connected to.
@@ -41,6 +42,7 @@ class IxNetworkApi(Api):
         self._port = port
         self._username = username
         self._password = password
+        self._license_servers = license_servers
         self._running_config = None
         self._config = None
         self._assistant = None
@@ -225,6 +227,8 @@ class IxNetworkApi(Api):
             self._topology = self._ixnetwork.Topology
             self._traffic = self._ixnetwork.Traffic
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
+            if len(self._license_servers) > 0:
+                self._ixnetwork.Globals.Licensing.LicensingServers = self._license_servers
 
     def _request(self, method, url, payload=None):
         connection, url = self._assistant.Session._connection._normalize_url(
@@ -429,5 +433,8 @@ class IxNetworkApi(Api):
         view.CheckCondition('Sessions Not Started', StatViewAssistant.EQUAL, 0)
         view.CheckCondition('Sessions Down', StatViewAssistant.EQUAL, 0)
 
-    def info(self, info):
-        self._ixnetwork.info('[ixn-otg] %s' % info)
+    def info(self, message):
+        self._ixnetwork.info('[ixn-otg] %s' % message)
+
+    def warning(self, message):
+        self._ixnetwork.warn('[ixn-otg] %s' % message)

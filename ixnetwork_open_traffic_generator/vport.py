@@ -242,8 +242,10 @@ class Vport(object):
             if time.time() - start > timeout:
                 raise RuntimeError(
                     'After %s seconds, not all locations [%s] are reachable' %
-                    (timeout, ', '.join(locations)))
+                    (timeout, ', '.join([vport.Name for vport in self._api._vport])))
             time.sleep(2)
+        for vport in self._api._vport.find(ConnectionState='^(?!connectedLinkUp).*$'):
+            self._api.warning('%s[%s] %s' % (vport.Name, vport.Location, vport.ConnectionState))
 
     def _set_layer1(self):
         """Set the /vport/l1Config/... properties
