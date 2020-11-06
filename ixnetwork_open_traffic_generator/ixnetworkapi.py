@@ -65,10 +65,15 @@ class IxNetworkApi(Api):
         return self._ixn_objects
 
     def get_ixn_object(self, name):
-        """Returns a ixnetwork_restpy object given a unique configuration name
+        """Returns an ixnetwork_restpy object given a unique configuration name
         """
-        href = self._ixn_objects[name]
+        href = self._get_ixn_href(name)
         return self._assistant.Session.GetObjectFromHref(href)
+
+    def get_ixn_href(self, name):
+        """Returns an href given a unique configuration name
+        """
+        return self._ixn_objects[name]
 
     @property
     def assistant(self):
@@ -222,7 +227,7 @@ class IxNetworkApi(Api):
                 UserName=self._username,
                 Password=self._password,
                 LogLevel=SessionAssistant.LOGLEVEL_INFO)
-            self._ixnetwork = self._assistant.Ixnetwork
+            self._ixnetwork = self._assistant.Session.Ixnetwork
             self._vport = self._ixnetwork.Vport
             self._topology = self._ixnetwork.Topology
             self._traffic = self._ixnetwork.Traffic

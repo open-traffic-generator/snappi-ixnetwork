@@ -163,17 +163,19 @@ class TrafficItem(CustomField):
                 else:
                     self._update(ixn_traffic_item, **args)
                 self._configure_endpoint(ixn_traffic_item.EndpointSet, flow.tx_rx)
-                ixn_traffic_item.Tracking.find().TrackBy = ['trackingenabled0']
+                self._configure_tracking(ixn_traffic_item.Tracking)
                 ixn_stream = ixn_traffic_item.ConfigElement.find()
                 self._configure_stack(ixn_stream, flow.packet)
                 self._configure_size(ixn_stream, flow.size)
                 self._configure_rate(ixn_stream, flow.rate)
                 self._configure_tx_control(ixn_stream, flow.duration)
                 self._configure_options(flow)
-            self._api._traffic_item.find()
-            if len(self._api._traffic_item) > 0:
-                self._api._traffic_item.Generate()
     
+    def _configure_tracking(self, ixn_tracking):
+        ixn_tracking.find()
+        if 'trackingenabled0' not in ixn_tracking.TrackBy:
+            ixn_tracking.TrackBy = ['trackingenabled0']
+
     def _configure_options(self, flow):
         enable_min_frame_size = False
         if (len(flow.packet) == 1 and 
@@ -210,20 +212,20 @@ class TrafficItem(CustomField):
             'Destinations' : []
         }
         if (endpoint.choice == "port"):
-            args['Sources'].append(self._api.get_ixn_object(endpoint.port.tx_port_name).Protocols.find())
+            args['Sources'].append(self._api.get_ixn_object(endpoint.port.tx_port_name).Protocols.find().href)
             if endpoint.port.rx_port_name != None:
-                args['Destinations'].append(self._api.get_ixn_object(endpoint.port.rx_port_name).Protocols.find())
+                args['Destinations'].append(self._api.get_ixn_object(endpoint.port.rx_port_name).Protocols.find().href)
         else:
             for port_name in endpoint.device.tx_device_names:
-                args['Sources'].append(self._api.get_ixn_object(port_name))
+                args['Sources'].append(self._api.get_ixn_href(port_name))
             for port_name in endpoint.device.rx_device_names:
-                args['Destinations'].append(self._api.get_ixn_object(port_name))
+                args['Destinations'].append(self._api.get_ixn_href(port_name))
         ixn_endpoint_set.find()
         if len(ixn_endpoint_set) > 1:
             ixn_endpoint_set.remove()
         if len(ixn_endpoint_set) == 0:
             ixn_endpoint_set.add(**args)
-        else:
+        elif ixn_endpoint_set.Sources != args['Sources'] or ixn_endpoint_set.Destinations != args['Destinations']:
             self._update(ixn_endpoint_set, **args)
 
     def _update(self, ixn_object, **kwargs):
@@ -341,20 +343,22 @@ class TrafficItem(CustomField):
         if size is None:
             return
         ixn_frame_size = ixn_stream.FrameSize
+        args = {}
         if size.choice == 'fixed':
-            ixn_frame_size.Type = "fixed"
-            ixn_frame_size.FixedSize = size.fixed
+            args['Type'] = "fixed"
+            args['FixedSize'] = size.fixed
         elif size.choice == 'increment':
-            ixn_frame_size.Type = "increment"
-            ixn_frame_size.IncrementFrom = size.increment.start
-            ixn_frame_size.IncrementTo = size.increment.end
-            ixn_frame_size.IncrementStep = size.increment.step
+            args['Type'] = "incrment"
+            args['IncrementFrom'] = size.increment.start
+            args['IncrementTo'] = size.increment.end
+            args['IncrementStep'] = size.increment.step
         elif size.choice == 'random':
-            ixn_frame_size.Type = "random"
-            ixn_frame_size.RandomMin = size.random.min
-            ixn_frame_size.RandomMax = size.random.max
+            args['Type'] = "random"
+            args['RandomMin'] = size.random.min
+            args['RandomMax'] = size.random.max
         else:
             print('Warning - We need to implement this %s choice' %size.choice)
+        self._update(ixn_frame_size, **args)
             
     def _configure_rate(self, ixn_stream, rate):
         """ Transform frameRate flows.rate to /traffic/trafficItem[*]/configElement[*]/frameRate
@@ -362,14 +366,16 @@ class TrafficItem(CustomField):
         if rate is None:
             return
         ixn_frame_rate = ixn_stream.FrameRate
+        args = {}
         if rate.unit == 'line':
-            ixn_frame_rate.Type = 'percentLineRate'
+            args['Type'] = 'percentLineRate'
         elif rate.unit == 'pps':
-            ixn_frame_rate.Type = 'framesPerSecond'
+            args['Type'] = 'framesPerSecond'
         else:
-            ixn_frame_rate.Type = 'bitsPerSecond'
-            ixn_frame_rate.BitRateUnitsType = TrafficItem._BIT_RATE_UNITS_TYPE[rate.unit]
-        ixn_frame_rate.Rate = rate.value
+            args['Type'] = 'bitsPerSecond'
+            args['BitRateUnitsType'] = TrafficItem._BIT_RATE_UNITS_TYPE[rate.unit]
+        args['Rate'] = rate.value
+        self._update(ixn_frame_rate, **args)
 
     def _configure_tx_control(self, ixn_stream, duration):
         """Transform duration flows.duration to /traffic/trafficItem[*]/configElement[*]/TransmissionControl
@@ -377,30 +383,32 @@ class TrafficItem(CustomField):
         if duration is None:
             return
         ixn_tx_control = ixn_stream.TransmissionControl
+        args = {}
         if duration.choice == 'continuous':
-            ixn_tx_control.update(Type='continuous',
-                MinGapBytes=duration.continuous.gap,
-                StartDelay=duration.continuous.delay,
-                StartDelayUnits=duration.continuous.delay_unit)
+            args['Type'] = 'continuous'
+            args['MinGapBytes'] = duration.continuous.gap
+            args['StartDelay'] = duration.continuous.delay
+            args['StartDelayUnits'] = duration.continuous.delay_unit
         elif duration.choice == 'packets':
-            ixn_tx_control.update(Type='fixedFrameCount',
-                FrameCount=duration.packets.packets,
-                MinGapBytes=duration.packets.gap,
-                StartDelay=duration.packets.delay,
-                StartDelayUnits=duration.packets.delay_unit)
+            args['Type'] = 'fixedFrameCount'
+            args['FrameCount'] = duration.packets.packets
+            args['MinGapBytes'] = duration.packets.gap
+            args['StartDelay'] = duration.packets.delay
+            args['StartDelayUnits'] = duration.packets.delay_unit
         elif duration.choice == 'seconds':
-            ixn_tx_control.update(Type='fixedDuration',
-                Duration=duration.seconds.seconds,
-                MinGapBytes=duration.seconds.gap,
-                StartDelay=duration.seconds.delay,
-                StartDelayUnits=duration.seconds.delay_unit)
+            args['Type'] = 'fixedDuration'
+            args['Duration'] = duration.seconds.seconds
+            args['MinGapBytes'] = duration.seconds.gap
+            args['StartDelay'] = duration.seconds.delay
+            args['StartDelayUnits'] = duration.seconds.delay_unit
         elif duration.choice == 'burst':
-            ixn_tx_control.update(Type='custom',
-                BurstPacketCount=duration.burst.packets,
-                MinGapBytes=duration.burst.gap,
-                EnableInterBurstGap=True if duration.burst.gap > 0 else False,
-                InterBurstGap=duration.burst.inter_burst_gap,
-                InterBurstGapUnits=duration.burst.inter_burst_gap_unit)
+            args['Type'] = 'custom'
+            args['BurstPacketCount'] = duration.burst.packets
+            args['MinGapBytes'] = duration.burst.gap
+            args['EnableInterBurstGap'] = True if duration.burst.gap > 0 else False
+            args['InterBurstGap'] = duration.burst.inter_burst_gap
+            args['InterBurstGapUnits'] = duration.burst.inter_burst_gap_unit
+        self._update(ixn_tx_control, **args)
 
     def transmit(self, request):
         """Set flow transmit
