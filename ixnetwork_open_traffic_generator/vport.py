@@ -304,11 +304,12 @@ class Vport(object):
             mode = speed_mode_map[layer1.speed]
             card = self._api.select_chassis_card(vport)
             for available_mode in card['availableModes']:
-                if re.match(mode, available_mode.lower()) is not None:
+                if re.search(mode, available_mode.lower()) is not None:
                     aggregation_mode = available_mode
                     break
         if aggregation_mode is not None and aggregation_mode != card[
                 'aggregationMode']:
+            self._api.info('Setting %s layer1 mode' % aggregation_mode)
             imports.append({
                 'xpath': card['xpath'],
                 'aggregationMode': aggregation_mode
@@ -395,12 +396,9 @@ class Vport(object):
             layer1.ieee_media_defaults,
             'speed':
             Vport._SPEED_MAP[layer1.speed],
-            'enableAutoNegotiation':
-            layer1.auto_negotiate,
-            'enableRsFec':
-            layer1.auto_negotiation.rs_fec,
-            'linkTraining':
-            layer1.auto_negotiation.link_training,
+            'enableAutoNegotiation': layer1.auto_negotiate,
+            'enableRsFec': None if layer1.auto_negotiation is None else layer1.auto_negotiation.rs_fec,
+            'linkTraining': None if layer1.auto_negotiation is None else layer1.auto_negotiation.link_training
         }
         self._add_l1config_import(vport, proposed_import, imports)
 
