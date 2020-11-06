@@ -160,30 +160,34 @@ class Vport(object):
 
     def _add_hosts(self, HostReadyTimeout):
         chassis = self._api._ixnetwork.AvailableHardware.Chassis
-        ip_addresses = []
+        add_addresses = []
+        check_addresses = []
         for port in self._api.config.ports:
             if port.location is not None and ';' in port.location:
                 chassis_address = port.location.split(';')[0]
                 chassis.find(Hostname='^(%s)$' % chassis_address)
                 if len(chassis) == 0:
-                    ip_addresses.append(chassis_address)
-        ip_addresses = set(ip_addresses)
-        if len(ip_addresses) == 0:
-            return
-        self._api.info('Adding location hosts [%s]...' %
-                                  ', '.join(ip_addresses))
-        for ip_address in ip_addresses:
-            chassis.add(Hostname=ip_address)
+                    add_addresses.append(chassis_address)
+                check_addresses.append(chassis_address)
+        add_addresses = set(add_addresses)
+        check_addresses = set(check_addresses)
+        if len(add_addresses) > 0:
+            self._api.info('Adding location hosts [%s]...' %
+                                    ', '.join(add_addresses))
+            for add_address in add_addresses:
+                chassis.add(Hostname=add_address)
         start_time = time.time()
+        self._api.info('Checking state of location hosts [%s]...' %
+                                ', '.join(check_addresses))
         while True:
-            chassis.find(Hostname='^(%s)$' % '|'.join(ip_addresses),
+            chassis.find(Hostname='^(%s)$' % '|'.join(check_addresses),
                          State='^ready$')
-            if len(chassis) == len(ip_addresses):
+            if len(chassis) == len(check_addresses):
                 break
             if time.time() - start_time > HostReadyTimeout:
                 raise RuntimeError(
                     'After %s seconds, not all location hosts [%s] are reachable'
-                    % (HostReadyTimeout, ', '.join(ip_addresses)))
+                    % (HostReadyTimeout, ', '.join(check_addresses)))
             time.sleep(2)
 
     def _set_location(self):
@@ -223,9 +227,11 @@ class Vport(object):
             if location is not None and len(location) > 0:
                 clear_locations.append(location)
                 locations.append(port.name)
+        if len(locations) == 0:
+            return
         self._clear_ownership(clear_locations)
         self._api.info('Connecting locations [%s]...' %
-                                  ', '.join(locations))
+                                ', '.join(locations))
         self._import(imports)
         self._api.info('Checking location state [%s]...' %
                                   ', '.join(locations))
