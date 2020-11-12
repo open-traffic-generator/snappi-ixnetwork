@@ -422,16 +422,14 @@ class IxNetworkApi(Api):
         results = self._ixnetwork._connection._execute(url, payload)
         return results[0]['chassis'][0]['card'][0]['port'][0]['xpath']
 
-    def clear_ownership(self, hrefs):
-        if len(hrefs) > 0:
-            self.info('Pre-empting locations [%s]' %
-                                 ', '.join([href for href in hrefs.keys()]))
-            url = '%s/operations/clearownership' % [
-                href for href in hrefs.values()
-            ][0]
-            payload = {'arg1': [href for href in hrefs.values()]}
-            results = self._ixnetwork._connection._execute(url, payload)
-            time.sleep(2)
+    def clear_ownership(self, available_hardware_hrefs, location_hrefs):
+        for ownership_hrefs in [available_hardware_hrefs, location_hrefs]:
+            if len(ownership_hrefs) > 0:
+                payload = {'arg1': [href for href in ownership_hrefs.values()]}
+                self.info('Pre-empting locations [%s]' %
+                                    ', '.join([location for location in ownership_hrefs.keys()]))
+                url = '%s/operations/clearownership' % payload['arg1'][0]
+                results = self._ixnetwork._connection._execute(url, payload)
 
     def get_config(self):
         return self._config

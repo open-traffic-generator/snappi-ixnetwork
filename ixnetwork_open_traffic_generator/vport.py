@@ -454,15 +454,25 @@ class Vport(object):
         except:
             force_ownership = False
         if force_ownership is True:
-            hrefs = {}
-            chassis = self._api._ixnetwork.AvailableHardware.Chassis
+            available_hardware_hrefs = {}
+            location_hrefs = {}
             for location in locations:
-                clp = location.split(';')
-                chassis.find(Hostname=clp[0])
-                if len(chassis) == 1:
-                    hrefs[location] = '%s/card/%s/port/%s' % (
-                        chassis.href, abs(int(clp[1])), abs(int(clp[2])))
-            self._api.clear_ownership(hrefs)
+                if ';' in location:
+                    clp = location.split(';')
+                    chassis = self._api._ixnetwork.AvailableHardware.Chassis.find(Hostname=clp[0])
+                    if len(chassis) > 0:
+                        available_hardware_hrefs[location] = '%s/card/%s/port/%s' % (
+                            chassis.href, abs(int(clp[1])), abs(int(clp[2])))
+                elif '/' in location:
+                    appliance = location.split('/')[0]
+                    locations = self._api._ixnetwork.Locations
+                    locations.find(Hostname=appliance)  
+                    if len(locations) == 0:    
+                        locations.add(Hostname=appliance)
+                    ports = locations.Ports.find(Location='^%s$' % location)
+                    if len(ports) > 0:
+                        location_hrefs[location] = ports.href
+            self._api.clear_ownership(available_hardware_hrefs, location_hrefs)
 
     def _set_result_value(self,
                           row,
