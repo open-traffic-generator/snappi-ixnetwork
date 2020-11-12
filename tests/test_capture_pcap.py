@@ -7,10 +7,10 @@ from abstract_open_traffic_generator.control import *
 from abstract_open_traffic_generator.result import CaptureRequest
 
 
-def test_capture_pcap(serializer, api, tx_port, rx_port):
+def test_capture_pcap(serializer, api, tx_port, rx_port, options):
     """Demonstrates how to start capture and get capture results
     """
-    config = Config(ports=[tx_port, rx_port])
+    config = Config(ports=[tx_port, rx_port], options=options)
 
     # configure capture
     filter = MacAddressFilter(mac='source', filter='000000000000')

@@ -4,10 +4,10 @@ from abstract_open_traffic_generator.capture import Capture, BasicFilter, MacAdd
 from abstract_open_traffic_generator.control import *
 
 
-def test_capture_settings(serializer, api, tx_port):
+def test_capture_settings(serializer, api, tx_port, options):
     """Demonstrates how to configure basic capture settings
     """
-    config = Config(ports=[tx_port])
+    config = Config(ports=[tx_port], options=options)
 
     src = MacAddressFilter(mac='source',
                            filter='0000faceface',

@@ -2,11 +2,12 @@ import pytest
 import json
 import yaml
 
+
 API_SERVER = '10.36.66.49'
 API_SERVER_PORT = 11009
 LICENSE_SERVERS = ['10.36.66.226']
-TX_PORT_LOCATION = '10.36.66.226;01;01' # vmone
-RX_PORT_LOCATION = '10.36.66.226;01;02' # vmone
+TX_PORT_LOCATION = '10.36.66.226;01;01'  # vmone
+RX_PORT_LOCATION = '10.36.66.226;01;02'  # vmone
 LICENSE_SERVERS = []
 # TX_PORT_LOCATION = '10.36.67.236/31' # uhd
 # RX_PORT_LOCATION = '10.36.67.236/32' # uhd
@@ -237,3 +238,12 @@ def b2b_ipv4_flow_config(options, tx_port, rx_port, b2b_ipv4_devices):
                   devices=b2b_ipv4_devices,
                   flows=[flow],
                   options=options)
+
+
+@pytest.fixture(autouse=True)
+def stop_transmit(api):
+    """Stop all flows before every test
+    """
+    import abstract_open_traffic_generator.control as control
+
+    api.set_state(control.State(control.FlowTransmitState(state='stop')))

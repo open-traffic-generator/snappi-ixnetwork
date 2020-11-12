@@ -12,7 +12,6 @@ def test_flow_results(serializer, api, b2b_ipv4_flow_config):
     """
     state = control.State(
         control.ConfigState(config=b2b_ipv4_flow_config, state='set'))
-    print(serializer.json(state))
     api.set_state(state)
     state = control.State(control.FlowTransmitState(state='start'))
     api.set_state(state)

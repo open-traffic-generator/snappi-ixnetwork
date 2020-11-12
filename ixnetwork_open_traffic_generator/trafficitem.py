@@ -25,18 +25,16 @@ class TrafficItem(CustomField):
         'bytes_rx_rate',
         'loss',
     ]
-    
-    _STACK_IGNORE = [
-        'ethernet.fcs'
-    ]
+
+    _STACK_IGNORE = ['ethernet.fcs']
 
     _TYPE_TO_HEADER = {
         'ethernet': 'ethernet',
         'pfcPause': 'pfc_pause',
         'vlan': 'vlan',
         'ipv4': 'ipv4',
-        "tcp" : "tcp",
-        "udp" : "udp",
+        "tcp": "tcp",
+        "udp": "udp",
         'custom': 'custom'
     }
 
@@ -45,24 +43,25 @@ class TrafficItem(CustomField):
         'pfcpause': 'pfcPause',
         'vlan': 'vlan',
         'ipv4': 'ipv4',
-        "tcp" : "tcp",
-        "udp" : "udp",
+        "tcp": "tcp",
+        "udp": "udp",
         'custom': 'custom'
     }
 
     _BIT_RATE_UNITS_TYPE = {
-        'bps' : 'bitsPerSec',
-        'kbps' : 'kbitsPerSec',
-        'mbps' : 'mbitsPerSec',
-        'gbps' : 'mbytesPerSec'
+        'bps': 'bitsPerSec',
+        'kbps': 'kbitsPerSec',
+        'mbps': 'mbitsPerSec',
+        'gbps': 'mbytesPerSec'
     }
-    
+
     _PFCPAUSE = {
         'dst': 'pfcPause.header.header.dstAddress',
         'src': 'pfcPause.header.header.srcAddress',
         'ether_type': 'pfcPause.header.header.ethertype',
         'control_op_code': 'pfcPause.header.macControl.controlOpcode',
-        'class_enable_vector': 'pfcPause.header.macControl.priorityEnableVector',
+        'class_enable_vector':
+        'pfcPause.header.macControl.priorityEnableVector',
         'pause_class_0': 'pfcPause.header.macControl.pauseQuanta.pfcQueue0',
         'pause_class_1': 'pfcPause.header.macControl.pauseQuanta.pfcQueue1',
         'pause_class_2': 'pfcPause.header.macControl.pauseQuanta.pfcQueue2',
@@ -88,18 +87,18 @@ class TrafficItem(CustomField):
     }
 
     _IPV4 = {
-        'version' : 'ipv4.header.version',
-        'header_length' : 'ipv4.header.headerLength',
-        'priority' : '_ipv4_priority',
+        'version': 'ipv4.header.version',
+        'header_length': 'ipv4.header.headerLength',
+        'priority': '_ipv4_priority',
         'total_length': 'ipv4.header.totalLength',
-        'identification' : 'ipv4.header.identification',
-        'reserved' : 'ipv4.header.flags.reserved',
-        'dont_fragment' : 'ipv4.header.flags.fragment',
-        'more_fragments' : 'ipv4.header.flags.lastFragment',
-        'fragment_offset' : 'ipv4.header.fragmentOffset',
-        'time_to_live' : 'ipv4.header.ttl',
-        'protocol' : 'ipv4.header.protocol',
-        'header_checksum' : 'ipv4.header.checksum',
+        'identification': 'ipv4.header.identification',
+        'reserved': 'ipv4.header.flags.reserved',
+        'dont_fragment': 'ipv4.header.flags.fragment',
+        'more_fragments': 'ipv4.header.flags.lastFragment',
+        'fragment_offset': 'ipv4.header.fragmentOffset',
+        'time_to_live': 'ipv4.header.ttl',
+        'protocol': 'ipv4.header.protocol',
+        'header_checksum': 'ipv4.header.checksum',
         'src': 'ipv4.header.srcIp',
         'dst': 'ipv4.header.dstIp',
     }
@@ -112,33 +111,33 @@ class TrafficItem(CustomField):
         "monetary": "ipv4.header.priority.tos.monetary",
         "unused": "ipv4.header.priority.tos.unused"
     }
-    
+
     _TCP = {
-        "src_port" : "tcp.header.srcPort",
-        "dst_port" : "tcp.header.dstPort",
-        "ecn_ns" : "tcp.header.ecn.nsBit",
-        "ecn_cwr" : "tcp.header.ecn.cwrBit",
-        "ecn_echo" : "tcp.header.ecn.ecnEchoBit",
-        "ctl_urg" : "tcp.header.controlBits.urgBit",
-        "ctl_ack" : "tcp.header.controlBits.ackBit",
-        "ctl_psh" : "tcp.header.controlBits.pshBit",
-        "ctl_rst" : "tcp.header.controlBits.rstBit",
-        "ctl_syn" : "tcp.header.controlBits.synBit",
-        "ctl_fin" : "tcp.header.controlBits.finBit",
+        "src_port": "tcp.header.srcPort",
+        "dst_port": "tcp.header.dstPort",
+        "ecn_ns": "tcp.header.ecn.nsBit",
+        "ecn_cwr": "tcp.header.ecn.cwrBit",
+        "ecn_echo": "tcp.header.ecn.ecnEchoBit",
+        "ctl_urg": "tcp.header.controlBits.urgBit",
+        "ctl_ack": "tcp.header.controlBits.ackBit",
+        "ctl_psh": "tcp.header.controlBits.pshBit",
+        "ctl_rst": "tcp.header.controlBits.rstBit",
+        "ctl_syn": "tcp.header.controlBits.synBit",
+        "ctl_fin": "tcp.header.controlBits.finBit",
     }
-    
+
     _UDP = {
-        "src_port" : "udp.header.srcPort",
-        "dst_port" : "udp.header.dstPort",
-        "length" : "udp.header.length",
-        "checksum" : "udp.header.checksum",
+        "src_port": "udp.header.srcPort",
+        "dst_port": "udp.header.dstPort",
+        "length": "udp.header.length",
+        "checksum": "udp.header.checksum",
     }
-    
+
     _CUSTOM = '_custom_headers'
-    
+
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
-        
+
     def config(self):
         """Configure config.flows onto Ixnetwork.Traffic.TrafficItem
         
@@ -157,12 +156,14 @@ class TrafficItem(CustomField):
                     'TrafficItemType': 'l2L3',
                     'TrafficType': self._get_traffic_type(flow)
                 }
-                ixn_traffic_item.find(Name='^%s$' % flow.name, TrafficType=args['TrafficType'])
+                ixn_traffic_item.find(Name='^%s$' % flow.name,
+                                      TrafficType=args['TrafficType'])
                 if len(ixn_traffic_item) == 0:
                     ixn_traffic_item.add(**args)
                 else:
                     self._update(ixn_traffic_item, **args)
-                self._configure_endpoint(ixn_traffic_item.EndpointSet, flow.tx_rx)
+                self._configure_endpoint(ixn_traffic_item.EndpointSet,
+                                         flow.tx_rx)
                 self._configure_tracking(ixn_traffic_item.Tracking)
                 ixn_stream = ixn_traffic_item.ConfigElement.find()
                 self._configure_stack(ixn_stream, flow.packet)
@@ -170,7 +171,7 @@ class TrafficItem(CustomField):
                 self._configure_rate(ixn_stream, flow.rate)
                 self._configure_tx_control(ixn_stream, flow.duration)
                 self._configure_options(flow)
-    
+
     def _configure_tracking(self, ixn_tracking):
         ixn_tracking.find()
         if 'trackingenabled0' not in ixn_tracking.TrackBy:
@@ -178,17 +179,16 @@ class TrafficItem(CustomField):
 
     def _configure_options(self, flow):
         enable_min_frame_size = False
-        if (len(flow.packet) == 1 and 
-            flow.packet[0].choice == 'pfcpause' and 
-            flow.size.choice == 'fixed' and 
-            flow.size.fixed <= 64):
+        if (len(flow.packet) == 1 and flow.packet[0].choice == 'pfcpause'
+                and flow.size.choice == 'fixed' and flow.size.fixed <= 64):
             enable_min_frame_size = True
         if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:
             self._api._traffic.EnableMinFrameSize = enable_min_frame_size
 
     def _get_traffic_type(self, flow):
         if flow.tx_rx is None:
-            raise ValueError('%s Flow.tx_rx property cannot be None' % flow.name)
+            raise ValueError('%s Flow.tx_rx property cannot be None' %
+                             flow.name)
         elif flow.tx_rx.choice == 'port':
             encap = 'raw'
         else:
@@ -207,14 +207,15 @@ class TrafficItem(CustomField):
         """Transform flow.tx_rx to /trafficItem/endpointSet
         The model allows for only one endpointSet per traffic item
         """
-        args = {
-            'Sources': [],
-            'Destinations' : []
-        }
+        args = {'Sources': [], 'Destinations': []}
         if (endpoint.choice == "port"):
-            args['Sources'].append(self._api.get_ixn_object(endpoint.port.tx_port_name).Protocols.find().href)
+            args['Sources'].append(
+                self._api.get_ixn_object(
+                    endpoint.port.tx_port_name).Protocols.find().href)
             if endpoint.port.rx_port_name != None:
-                args['Destinations'].append(self._api.get_ixn_object(endpoint.port.rx_port_name).Protocols.find().href)
+                args['Destinations'].append(
+                    self._api.get_ixn_object(
+                        endpoint.port.rx_port_name).Protocols.find().href)
         else:
             for port_name in endpoint.device.tx_device_names:
                 args['Sources'].append(self._api.get_ixn_href(port_name))
@@ -225,14 +226,17 @@ class TrafficItem(CustomField):
             ixn_endpoint_set.remove()
         if len(ixn_endpoint_set) == 0:
             ixn_endpoint_set.add(**args)
-        elif ixn_endpoint_set.Sources != args['Sources'] or ixn_endpoint_set.Destinations != args['Destinations']:
+        elif ixn_endpoint_set.Sources != args[
+                'Sources'] or ixn_endpoint_set.Destinations != args[
+                    'Destinations']:
             self._update(ixn_endpoint_set, **args)
 
     def _update(self, ixn_object, **kwargs):
         from ixnetwork_restpy.base import Base
         update = False
         for name, value in kwargs.items():
-            if isinstance(value, list) and len(value) > 0 and isinstance(value[0], Base):
+            if isinstance(value, list) and len(value) > 0 and isinstance(
+                    value[0], Base):
                 value = [item.href for item in value]
             elif isinstance(value, Base):
                 value = value.href
@@ -261,7 +265,8 @@ class TrafficItem(CustomField):
                 elif stack_type_id not in TrafficItem._TYPE_TO_HEADER:
                     stacks_to_remove.append(ixn_stack[i])
                     stack = self._add_stack(ixn_stream, ixn_stack[i], header)
-                elif TrafficItem._TYPE_TO_HEADER[stack_type_id] != header.choice:
+                elif TrafficItem._TYPE_TO_HEADER[
+                        stack_type_id] != header.choice:
                     stacks_to_remove.append(ixn_stack[i])
                     stack = self._add_stack(ixn_stream, ixn_stack[i], header)
                 else:
@@ -269,10 +274,11 @@ class TrafficItem(CustomField):
             self._configure_field(stack.Field, header)
         for stack in stacks_to_remove:
             stack.Remove()
-    
+
     def _add_stack(self, ixn_stream, ixn_stack, header):
         type_id = '^%s$' % TrafficItem._HEADER_TO_TYPE[header.choice]
-        template = self._api._traffic.ProtocolTemplate.find(StackTypeId=type_id)
+        template = self._api._traffic.ProtocolTemplate.find(
+            StackTypeId=type_id)
         stack_href = ixn_stack.AppendProtocol(template)
         return ixn_stream.Stack.read(stack_href)
 
@@ -285,17 +291,22 @@ class TrafficItem(CustomField):
             method = getattr(self, field_map)
             method(ixn_field, packet)
             return
-        
+
         for packet_field_name in dir(packet):
             if packet_field_name in field_map:
                 pattern = getattr(packet, packet_field_name)
                 field_type_id = field_map[packet_field_name]
-                self._configure_pattern(ixn_field, field_type_id, pattern, field_choice)
+                self._configure_pattern(ixn_field, field_type_id, pattern,
+                                        field_choice)
 
-    def _configure_pattern(self, ixn_field, field_type_id, pattern, field_choice=False):
+    def _configure_pattern(self,
+                           ixn_field,
+                           field_type_id,
+                           pattern,
+                           field_choice=False):
         if pattern == None:
             return
-        
+
         custom_field = getattr(self, field_type_id, None)
         if custom_field is not None:
             custom_field(ixn_field, pattern)
@@ -304,39 +315,39 @@ class TrafficItem(CustomField):
         ixn_field = ixn_field.find(FieldTypeId=field_type_id)
         if pattern.choice == 'fixed':
             ixn_field.update(Auto=False,
-                ActiveFieldChoice=field_choice,
-                ValueType='singleValue',
-                SingleValue=pattern.fixed)
+                             ActiveFieldChoice=field_choice,
+                             ValueType='singleValue',
+                             SingleValue=pattern.fixed)
         elif pattern.choice == 'list':
             ixn_field.update(Auto=False,
-                ActiveFieldChoice=field_choice,
-                ValueType='valueList',
-                ValueList=pattern.list)
+                             ActiveFieldChoice=field_choice,
+                             ValueType='valueList',
+                             ValueList=pattern.list)
         elif pattern.choice == 'counter':
             value_type = 'increment' if pattern.counter.up is True else 'decrement'
             ixn_field.update(Auto=False,
-                ValueType=value_type,
-                ActiveFieldChoice=field_choice,
-                StartValue=pattern.counter.start,
-                StepValue=pattern.counter.step,
-                CountValue=pattern.counter.count)
+                             ValueType=value_type,
+                             ActiveFieldChoice=field_choice,
+                             StartValue=pattern.counter.start,
+                             StepValue=pattern.counter.step,
+                             CountValue=pattern.counter.count)
         elif pattern.choice == 'random':
             ixn_field.update(Auto=False,
-                ActiveFieldChoice=field_choice,
-                ValueType='repeatableRandomRange',
-                MinValue=pattern.random.min,
-                MaxValue=pattern.random.max,
-                StepValue=pattern.random.step,
-                Seed=pattern.random.seed,
-                CountValue=pattern.random.count)
+                             ActiveFieldChoice=field_choice,
+                             ValueType='repeatableRandomRange',
+                             MinValue=pattern.random.min,
+                             MaxValue=pattern.random.max,
+                             StepValue=pattern.random.step,
+                             Seed=pattern.random.seed,
+                             CountValue=pattern.random.count)
         else:
             # TBD: add to set_config errors - invalid pattern specified
             pass
-            
+
         if pattern.ingress_result_name is not None:
             ixn_field.TrackingEnabled = True
             self._api.ixn_objects[pattern.ingress_result_name] = ixn_field.href
-    
+
     def _configure_size(self, ixn_stream, size):
         """ Transform frameSize flows.size to /traffic/trafficItem[*]/configElement[*]/frameSize
         """
@@ -357,9 +368,10 @@ class TrafficItem(CustomField):
             args['RandomMin'] = size.random.min
             args['RandomMax'] = size.random.max
         else:
-            print('Warning - We need to implement this %s choice' %size.choice)
+            print('Warning - We need to implement this %s choice' %
+                  size.choice)
         self._update(ixn_frame_size, **args)
-            
+
     def _configure_rate(self, ixn_stream, rate):
         """ Transform frameRate flows.rate to /traffic/trafficItem[*]/configElement[*]/frameRate
         """
@@ -373,7 +385,8 @@ class TrafficItem(CustomField):
             args['Type'] = 'framesPerSecond'
         else:
             args['Type'] = 'bitsPerSecond'
-            args['BitRateUnitsType'] = TrafficItem._BIT_RATE_UNITS_TYPE[rate.unit]
+            args['BitRateUnitsType'] = TrafficItem._BIT_RATE_UNITS_TYPE[
+                rate.unit]
         args['Rate'] = rate.value
         self._update(ixn_frame_rate, **args)
 
@@ -405,7 +418,8 @@ class TrafficItem(CustomField):
             args['Type'] = 'custom'
             args['BurstPacketCount'] = duration.burst.packets
             args['MinGapBytes'] = duration.burst.gap
-            args['EnableInterBurstGap'] = True if duration.burst.gap > 0 else False
+            args[
+                'EnableInterBurstGap'] = True if duration.burst.gap > 0 else False
             args['InterBurstGap'] = duration.burst.inter_burst_gap
             args['InterBurstGapUnits'] = duration.burst.inter_burst_gap_unit
         self._update(ixn_tx_control, **args)
@@ -420,37 +434,70 @@ class TrafficItem(CustomField):
         if request.flow_names is not None and len(request.flow_names) > 0:
             regex = '^(%s)$' % '|'.join(request.flow_names)
         if request.state == 'start':
-            self._api._traffic_item.find(Name=regex, State='unapplied')
+            all_flow_names = ' '.join(
+                [flow.name for flow in self._api.config.flows])
+            self._api._traffic_item.find(State='^unapplied$')
             if len(self._api._topology.find()) > 0:
                 start = time.time()
                 self._api._ixnetwork.StartAllProtocols('sync')
-                self._api.info('protocols start %ssecs' % str(time.time() - start))
+                self._api.info('protocols start %ssecs' %
+                               str(time.time() - start))
                 self._api.check_protocol_statistics()
             if len(self._api._traffic_item) > 0:
                 start = time.time()
                 self._api._traffic_item.Generate()
                 self._api._traffic.Apply()
-                self._api.info('flow generate apply %ssecs' % str(time.time() - start))
+                self._api.info('flows %s generate/apply %ssecs' %
+                               (all_flow_names, str(time.time() - start)))
             self._api._start_capture()
             if len(self._api._traffic_item) > 0:
                 start = time.time()
                 self._api._ixnetwork.ClearStats(
                     ['waitForPortStatsRefresh', 'waitForTrafficStatsRefresh'])
-                self._api.info('flow clear statistics %ssecs' % str(time.time() - start))
+                self._api.info('flow clear statistics %ssecs' %
+                               str(time.time() - start))
         self._api._traffic_item.find(Name=regex)
         if request.state == 'start':
             start = time.time()
             self._api._traffic_item.StartStatelessTrafficBlocking()
-            self._api.info('flow start %ssecs' % str(time.time() - start))
+            self._api.info(
+                'flows %s start %ssecs' %
+                (' '.join(request.flow_names), str(time.time() - start)))
         elif request.state == 'stop':
-            self._api._traffic_item.StopStatelessTrafficBlocking()
+            self._api._traffic_item.find(Name=regex, State='^started$')
+            if len(self._api._traffic_item) > 0:
+                start = time.time()
+                self._api._traffic_item.StopStatelessTrafficBlocking()
+                self._api.info(
+                    'flows %s stop %ssecs' %
+                    (' '.join([flow.Name for flow in self._api._traffic_item
+                               ]), str(time.time() - start)))
         elif request.state == 'pause':
-            self._api._traffic_item.PauseStatelessTrafficBlocking(True)
+            self._api._traffic_item.find(Name=regex, State='^started$')
+            if len(self._api._traffic_item) > 0:
+                start = time.time()
+                self._api._traffic_item.PauseStatelessTrafficBlocking(True)
+                self._api.info(
+                    'flows %s pause %ssecs' %
+                    (' '.join([flow.Name for flow in self._api._traffic_item
+                               ]), str(time.time() - start)))
         elif request.state == 'resume':
-            self._api._traffic_item.PauseStatelessTrafficBlocking(False)
+            self._api._traffic_item.find(Name=regex, State='^stopped$')
+            if len(self._api._traffic_item) > 0:
+                start = time.time()
+                self._api._traffic_item.PauseStatelessTrafficBlocking(False)
+                self._api.info(
+                    'flows %s resume %ssecs' %
+                    (' '.join([flow.Name for flow in self._api._traffic_item
+                               ]), str(time.time() - start)))
 
-    def _set_result_value(self, row, column_name, column_value, column_type = str):
-        if len(self._column_names) > 0 and column_name not in self._column_names:
+    def _set_result_value(self,
+                          row,
+                          column_name,
+                          column_value,
+                          column_type=str):
+        if len(self._column_names
+               ) > 0 and column_name not in self._column_names:
             return
         try:
             row[column_name] = column_type(column_value)
@@ -466,19 +513,16 @@ class TrafficItem(CustomField):
             startedWaitingForStats, startedWaitingForStreams, stopped, 
             stoppedWaitingForStats, txStopWatchExpected, unapplied
         """
-        started_states =  [
-            'txStopWatchExpected', 
-            'locked', 
-            'started', 
-            'startedWaitingForStats', 
-            'startedWaitingForStreams', 
+        started_states = [
+            'txStopWatchExpected', 'locked', 'started',
+            'startedWaitingForStats', 'startedWaitingForStreams',
             'stoppedWaitingForStats'
         ]
         if state in started_states:
             return 'started'
         else:
             return 'stopped'
-            
+
     def results(self, request):
         """Return flow results
         """
@@ -486,32 +530,45 @@ class TrafficItem(CustomField):
             self._column_names = []
         else:
             self._column_names = request.column_names
-        filter = {
-            'property': 'name',
-            'regex': '.*'
-        }
-        if request is not None and request.flow_names is not None and len(request.flow_names) > 0:
+        filter = {'property': 'name', 'regex': '.*'}
+        if request is not None and request.flow_names is not None and len(
+                request.flow_names) > 0:
             filter['regex'] = '^(%s)$' % '|'.join(request.flow_names)
         flow_rows = {}
-        for traffic_item in self._api.select_traffic_items(traffic_item_filters=[filter]).values():
+        for traffic_item in self._api.select_traffic_items(
+                traffic_item_filters=[filter]).values():
             flow_row = {}
             self._set_result_value(flow_row, 'name', traffic_item['name'])
-            self._set_result_value(flow_row, 'transmit', self._get_state(traffic_item['state']))
-            self._set_result_value(flow_row, 'port_tx', traffic_item['highLevelStream'][0]['txPortName'])
-            self._set_result_value(flow_row, 'port_rx', ' '.join(traffic_item['highLevelStream'][0]['rxPortNames']))
+            self._set_result_value(flow_row, 'transmit',
+                                   self._get_state(traffic_item['state']))
+            self._set_result_value(
+                flow_row, 'port_tx',
+                traffic_item['highLevelStream'][0]['txPortName'])
+            self._set_result_value(
+                flow_row, 'port_rx',
+                ' '.join(traffic_item['highLevelStream'][0]['rxPortNames']))
             flow_rows[traffic_item['name']] = flow_row
         try:
-            table = self._api.assistant.StatViewAssistant('Traffic Item Statistics')
-            table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX, filter['regex'])
+            table = self._api.assistant.StatViewAssistant(
+                'Traffic Item Statistics')
+            table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX,
+                               filter['regex'])
             for row in table.Rows:
                 flow_row = flow_rows[row['Traffic Item']]
-                self._set_result_value(flow_row, 'frames_tx', row['Tx Frames'], int)
-                self._set_result_value(flow_row, 'frames_rx', row['Rx Frames'], int)
-                self._set_result_value(flow_row, 'bytes_rx', row['Rx Bytes'], int)
-                self._set_result_value(flow_row, 'frames_tx_rate', row['Tx Frame Rate'], float)
-                self._set_result_value(flow_row, 'frames_rx_rate', row['Rx Frame Rate'], float)
-                self._set_result_value(flow_row, 'bytes_tx_rate', row['Tx Rate (Bps)'], float)
-                self._set_result_value(flow_row, 'bytes_rx_rate', row['Rx Rate (Bps)'], float)
+                self._set_result_value(flow_row, 'frames_tx', row['Tx Frames'],
+                                       int)
+                self._set_result_value(flow_row, 'frames_rx', row['Rx Frames'],
+                                       int)
+                self._set_result_value(flow_row, 'bytes_rx', row['Rx Bytes'],
+                                       int)
+                self._set_result_value(flow_row, 'frames_tx_rate',
+                                       row['Tx Frame Rate'], float)
+                self._set_result_value(flow_row, 'frames_rx_rate',
+                                       row['Rx Frame Rate'], float)
+                self._set_result_value(flow_row, 'bytes_tx_rate',
+                                       row['Tx Rate (Bps)'], float)
+                self._set_result_value(flow_row, 'bytes_rx_rate',
+                                       row['Rx Rate (Bps)'], float)
                 self._set_result_value(flow_row, 'loss', row['Loss %'], float)
         except Exception as e:
             self._api.add_error(e)
