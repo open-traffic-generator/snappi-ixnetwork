@@ -67,7 +67,7 @@ class IxNetworkApi(Api):
     def get_ixn_object(self, name):
         """Returns an ixnetwork_restpy object given a unique configuration name
         """
-        href = self._get_ixn_href(name)
+        href = self.get_ixn_href(name)
         return self._assistant.Session.GetObjectFromHref(href)
 
     def get_ixn_href(self, name):
@@ -139,11 +139,13 @@ class IxNetworkApi(Api):
     def _set_flow_transmit_state(self, flow_transmit_state):
         """Set the transmit state of flows
         """
+        self._connect()
         return self.traffic_item.transmit(flow_transmit_state)
 
     def _set_port_capture_state(self, request):
         """Starts capture on all ports that have capture enabled.
         """
+        self._connect()
         self._capture_request = request
 
     def _start_capture(self):
@@ -181,6 +183,7 @@ class IxNetworkApi(Api):
     def get_port_results(self, request):
         """Abstract API implementation
         """
+        self._connect()
         return self.vport.results(request)
 
     def get_flow_results(self, request):
