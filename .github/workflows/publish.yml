@@ -26,7 +26,7 @@ jobs:
     - name: Write configuration file
       uses: DamianReeves/write-file-action@v1.0
       with:
-        path: ${{env.IXNETWORK_OTG_PYTEST_CONF}}
+        path: ${{env.home}}/ixnetwork_otg_pytest_conf.yaml
         contents: |
           echo "api_server: 10.36.66.49"
           echo "api_server_port: 11009"
