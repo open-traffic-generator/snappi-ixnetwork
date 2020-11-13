@@ -15,9 +15,6 @@ on: [pull_request, workflow_dispatch]
 jobs:
   build_test_deploy:
     runs-on: [self-hosted, windows, x64]
-    strategy:
-      matrix:
-        python-version: [27, 38]
 
     steps:
     - name: Checkout
@@ -25,7 +22,7 @@ jobs:
 
     - name: set python path
       id: path
-      run: echo "::set-output name=pythonv::c:/${{matrix.python-version}}/python"
+      run: echo "::set-output name=pythonv::c:/38/python"
 
     - name: Install dependencies
       run: |
@@ -44,7 +41,7 @@ jobs:
 
     - name: Test whl distribution installation
       run: |
-        pip install dist/*.whl
+        ${{steps.path.outputs.pythonv}} -m pip install dist/*.whl
 
     - name: Get all changes
       id: file_changes
