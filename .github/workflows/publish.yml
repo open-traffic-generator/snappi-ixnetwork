@@ -59,6 +59,10 @@ jobs:
       run: |
         ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
 
+    - name: Run tests
+      run: |
+        ${{steps.path.outputs.pythonv}} -m pytest -s tests/test_ports.py
+
     - name: Get all changes
       if: github.event_name == 'push'
       id: file_changes
