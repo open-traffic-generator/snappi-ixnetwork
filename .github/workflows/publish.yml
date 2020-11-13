@@ -26,14 +26,14 @@ jobs:
 
     - name: Install dependencies
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install --upgrade pip
-        ${{steps.path.outputs.pythonv}} -m pip install --upgrade jsonpath-ng
-        ${{steps.path.outputs.pythonv}} -m pip install --upgrade pyyaml
-        ${{steps.path.outputs.pythonv}} -m pip install --upgrade pytest
-        ${{steps.path.outputs.pythonv}} -m pip install --upgrade setuptools
-        ${{steps.path.outputs.pythonv}} -m pip install --upgrade wheel
-        ${{steps.path.outputs.pythonv}} -m pip install --upgrade twine
-        ${{steps.path.outputs.pythonv}} -m pip install --upgrade requests
+        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade pip
+        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade jsonpath-ng
+        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade pyyaml
+        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade pytest
+        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade setuptools
+        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade wheel
+        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade twine
+        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade requests
 
     - name: Build distributions
       run: |
