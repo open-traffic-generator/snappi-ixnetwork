@@ -44,7 +44,7 @@ jobs:
 
     - name: Test whl distribution installation
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install dist/*.whl
+        pip install dist/*.whl
 
     - name: Get all changes
       id: file_changes
