@@ -10,7 +10,7 @@
 
 name: Build
 
-on: [pull_request, workflow_dispatch]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build_test_deploy:
@@ -39,9 +39,14 @@ jobs:
       run: |
         ${{steps.path.outputs.pythonv}} setup.py sdist --formats=gztar bdist_wheel --universal
 
+    - name: Get VERSION number
+      id: get_version
+      if: true == contains(steps.file_changes.outputs.files_modified, 'VERSION')
+      run: echo "::set-output name=version::$(cat VERSION)"
+    
     - name: Test whl distribution installation
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-0.0.43-py2.py3-none-any.whl
+        ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
 
     - name: Get all changes
       id: file_changes
@@ -50,11 +55,6 @@ jobs:
     - name: Output changed files
       id: changed_files
       run: echo ${{steps.file_changes.outputs.files_modified}}
-
-    - name: Get VERSION number
-      id: get_version
-      if: true == contains(steps.file_changes.outputs.files_modified, 'VERSION')
-      run: echo "::set-output name=version::$(cat VERSION)"
 
     - name: Create Release
       if: true == contains(steps.file_changes.outputs.files_modified, 'VERSION')
