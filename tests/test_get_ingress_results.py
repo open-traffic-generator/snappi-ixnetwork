@@ -5,7 +5,7 @@ from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.control import *
 from abstract_open_traffic_generator.result import FlowRequest
 
-
+@pytest.mark.skip(reason="Not yet implemented")
 def test_get_ingress_results(serializer, options, tx_port, rx_port, api):
     """UDP Flow test traffic configuration
     """

@@ -3,7 +3,7 @@ import abstract_open_traffic_generator.port as port
 import abstract_open_traffic_generator.config as config
 import abstract_open_traffic_generator.control as control
 
-
+@pytest.mark.skip(reason="LAG models not yet implemented")
 def test_lag(serializer, api, options):
     """Demonstrates the following:
     1) Creating a lag comprised of multiple ports

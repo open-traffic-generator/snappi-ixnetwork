@@ -3,8 +3,8 @@ from abstract_open_traffic_generator.port import Port
 from abstract_open_traffic_generator.device import *
 from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.control import *
-from abstract_open_traffic_generator.result import BgpInfoRequest
 
+@pytest.mark.skip(reason="Bgp models have not been finalized")
 def test_devices(serializer, api):
     """This is a BGPv4 demo test script
     """

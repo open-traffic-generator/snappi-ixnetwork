@@ -4,6 +4,8 @@ from abstract_open_traffic_generator.device import *
 from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.control import *
 
+
+@pytest.mark.skip(reason="BGP models have not been finalized")
 def test_bgp_speaker(serializer, api):
     """This is the configuration steps in https://github.com/Azure/sonic-mgmt/blob/master/tests/bgp/test_bgp_speaker.py
 
@@ -29,16 +31,13 @@ def test_bgp_speaker(serializer, api):
                     choice=Bgpv4(name='bgpv4',
                                  router_id=Pattern(local_ip),
                                  dut_ipv4_address=Pattern(peer_ip),
-                                 as_number = Pattern(local_asn),
-                                 dut_as_number = Pattern(peer_asn),
+                                 as_number=Pattern(local_asn),
+                                 dut_as_number=Pattern(peer_asn),
                                  ipv4=Ipv4(name='ipv4',
                                            local_ip=Pattern(local_ip),
                                            peer_ip=Pattern(peer_ip),
-                                           ethernet=Ethernet()
-                                           )
-                                )
-                    )
-    
+                                           ethernet=Ethernet())))
+
     port = Port(name='port1', devices=[device])
     config = Config(ports=[port])
     state = State(ConfigState(config=config, state='set'))

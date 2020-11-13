@@ -10,7 +10,7 @@ def port_configs():
     """
     from abstract_open_traffic_generator.config import Config
     from abstract_open_traffic_generator.device import Device, Ethernet, Ipv4
-    from abstract_open_traffic_generator.layer1 import FlowControl, Ieee8021qbb, Layer1, OneHundredGbe
+    from abstract_open_traffic_generator.layer1 import FlowControl, Ieee8021qbb, Layer1
     from abstract_open_traffic_generator.port import Port
 
     port1 = Port(name='Port 1')
@@ -28,15 +28,10 @@ def port_configs():
                           pfc_class_6=6,
                           pfc_class_7=7)
         flow_ctl = FlowControl(choice=pfc)
-        one_hundred_gbe = OneHundredGbe(link_training=True,
-                                        ieee_media_defaults=False,
-                                        auto_negotiate=False,
-                                        speed='one_hundred_gbps',
-                                        flow_control=flow_ctl,
-                                        rs_fec=True)
         layer1 = Layer1(name='Layer1 settings',
-                        choice=one_hundred_gbe,
-                        port_names=[ports[0].name, ports[1].name])
+                        port_names=[ports[0].name, ports[1].name],
+                        speed='speed_100_gbps',
+                        auto_negotiate=True)
         device1 = Device('Tx Devices',
                          container_name=ports[0].name,
                          choice=Ipv4(name='Tx Ipv4',
