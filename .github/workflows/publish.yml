@@ -43,18 +43,20 @@ jobs:
       id: get_version
       run: echo "::set-output name=version::$(cat VERSION)"
     
-    #- name: Test whl distribution installation
-    #  run: |
-    #    ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
+    - name: Test whl distribution installation
+      run: |
+        ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
 
     - name: Get all changes
       if: github.event_name == 'push'
       id: file_changes
-      uses: trilom/file-changes-action@v1.2.3
+      uses: jitterbit/get-changed-files@v1
+      with:
+          format: 'json'
 
     - name: Output changed files
       id: changed_files
-      run: echo ${{steps.file_changes.outputs.files_modified}}
+      run: echo ${{steps.file_changes.outputs.modified}}
 
     - name: Create Release
       if: true == contains(steps.file_changes.outputs.files_modified, 'VERSION')
