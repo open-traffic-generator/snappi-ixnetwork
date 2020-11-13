@@ -20,7 +20,19 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: set python path
+    - name: Set environment variables
+      run: echo "IXNETWORK_OTG_PYTEST_CONF=ixnetwork_otg_pytest_conf.yaml" >> $GITHUB_ENV
+
+    - name: Write configuration file
+      uses: DamianReeves/write-file-action
+      with:
+        path: ${{env.IXNETWORK_OTG_PYTEST_CONF}}
+        contents: |
+          echo "api_server: 10.36.66.49"
+          echo "api_server_port: 11009"
+        write-mode: append
+
+    - name: Set python path
       id: path
       run: echo "::set-output name=pythonv::c:/38/python"
 

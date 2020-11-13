@@ -1,22 +1,39 @@
 import pytest
 import json
 import yaml
+import os
+import collections
+
+IXNETWORK_OTG_PYTEST_CONF = {
+    'api_server': '127.0.0.1',
+    'api_server_port': 11009,
+    'license_servers': [],
+    'tx_port_location': None,
+    'rx_port_location': None
+}
 
 
-API_SERVER = '10.36.66.49'
-API_SERVER_PORT = 11009
-LICENSE_SERVERS = ['10.36.66.226']
-TX_PORT_LOCATION = '10.36.66.226;01;01'  # vmone
-RX_PORT_LOCATION = '10.36.66.226;01;02'  # vmone
-LICENSE_SERVERS = []
-# TX_PORT_LOCATION = '10.36.67.236/31' # uhd
-# RX_PORT_LOCATION = '10.36.67.236/32' # uhd
-# TX_PORT_LOCATION = '10.36.67.4;01;41' # ares
-# RX_PORT_LOCATION = '10.36.67.4;01;42' # ares
-# TX_PORT_LOCATION = '10.36.74.26;02;13' # optixia xm2
-# RX_PORT_LOCATION = '10.36.74.26;02;14' # optixia xm2
-# TX_PORT_LOCATION = '10.36.66.226;61;22' # negative test
-# RX_PORT_LOCATION = '10.36.66.226;92;88' # negative test
+def pytest_configure(config):
+    """Process IXNETWORK_OTG_PYTEST_CONF file if one exists
+    """
+    data = json.dumps(IXNETWORK_OTG_PYTEST_CONF)
+    pytest.otg_conf = json.loads(
+        data,
+        object_hook=lambda d: collections.namedtuple('OtgConf', d.keys())
+        (*d.values()))
+    conf_filename = os.environ.get('IXNETWORK_OTG_PYTEST_CONF', None)
+    if conf_filename is not None:
+        try:
+            with open(conf_filename) as fid:
+                data = json.dumps(yaml.safe_load(fid))
+                pytest.otg_conf = json.loads(
+                    data,
+                    object_hook=lambda d: collections.namedtuple('IxnOtgConf', d.keys())
+                    (*d.values()))
+        except Exception as e:
+            print(e)
+    print('Using global IxNetwork open traffic generator pytest configuration options:')
+    print(pytest.otg_conf)
 
 
 @pytest.fixture(scope='session')
@@ -54,9 +71,9 @@ def api():
     IxNetwork API Server to use for the api test fixture
     """
     from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
-    api = IxNetworkApi(API_SERVER,
-                       port=API_SERVER_PORT,
-                       license_servers=LICENSE_SERVERS)
+    api = IxNetworkApi(pytest.otg_conf.api_server,
+                       port=pytest.otg_conf.api_server_port,
+                       license_servers=pytest.otg_conf.license_servers)
     yield api
     if api.assistant is not None:
         api.assistant.Session.remove()
@@ -76,7 +93,7 @@ def tx_port():
     """Returns a transmit port
     """
     from abstract_open_traffic_generator.port import Port
-    return Port(name='Tx Port', location=TX_PORT_LOCATION)
+    return Port(name='Tx Port', location=pytest.otg_conf.tx_port_location)
 
 
 @pytest.fixture(scope='session')
@@ -84,7 +101,7 @@ def rx_port():
     """Returns a receive port
     """
     from abstract_open_traffic_generator.port import Port
-    return Port(name='Rx Port', location=RX_PORT_LOCATION)
+    return Port(name='Rx Port', location=pytest.otg_conf.rx_port_location)
 
 
 @pytest.fixture(scope='session')
