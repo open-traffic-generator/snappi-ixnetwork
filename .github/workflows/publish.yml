@@ -49,9 +49,7 @@ jobs:
 
     - name: Run tests
       run: |
-        ${{steps.path.outputs.pythonv}} -m pytest $PYTEST_OPTIONS -s tests/test_clear_config.py
-      env:
-        PYTEST_OPTIONS: "--api-server=10.36.66.49 --api_server_port=11009" 
+        ${{steps.path.outputs.pythonv}} -m pytest --api-server=10.36.66.49 --api_server_port=11009 -s tests/test_clear_config.py
 
     - name: Get all changes
       if: github.event_name == 'push'
