@@ -13,12 +13,7 @@ IXNETWORK_OTG_PYTEST_CONF = {
 }
 
 def pytest_addoption(parser):
-    """Add command line options to the pytest config object.
-    This is a good starting place for parameterizing variables.
-    Command line option values can come from the command line and if they do 
-    not exist a default can be provided.
-    Any external configuration files can also be processed here.
-    All option values are a string that when eval() MUST return an iterable.
+    """Add command line options
     """
     for name, value in IXNETWORK_OTG_PYTEST_CONF.items():
         parser.addoption(
@@ -30,7 +25,8 @@ def pytest_addoption(parser):
         )
 
 def pytest_configure(config):
-    """Process IXNETWORK_OTG_PYTEST_CONF file if one exists
+    """Process command line options
+    Process IXNETWORK_OTG_PYTEST_CONF file if one exists
     """
     for key in IXNETWORK_OTG_PYTEST_CONF:
         IXNETWORK_OTG_PYTEST_CONF[key] = config.getoption(key)
