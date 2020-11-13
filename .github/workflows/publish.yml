@@ -10,7 +10,7 @@
 
 name: Build
 
-on: [push, pull_request, workflow_dispatch]
+on: [pull_request, workflow_dispatch]
 
 jobs:
   build_test_deploy:
@@ -86,5 +86,5 @@ jobs:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        twine upload dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
-        twine upload dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}.tar
+        "c:/38/Scripts/twine" upload dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
+        "c:/38/Scripts/twine" upload dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}.tar
