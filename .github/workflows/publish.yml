@@ -41,7 +41,6 @@ jobs:
 
     - name: Get VERSION number
       id: get_version
-      if: true == contains(steps.file_changes.outputs.files_modified, 'VERSION')
       run: echo "::set-output name=version::$(cat VERSION)"
     
     - name: Test whl distribution installation
