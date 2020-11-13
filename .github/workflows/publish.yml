@@ -21,7 +21,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Set environment variables
-      run: echo "IXNETWORK_OTG_PYTEST_CONF=ixnetwork_otg_pytest_conf.yaml" >> $GITHUB_ENV
+      run: echo "IXNETWORK_OTG_PYTEST_CONF=./ixnetwork_otg_pytest_conf.yaml" >> $GITHUB_ENV
 
     - name: Write configuration file
       run: |
