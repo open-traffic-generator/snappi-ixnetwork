@@ -12,10 +12,28 @@ IXNETWORK_OTG_PYTEST_CONF = {
     'rx_port_location': None
 }
 
+def pytest_addoption(parser):
+    """Add command line options to the pytest config object.
+    This is a good starting place for parameterizing variables.
+    Command line option values can come from the command line and if they do 
+    not exist a default can be provided.
+    Any external configuration files can also be processed here.
+    All option values are a string that when eval() MUST return an iterable.
+    """
+    for name, value in IXNETWORK_OTG_PYTEST_CONF.items():
+        parser.addoption(
+            '--%s' % name,
+            action="store",
+            type=str,
+            default=value,
+            help=str(value)
+        )
 
 def pytest_configure(config):
     """Process IXNETWORK_OTG_PYTEST_CONF file if one exists
     """
+    for key in IXNETWORK_OTG_PYTEST_CONF:
+        IXNETWORK_OTG_PYTEST_CONF[key] = config.getoption(key)
     data = json.dumps(IXNETWORK_OTG_PYTEST_CONF)
     pytest.otg_conf = json.loads(
         data,

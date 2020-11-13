@@ -29,7 +29,7 @@ jobs:
         echo "api_server_port: 11009" >> $IXNETWORK_OTG_PYTEST_CONF
         dir 
         echo $IXNETWORK_OTG_PYTEST_CONF
-        
+
     - name: Set python path
       id: path
       run: echo "::set-output name=pythonv::c:/38/python"
@@ -59,7 +59,9 @@ jobs:
 
     - name: Run tests
       run: |
-        ${{steps.path.outputs.pythonv}} -m pytest -s tests/test_ports.py
+        ${{steps.path.outputs.pythonv}} -m pytest %PYTEST_OPTIONS -s tests/test_ports.py
+      env:
+        PYTEST_OPTIONS: "--api-server=10.36.66.49 --api_server_port=11009" 
 
     - name: Get all changes
       if: github.event_name == 'push'
