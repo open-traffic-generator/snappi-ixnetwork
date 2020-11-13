@@ -4,7 +4,7 @@ To build `python setup.py sdist --formats=gztar bdist_wheel --universal`
 """
 import os
 import shutil
-from setuptools import setup
+from setuptools import setup, find_namespace_packages
 import requests
 
 
