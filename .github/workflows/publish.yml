@@ -48,6 +48,7 @@ jobs:
         ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
 
     - name: Get all changes
+      if: github.event_name == 'push'
       id: file_changes
       uses: trilom/file-changes-action@v1.2.3
 
