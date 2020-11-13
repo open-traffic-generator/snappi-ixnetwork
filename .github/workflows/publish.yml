@@ -41,7 +41,7 @@ jobs:
 
     - name: Test whl distribution installation
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install .dist/*.whl
+        ${{steps.path.outputs.pythonv}} -m pip install C:/action-runners/_work/ixnetwork/ixnetwork/dist/*.whl
 
     - name: Get all changes
       id: file_changes
