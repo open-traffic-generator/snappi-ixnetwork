@@ -41,7 +41,7 @@ jobs:
 
     - name: Test whl distribution installation
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install C:/action-runners/_work/ixnetwork/ixnetwork/dist/*.whl
+        ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-0.0.43-py2.py3-none-any.whl
 
     - name: Get all changes
       id: file_changes
