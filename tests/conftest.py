@@ -263,8 +263,8 @@ def b2b_ipv4_flow_config(options, tx_port, rx_port, b2b_ipv4_devices):
                         Header(Vlan()),
                         Header(Ipv4())],
                 size=Size(512),
-                rate=Rate(unit='pps', value=10000),
-                duration=Duration(FixedPackets(100000)))
+                rate=Rate(unit='pps', value=1000),
+                duration=Duration(FixedPackets(10000)))
     return Config(ports=[tx_port, rx_port],
                   devices=b2b_ipv4_devices,
                   flows=[flow],
