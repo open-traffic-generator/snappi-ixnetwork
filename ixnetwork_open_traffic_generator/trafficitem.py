@@ -154,7 +154,8 @@ class TrafficItem(CustomField):
                 args = {
                     'Name': flow.name,
                     'TrafficItemType': 'l2L3',
-                    'TrafficType': self._get_traffic_type(flow)
+                    'TrafficType': self._get_traffic_type(flow),
+                    'SrcDestMesh': 'oneToOne' if flow.tx_rx.choice == 'port' else 'manyToMany'
                 }
                 ixn_traffic_item.find(Name='^%s$' % flow.name,
                                       TrafficType=args['TrafficType'])
@@ -325,12 +326,15 @@ class TrafficItem(CustomField):
                              ValueList=pattern.list)
         elif pattern.choice == 'counter':
             value_type = 'increment' if pattern.counter.up is True else 'decrement'
-            ixn_field.update(Auto=False,
-                             ValueType=value_type,
-                             ActiveFieldChoice=field_choice,
-                             StartValue=pattern.counter.start,
-                             StepValue=pattern.counter.step,
-                             CountValue=pattern.counter.count)
+            try:
+                ixn_field.update(Auto=False,
+                                ValueType=value_type,
+                                ActiveFieldChoice=field_choice,
+                                StartValue=pattern.counter.start,
+                                StepValue=pattern.counter.step,
+                                CountValue=pattern.counter.count)
+            except Exception as e:
+                print(e)
         elif pattern.choice == 'random':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
@@ -550,11 +554,13 @@ class TrafficItem(CustomField):
             flow_rows[traffic_item['name']] = flow_row
         try:
             table = self._api.assistant.StatViewAssistant(
-                'Traffic Item Statistics')
+                'Flow Statistics')
             table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX,
                                filter['regex'])
             for row in table.Rows:
                 flow_row = flow_rows[row['Traffic Item']]
+                self._set_result_value(flow_row, 'port_tx', row['Tx Port'])
+                self._set_result_value(flow_row, 'port_rx', row['Rx Port'])
                 self._set_result_value(flow_row, 'frames_tx', row['Tx Frames'],
                                        int)
                 self._set_result_value(flow_row, 'frames_rx', row['Rx Frames'],

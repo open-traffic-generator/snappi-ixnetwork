@@ -16,10 +16,8 @@ def test_flow_results(serializer, api, b2b_ipv4_flow_config):
     state = control.State(control.FlowTransmitState(state='start'))
     api.set_state(state)
 
-    request = result.FlowRequest(
-        column_names=['name', 'transmit', 'frames_tx', 'frames_rx'])
     while True:
-        results = api.get_flow_results(request)
+        results = api.get_flow_results(result.FlowRequest())
         df = pandas.DataFrame.from_dict(results)
         print(df)
         if df.frames_tx.sum() >= b2b_ipv4_flow_config.flows[0].duration.packets.packets:
