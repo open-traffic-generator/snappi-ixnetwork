@@ -1,5 +1,6 @@
 import json
 import time
+from ixnetwork_open_traffic_generator.timer import Timer
 from ixnetwork_open_traffic_generator.customfield import CustomField
 from ixnetwork_restpy import StatViewAssistant
 
@@ -442,58 +443,37 @@ class TrafficItem(CustomField):
                 [flow.name for flow in self._api.config.flows])
             self._api._traffic_item.find(State='^unapplied$')
             if len(self._api._topology.find()) > 0:
-                start = time.time()
-                self._api._ixnetwork.StartAllProtocols('sync')
-                self._api.info('protocols start %ssecs' %
-                               str(time.time() - start))
-                self._api.check_protocol_statistics()
+                with Timer(self._api, 'Devices start'):
+                    self._api._ixnetwork.StartAllProtocols('sync')
+                    self._api.check_protocol_statistics()
             if len(self._api._traffic_item) > 0:
-                start = time.time()
-                self._api._traffic_item.Generate()
-                self._api._traffic.Apply()
-                self._api.info('flows %s generate/apply %ssecs' %
-                               (all_flow_names, str(time.time() - start)))
+                with Timer(self._api, 'Flows generate/apply'):
+                    self._api._traffic_item.Generate()
+                    self._api._traffic.Apply()
+            if len(self._api._traffic_item) > 0:
+                with Timer(self._api, 'Flows clear statistics'):
+                    self._api._ixnetwork.ClearStats(
+                        ['waitForPortStatsRefresh', 'waitForTrafficStatsRefresh'])
             self._api._start_capture()
-            if len(self._api._traffic_item) > 0:
-                start = time.time()
-                self._api._ixnetwork.ClearStats(
-                    ['waitForPortStatsRefresh', 'waitForTrafficStatsRefresh'])
-                self._api.info('flow clear statistics %ssecs' %
-                               str(time.time() - start))
         self._api._traffic_item.find(Name=regex)
         if request.state == 'start':
-            start = time.time()
-            self._api._traffic_item.StartStatelessTrafficBlocking()
-            self._api.info(
-                'flows %s start %ssecs' %
-                (' '.join(request.flow_names), str(time.time() - start)))
+            with Timer(self._api, 'Flows start'):
+                self._api._traffic_item.StartStatelessTrafficBlocking()
         elif request.state == 'stop':
             self._api._traffic_item.find(Name=regex, State='^started$')
             if len(self._api._traffic_item) > 0:
-                start = time.time()
-                self._api._traffic_item.StopStatelessTrafficBlocking()
-                self._api.info(
-                    'flows %s stop %ssecs' %
-                    (' '.join([flow.Name for flow in self._api._traffic_item
-                               ]), str(time.time() - start)))
+                with Timer(self._api, 'Flows stop'):
+                    self._api._traffic_item.StopStatelessTrafficBlocking()
         elif request.state == 'pause':
             self._api._traffic_item.find(Name=regex, State='^started$')
             if len(self._api._traffic_item) > 0:
-                start = time.time()
-                self._api._traffic_item.PauseStatelessTrafficBlocking(True)
-                self._api.info(
-                    'flows %s pause %ssecs' %
-                    (' '.join([flow.Name for flow in self._api._traffic_item
-                               ]), str(time.time() - start)))
+                with Timer(self._api, 'Flows pause'):
+                    self._api._traffic_item.PauseStatelessTrafficBlocking(True)
         elif request.state == 'resume':
             self._api._traffic_item.find(Name=regex, State='^stopped$')
             if len(self._api._traffic_item) > 0:
-                start = time.time()
-                self._api._traffic_item.PauseStatelessTrafficBlocking(False)
-                self._api.info(
-                    'flows %s resume %ssecs' %
-                    (' '.join([flow.Name for flow in self._api._traffic_item
-                               ]), str(time.time() - start)))
+                with Timer(self._api, 'Flows resume'):
+                    self._api._traffic_item.PauseStatelessTrafficBlocking(False)
 
     def _set_result_value(self,
                           row,

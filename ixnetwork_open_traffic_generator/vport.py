@@ -2,6 +2,7 @@ import json
 from jsonpath_ng.ext import parse
 import time
 import re
+from ixnetwork_open_traffic_generator.timer import Timer
 
 
 class Vport(object):
@@ -65,11 +66,15 @@ class Vport(object):
         """
         self._resource_manager = self._api._ixnetwork.ResourceManager
         self._ixn_vport = self._api._vport
-        self._delete_vports()
-        self._create_vports()
-        self._create_capture()
-        self._set_location()
-        self._set_layer1()
+        with Timer(self._api, 'Ports configuration'):
+            self._delete_vports()
+            self._create_vports()
+        with Timer(self._api, 'Captures configuration'):
+            self._create_capture()
+        with Timer(self._api, 'Location configuration'):
+            self._set_location()
+        with Timer(self._api, 'Layer1 configuration'):
+            self._set_layer1()
 
     def _import(self, imports):
         if len(imports) > 0:
@@ -106,13 +111,14 @@ class Vport(object):
         imports = []
         vports = self._api.select_vports()
         for vport in vports.values():
-            capture = {
-                'xpath': vport['xpath'] + '/capture',
-                'captureMode': 'captureTriggerMode',
-                'hardwareEnabled': False,
-                'softwareEnabled': False
-            }
-            imports.append(capture)
+            if vport['capture']['hardwareEnabled'] is True or vport['capture']['softwareEnabled'] is True:
+                capture = {
+                    'xpath': vport['capture']['xpath'],
+                    'captureMode': 'captureTriggerMode',
+                    'hardwareEnabled': False,
+                    'softwareEnabled': False
+                }
+                imports.append(capture)
         for capture_item in self._api.config.captures:
             for port_name in capture_item.port_names:
                 capture = {
@@ -172,23 +178,22 @@ class Vport(object):
         add_addresses = set(add_addresses)
         check_addresses = set(check_addresses)
         if len(add_addresses) > 0:
-            self._api.info('Adding location hosts [%s]...' %
-                                    ', '.join(add_addresses))
-            for add_address in add_addresses:
-                chassis.add(Hostname=add_address)
-        start_time = time.time()
-        self._api.info('Checking state of location hosts [%s]...' %
-                                ', '.join(check_addresses))
-        while True:
-            chassis.find(Hostname='^(%s)$' % '|'.join(check_addresses),
-                         State='^ready$')
-            if len(chassis) == len(check_addresses):
-                break
-            if time.time() - start_time > HostReadyTimeout:
-                raise RuntimeError(
-                    'After %s seconds, not all location hosts [%s] are reachable'
-                    % (HostReadyTimeout, ', '.join(check_addresses)))
-            time.sleep(2)
+            with Timer(self._api, 'Add location hosts [%s]' % ', '.join(add_addresses)):      
+                for add_address in add_addresses:
+                    chassis.add(Hostname=add_address)
+        if len(check_addresses) > 0:
+            with Timer(self._api, 'Location hosts check [%s]' % ', '.join(check_addresses)):      
+                start_time = time.time()
+                while True:
+                    chassis.find(Hostname='^(%s)$' % '|'.join(check_addresses),
+                                State='^ready$')
+                    if len(chassis) == len(check_addresses):
+                        break
+                    if time.time() - start_time > HostReadyTimeout:
+                        raise RuntimeError(
+                            'After %s seconds, not all location hosts [%s] are reachable'
+                            % (HostReadyTimeout, ', '.join(check_addresses)))
+                    time.sleep(2)
 
     def _set_location(self):
         location_supported = True
@@ -230,28 +235,26 @@ class Vport(object):
         if len(locations) == 0:
             return
         self._clear_ownership(clear_locations)
-        self._api.info('Connecting locations [%s]...' %
-                                ', '.join(locations))
-        self._import(imports)
-        self._api.info('Checking location state [%s]...' %
-                                  ', '.join(locations))
-        self._api._vport.find(ConnectionState='^(?!connectedLink).*$')
-        if len(self._api._vport) > 0:
-            self._api._vport.ConnectPorts()
-        start = time.time()
-        timeout = 30
-        while True:
-            self._api._vport.find(Name='^(%s)$' % '|'.join(locations),
-                                  ConnectionState='^connectedLink')
-            if len(self._api._vport) == len(locations):
-                break
-            if time.time() - start > timeout:
-                raise RuntimeError(
-                    'After %s seconds, not all locations [%s] are reachable' %
-                    (timeout, ', '.join([vport.Name for vport in self._api._vport])))
-            time.sleep(2)
-        for vport in self._api._vport.find(ConnectionState='^(?!connectedLinkUp).*$'):
-            self._api.warning('%s %s' % (vport.Name, vport.ConnectionState))
+        with Timer(self._api, 'Location connect [%s]' % ', '.join(locations)):
+            self._import(imports)
+        with Timer(self._api, 'Location state check [%s]' % ', '.join(locations)):
+            self._api._vport.find(ConnectionState='^(?!connectedLink).*$')
+            if len(self._api._vport) > 0:
+                self._api._vport.ConnectPorts()
+            start = time.time()
+            timeout = 30
+            while True:
+                self._api._vport.find(Name='^(%s)$' % '|'.join(locations),
+                                    ConnectionState='^connectedLink')
+                if len(self._api._vport) == len(locations):
+                    break
+                if time.time() - start > timeout:
+                    raise RuntimeError(
+                        'After %s seconds, not all locations [%s] are reachable' %
+                        (timeout, ', '.join([vport.Name for vport in self._api._vport])))
+                time.sleep(2)
+            for vport in self._api._vport.find(ConnectionState='^(?!connectedLinkUp).*$'):
+                self._api.warning('%s %s' % (vport.Name, vport.ConnectionState))
 
     def _set_layer1(self):
         """Set the /vport/l1Config/... properties

@@ -10,6 +10,7 @@ from ixnetwork_open_traffic_generator.validation import Validation
 from ixnetwork_open_traffic_generator.vport import Vport
 from ixnetwork_open_traffic_generator.ngpf import Ngpf
 from ixnetwork_open_traffic_generator.trafficitem import TrafficItem
+from ixnetwork_open_traffic_generator.timer import Timer
 
 
 class IxNetworkApi(Api):
@@ -117,23 +118,17 @@ class IxNetworkApi(Api):
         self._ixn_objects = {}
         self._capture_request = None
         self._errors = []
-        self.validation.validate_config()
+        with Timer(self, 'Config validation'):
+            self.validation.validate_config()
         self._connect()
         if self._config is None:
             self._ixnetwork.NewConfig()
         else:
-            start = time.time()
             self.vport.config()
-            self.info('ports configuration %ssecs' %
-                                 str(time.time() - start))
-            start = time.time()
-            self.ngpf.config()
-            self.info('devices configuration %ssecs' %
-                                 str(time.time() - start))
-            start = time.time()
-            self.traffic_item.config()
-            self.info('flows configuration %ssecs' %
-                                 str(time.time() - start))
+            with Timer(self, 'Devices configuration'):
+               self.ngpf.config()
+            with Timer(self, 'Flows configuration'):
+                self.traffic_item.config()
         self._running_config = self._config
 
     def _set_flow_transmit_state(self, flow_transmit_state):
@@ -150,12 +145,13 @@ class IxNetworkApi(Api):
 
     def _start_capture(self):
         if self._capture_request is not None:
-            payload = {'arg1': []}
-            for vport in self.select_vports().values():
-                payload['arg1'].append(vport['href'])
-            url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
-            response = self._request('POST', url, payload)
-            self._ixnetwork.StartCapture()
+            with Timer(self, 'Captures start'):
+                payload = {'arg1': []}
+                for vport in self.select_vports().values():
+                    payload['arg1'].append(vport['href'])
+                url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
+                response = self._request('POST', url, payload)
+                self._ixnetwork.StartCapture()
 
     def get_capture_results(self, request):
         """Gets capture file and returns it as a byte stream
@@ -329,6 +325,10 @@ class IxNetworkApi(Api):
                     'properties': ['currentType'],
                     'filters': []
                 }, {
+                    'child': 'capture',
+                    'properties': ['hardwareEnabled', 'softwareEnabled'],
+                    'filters': []
+                }, {
                     'child': '^(eth.*|novus.*|uhd.*|atlas.*|ares.*|star.*)$',
                     'properties': ['*'],
                     'filters': []
@@ -423,13 +423,14 @@ class IxNetworkApi(Api):
         return results[0]['chassis'][0]['card'][0]['port'][0]['xpath']
 
     def clear_ownership(self, available_hardware_hrefs, location_hrefs):
-        for ownership_hrefs in [available_hardware_hrefs, location_hrefs]:
-            if len(ownership_hrefs) > 0:
-                payload = {'arg1': [href for href in ownership_hrefs.values()]}
-                self.info('Pre-empting locations [%s]' %
-                                    ', '.join([location for location in ownership_hrefs.keys()]))
-                url = '%s/operations/clearownership' % payload['arg1'][0]
-                results = self._ixnetwork._connection._execute(url, payload)
+        hrefs = list(available_hardware_hrefs.values()) + list(location_hrefs.values())
+        if len(hrefs) == 0:
+            return
+        names = list(available_hardware_hrefs.keys()) + list(location_hrefs.keys())        
+        with Timer(self, 'Location preemption [%s]' % ', '.join(names)):
+            payload = {'arg1': [href for href in hrefs]}
+            url = '%s/operations/clearownership' % payload['arg1'][0]
+            results = self._ixnetwork._connection._execute(url, payload)
 
     def get_config(self):
         return self._config
