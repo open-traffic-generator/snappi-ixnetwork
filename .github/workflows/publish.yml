@@ -39,13 +39,9 @@ jobs:
       run: |
         ${{steps.path.outputs.pythonv}} setup.py sdist --formats=gztar bdist_wheel --universal
 
-    - name: Get VERSION number
-      id: get_version
-      run: echo "::set-output name=version::$(cat VERSION)"
-    
     - name: Test whl distribution installation
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
+        ${{steps.path.outputs.pythonv}} -m pip install --force dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
 
     - name: Run tests
       run: |
