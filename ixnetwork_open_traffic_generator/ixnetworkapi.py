@@ -118,9 +118,9 @@ class IxNetworkApi(Api):
         self._ixn_objects = {}
         self._capture_request = None
         self._errors = []
+        self._connect()
         with Timer(self, 'Config validation'):
             self.validation.validate_config()
-        self._connect()
         if self._config is None:
             self._ixnetwork.NewConfig()
         else:
