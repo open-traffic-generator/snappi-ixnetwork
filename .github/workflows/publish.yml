@@ -39,9 +39,13 @@ jobs:
       run: |
         ${{steps.path.outputs.pythonv}} setup.py sdist --formats=gztar bdist_wheel --universal
 
-    - name: Instal
+    - name: Get VERSION number
+      id: get_version
+      run: echo "::set-output name=version::$(cat VERSION)"
+    
+    - name: Test whl distribution installation
       run: |
-        ${{steps.path.outputs.pythonv}} setup.py install
+        ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
 
     - name: Run tests
       run: |
@@ -49,20 +53,17 @@ jobs:
 
     - name: Get all changes
       id: file_changes
-      uses: trilom/file-changes-action@v1.2.3
+      uses: jitterbit/get-changed-files@v1
+      with:
+          format: 'json'
 
     - name: Output changed files
       id: changed_files
-      run: echo ${{steps.file_changes.outputs.files_modified}}
-
-    - name: Get VERSION number
-      id: get_version
-      if: true == contains(steps.file_changes.outputs.files_modified, 'VERSION')
-      run: echo "::set-output name=version::$(cat VERSION)"
+      run: echo ${{steps.file_changes.outputs.modified}}
 
     - name: Create Release
+      if: true == contains(steps.file_changes.outputs.modified, 'VERSION')
       id: create_release
-      if: true == contains(steps.file_changes.outputs.files_modified, 'VERSION')
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
@@ -73,7 +74,7 @@ jobs:
         prerelease: false
 
     - name: Upload Assets To Release
-      if: true == contains(steps.file_changes.outputs.files_modified, 'VERSION')
+      if: true == contains(steps.file_changes.outputs.modified, 'VERSION')
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -83,9 +84,10 @@ jobs:
         file_glob: true   
         
     - name: Upload Assets to Pypi
-      if: true == contains(steps.file_changes.outputs.files_modified, 'VERSION')
+      if: true == contains(steps.file_changes.outputs.modified, 'VERSION')
       env:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        c:/38/Scripts/twine upload dist/*
+        c:/38/Scripts/twine upload dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
+        c:/38/Scripts/twine upload dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}.tar.gz
