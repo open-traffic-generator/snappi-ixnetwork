@@ -35,9 +35,12 @@ jobs:
         ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade twine
         ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade requests
 
+    - name: Clean distributions
+      run: |
+        rmdir /s /q dist
+
     - name: Build distributions
       run: |
-        rmdir /s /q ./dist
         ${{steps.path.outputs.pythonv}} setup.py sdist --formats=gztar bdist_wheel --universal
 
     - name: Test whl distribution installation
