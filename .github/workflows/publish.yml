@@ -39,9 +39,9 @@ jobs:
       run: |
         ${{steps.path.outputs.pythonv}} setup.py sdist --formats=gztar bdist_wheel --universal
 
-    - name: Test whl distribution installation
+    - name: Instal
       run: |
-        c:/38/Scripts/pip install dist/*.whl
+        ${{steps.path.outputs.pythonv}} setup.py install
 
     - name: Run tests
       run: |
@@ -88,4 +88,4 @@ jobs:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        c:/38/Scripts/twine upload dist*
+        c:/38/Scripts/twine upload dist/*
