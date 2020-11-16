@@ -3,6 +3,9 @@ import json
 import yaml
 import os
 import collections
+import sys
+if sys.version_info[0] >= 3:
+    unicode = str
 
 IXNETWORK_OTG_PYTEST_CONF = {
     'api_server': '127.0.0.1',
@@ -12,17 +15,28 @@ IXNETWORK_OTG_PYTEST_CONF = {
     'rx_port_location': None
 }
 
+
 def pytest_addoption(parser):
     """Add command line options
     """
     for name, value in IXNETWORK_OTG_PYTEST_CONF.items():
-        parser.addoption(
-            '--%s' % name,
-            action="store",
-            type=str,
-            default=value,
-            help=str(value)
-        )
+        parser.addoption('--%s' % name,
+                         action="store",
+                         type=str,
+                         default=value,
+                         help=str(value))
+
+
+def byteify(input):
+    if isinstance(input, dict):
+        return {key: byteify(value) for key, value in input.items()}
+    elif isinstance(input, list):
+        return [byteify(element) for element in input]
+    elif isinstance(input, unicode) and sys.version_info[0] == 2:
+        return input.encode('utf-8')
+    else:
+        return input
+
 
 def pytest_configure(config):
     """Process command line options
@@ -31,22 +45,21 @@ def pytest_configure(config):
     for key in IXNETWORK_OTG_PYTEST_CONF:
         IXNETWORK_OTG_PYTEST_CONF[key] = config.getoption(key)
     data = json.dumps(IXNETWORK_OTG_PYTEST_CONF)
-    pytest.otg_conf = json.loads(
-        data,
-        object_hook=lambda d: collections.namedtuple('OtgConf', d.keys())
-        (*d.values()))
+    d = json.loads(data, object_hook=byteify)
+    pytest.otg_conf = collections.namedtuple('otg', d.keys())(*d.values())
     conf_filename = os.environ.get('IXNETWORK_OTG_PYTEST_CONF', None)
     if conf_filename is not None:
         try:
             with open(conf_filename) as fid:
                 data = json.dumps(yaml.safe_load(fid))
-                pytest.otg_conf = json.loads(
-                    data,
-                    object_hook=lambda d: collections.namedtuple('IxnOtgConf', d.keys())
-                    (*d.values()))
+                d = json.loads(data, object_hook=byteify)
+                pytest.otg_conf = collections.namedtuple('otg',
+                                                         d.keys())(*d.values())
         except Exception as e:
             print(e)
-    print('Using global IxNetwork open traffic generator pytest configuration options:')
+    print(
+        'Using global IxNetwork open traffic generator pytest configuration options:'
+    )
     print(pytest.otg_conf)
 
 
