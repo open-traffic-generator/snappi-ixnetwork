@@ -13,8 +13,8 @@ def test_layer1(serializer, api):
     Ports with no location should not generate an error message.
     Ports with location should generate an error message if unable to connect.
     """
-    port1 = Port(name='port1', location='10.36.74.26;01;01')
-    port2 = Port(name='port2', location='10.36.77.102;12;03')
+    port1 = Port(name='port1', location='10.39.35.12;11;03')
+    port2 = Port(name='port2', location='10.39.35.12;11;04')
     port3 = Port(name='port no location')
     ethernet = Layer1(name='ethernet settings',
                       port_names=[port1.name, port3.name],

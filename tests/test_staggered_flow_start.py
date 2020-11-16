@@ -5,6 +5,8 @@ from abstract_open_traffic_generator.flow import *
 from abstract_open_traffic_generator.control import *
 
 
+@pytest.mark.skip(reason="ixnetwork_restpy.errors.BadRequestError: Unable to create endpoint sets. "
+                         "Verify the endpoints are valid")
 def test_staggered_flow_start(serializer, api, options, tx_port, rx_port):
     """Demonstrates how to incrementally start transmit on flows
     """
