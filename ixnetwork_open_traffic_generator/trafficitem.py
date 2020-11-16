@@ -230,7 +230,7 @@ class TrafficItem(CustomField):
             ixn_endpoint_set.add(**args)
         elif ixn_endpoint_set.Sources != args[
                 'Sources'] or ixn_endpoint_set.Destinations != args[
-                    'Destinations']:
+                    'Destinations'] or len(ixn_endpoint_set.parent.ConfigElement.find()) == 0:
             self._update(ixn_endpoint_set, **args)
 
     def _update(self, ixn_object, **kwargs):
