@@ -8,6 +8,8 @@ from abstract_open_traffic_generator.control import *
 def test_staggered_flow_start(serializer, api, options, tx_port, rx_port):
     """Demonstrates how to incrementally start transmit on flows
     """
+    api.set_state(State(ConfigState(config=Config(), state='set')))
+
     # configure flows
     tx_rx = PortTxRx(tx_port_name=tx_port.name, rx_port_name=rx_port.name)
     config = Config(ports=[tx_port, rx_port],
