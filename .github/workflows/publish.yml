@@ -15,6 +15,9 @@ on: [push, pull_request, workflow_dispatch]
 jobs:
   build_test_deploy:
     runs-on: [self-hosted, windows, x64]
+    strategy:
+      matrix:
+        python-version: [27, 38]
 
     steps:
     - name: Checkout
@@ -22,7 +25,7 @@ jobs:
 
     - name: Set python path
       id: path
-      run: echo "::set-output name=pythonv::c:/38/python"
+      run: echo "::set-output name=pythonv::c:/${{matrix.python-version}}/python"
 
     - name: Install dependencies
       run: |
@@ -49,7 +52,7 @@ jobs:
 
     - name: Run tests
       run: |
-        ${{steps.path.outputs.pythonv}} -m pytest --api_server=10.39.47.41 --api_server_port=11149 --tx_port_location='10.39.35.12;11;03' --rx_port_location='10.39.35.12;11;04' -s -v tests --disable-warnings
+        ${{steps.path.outputs.pythonv}} -m pytest --api_server=10.39.47.41 --api_server_port=11149 --tx_port_location='10.39.35.12;11;03' --rx_port_location='10.39.35.12;11;04' -s -v tests/test_clear_config.py --disable-warnings
 
     - name: Get all changes
       id: file_changes
