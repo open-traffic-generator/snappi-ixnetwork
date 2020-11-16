@@ -30,7 +30,8 @@ class IxNetworkApi(Api):
                  port='11009',
                  username='admin',
                  password='admin',
-                 license_servers=[]):
+                 license_servers=[],
+                 log_level='info'):
         """Create a session
         - address (str): The ip address of the TestPlatform to connect to 
         where test sessions will be created or connected to.
@@ -44,6 +45,7 @@ class IxNetworkApi(Api):
         self._username = username
         self._password = password
         self._license_servers = license_servers
+        self._log_level = log_level
         self._running_config = None
         self._config = None
         self._assistant = None
@@ -225,7 +227,7 @@ class IxNetworkApi(Api):
                 RestPort=self._port,
                 UserName=self._username,
                 Password=self._password,
-                LogLevel=SessionAssistant.LOGLEVEL_INFO)
+                LogLevel=self._log_level)
             self._ixnetwork = self._assistant.Session.Ixnetwork
             self._vport = self._ixnetwork.Vport
             self._topology = self._ixnetwork.Topology

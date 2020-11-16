@@ -10,6 +10,7 @@ if sys.version_info[0] >= 3:
 IXNETWORK_OTG_PYTEST_CONF = {
     'api_server': '127.0.0.1',
     'api_server_port': 11009,
+    'api_log_level': 'info',
     'license_servers': [],
     'tx_port_location': None,
     'rx_port_location': None
@@ -53,8 +54,9 @@ def pytest_configure(config):
             with open(conf_filename) as fid:
                 data = json.dumps(yaml.safe_load(fid))
                 d = json.loads(data, object_hook=byteify)
-                pytest.otg_conf = collections.namedtuple('otg',
-                                                         d.keys())(*d.values())
+                otg_conf = collections.namedtuple('otg', d.keys())(*d.values())
+                for key, value in otg_conf.items():
+                    setattr(pytest.otg_conf, key, value)
         except Exception as e:
             print(e)
     print(
@@ -100,7 +102,8 @@ def api():
     from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
     api = IxNetworkApi(pytest.otg_conf.api_server,
                        port=pytest.otg_conf.api_server_port,
-                       license_servers=pytest.otg_conf.license_servers)
+                       license_servers=pytest.otg_conf.license_servers,
+                       log_level=pytest.otg_conf.api_log_level)
     yield api
     if api.assistant is not None:
         api.assistant.Session.remove()
