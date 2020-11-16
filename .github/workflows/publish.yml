@@ -13,11 +13,13 @@ name: Build
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
-  build_test_deploy:
+  build_and_test:
     runs-on: [self-hosted, windows, x64]
     strategy:
       matrix:
         python-version: [27, 38]
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
 
     steps:
     - name: Checkout
@@ -54,6 +56,11 @@ jobs:
       run: |
         ${{steps.path.outputs.pythonv}} -m pytest --api_server=10.39.47.41 --api_server_port=11149 --tx_port_location='10.39.35.12;11;03' --rx_port_location='10.39.35.12;11;04' -s -v tests/test_clear_config.py --disable-warnings
 
+  create_release_and_deploy:
+    needs: build_and_test
+    runs-on: [self-hosted, windows, x64]
+
+    steps:
     - name: Get all changes
       id: file_changes
       uses: jitterbit/get-changed-files@v1
@@ -71,8 +78,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
       with:
-        tag_name: v${{ steps.get_version.outputs.version }}
-        release_name: Release ${{ steps.get_version.outputs.version }}
+        tag_name: v${{ needs.build_and_test.outputs.version }}
+        release_name: Release ${{ needs.build_and_test.outputs.version  }}
         draft: false
         prerelease: false
 
