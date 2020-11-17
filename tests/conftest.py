@@ -47,18 +47,16 @@ def pytest_configure(config):
         IXNETWORK_OTG_PYTEST_CONF[key] = config.getoption(key)
     data = json.dumps(IXNETWORK_OTG_PYTEST_CONF)
     d = json.loads(data, object_hook=byteify)
-    pytest.otg_conf = collections.namedtuple('otg', d.keys())(*d.values())
     conf_filename = os.environ.get('IXNETWORK_OTG_PYTEST_CONF', None)
     if conf_filename is not None:
         try:
             with open(conf_filename) as fid:
                 data = json.dumps(yaml.safe_load(fid))
-                d = json.loads(data, object_hook=byteify)
-                otg_conf = collections.namedtuple('otg', d.keys())(*d.values())
-                for key, value in otg_conf.items():
-                    setattr(pytest.otg_conf, key, value)
+                for key, value in json.loads(data, object_hook=byteify).items():
+                    d[key] = value
         except Exception as e:
             print(e)
+    pytest.otg_conf = collections.namedtuple('otg', d.keys())(*d.values())
     print(
         'Using global IxNetwork open traffic generator pytest configuration options:'
     )
