@@ -521,24 +521,25 @@ class TrafficItem(CustomField):
         flow_rows = {}
         for traffic_item in self._api.select_traffic_items(
                 traffic_item_filters=[filter]).values():
-            flow_row = {}
-            self._set_result_value(flow_row, 'name', traffic_item['name'])
-            self._set_result_value(flow_row, 'transmit',
-                                   self._get_state(traffic_item['state']))
-            self._set_result_value(
-                flow_row, 'port_tx',
-                traffic_item['highLevelStream'][0]['txPortName'])
-            self._set_result_value(
-                flow_row, 'port_rx',
-                ' '.join(traffic_item['highLevelStream'][0]['rxPortNames']))
-            flow_rows[traffic_item['name']] = flow_row
+            for stream in traffic_item['highLevelStream']:
+                flow_row = {}
+                self._set_result_value(flow_row, 'name', traffic_item['name'])
+                self._set_result_value(flow_row, 'transmit',
+                                    self._get_state(stream['state']))
+                self._set_result_value(
+                    flow_row, 'port_tx',
+                    stream['txPortName'])
+                self._set_result_value(
+                    flow_row, 'port_rx',
+                    ' '.join(stream['rxPortNames']))
+                flow_rows[flow_row['name']+flow_row['port_tx']+flow_row['port_rx']] = flow_row
         try:
             table = self._api.assistant.StatViewAssistant(
                 'Flow Statistics')
             table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX,
                                filter['regex'])
             for row in table.Rows:
-                flow_row = flow_rows[row['Traffic Item']]
+                flow_row = flow_rows[row['Traffic Item']+row['Tx Port']+row['Rx Port']]
                 self._set_result_value(flow_row, 'port_tx', row['Tx Port'])
                 self._set_result_value(flow_row, 'port_rx', row['Rx Port'])
                 self._set_result_value(flow_row, 'frames_tx', row['Tx Frames'],

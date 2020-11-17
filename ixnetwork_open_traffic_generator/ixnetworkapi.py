@@ -366,7 +366,7 @@ class IxNetworkApi(Api):
                     'filters': traffic_item_filters
                 }, {
                     'child': 'highLevelStream',
-                    'properties': ['txPortName', 'rxPortNames'],
+                    'properties': ['txPortName', 'rxPortNames', 'state'],
                     'filters': []
                 }],
                 'inlines': []

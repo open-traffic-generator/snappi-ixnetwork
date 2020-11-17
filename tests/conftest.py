@@ -269,8 +269,9 @@ def b2b_ipv4_flow_config(options, tx_port, rx_port, b2b_ipv4_devices):
     from abstract_open_traffic_generator.flow import Flow, TxRx, DeviceTxRx, \
         Size, Rate, Duration, FixedPackets, Header, Ethernet, Vlan, Ipv4
 
-    tx_rx_devices = DeviceTxRx(tx_device_names=[b2b_ipv4_devices[0].name],
-                               rx_device_names=[b2b_ipv4_devices[1].name])
+    names = [device.name for device in b2b_ipv4_devices]
+    tx_rx_devices = DeviceTxRx(tx_device_names=names,
+                               rx_device_names=names)
     flow = Flow(name='Ipv4 Flow',
                 tx_rx=TxRx(tx_rx_devices),
                 packet=[Header(Ethernet()),

@@ -8,6 +8,9 @@ from abstract_open_traffic_generator.control import *
 def test_staggered_flow_start(serializer, api, options, tx_port, rx_port):
     """Demonstrates how to incrementally start transmit on flows
     """
+    # this is a temporary fix 
+    # the line should be removed and needs to be debugged as to why it the test 
+    # fails periodically when it is removed
     api.set_state(State(ConfigState(config=Config(), state='set')))
 
     # configure flows
@@ -35,22 +38,16 @@ def test_staggered_flow_start(serializer, api, options, tx_port, rx_port):
         State(
             FlowTransmitState(flow_names=[config.flows[0].name],
                               state='start')))
-    time.sleep(5)
-
     # start flow2 transmit
     api.set_state(
         State(
             FlowTransmitState(flow_names=[config.flows[1].name],
                               state='start')))
-    time.sleep(5)
-
     # start flow3 transmit
     api.set_state(
         State(
             FlowTransmitState(flow_names=[config.flows[2].name],
                               state='start')))
-    time.sleep(5)
-
     # stop all flows
     api.set_state(State(FlowTransmitState(state='stop')))
 
