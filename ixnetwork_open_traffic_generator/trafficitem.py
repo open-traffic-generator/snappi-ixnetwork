@@ -167,11 +167,12 @@ class TrafficItem(CustomField):
                 self._configure_endpoint(ixn_traffic_item.EndpointSet,
                                          flow.tx_rx)
                 self._configure_tracking(ixn_traffic_item.Tracking)
-                ixn_stream = ixn_traffic_item.ConfigElement.find()
-                self._configure_stack(ixn_stream, flow.packet)
-                self._configure_size(ixn_stream, flow.size)
-                self._configure_rate(ixn_stream, flow.rate)
-                self._configure_tx_control(ixn_stream, flow.duration)
+                ixn_ce = ixn_traffic_item.ConfigElement.find()
+                hl_stream_count = len(ixn_traffic_item.HighLevelStream.find())
+                self._configure_stack(ixn_ce, flow.packet)
+                self._configure_size(ixn_ce, flow.size)
+                self._configure_rate(ixn_ce, flow.rate)
+                self._configure_tx_control(ixn_ce, hl_stream_count, flow.duration)
                 self._configure_options(flow)
 
     def _configure_tracking(self, ixn_tracking):
@@ -395,7 +396,7 @@ class TrafficItem(CustomField):
         args['Rate'] = rate.value
         self._update(ixn_frame_rate, **args)
 
-    def _configure_tx_control(self, ixn_stream, duration):
+    def _configure_tx_control(self, ixn_stream, hl_stream_count, duration):
         """Transform duration flows.duration to /traffic/trafficItem[*]/configElement[*]/TransmissionControl
         """
         if duration is None:
@@ -409,7 +410,7 @@ class TrafficItem(CustomField):
             args['StartDelayUnits'] = duration.continuous.delay_unit
         elif duration.choice == 'packets':
             args['Type'] = 'fixedFrameCount'
-            args['FrameCount'] = duration.packets.packets
+            args['FrameCount'] = duration.packets.packets / hl_stream_count
             args['MinGapBytes'] = duration.packets.gap
             args['StartDelay'] = duration.packets.delay
             args['StartDelayUnits'] = duration.packets.delay_unit
