@@ -7,7 +7,6 @@ from abstract_open_traffic_generator.control import *
 from abstract_open_traffic_generator.result import CaptureRequest
 
 
-@pytest.mark.skip(reason='Unable to create endpoint sets. Verify the endpoints are valid.')
 def test_capture_pcap(serializer, api, tx_port, rx_port, options):
     """Demonstrates how to start capture and get capture results
     """
