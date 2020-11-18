@@ -10,7 +10,7 @@
 
 name: Build
 
-on: [push, pull_request, workflow_dispatch]
+on: [push, pull_request, workflow_dispatch, repository_dispatch]
 
 jobs:
   build_and_test:
@@ -40,6 +40,17 @@ jobs:
         ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade twine
         ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade requests
 
+    - name: install latest version of abstract-open-traffic-generator
+      if: github.event_name == 'repository_dispatch'
+      id: install_latest
+      run: |
+        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade abstract-open-traffic-generator
+
+    - name: install sanity version of abstract-open-traffic-generator
+      if: steps.install_latest.conclusion == 'skipped'
+      run: |
+        ${{steps.path.outputs.pythonv}} setup.py install
+
     - name: Build distributions
       run: |
         ${{steps.path.outputs.pythonv}} setup.py sdist --formats=gztar bdist_wheel --universal
@@ -59,7 +70,7 @@ jobs:
   create_release_and_deploy:
     needs: build_and_test
     runs-on: [self-hosted, windows, x64]
-
+    if: github.event_name == 'push'
     steps:
     - name: Get all changes
       id: file_changes
