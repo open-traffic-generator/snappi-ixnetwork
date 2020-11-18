@@ -286,6 +286,41 @@ def b2b_ipv4_flow_config(options, tx_port, rx_port, b2b_ipv4_devices):
                   options=options)
 
 
+@pytest.fixture(scope='session')
+def b2b_ipv4_flows_config(options, tx_port, rx_port, b2b_ipv4_devices):
+    """Returns a configuration with multiple ipv4 flows.
+    The flow uses a DeviceTxRx endpoint.
+    """
+    from abstract_open_traffic_generator.config import Config
+    from abstract_open_traffic_generator.flow import Flow, TxRx, DeviceTxRx, \
+        Size, Rate, Duration, FixedPackets, Header, Ethernet, Vlan, Ipv4
+
+    names = [device.name for device in b2b_ipv4_devices]
+    tx_rx_devices = DeviceTxRx(tx_device_names=names,
+                               rx_device_names=names)
+    flow1 = Flow(name='Ipv4 Flow 1',
+                tx_rx=TxRx(tx_rx_devices),
+                packet=[Header(Ethernet()),
+                        Header(Vlan()),
+                        Header(Ipv4())],
+                size=Size(512),
+                rate=Rate(unit='pps', value=1000),
+                duration=Duration(FixedPackets(10000)))
+
+    flow2 = Flow(name='Ipv4 Flow 2',
+                tx_rx=TxRx(tx_rx_devices),
+                packet=[Header(Ethernet()),
+                        Header(Vlan()),
+                        Header(Ipv4())],
+                size=Size(512),
+                rate=Rate(unit='pps', value=1000),
+                duration=Duration(FixedPackets(10000)))
+    return Config(ports=[tx_port, rx_port],
+                  devices=b2b_ipv4_devices,
+                  flows=[flow1, flow2],
+                  options=options)
+
+
 @pytest.fixture(autouse=True)
 def stop_transmit_state(api):
     """Stop all flows before every test

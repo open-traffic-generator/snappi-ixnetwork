@@ -14,17 +14,13 @@ class TrafficItem(CustomField):
     
     """
     _RESULT_COLUMNS = [
-        'name',
-        'state',
-        'port_tx',
-        'port_rx',
-        'frames_tx',
-        'frames_rx',
-        'frames_tx_rate',
-        'frames_rx_rate',
-        'bytes_tx_rate',
-        'bytes_rx_rate',
-        'loss',
+        ('frames_tx', 'Tx Frames', int),
+        ('frames_rx', 'Rx Frames', int),
+        ('frames_tx_rate', 'Tx Frame Rate', float),
+        ('frames_rx_rate', 'Rx Frame Rate', float),
+        ('bytes_tx_rate', 'Tx Rate (Bps)', float),
+        ('bytes_rx_rate', 'Rx Rate (Bps)', float),
+        ('loss', 'Loss %', float)
     ]
 
     _STACK_IGNORE = ['ethernet.fcs']
@@ -451,7 +447,8 @@ class TrafficItem(CustomField):
                 with Timer(self._api, 'Flows generate/apply'):
                     self._api._traffic_item.Generate()
                     self._api._traffic.Apply()
-            if len(self._api._traffic_item) > 0:
+            self._api._traffic_item.find(State='^started$')
+            if len(self._api._traffic_item) == 0:
                 with Timer(self._api, 'Flows clear statistics'):
                     self._api._ixnetwork.ClearStats(
                         ['waitForPortStatsRefresh', 'waitForTrafficStatsRefresh'])
@@ -533,31 +530,18 @@ class TrafficItem(CustomField):
                 self._set_result_value(
                     flow_row, 'port_rx',
                     ' '.join(stream['rxPortNames']))
-                flow_rows[flow_row['name']+flow_row['port_tx']+flow_row['port_rx']] = flow_row
+                for external_name, _, external_type in self._RESULT_COLUMNS:
+                    self._set_result_value(flow_row, external_name, 0, external_type)
+                flow_rows[flow_row['name'] + flow_row['port_tx'] + flow_row['port_rx']] = flow_row
         try:
             table = self._api.assistant.StatViewAssistant(
                 'Flow Statistics')
             table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX,
                                filter['regex'])
             for row in table.Rows:
-                flow_row = flow_rows[row['Traffic Item']+row['Tx Port']+row['Rx Port']]
-                self._set_result_value(flow_row, 'port_tx', row['Tx Port'])
-                self._set_result_value(flow_row, 'port_rx', row['Rx Port'])
-                self._set_result_value(flow_row, 'frames_tx', row['Tx Frames'],
-                                       int)
-                self._set_result_value(flow_row, 'frames_rx', row['Rx Frames'],
-                                       int)
-                self._set_result_value(flow_row, 'bytes_rx', row['Rx Bytes'],
-                                       int)
-                self._set_result_value(flow_row, 'frames_tx_rate',
-                                       row['Tx Frame Rate'], float)
-                self._set_result_value(flow_row, 'frames_rx_rate',
-                                       row['Rx Frame Rate'], float)
-                self._set_result_value(flow_row, 'bytes_tx_rate',
-                                       row['Tx Rate (Bps)'], float)
-                self._set_result_value(flow_row, 'bytes_rx_rate',
-                                       row['Rx Rate (Bps)'], float)
-                self._set_result_value(flow_row, 'loss', row['Loss %'], float)
+                flow_row = flow_rows[row['Traffic Item'] + row['Tx Port'] + row['Rx Port']]
+                for external_name, internal_name, external_type in self._RESULT_COLUMNS:
+                    self._set_result_value(flow_row, external_name, row[internal_name], external_type)
         except Exception as e:
             self._api.add_error(e)
         return flow_rows.values()
