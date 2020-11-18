@@ -269,7 +269,14 @@ class IxNetworkApi(Api):
             if item.Name not in valid_names:
                 invalid_names.append(item.Name)
         if len(invalid_names) > 0:
-            ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names)).remove()
+            if ixn_obj._SDM_NAME == 'trafficItem':
+                # can't remove traffic items that are started
+                ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names), State='^start')
+                if len(ixn_obj) > 0:
+                    ixn_obj.StopStatelessTrafficBlocking()
+            ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names))
+            if len(ixn_obj) > 0:
+                ixn_obj.remove()
 
     def _get_topology_name(self, port_name):
         return 'Topology %s' % port_name
