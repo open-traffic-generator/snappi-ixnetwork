@@ -274,6 +274,7 @@ class IxNetworkApi(Api):
                 ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names), State='^start')
                 if len(ixn_obj) > 0:
                     ixn_obj.StopStatelessTrafficBlocking()
+                    time.sleep(2)
             ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names))
             if len(ixn_obj) > 0:
                 ixn_obj.remove()
