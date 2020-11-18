@@ -23,6 +23,13 @@ def test_flow_results(serializer, api, b2b_ipv4_flows_config):
         if df.frames_tx.sum() >= b2b_ipv4_flows_config.flows[0].duration.packets.packets:
             break
 
+    state = control.State(control.FlowTransmitState(state='stop'))
+    api.set_state(state)
+
+    results = api.get_flow_results(result.FlowRequest())
+    df = pandas.DataFrame.from_dict(results)
+    print(df)
+    
 
 if __name__ == '__main__':
     pytest.main(['-s', __file__])
