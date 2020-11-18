@@ -20,7 +20,7 @@ def test_flow_results(serializer, api, b2b_ipv4_flows_config):
         results = api.get_flow_results(result.FlowRequest())
         df = pandas.DataFrame.from_dict(results)
         print(df)
-        if df.frames_tx.sum() >= b2b_ipv4_flow_config.flows[0].duration.packets.packets:
+        if df.frames_tx.sum() >= b2b_ipv4_flows_config.flows[0].duration.packets.packets:
             break
 
 
