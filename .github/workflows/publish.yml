@@ -10,7 +10,7 @@
 
 name: Build
 
-on: [push, pull_request, workflow_dispatch]
+on: [push, pull_request, workflow_dispatch, repository_dispatch]
 
 jobs:
   build_and_test:
@@ -40,7 +40,14 @@ jobs:
         ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade twine
         ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade requests
 
-    - name: install
+    - name: install latest version of abstract-open-traffic-generator
+      if: github.event_name == 'repository_dispatch'
+      id: install_latest
+      run: |
+        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade abstract-open-traffic-generator
+
+    - name: install sanity version of abstract-open-traffic-generator
+      if: steps.install_latest.conclusion == 'skipped'
       run: |
         ${{steps.path.outputs.pythonv}} setup.py install
 
@@ -58,7 +65,7 @@ jobs:
 
     - name: Run tests
       run: |
-        ${{steps.path.outputs.pythonv}} -m pytest --api_server=10.39.47.41 --api_server_port=11149 --tx_port_location='10.39.35.12;11;03' --rx_port_location='10.39.35.12;11;04' -s -v tests/test_clear_config.py --disable-warnings
+        ${{steps.path.outputs.pythonv}} -m pytest --api_server=10.39.47.41 --api_server_port=11149 --tx_port_location='10.39.35.12;11;03' --rx_port_location='10.39.35.12;11;04' -s -v tests --disable-warnings
 
   create_release_and_deploy:
     needs: build_and_test
