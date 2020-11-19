@@ -534,14 +534,14 @@ class TrafficItem(CustomField):
                     self._set_result_value(flow_row, external_name, 0, external_type)
                 flow_rows[flow_row['name'] + flow_row['port_tx'] + flow_row['port_rx']] = flow_row
         try:
-            if traffic_item['state'] == 'stopped':
-                time.sleep(3)
             table = self._api.assistant.StatViewAssistant(
                 'Flow Statistics')
             table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX,
                                filter['regex'])
             for row in table.Rows:
                 flow_row = flow_rows[row['Traffic Item'] + row['Tx Port'] + row['Rx Port']]
+                if traffic_item['state'] == 'stopped' and float(row['Tx Frame Rate']) > 0 or int(row['Tx Frames']) == 0:
+                    flow_row['transmit'] = 'started'
                 for external_name, internal_name, external_type in self._RESULT_COLUMNS:
                     self._set_result_value(flow_row, external_name, row[internal_name], external_type)
         except Exception as e:
