@@ -534,6 +534,8 @@ class TrafficItem(CustomField):
                     self._set_result_value(flow_row, external_name, 0, external_type)
                 flow_rows[flow_row['name'] + flow_row['port_tx'] + flow_row['port_rx']] = flow_row
         try:
+            if traffic_item['state'] == 'stopped':
+                time.sleep(3)
             table = self._api.assistant.StatViewAssistant(
                 'Flow Statistics')
             table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX,
@@ -544,4 +546,4 @@ class TrafficItem(CustomField):
                     self._set_result_value(flow_row, external_name, row[internal_name], external_type)
         except Exception as e:
             self._api.add_error(e)
-        return flow_rows.values()
+        return list(flow_rows.values())
