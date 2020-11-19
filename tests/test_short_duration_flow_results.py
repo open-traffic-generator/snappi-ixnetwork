@@ -6,14 +6,17 @@ import pandas
 
 
 def test_short_duration_flow_results(serializer, api, b2b_ipv4_flows_config):
-    """Sonic Test Case Bug - given a short duration flow the flow metrics
+    """Bug Fix Test - given a short duration flow the flow metrics
     are all 0 when flows are stopped
 
+    To reproduce:
     - Update a configuration's flows with a short fixed duration
     - Start flows
     - Start polling flow metrics
     - End polling of flow metrics when flow metric transmit is stopped
-    - Confirm flow metric frames_tx is not zero
+
+    Fixed when:
+    - flow metric frames_tx is not zero
     """
     duration = flow.Duration(flow.FixedSeconds(seconds=1))
     for config_flow in b2b_ipv4_flows_config.flows:
