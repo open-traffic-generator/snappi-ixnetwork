@@ -214,7 +214,7 @@ class IxNetworkApi(Api):
         """Add an error to the global errors
         """
         if isinstance(error, str) is False:
-            self._errors.append(str(error))
+            self._errors.append('%s %s' % (type(error), str(error)))
         else:
             self._errors.append(error)
 
@@ -235,6 +235,11 @@ class IxNetworkApi(Api):
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
             if len(self._license_servers) > 0:
                 self._ixnetwork.Globals.Licensing.LicensingServers = self._license_servers
+            try:
+                version = pkg_resources.get_distribution("ixnetwork-open-traffic-generator").version
+            except Exception as e:
+                version = "ixnetwork-open-traffic-generator not installed using pip, unable to determine version"
+            self.info(version)
 
     def _request(self, method, url, payload=None):
         connection, url = self._assistant.Session._connection._normalize_url(

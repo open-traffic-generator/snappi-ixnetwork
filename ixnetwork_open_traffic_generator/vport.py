@@ -93,12 +93,16 @@ class Vport(object):
         for port in self._api.config.ports:
             if port.name not in vports.keys():
                 index = len(vports) + len(imports) + 1
-                imports.append({
+                vport_import = {
                     'xpath': '/vport[%i]' % index,
                     'name': port.name,
                     'rxMode': 'captureAndMeasure',
                     'txMode': 'interleaved'
-                })
+                }
+                location = getattr(port, 'location', None)
+                if location is None:
+                    vport_import['connectedTo'] = location
+                imports.append(vport_import)
         self._import(imports)
         for name, vport in self._api.select_vports().items():
             self._api.ixn_objects[name] = vport['href']
@@ -169,8 +173,9 @@ class Vport(object):
         add_addresses = []
         check_addresses = []
         for port in self._api.config.ports:
-            if port.location is not None and ';' in port.location:
-                chassis_address = port.location.split(';')[0]
+            location = getattr(port, 'location', None)
+            if location is not None and ';' in location:
+                chassis_address = location.split(';')[0]
                 chassis.find(Hostname='^(%s)$' % chassis_address)
                 if len(chassis) == 0:
                     add_addresses.append(chassis_address)

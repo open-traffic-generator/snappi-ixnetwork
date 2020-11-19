@@ -162,6 +162,9 @@ class TrafficItem(CustomField):
                     self._update(ixn_traffic_item, **args)
                 self._configure_endpoint(ixn_traffic_item.EndpointSet,
                                          flow.tx_rx)
+                if flow.tx_rx.choice == 'device':
+                    tx_dist = ixn_traffic_item.TransmissionDistribution.find()
+                    tx_dist.Distributions = ['srcDestEndpointPair0']
                 self._configure_tracking(ixn_traffic_item.Tracking)
                 ixn_ce = ixn_traffic_item.ConfigElement.find()
                 hl_stream_count = len(ixn_traffic_item.HighLevelStream.find())
@@ -175,7 +178,7 @@ class TrafficItem(CustomField):
         ixn_tracking.find()
         if 'trackingenabled0' not in ixn_tracking.TrackBy:
             ixn_tracking.TrackBy = ['trackingenabled0']
-
+        
     def _configure_options(self, flow):
         enable_min_frame_size = False
         if (len(flow.packet) == 1 and flow.packet[0].choice == 'pfcpause'
@@ -508,42 +511,41 @@ class TrafficItem(CustomField):
     def results(self, request):
         """Return flow results
         """
+        # setup parameters
         if request.column_names is None:
             self._column_names = []
         else:
             self._column_names = request.column_names
         filter = {'property': 'name', 'regex': '.*'}
+        flow_names = [flow.name for flow in self._api._config.flows]
         if request is not None and request.flow_names is not None and len(
                 request.flow_names) > 0:
-            filter['regex'] = '^(%s)$' % '|'.join(request.flow_names)
+            flow_names = request.flow_names
+        filter['regex'] = '^(%s)$' % '|'.join(flow_names)
+
+        # initialize result values
         flow_rows = {}
         for traffic_item in self._api.select_traffic_items(
                 traffic_item_filters=[filter]).values():
             for stream in traffic_item['highLevelStream']:
                 flow_row = {}
                 self._set_result_value(flow_row, 'name', traffic_item['name'])
-                self._set_result_value(flow_row, 'transmit',
-                                    self._get_state(traffic_item['state']))
-                self._set_result_value(
-                    flow_row, 'port_tx',
-                    stream['txPortName'])
-                self._set_result_value(
-                    flow_row, 'port_rx',
-                    ' '.join(stream['rxPortNames']))
+                self._set_result_value(flow_row, 'transmit', self._get_state(traffic_item['state']))
+                self._set_result_value(flow_row, 'port_tx', stream['txPortName'])
+                self._set_result_value(flow_row, 'port_rx', stream['rxPortNames'][0])
                 for external_name, _, external_type in self._RESULT_COLUMNS:
                     self._set_result_value(flow_row, external_name, 0, external_type)
                 flow_rows[flow_row['name'] + flow_row['port_tx'] + flow_row['port_rx']] = flow_row
-        try:
-            table = self._api.assistant.StatViewAssistant(
-                'Flow Statistics')
-            table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX,
-                               filter['regex'])
-            for row in table.Rows:
-                flow_row = flow_rows[row['Traffic Item'] + row['Tx Port'] + row['Rx Port']]
-                if traffic_item['state'] == 'stopped' and float(row['Tx Frame Rate']) > 0 or int(row['Tx Frames']) == 0:
-                    flow_row['transmit'] = 'started'
-                for external_name, internal_name, external_type in self._RESULT_COLUMNS:
-                    self._set_result_value(flow_row, external_name, row[internal_name], external_type)
-        except Exception as e:
-            self._api.add_error(e)
+
+        # resolve result values
+        table = self._api.assistant.StatViewAssistant(
+            'Flow Statistics')
+        table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX,
+                            filter['regex'])
+        for row in table.Rows:
+            flow_row = flow_rows[row['Traffic Item'] + row['Tx Port'] + row['Rx Port']]
+            if traffic_item['state'] == 'stopped' and float(row['Tx Frame Rate']) > 0 or int(row['Tx Frames']) == 0:
+                flow_row['transmit'] = 'started'
+            for external_name, internal_name, external_type in self._RESULT_COLUMNS:
+                self._set_result_value(flow_row, external_name, row[internal_name], external_type)
         return list(flow_rows.values())
