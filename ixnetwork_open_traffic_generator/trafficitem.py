@@ -523,7 +523,7 @@ class TrafficItem(CustomField):
                 flow_row = {}
                 self._set_result_value(flow_row, 'name', traffic_item['name'])
                 self._set_result_value(flow_row, 'transmit',
-                                    self._get_state(stream['state']))
+                                    self._get_state(traffic_item['state']))
                 self._set_result_value(
                     flow_row, 'port_tx',
                     stream['txPortName'])
