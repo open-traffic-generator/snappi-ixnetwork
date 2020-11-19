@@ -65,7 +65,7 @@ jobs:
 
     - name: Run tests
       run: |
-        ${{steps.path.outputs.pythonv}} -m pytest --api_server=127.0.0.1 --api_server_port=11009 --tx_port_location='10.36.66.226;01;01' --rx_port_location='10.36.66.226;01;02' -s -v tests --disable-warnings
+        ${{steps.path.outputs.pythonv}} -m pytest --api_server=127.0.0.1 --api_server_port=11009 --license_servers=['10.36.66.226'] --tx_port_location='10.36.66.226;01;01' --rx_port_location='10.36.66.226;01;02' -s -v tests --disable-warnings
 
   create_release_and_deploy:
     needs: build_and_test
