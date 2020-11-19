@@ -279,7 +279,12 @@ class IxNetworkApi(Api):
                 ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names), State='^start')
                 if len(ixn_obj) > 0:
                     ixn_obj.StopStatelessTrafficBlocking()
-                    time.sleep(2)
+                    poll = True
+                    while poll:
+                        poll = False
+                        for k, v in self.select_traffic_items():
+                            if v['state'] == 'started':
+                                poll = True
             ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names))
             if len(ixn_obj) > 0:
                 ixn_obj.remove()

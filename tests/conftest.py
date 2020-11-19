@@ -319,12 +319,4 @@ def b2b_ipv4_flows_config(options, tx_port, rx_port, b2b_ipv4_devices):
                   devices=b2b_ipv4_devices,
                   flows=[flow1, flow2],
                   options=options)
-
-
-@pytest.fixture(autouse=True)
-def stop_transmit_state(api):
-    """Stop all flows before every test
-    """
-    import abstract_open_traffic_generator.control as control
-    print('\nset transmit state stopped...')
-    api.set_state(control.State(control.FlowTransmitState(state='stop')))
+                  
