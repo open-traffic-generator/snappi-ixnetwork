@@ -14,7 +14,7 @@ on: [push, pull_request, workflow_dispatch, repository_dispatch]
 
 jobs:
   build_and_test:
-    runs-on: [self-hosted, windows, x64]
+    runs-on: [self-hosted, windows, x64, backup]
     strategy:
       matrix:
         python-version: [27, 38]
@@ -27,7 +27,7 @@ jobs:
 
     - name: Set python path
       id: path
-      run: echo "::set-output name=pythonv::c:/${{matrix.python-version}}/python"
+      run: echo "::set-output name=pythonv::c:/python${{matrix.python-version}}/python"
 
     - name: Install dependencies
       run: |
@@ -65,7 +65,7 @@ jobs:
 
     - name: Run tests
       run: |
-        ${{steps.path.outputs.pythonv}} -m pytest --api_server=10.39.47.41 --api_server_port=11149 --tx_port_location='10.39.35.12;11;03' --rx_port_location='10.39.35.12;11;04' -s -v tests --disable-warnings
+        ${{steps.path.outputs.pythonv}} -m pytest --api_server=127.0.0.1 --api_server_port=11009 --tx_port_location='10.36.66.226;01;01' --rx_port_location='10.36.66.226;01;02' -s -v tests --disable-warnings
 
   create_release_and_deploy:
     needs: build_and_test
@@ -110,5 +110,5 @@ jobs:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        c:/38/Scripts/twine upload dist/ixnetwork_open_traffic_generator-${{ needs.build_and_test.outputs.version  }}-py2.py3-none-any.whl
-        c:/38/Scripts/twine upload dist/ixnetwork_open_traffic_generator-${{ needs.build_and_test.outputs.version  }}.tar.gz
+        c:/python38/Scripts/twine upload dist/ixnetwork_open_traffic_generator-${{ needs.build_and_test.outputs.version  }}-py2.py3-none-any.whl
+        c:/python38/Scripts/twine upload dist/ixnetwork_open_traffic_generator-${{ needs.build_and_test.outputs.version  }}.tar.gz
