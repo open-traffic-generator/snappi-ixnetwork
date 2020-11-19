@@ -276,14 +276,21 @@ class IxNetworkApi(Api):
         if len(invalid_names) > 0:
             if ixn_obj._SDM_NAME == 'trafficItem':
                 # can't remove traffic items that are started
-                ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names), State='^start')
+                start_states = [
+                    'txStopWatchExpected', 
+                    'locked', 'started',
+                    'startedWaitingForStats', 
+                    'startedWaitingForStreams',
+                    'stoppedWaitingForStats']
+                for item in ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names)):
+                    if item.State in start_states:
+                        item.StopStatelessTraffic()
                 if len(ixn_obj) > 0:
-                    ixn_obj.StopStatelessTrafficBlocking()
                     poll = True
                     while poll:
                         poll = False
-                        for k, v in self.select_traffic_items():
-                            if v['state'] == 'started':
+                        for v in self.select_traffic_items().values():
+                            if v['state'] not in ['error', 'stopped', 'unapplied']:
                                 poll = True
             ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names))
             if len(ixn_obj) > 0:
