@@ -162,10 +162,7 @@ class TrafficItem(CustomField):
                     self._update(ixn_traffic_item, **args)
                 self._configure_endpoint(ixn_traffic_item.EndpointSet,
                                          flow.tx_rx)
-                if flow.tx_rx.choice == 'device':
-                    tx_dist = ixn_traffic_item.TransmissionDistribution.find()
-                    tx_dist.Distributions = ['srcDestEndpointPair0']
-                self._configure_tracking(ixn_traffic_item.Tracking)
+                self._configure_tracking(flow, ixn_traffic_item.Tracking)
                 ixn_ce = ixn_traffic_item.ConfigElement.find()
                 hl_stream_count = len(ixn_traffic_item.HighLevelStream.find())
                 self._configure_stack(ixn_ce, flow.packet)
@@ -174,10 +171,14 @@ class TrafficItem(CustomField):
                 self._configure_tx_control(ixn_ce, hl_stream_count, flow.duration)
                 self._configure_options(flow)
 
-    def _configure_tracking(self, ixn_tracking):
+    def _configure_tracking(self, flow, ixn_tracking):
+        """Set tracking options"""
         ixn_tracking.find()
-        if 'trackingenabled0' not in ixn_tracking.TrackBy:
-            ixn_tracking.TrackBy = ['trackingenabled0']
+        tracking_options = ['trackingenabled0']
+        if flow.tx_rx.choice == 'device':
+            tracking_options.append('sourceDestPortPair0')
+        if set(tracking_options) != set(ixn_tracking.TrackBy):
+            ixn_tracking.update(TrackBy=tracking_options)
         
     def _configure_options(self, flow):
         enable_min_frame_size = False
