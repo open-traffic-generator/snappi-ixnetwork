@@ -522,7 +522,10 @@ class TrafficItem(CustomField):
         if request is not None and request.flow_names is not None and len(
                 request.flow_names) > 0:
             flow_names = request.flow_names
-        filter['regex'] = '^(%s)$' % '|'.join(flow_names)
+        if len(flow_names) == 1:
+            filter['regex'] = '^%s$' % flow_names[0]
+        elif len(flow_names) > 1:
+            filter['regex'] = '^(%s)$' % '|'.join(flow_names)
 
         # initialize result values
         flow_rows = {}
@@ -541,11 +544,11 @@ class TrafficItem(CustomField):
         # resolve result values
         table = self._api.assistant.StatViewAssistant(
             'Flow Statistics')
-        table.AddRowFilter('Traffic Item', StatViewAssistant.REGEX,
-                            filter['regex'])
         for row in table.Rows:
+            if len(flow_names) > 0 and row['Traffic Item'] not in flow_names:
+                continue
             flow_row = flow_rows[row['Traffic Item'] + row['Tx Port'] + row['Rx Port']]
-            if traffic_item['state'] == 'stopped' and float(row['Tx Frame Rate']) > 0 or int(row['Tx Frames']) == 0:
+            if float(row['Tx Frame Rate']) > 0 or int(row['Tx Frames']) == 0:
                 flow_row['transmit'] = 'started'
             for external_name, internal_name, external_type in self._RESULT_COLUMNS:
                 self._set_result_value(flow_row, external_name, row[internal_name], external_type)
