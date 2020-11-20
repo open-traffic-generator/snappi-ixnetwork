@@ -55,7 +55,7 @@ setup(
     install_requires=[
         'pyaml',
         'jsonpath-ng',
-        'abstract-open-traffic-generator==0.0.63', 
+        'abstract-open-traffic-generator==0.0.64', 
         'ixnetwork-restpy>=1.0.52'
     ],
     tests_require=[
