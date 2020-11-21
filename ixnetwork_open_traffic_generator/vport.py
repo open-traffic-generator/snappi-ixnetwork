@@ -351,7 +351,8 @@ class Vport(object):
         elegible_fcoe_vport_types = [
             'ethernet', 'tenGigLan', 'fortyGigLan', 'tenGigWan',
             'hundredGigLan', 'tenFortyHundredGigLan', 'novusHundredGigLan',
-            'novusTenGigLan', 'krakenFourHundredGigLan', 'aresOneHundredGigLan'
+            'novusTenGigLan', 'krakenFourHundredGigLan', 
+            'aresOneFourHundredGigLan', 'starFourHundredGigLan'
         ]
         if fcoe is True and vport_type in elegible_fcoe_vport_types:
             vport_type = vport_type + 'Fcoe'
