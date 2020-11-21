@@ -323,7 +323,7 @@ class Vport(object):
                     break
         if aggregation_mode is not None and aggregation_mode != card[
                 'aggregationMode']:
-            self._api.info('Setting %s layer1 mode' % aggregation_mode)
+            self._api.info('Setting %s to resource mode %s' % (card['description'], aggregation_mode))
             imports.append({
                 'xpath': card['xpath'],
                 'aggregationMode': aggregation_mode
