@@ -432,9 +432,9 @@ class Vport(object):
             pfc = flow_control.ieee_802_1qbb
             fcoe = {
                 'xpath':
-                vport['xpath'] + '/l1Config/' + vport['type'] + '/fcoe',
+                vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', '') + '/fcoe',
                 'enablePFCPauseDelay':
-                True,
+                False if pfc.pfc_delay == 0 else True,
                 'flowControlType':
                 Vport._FLOW_CONTROL_MAP[flow_control.choice],
                 'pfcPauseDelay':
