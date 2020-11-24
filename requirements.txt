@@ -1,0 +1,5 @@
+pip
+setuptools
+wheel
+twine == 3.2.0
+requests == 2.25.0
