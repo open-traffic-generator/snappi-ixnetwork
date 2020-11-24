@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "ms-python.python",
+        "streetsidesoftware.code-spell-checker",
+        "redhat.vscode-yaml",
+        "eamodio.gitlens"
+    ]
+}
