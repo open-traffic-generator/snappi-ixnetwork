@@ -4,10 +4,11 @@
 [![python](https://img.shields.io/pypi/pyversions/ixnetwork-open-traffic-generator.svg)](https://pypi.python.org/pypi/ixnetwork-open-traffic-generator)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://en.wikipedia.org/wiki/MIT_License)
 
-The Keysight IxNetwork implementation of the open-traffic-generator models.
+The Keysight IxNetwork implementation of the open-traffic-generator models.  
+Visit [here to contribute](contribute.md).
 
 # Getting Started
-## Install the client
+## Install client package
 ```
 python -m pip install --upgrade ixnetwork-open-traffic-generator
 ```
