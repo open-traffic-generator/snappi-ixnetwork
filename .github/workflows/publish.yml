@@ -31,25 +31,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade pip
-        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade jsonpath-ng
-        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade pyyaml
-        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade pytest
-        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade setuptools
-        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade wheel
-        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade twine
-        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade requests
-
-    - name: install latest version of abstract-open-traffic-generator
-      if: github.event_name == 'repository_dispatch'
-      id: install_latest
-      run: |
-        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade abstract-open-traffic-generator
-
-    - name: install sanity version of abstract-open-traffic-generator
-      if: steps.install_latest.conclusion == 'skipped'
-      run: |
-        ${{steps.path.outputs.pythonv}} setup.py install
+        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade -r requirements.txt
 
     - name: Build distributions
       run: |
@@ -61,7 +43,7 @@ jobs:
     
     - name: Test whl distribution installation
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl
+        ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl[dev]
 
     - name: Run tests
       run: |
