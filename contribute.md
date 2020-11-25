@@ -27,6 +27,14 @@ Please make sure that the setup meets [Python Prerequisites](#python-prerequisit
   python -m pip install --upgrade -e .[dev]
   ```
 
+- Run Tests.
+
+  ```sh
+  # provide intended API Server and port addresses
+  vi tests/settings.json
+  python -m pytest tests/samples/test_raw_eth_flow.py
+  ```
+
 #### Python Prerequisites
 
 - Please make sure you have `python` and `pip` installed on your system.
