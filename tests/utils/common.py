@@ -234,6 +234,10 @@ def get_all_stats(api, print_output=True):
 
 
 def get_all_captures(api, cfg):
+    """
+    Returns a dictionary where port name is the key and value is a list of
+    frames where each frame is represented as a list of bytes.
+    """
     cap_dict = {}
     for name in get_capture_port_names(cfg):
         print('Fetching captures from port %s' % name)
@@ -241,14 +245,17 @@ def get_all_captures(api, cfg):
             result.CaptureRequest(port_name=name)
         )
         if len(pcap_bytes) < 1000:
-            # retry, since we never usually get the packet in first try
+            print('Received incomplete pcap from port %s, retrying ...' % name)
             pcap_bytes = api.get_capture_results(
                 result.CaptureRequest(port_name=name)
             )
 
         cap_dict[name] = []
         for ts, pkt in dpkt.pcap.Reader(io.BytesIO(pcap_bytes)):
-            cap_dict[name].append(pkt)
+            if sys.version_info[0] == 2:
+                cap_dict[name].append([ord(b) for b in pkt])
+            else:
+                cap_dict[name].append(list(pkt))
 
     return cap_dict
 
@@ -327,8 +334,8 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=False):
             )
             break
         print(border)
-        print()
-        print()
+        print("")
+        print("")
 
     if flow_stats is not None:
         row_format = "{:>15}" * 3
@@ -341,8 +348,8 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=False):
                 stat['name'], stat['frames_rx'], stat['bytes_rx_rate'])
             )
         print(border)
-        print()
-        print()
+        print("")
+        print("")
 
 
 def flow_transmit_matches(flow_results, state):
