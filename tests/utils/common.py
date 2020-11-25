@@ -332,7 +332,6 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=False):
                     stat['frames_rx'], stat['bytes_rx'], stat['frames_tx_rate']
                 )
             )
-            break
         print(border)
         print("")
         print("")
@@ -345,7 +344,7 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=False):
         print(row_format.format('Flow', 'Rx Frames', 'Rx Bytes'))
         for stat in flow_stats:
             print(row_format.format(
-                stat['name'], stat['frames_rx'], stat['bytes_rx_rate'])
+                stat['name'], stat['frames_rx'], stat['bytes_rx'])
             )
         print(border)
         print("")
@@ -359,23 +358,19 @@ def flow_transmit_matches(flow_results, state):
 
 
 def total_frames_ok(port_results, flow_results, expected):
-    port_tx = sum(
-        [0 if 'frames_tx' not in p else p['frames_tx'] for p in port_results]
-    )
-    # port_rx = sum([p['frames_rx'] for p in port_results])
+    port_tx = sum([p['frames_tx'] for p in port_results])
+    port_rx = sum([p['frames_rx'] for p in port_results])
     flow_rx = sum([f['frames_rx'] for f in flow_results])
 
-    return port_tx == flow_rx == expected
+    return port_tx == port_rx == flow_rx == expected
 
 
 def total_bytes_ok(port_results, flow_results, expected):
-    port_tx = sum(
-        [0 if 'bytes_tx' not in p else p['bytes_tx'] for p in port_results]
-    )
-    # port_rx = sum([p['bytes_rx'] for p in port_results])
+    port_tx = sum([p['bytes_tx'] for p in port_results])
+    port_rx = sum([p['bytes_rx'] for p in port_results])
     flow_rx = sum([f['bytes_rx'] for f in flow_results])
 
-    return port_tx == flow_rx == expected
+    return port_tx == port_rx == flow_rx == expected
 
 
 def total_bytes_in_frame_size_range(start, end, step, count):

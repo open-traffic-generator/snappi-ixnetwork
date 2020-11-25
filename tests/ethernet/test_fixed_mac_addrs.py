@@ -1,12 +1,8 @@
-import pytest
-
 from abstract_open_traffic_generator import flow
 import utils
 
 
-@pytest.mark.parametrize('size', [64, 128, 1518])
-@pytest.mark.parametrize('packets', [1000])
-def test_raw_eth_flow(api, settings, b2b_raw_config, size, packets):
+def test_fixed_mac_addrs(api, settings, b2b_raw_config):
     """
     Configure a raw ethernet flow with,
     - fixed src and dst MAC address
@@ -18,6 +14,8 @@ def test_raw_eth_flow(api, settings, b2b_raw_config, size, packets):
     - all captured frames have expected src and dst MAC address
     """
     f = b2b_raw_config.flows[0]
+    size = 64
+    packets = 1000
 
     f.packet = [
         flow.Header(
@@ -46,6 +44,9 @@ def stats_ok(api, size, packets):
     port_results, flow_results = utils.get_all_stats(api)
 
     ok = utils.total_frames_ok(port_results, flow_results, packets)
+    ok = ok and utils.total_bytes_ok(
+        port_results, flow_results, packets * size
+    )
     if utils.flow_transmit_matches(flow_results, 'stopped') and not ok:
         raise Exception('Stats not ok after flows are stopped')
 

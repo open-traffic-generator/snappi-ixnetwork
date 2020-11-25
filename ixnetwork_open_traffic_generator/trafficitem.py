@@ -18,8 +18,8 @@ class TrafficItem(CustomField):
         ('frames_rx', 'Rx Frames', int),
         ('frames_tx_rate', 'Tx Frame Rate', float),
         ('frames_rx_rate', 'Rx Frame Rate', float),
-        ('bytes_tx_rate', 'Tx Rate (Bps)', float),
-        ('bytes_rx_rate', 'Rx Rate (Bps)', float),
+        ('bytes_tx', 'Tx Bytes', int),
+        ('bytes_rx', 'Rx Bytes', int),
         ('loss', 'Loss %', float)
     ]
 
@@ -539,7 +539,9 @@ class TrafficItem(CustomField):
                     self._set_result_value(flow_row, 'port_tx', stream['txPortName'])
                     self._set_result_value(flow_row, 'port_rx', rx_port_name)
                     for external_name, _, external_type in self._RESULT_COLUMNS:
-                        self._set_result_value(flow_row, external_name, 0, external_type)
+                        self._set_result_value(
+                            flow_row, external_name, 0, external_type
+                        )
                     flow_rows[flow_row['name'] + flow_row['port_tx'] + flow_row['port_rx']] = flow_row
 
         # resolve result values
@@ -553,5 +555,13 @@ class TrafficItem(CustomField):
                 if float(row['Tx Frame Rate']) > 0 or int(row['Tx Frames']) == 0:
                     flow_row['transmit'] = 'started'
                 for external_name, internal_name, external_type in self._RESULT_COLUMNS:
-                    self._set_result_value(flow_row, external_name, row[internal_name], external_type)
+                    try:
+                        self._set_result_value(
+                            flow_row, external_name, row[internal_name],
+                            external_type
+                        )
+                    except Exception:
+                        # TODO print a warning maybe ?
+                        pass
+
         return list(flow_rows.values())

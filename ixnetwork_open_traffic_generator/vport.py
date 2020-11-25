@@ -43,14 +43,24 @@ class Vport(object):
         'ieee_802_1qbb': 'ieee802.1Qbb',
         'ieee_802_3x': 'ieee_802_3x'
     }
+
     _RESULT_COLUMNS = [
-        'name', 'location', 'link', 'capture', 'frames_tx', 'frames_rx',
-        'frames_tx_rate', 'frames_rx_rate', 'bytes_tx', 'bytes_rx',
-        'bytes_tx_rate', 'bytes_rx_rate', 'pfc_class_0_frames_rx',
-        'pfc_class_1_frames_rx', 'pfc_class_2_frames_rx',
-        'pfc_class_3_frames_rx', 'pfc_class_4_frames_rx',
-        'pfc_class_5_frames_rx', 'pfc_class_6_frames_rx',
-        'pfc_class_7_frames_rx'
+        ('frames_tx', 'Frames Tx.', int),
+        ('frames_rx', 'Valid Frames Rx.', int),
+        ('frames_tx_rate', 'Frames Tx. Rate', float),
+        ('frames_rx_rate', 'Valid Frames Rx. Rate', float),
+        ('bytes_tx', 'Bytes Tx.', int),
+        ('bytes_rx', 'Bytes Rx.', int),
+        ('bytes_tx_rate', 'Bytes Tx. Rate', float),
+        ('bytes_rx_rate', 'Bytes Rx. Rate', float),
+        ('pfc_class_0_frames_rx', 'Rx Pause Priority Group 0 Frames', int),
+        ('pfc_class_1_frames_rx', 'Rx Pause Priority Group 1 Frames', int),
+        ('pfc_class_2_frames_rx', 'Rx Pause Priority Group 2 Frames', int),
+        ('pfc_class_3_frames_rx', 'Rx Pause Priority Group 3 Frames', int),
+        ('pfc_class_4_frames_rx', 'Rx Pause Priority Group 4 Frames', int),
+        ('pfc_class_5_frames_rx', 'Rx Pause Priority Group 5 Frames', int),
+        ('pfc_class_6_frames_rx', 'Rx Pause Priority Group 6 Frames', int),
+        ('pfc_class_7_frames_rx', 'Rx Pause Priority Group 7 Frames', int),
     ]
 
     def __init__(self, ixnetworkapi):
@@ -522,51 +532,31 @@ class Vport(object):
                 port_row, 'link', 'up'
                 if vport['connectionState'] == 'connectedLinkUp' else 'down')
             self._set_result_value(port_row, 'capture', 'stopped')
+            # initialize remaining columns with 0
+            for ext_name, _, typ in self._RESULT_COLUMNS:
+                self._set_result_value(port_row, ext_name, 0, typ)
+
             port_rows[vport['name']] = port_row
+
         try:
             table = self._api.assistant.StatViewAssistant('Port Statistics')
             for row in table.Rows:
-                port_row = port_rows[row['Port Name']]
-                self._set_result_value(port_row, 'frames_tx',
-                                       row['Frames Tx.'], int)
-                self._set_result_value(port_row, 'frames_rx',
-                                       row['Valid Frames Rx.'], int)
-                self._set_result_value(port_row, 'frames_tx_rate',
-                                       row['Frames Tx. Rate'], float)
-                self._set_result_value(port_row, 'frames_rx_rate',
-                                       row['Valid Frames Rx. Rate'], float)
-                self._set_result_value(port_row, 'bytes_tx', row['Bytes Tx.'],
-                                       int)
-                self._set_result_value(port_row, 'bytes_rx', row['Bytes Rx.'],
-                                       int)
-                self._set_result_value(port_row, 'bytes_tx_rate',
-                                       row['Bytes Tx. Rate'], float)
-                self._set_result_value(port_row, 'bytes_rx_rate',
-                                       row['Bytes Rx. Rate'], float)
-                self._set_result_value(port_row, 'pfc_class_0_frames_rx',
-                                       row['Rx Pause Priority Group 0 Frames'],
-                                       int)
-                self._set_result_value(port_row, 'pfc_class_1_frames_rx',
-                                       row['Rx Pause Priority Group 1 Frames'],
-                                       int)
-                self._set_result_value(port_row, 'pfc_class_2_frames_rx',
-                                       row['Rx Pause Priority Group 2 Frames'],
-                                       int)
-                self._set_result_value(port_row, 'pfc_class_3_frames_rx',
-                                       row['Rx Pause Priority Group 3 Frames'],
-                                       int)
-                self._set_result_value(port_row, 'pfc_class_4_frames_rx',
-                                       row['Rx Pause Priority Group 4 Frames'],
-                                       int)
-                self._set_result_value(port_row, 'pfc_class_5_frames_rx',
-                                       row['Rx Pause Priority Group 5 Frames'],
-                                       int)
-                self._set_result_value(port_row, 'pfc_class_6_frames_rx',
-                                       row['Rx Pause Priority Group 6 Frames'],
-                                       int)
-                self._set_result_value(port_row, 'pfc_class_7_frames_rx',
-                                       row['Rx Pause Priority Group 7 Frames'],
-                                       int)
-        except:
+                try:
+                    port_row = port_rows[row['Port Name']]
+                    for ext_name, int_name, typ in self._RESULT_COLUMNS:
+                        try:
+                            self._set_result_value(
+                                port_row, ext_name, row[int_name], typ
+                            )
+                        except Exception:
+                            # TODO print a warning maybe ?
+                            pass
+                except Exception:
+                    # TODO print a warning maybe ?
+                    pass
+
+        except Exception:
+            # TODO print a warning maybe ?
             pass
+
         return port_rows.values()
