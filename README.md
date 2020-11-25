@@ -5,7 +5,7 @@
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://en.wikipedia.org/wiki/MIT_License)
 
 The Keysight IxNetwork implementation of the open-traffic-generator models.  
-Visit [here to contribute](contribute.md).
+To start contributing, please see [contributing.md](contributing.md).
 
 # Getting Started
 ## Install client package
@@ -14,19 +14,20 @@ python -m pip install --upgrade ixnetwork-open-traffic-generator
 ```
 ## Start scripting
 ```python
-# import objects used in configuration
+# for constructing traffic configuration
 from abstract_open_traffic_generator import (
     port, flow, config, control, result
 )
-# import handle for making API calls
+# for making API calls
 from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
 
-# provide API endpoint and port addresses
+# provide API server and port addresses
 api = IxNetworkApi(address='127.0.0.1', port=11009)
 tx = port.Port(name='Tx Port', location='127.0.0.1;2;1')
 rx = port.Port(name='Rx Port', location='127.0.0.1;2;2')
-# configure one TCP flow to send 10000 packets, each of 128 bytes at 10% of max
-# line rate, with default protocol headers
+
+# configure one TCP flow (with default protocol headers) to send 10000 packets,
+# each of 128 bytes at 10% of max line rate
 flw = flow.Flow(
     name='Flow %s->%s' % (tx.name, rx.name),
     tx_rx=flow.TxRx(
@@ -42,14 +43,14 @@ flw = flow.Flow(
     rate=flow.Rate(value=10, unit='line'),
     duration=flow.Duration(flow.FixedPackets(packets=10000))
 )
-cfg = config.Config(ports=[tx, rx], flows=[flw])
 
-# push config and start flows
+# push configuration and start transmitting flows
+cfg = config.Config(ports=[tx, rx], flows=[flw])
 api.set_state(control.State(control.ConfigState(config=cfg, state='set')))
 api.set_state(control.State(control.FlowTransmitState(state='start')))
 
+# fetch tx port stats and wait until total frames sent is correct
 while True:
-    # fetch tx port stats and wait until total frames sent is correct
     res = api.get_port_results(
         result.PortRequest(port_names=[tx.name], column_names=['frames_tx'])
     )

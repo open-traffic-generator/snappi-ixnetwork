@@ -62,7 +62,7 @@ setup(
     ],
     extras_require={
         'dev': [
-            'pytest==6.1.2',
+            'pytest',
             'flake8==3.8.4',
             'dpkt==1.9.4',
         ]

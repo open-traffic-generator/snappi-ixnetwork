@@ -3,11 +3,17 @@ import os
 import time
 import io
 import dpkt
+import sys
 
 from abstract_open_traffic_generator import (
     config, port, layer1, flow, control, result, capture
 )
 from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
+
+
+if sys.version_info[0] >= 3:
+    # alias str as unicode for python3 and above
+    unicode = str
 
 
 # path to settings.json relative root dir
@@ -18,6 +24,43 @@ CONFIGS_DIR = 'configs'
 
 def get_root_dir():
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def get_test_config_path(config_name):
+    return os.path.join(get_root_dir(), CONFIGS_DIR, config_name)
+
+
+def dict_items(d):
+    try:
+        # python 3
+        return d.items()
+    except Exception:
+        # python 2
+        return d.iteritems()
+
+
+def object_dict_items(ob):
+    return dict_items(ob.__dict__)
+
+
+def byteify(val):
+    if isinstance(val, dict):
+        return {byteify(key): byteify(value) for key, value in dict_items(val)}
+    elif isinstance(val, list):
+        return [byteify(element) for element in val]
+    # change u'string' to 'string' only for python2
+    elif isinstance(val, unicode) and sys.version_info[0] == 2:
+        return val.encode('utf-8')
+    else:
+        return val
+
+
+def load_dict_from_json_file(path):
+    """
+    Safely load dictionary from JSON file in both python2 and python3
+    """
+    with open(path, 'r') as fp:
+        return json.load(fp, object_hook=byteify)
 
 
 class Settings(object):
@@ -38,24 +81,21 @@ class Settings(object):
         self.load_from_settings_file()
 
     def load_from_settings_file(self):
-        with open(self.get_settings_path(), 'r') as fp:
-            self.__dict__ = json.load(fp)
-
+        self.__dict__ = load_dict_from_json_file(self.get_settings_path())
         # overwrite with custom settings if it exists
         custom = os.environ.get('SETTINGS_FILE', None)
         if custom is not None and os.path.exists(custom):
-            with open(custom, 'r') as fp:
-                self.__dict__ = json.load(fp)
+            self.__dict__ = load_dict_from_json_file(custom)
 
     def get_settings_path(self):
         return os.path.join(get_root_dir(), SETTINGS_FILE)
 
     def register_pytest_command_line_options(self, parser):
-        for key, val in get_object_items(self):
+        for key, val in object_dict_items(self):
             parser.addoption("--%s" % key, action="store", default=None)
 
     def load_from_pytest_command_line(self, config):
-        for key, val in get_object_items(self):
+        for key, val in object_dict_items(self):
             new_val = config.getoption(key)
             if new_val is not None:
                 if key in ['license_servers', 'ports']:
@@ -68,19 +108,6 @@ class Settings(object):
 
 # shared global settings
 settings = Settings()
-
-
-def get_test_config_path(config_name):
-    return os.path.join(get_root_dir(), CONFIGS_DIR, config_name)
-
-
-def get_object_items(ob):
-    try:
-        # python 3
-        return ob.__dict__.items()
-    except Exception:
-        # python 2
-        return ob.__dict__.iteritems()
 
 
 def get_api_client():
