@@ -244,11 +244,6 @@ def get_all_captures(api, cfg):
         pcap_bytes = api.get_capture_results(
             result.CaptureRequest(port_name=name)
         )
-        if len(pcap_bytes) < 1000:
-            print('Received incomplete pcap from port %s, retrying ...' % name)
-            pcap_bytes = api.get_capture_results(
-                result.CaptureRequest(port_name=name)
-            )
 
         cap_dict[name] = []
         for ts, pkt in dpkt.pcap.Reader(io.BytesIO(pcap_bytes)):
