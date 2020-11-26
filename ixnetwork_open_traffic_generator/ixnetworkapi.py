@@ -158,10 +158,28 @@ class IxNetworkApi(Api):
     def get_capture_results(self, request):
         """Gets capture file and returns it as a byte stream
         """
-        capture = self._vport.find(Name=request.port_name).Capture
-        capture.Stop('allTraffic')
-        time.sleep(3)
-
+        with Timer(self, 'Captures stop'):
+            capture = self._vport.find(Name=request.port_name).Capture
+            capture.Stop('allTraffic')
+            
+            #   Internally setting max time_out to 90sec with 3sec polling interval.
+            #   Todo: Need to discuss and incorporate time_out field within model
+            retry_count = 30
+            port_ready = True
+            for x in range(retry_count):
+                port_ready = True
+                time.sleep(3)
+                capture = self._vport.find(Name=request.port_name).Capture
+                if capture.HardwareEnabled and capture.DataCaptureState == 'notReady':
+                    port_ready = False
+                    continue
+                if capture.SoftwareEnabled and capture.ControlCaptureState == 'notReady':
+                    port_ready = False
+                    continue
+                break
+            if not port_ready:
+                self.warning("Capture was not stopped for this port %s" % (request.port_name))
+        
         payload = {'arg1': [self._vport.href]}
         url = '%s/vport/operations/getCaptureInfos' % self._ixnetwork.href
         response = self._request('POST', url, payload)
