@@ -1,17 +1,15 @@
-from abstract_open_traffic_generator.flow import *
 import pytest
-
-from abstract_open_traffic_generator import flow
 import utils
+from abstract_open_traffic_generator import flow
 
 
-@pytest.mark.parametrize('packets', [1000])
-@pytest.mark.parametrize('size', [74, 128, 1518])
-def test_raw_traffic_with_fixed_udp_ports(api, b2b_raw_config, size, packets):
+@pytest.mark.parametrize('packets', [1])
+@pytest.mark.parametrize('size', [74])
+def test_udp_fixed_ports(api, b2b_raw_config, size, packets):
     """
     Configure a raw udp flow with,
     - fixed src and dst Port address
-    - 1000 frames of 74B,128B,1518B size each
+    - 1000 frames of 74B size each
     - 10% line rate
 
     Validate,
@@ -35,8 +33,8 @@ def test_raw_traffic_with_fixed_udp_ports(api, b2b_raw_config, size, packets):
             ),
         flow.Header(
             flow.Udp(
-                src_port=flow.Pattern("6"),
-                dst_port=flow.Pattern("7")
+                src_port=flow.Pattern("3000"),
+                dst_port=flow.Pattern("4000")
             )
         ),
     ]
@@ -46,19 +44,22 @@ def test_raw_traffic_with_fixed_udp_ports(api, b2b_raw_config, size, packets):
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: stats_ok(api,packets), 'stats to be as expected'
+        lambda: stats_ok(api,size,packets), 'stats to be as expected'
     )
 
     captures_ok(api, b2b_raw_config, size)
 
 
-def stats_ok(api, packets):
+def stats_ok(api, size, packets):
     """
     Returns true if stats are as expected, false otherwise.
     """
     port_results, flow_results = utils.get_all_stats(api)
 
     ok = utils.total_frames_ok(port_results, flow_results, packets)
+    ok = ok and utils.total_bytes_ok(
+        port_results, flow_results, packets * size
+    )
     if utils.flow_transmit_matches(flow_results, 'stopped') and not ok:
         raise Exception('Stats not ok after flows are stopped')
 
@@ -69,8 +70,8 @@ def captures_ok(api, cfg, size):
     """
     Returns normally if patterns in captured packets are as expected.
     """
-    dst = [0x00,0x07]
-    src = [0x00,0x06]
+    dst = [0x0F,0xA0]
+    src = [0x0B,0xB8]
     cap_dict = utils.get_all_captures(api, cfg)
     for k in cap_dict:
         for b in cap_dict[k]:
