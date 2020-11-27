@@ -6,6 +6,7 @@ from ixnetwork_restpy import SessionAssistant, StatViewAssistant
 from abstract_open_traffic_generator.api import *
 from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.control import *
+from abstract_open_traffic_generator import result
 from ixnetwork_open_traffic_generator.validation import Validation
 from ixnetwork_open_traffic_generator.vport import Vport
 from ixnetwork_open_traffic_generator.ngpf import Ngpf
@@ -196,11 +197,23 @@ class IxNetworkApi(Api):
         pcap_file_bytes = self._request('GET', url)
         return pcap_file_bytes
 
+    def _to_result_port_object(self, result_dict):
+        ob = result.Port()
+        ob.__dict__ = result_dict
+        return ob
+
+    def _to_result_flow_object(self, result_dict):
+        ob = result.Flow()
+        ob.__dict__ = result_dict
+        return ob
+
     def get_port_results(self, request):
         """Abstract API implementation
         """
         self._connect()
-        return self.vport.results(request)
+        return [
+            self._to_result_port_object(d) for d in self.vport.results(request)
+        ]
 
     def get_flow_results(self, request):
         """Abstract API implementation
@@ -226,7 +239,7 @@ class IxNetworkApi(Api):
         response = self.traffic_item.results(request)
         if len(self._errors) > 0:
             raise Exception('\n'.join(self._errors))
-        return response
+        return [self._to_result_port_object(d) for d in response]
 
     def add_error(self, error):
         """Add an error to the global errors
