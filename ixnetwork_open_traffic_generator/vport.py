@@ -32,6 +32,35 @@ class Vport(object):
         'speed_10_fd_mbps': 'speed10fd',
         'speed_10_hd_mbps': 'speed10hd'
     }
+    _VM_SPEED_MAP = {
+        'speed_400_gbps': 'speed400g',
+        'speed_200_gbps': 'speed200g',
+        'speed_100_gbps': 'speed100g',
+        'speed_90_gbps': 'speed90g',
+        'speed_80_gbps': 'speed80g',
+        'speed_70_gbps': 'speed70g',
+        'speed_60_gbps': 'speed60g',
+        'speed_50_gbps': 'speed50g',
+        'speed_40_gbps': 'speed40g',
+        'speed_30_gbps': 'speed30g',
+        'speed_25_gbps': 'speed25g',
+        'speed_20_gbps': 'speed20g',
+        'speed_10_gbps': 'speed10g',
+        'speed_9_gbps': 'speed9000',
+        'speed_8_gbps': 'speed8000',
+        'speed_7_gbps': 'speed7000',
+        'speed_6_gbps': 'speed6000',
+        'speed_5_gbps': 'speed5000',
+        'speed_4_gbps': 'speed4000',
+        'speed_3_gbps': 'speed3000',
+        'speed_2_gbps': 'speed2000',
+        'speed_1_gbps': 'speed1000',
+        'speed_100_mbps': 'speed100',
+        'speed_100_fd_mbps': 'speed100',
+        'speed_100_hd_mbps': 'speed100',
+        'speed_10_fd_mbps': 'speed100',
+        'speed_10_hd_mbps': 'speed100'
+    }
     _ADVERTISE_MAP = {
         'advertise_one_thousand_mbps': 'speed1000',
         'advertise_one_hundred_fd_mbps': 'speed100fd',
@@ -393,7 +422,7 @@ class Vport(object):
             'xpath':
             vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', ''),
             'speed':
-            Vport._SPEED_MAP[layer1.speed],
+            self._get_speed(vport, layer1),
             'media':
             layer1.media,
             'autoNegotiate':
@@ -427,6 +456,12 @@ class Vport(object):
         }
         self._add_l1config_import(vport, proposed_import, imports)
 
+    def _get_speed(self, vport, layer1):
+        if vport['type'] == 'ethernetvm':
+            return Vport._VM_SPEED_MAP[layer1.speed]
+        else:
+            return Vport._SPEED_MAP[layer1.speed]
+    
     def _reset_auto_negotiation(self, vport, layer1, imports):
         if layer1.speed.endswith(
                 '_mbps') is False and layer1.speed != 'speed_1_gbps':
