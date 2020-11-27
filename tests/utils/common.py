@@ -155,7 +155,12 @@ def get_b2b_raw_config():
         )
     )
 
-    return config.Config(ports=ports, layer1=l1, flows=[f], captures=[c])
+    # forcefully take ownership of ports owned by other users
+    o = config.Options(port.Options(location_preemption=True))
+
+    return config.Config(
+        ports=ports, layer1=l1, flows=[f], captures=[c], options=o
+    )
 
 
 def get_capture_port_names(cfg):
@@ -244,11 +249,6 @@ def get_all_captures(api, cfg):
         pcap_bytes = api.get_capture_results(
             result.CaptureRequest(port_name=name)
         )
-        if len(pcap_bytes) < 1000:
-            print('Received incomplete pcap from port %s, retrying ...' % name)
-            pcap_bytes = api.get_capture_results(
-                result.CaptureRequest(port_name=name)
-            )
 
         cap_dict[name] = []
         for ts, pkt in dpkt.pcap.Reader(io.BytesIO(pcap_bytes)):
@@ -328,8 +328,8 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=False):
         for stat in port_stats:
             print(
                 row_format.format(
-                    stat['name'], stat['frames_tx'], stat['bytes_tx'],
-                    stat['frames_rx'], stat['bytes_rx'], stat['frames_tx_rate']
+                    stat.name, stat.frames_tx, stat.bytes_tx, stat.frames_rx,
+                    stat.bytes_rx, stat.frames_tx_rate
                 )
             )
         print(border)
@@ -343,9 +343,7 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=False):
         print(border)
         print(row_format.format('Flow', 'Rx Frames', 'Rx Bytes'))
         for stat in flow_stats:
-            print(row_format.format(
-                stat['name'], stat['frames_rx'], stat['bytes_rx'])
-            )
+            print(row_format.format(stat.name, stat.frames_rx, stat.bytes_rx))
         print(border)
         print("")
         print("")
@@ -353,22 +351,22 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=False):
 
 def flow_transmit_matches(flow_results, state):
     return len(flow_results) == len(
-        list(filter(lambda f: f['transmit'] == state, flow_results))
+        list(filter(lambda f: f.transmit == state, flow_results))
     )
 
 
 def total_frames_ok(port_results, flow_results, expected):
-    port_tx = sum([p['frames_tx'] for p in port_results])
-    port_rx = sum([p['frames_rx'] for p in port_results])
-    flow_rx = sum([f['frames_rx'] for f in flow_results])
+    port_tx = sum([p.frames_tx for p in port_results])
+    port_rx = sum([p.frames_rx for p in port_results])
+    flow_rx = sum([f.frames_rx for f in flow_results])
 
     return port_tx == port_rx == flow_rx == expected
 
 
 def total_bytes_ok(port_results, flow_results, expected):
-    port_tx = sum([p['bytes_tx'] for p in port_results])
-    port_rx = sum([p['bytes_rx'] for p in port_results])
-    flow_rx = sum([f['bytes_rx'] for f in flow_results])
+    port_tx = sum([p.bytes_tx for p in port_results])
+    port_rx = sum([p.bytes_rx for p in port_results])
+    flow_rx = sum([f.bytes_rx for f in flow_results])
 
     return port_tx == port_rx == flow_rx == expected
 
