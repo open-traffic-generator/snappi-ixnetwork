@@ -76,6 +76,7 @@ class Settings(object):
         self.timeout_seconds = None
         self.interval_seconds = None
         self.log_level = None
+        self.dynamic_stats_output = None
         self.license_servers = None
 
         self.load_from_settings_file()
@@ -135,18 +136,19 @@ def get_b2b_raw_config():
     if settings.speed is not None:
         l1 = [
             layer1.Layer1(
-                name='raw_l1', port_names=[p.name for p in ports],
+                name='l1', port_names=[p.name for p in ports],
                 speed=settings.speed
             )
         ]
 
     c = capture.Capture(
-        name='raw_capture', port_names=[ports[1].name], enable=True, choice=[]
+        name='c1', port_names=[ports[1].name], enable=True,
+        choice=[], format='pcap'
     )
 
     # default flow with first two ports as tx/rx
     f = flow.Flow(
-        name='%s->%s' % (ports[0].name, ports[1].name),
+        name='f1',
         tx_rx=flow.TxRx(
             flow.PortTxRx(
                 tx_port_name=ports[0].name,
@@ -178,7 +180,7 @@ def get_capture_port_names(cfg):
     return names
 
 
-def start_traffic(api, cfg):
+def start_traffic(api, cfg, start_capture=True):
     """
     Applies configuration, starts capture and starts flows.
     """
@@ -186,7 +188,7 @@ def start_traffic(api, cfg):
     api.set_state(control.State(control.ConfigState(config=cfg, state='set')))
 
     capture_names = get_capture_port_names(cfg)
-    if capture_names:
+    if capture_names and start_capture:
         print('Starting capture on ports %s ...' % str(capture_names))
         api.set_state(
             control.State(
@@ -200,14 +202,14 @@ def start_traffic(api, cfg):
     api.set_state(control.State(control.FlowTransmitState(state='start')))
 
 
-def stop_traffic(api, cfg):
+def stop_traffic(api, cfg, stop_capture=True):
     """
     Stops flows and capture.
     """
     print('Stopping transmit on all flows ...')
     api.set_state(control.State(control.FlowTransmitState(state='stop')))
     capture_names = get_capture_port_names(cfg)
-    if capture_names:
+    if capture_names and stop_capture:
         print('Stopping capture on ports %s ...' % str(capture_names))
         api.set_state(
             control.State(
@@ -310,7 +312,10 @@ def wait_for(func, condition_str, interval_seconds=None, timeout_seconds=None):
         time.sleep(interval_seconds)
 
 
-def print_stats(port_stats=None, flow_stats=None, clear_screen=False):
+def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
+    if clear_screen is None:
+        clear_screen = settings.dynamic_stats_output
+
     if clear_screen:
         os.system('clear')
 
