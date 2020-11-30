@@ -30,8 +30,10 @@ class TrafficItem(CustomField):
         'pfcPause': 'pfc_pause',
         'vlan': 'vlan',
         'ipv4': 'ipv4',
-        "tcp": "tcp",
-        "udp": "udp",
+        'tcp': 'tcp',
+        'udp': 'udp',
+        'gtpu': 'gtpv1',
+        'gTPuOptionalFields': 'gtpv1option',
         'custom': 'custom'
     }
 
@@ -40,8 +42,10 @@ class TrafficItem(CustomField):
         'pfcpause': 'pfcPause',
         'vlan': 'vlan',
         'ipv4': 'ipv4',
-        "tcp": "tcp",
-        "udp": "udp",
+        'tcp': 'tcp',
+        'udp': 'udp',
+        'gtpv1': 'gtpu',
+        'gtpv1option': 'gTPuOptionalFields',
         'custom': 'custom'
     }
 
@@ -129,7 +133,25 @@ class TrafficItem(CustomField):
         "length": "udp.header.length",
         "checksum": "udp.header.checksum",
     }
+    
+    _GTPV1 = {
+        "version" : "gtpu.header.version",
+        "protocol_type" : "gtpu.header.pt",
+        "reserved" : "gtpu.header.reserved",
+        "e_flag" : "gtpu.header.e",
+        "s_flag" : "gtpu.header.s",
+        "pn_flag" : "gtpu.header.n",
+        "message_type" : "tpu.header.type",
+        "message_length" : "gtpu.header.totalLength",
+        "teid" : "gtpu.header.teid"
+    }
 
+    _GTPV1OPTION = {
+        "squence_number" : "gTPuOptionalFields.header.sequenceNumber",
+        "n_pdu_number" : "gTPuOptionalFields.header.npduNumber",
+        "next_extension_header_type" : "gTPuOptionalFields.header.nextExtHdrField"
+    }
+    
     _CUSTOM = '_custom_headers'
 
     def __init__(self, ixnetworkapi):

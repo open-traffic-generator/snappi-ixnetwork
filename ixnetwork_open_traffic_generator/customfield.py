@@ -70,10 +70,13 @@ class CustomField(object):
         return value
     
     def adjust_header(self, headers):
+        ''''''
         new_headers = list()
         for header in headers:
             if header.choice == 'ethernetpause':
                 self._ethernet_pause(new_headers, header.ethernetpause)
+            elif header.choice == 'gtpv1':
+                self._gtpv1(new_headers, header)
             else:
                 new_headers.append(header)
         return new_headers
@@ -93,6 +96,16 @@ class CustomField(object):
         custom = Custom(bytes='{0}{1}'.format(control_op_code, time))
         new_headers.append(Header(custom))
 
+    def _gtpv1(self, new_headers, header):
+        ''''''
+        import copy
+        new_headers.append(header)
+        gtp_option = copy.deepcopy(header)
+        gtp_option.__setattr__('choice', 'gtpv1option')
+        gtp_option.__setattr__('gtpv1option', header.gtpv1)
+        gtp_option.__delattr__('gtpv1')
+        new_headers.append(gtp_option)
+    
     def _custom_headers(self, ixn_field, packet):
         if packet.bytes is not None:
             ixn_custom_length = ixn_field.find(FieldTypeId='custom.header.length')
