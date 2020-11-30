@@ -9,5 +9,6 @@
     "timeout_seconds": 30,
     "interval_seconds": 0.5,
     "log_level": "info",
+    "dynamic_stats_output": false,
     "license_servers": []
 }
