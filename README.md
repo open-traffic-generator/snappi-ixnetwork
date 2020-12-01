@@ -50,11 +50,11 @@ api.set_state(control.State(control.ConfigState(config=cfg, state='set')))
 api.set_state(control.State(control.FlowTransmitState(state='start')))
 
 # fetch tx port stats and wait until total frames sent is correct
-while True:
-    res = api.get_port_results(
+while 10000 != sum([
+    p['frames_tx'] for p in api.get_port_results(
         result.PortRequest(port_names=[tx.name], column_names=['frames_tx'])
     )
-    if res[0].frames_tx == flw.duration.packets.packets:
-        break
+]):
+    continue
 
 ```
