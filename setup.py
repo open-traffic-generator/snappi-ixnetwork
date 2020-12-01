@@ -65,6 +65,7 @@ setup(
             'pytest',
             'flake8==3.8.4',
             'dpkt==1.9.4',
+            'ipaddr==2.2.0'
         ]
     }
 )
