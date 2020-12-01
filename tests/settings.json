@@ -1,0 +1,14 @@
+{
+    "username": "common",
+    "api_server": "localhost:11009",
+    "ports": [
+        "localhost;1;1",
+        "localhost;1;2"
+    ],
+    "speed": "speed_1_gbps",
+    "timeout_seconds": 30,
+    "interval_seconds": 0.5,
+    "log_level": "info",
+    "dynamic_stats_output": false,
+    "license_servers": []
+}

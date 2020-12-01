@@ -1,9 +1,9 @@
 import pytest
 import abstract_open_traffic_generator.control as control
 import abstract_open_traffic_generator.result as result
-import pandas
 
 
+@pytest.mark.skip(reason="Fix - Do not use pandas")
 def test_flow_results(serializer, api, b2b_ipv4_flows_config):
     """Demonstrates the following:
     - Retrieving a subset of flow results

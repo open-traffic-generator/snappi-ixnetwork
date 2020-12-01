@@ -1,66 +1,39 @@
 import pytest
 import json
 import yaml
-import os
-import collections
-import sys
-if sys.version_info[0] >= 3:
-    unicode = str
 
-IXNETWORK_OTG_PYTEST_CONF = {
-    'api_server': '127.0.0.1',
-    'api_server_port': 11009,
-    'api_log_level': 'info',
-    'license_servers': [],
-    'tx_port_location': None,
-    'rx_port_location': None
-}
+import utils
 
 
 def pytest_addoption(parser):
-    """Add command line options
-    """
-    for name, value in IXNETWORK_OTG_PYTEST_CONF.items():
-        parser.addoption('--%s' % name,
-                         action="store",
-                         type=str,
-                         default=value,
-                         help=str(value))
-
-
-def byteify(input):
-    if isinstance(input, dict):
-        return {key: byteify(value) for key, value in input.items()}
-    elif isinstance(input, list):
-        return [byteify(element) for element in input]
-    elif isinstance(input, unicode) and sys.version_info[0] == 2:
-        return input.encode('utf-8')
-    else:
-        return input
+    # called before running tests to register command line options for pytest
+    utils.settings.register_pytest_command_line_options(parser)
 
 
 def pytest_configure(config):
-    """Process command line options
-    Process IXNETWORK_OTG_PYTEST_CONF file if one exists
-    """
-    for key in IXNETWORK_OTG_PYTEST_CONF:
-        IXNETWORK_OTG_PYTEST_CONF[key] = config.getoption(key)
-    data = json.dumps(IXNETWORK_OTG_PYTEST_CONF)
-    d = json.loads(data, object_hook=byteify)
-    conf_filename = os.environ.get('IXNETWORK_OTG_PYTEST_CONF', None)
-    if conf_filename is not None:
-        try:
-            with open(conf_filename) as fid:
-                data = json.dumps(yaml.safe_load(fid))
-                for key, value in json.loads(data, object_hook=byteify).items():
-                    d[key] = value
-        except Exception as e:
-            print(e)
-    pytest.otg_conf = collections.namedtuple('otg', d.keys())(*d.values())
-    print(
-        'Using global IxNetwork open traffic generator pytest configuration options:'
-    )
-    print(pytest.otg_conf)
+    # callled before running (configuring) tests to load global settings with
+    # values provided over command line
+    utils.settings.load_from_pytest_command_line(config)
+
+
+@pytest.fixture(scope='session')
+def settings():
+    # global settings
+    return utils.settings
+
+
+@pytest.fixture(scope='session')
+def api():
+    # handle to make API calls
+    api = utils.get_api_client()
+    yield api
+    if api.assistant is not None:
+        api.assistant.Session.remove()
+
+
+@pytest.fixture(scope='session')
+def b2b_raw_config():
+    return utils.get_b2b_raw_config()
 
 
 @pytest.fixture(scope='session')
@@ -93,21 +66,6 @@ def serializer(request):
 
 
 @pytest.fixture(scope='session')
-def api():
-    """Change this to the ip address and rest port of the
-    IxNetwork API Server to use for the api test fixture
-    """
-    from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
-    api = IxNetworkApi(pytest.otg_conf.api_server,
-                       port=pytest.otg_conf.api_server_port,
-                       license_servers=pytest.otg_conf.license_servers,
-                       log_level=pytest.otg_conf.api_log_level)
-    yield api
-    if api.assistant is not None:
-        api.assistant.Session.remove()
-
-
-@pytest.fixture(scope='session')
 def options():
     """Returns global options
     """
@@ -121,7 +79,7 @@ def tx_port():
     """Returns a transmit port
     """
     from abstract_open_traffic_generator.port import Port
-    return Port(name='Tx Port', location=pytest.otg_conf.tx_port_location)
+    return Port(name='Tx Port', location=utils.settings.ports[0])
 
 
 @pytest.fixture(scope='session')
@@ -129,7 +87,7 @@ def rx_port():
     """Returns a receive port
     """
     from abstract_open_traffic_generator.port import Port
-    return Port(name='Rx Port', location=pytest.otg_conf.rx_port_location)
+    return Port(name='Rx Port', location=utils.settings.ports[1])
 
 
 @pytest.fixture(scope='session')
@@ -319,4 +277,3 @@ def b2b_ipv4_flows_config(options, tx_port, rx_port, b2b_ipv4_devices):
                   devices=b2b_ipv4_devices,
                   flows=[flow1, flow2],
                   options=options)
-                  

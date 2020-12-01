@@ -18,9 +18,12 @@ class TrafficItem(CustomField):
         ('frames_rx', 'Rx Frames', int),
         ('frames_tx_rate', 'Tx Frame Rate', float),
         ('frames_rx_rate', 'Rx Frame Rate', float),
+        ('bytes_tx', 'Tx Bytes', int),
+        ('bytes_rx', 'Rx Bytes', int),
+        ('loss', 'Loss %', float),
+        # TODO: these are not defined in API spec
         ('bytes_tx_rate', 'Tx Rate (Bps)', float),
         ('bytes_rx_rate', 'Rx Rate (Bps)', float),
-        ('loss', 'Loss %', float)
     ]
 
     _STACK_IGNORE = ['ethernet.fcs']
@@ -30,8 +33,10 @@ class TrafficItem(CustomField):
         'pfcPause': 'pfc_pause',
         'vlan': 'vlan',
         'ipv4': 'ipv4',
-        "tcp": "tcp",
-        "udp": "udp",
+        'tcp': 'tcp',
+        'udp': 'udp',
+        'gtpu': 'gtpv1',
+        'gTPuOptionalFields': 'gtpv1option',
         'custom': 'custom'
     }
 
@@ -40,8 +45,10 @@ class TrafficItem(CustomField):
         'pfcpause': 'pfcPause',
         'vlan': 'vlan',
         'ipv4': 'ipv4',
-        "tcp": "tcp",
-        "udp": "udp",
+        'tcp': 'tcp',
+        'udp': 'udp',
+        'gtpv1': 'gtpu',
+        'gtpv1option': 'gTPuOptionalFields',
         'custom': 'custom'
     }
 
@@ -129,7 +136,25 @@ class TrafficItem(CustomField):
         "length": "udp.header.length",
         "checksum": "udp.header.checksum",
     }
+    
+    _GTPV1 = {
+        "version" : "gtpu.header.version",
+        "protocol_type" : "gtpu.header.pt",
+        "reserved" : "gtpu.header.reserved",
+        "e_flag" : "gtpu.header.e",
+        "s_flag" : "gtpu.header.s",
+        "pn_flag" : "gtpu.header.n",
+        "message_type" : "tpu.header.type",
+        "message_length" : "gtpu.header.totalLength",
+        "teid" : "gtpu.header.teid"
+    }
 
+    _GTPV1OPTION = {
+        "squence_number" : "gTPuOptionalFields.header.sequenceNumber",
+        "n_pdu_number" : "gTPuOptionalFields.header.npduNumber",
+        "next_extension_header_type" : "gTPuOptionalFields.header.nextExtHdrField"
+    }
+    
     _CUSTOM = '_custom_headers'
 
     def __init__(self, ixnetworkapi):
@@ -538,8 +563,13 @@ class TrafficItem(CustomField):
                     self._set_result_value(flow_row, 'transmit', self._get_state(traffic_item['state']))
                     self._set_result_value(flow_row, 'port_tx', stream['txPortName'])
                     self._set_result_value(flow_row, 'port_rx', rx_port_name)
+                    # init all columns with corresponding zero-values so that
+                    # the underlying dictionary contains all requested columns
+                    # in an event of unwanted exceptions
                     for external_name, _, external_type in self._RESULT_COLUMNS:
-                        self._set_result_value(flow_row, external_name, 0, external_type)
+                        self._set_result_value(
+                            flow_row, external_name, 0, external_type
+                        )
                     flow_rows[flow_row['name'] + flow_row['port_tx'] + flow_row['port_rx']] = flow_row
 
         # resolve result values
@@ -553,5 +583,15 @@ class TrafficItem(CustomField):
                 if float(row['Tx Frame Rate']) > 0 or int(row['Tx Frames']) == 0:
                     flow_row['transmit'] = 'started'
                 for external_name, internal_name, external_type in self._RESULT_COLUMNS:
-                    self._set_result_value(flow_row, external_name, row[internal_name], external_type)
+                    # keep plugging values for next columns even if the
+                    # current one raises exception
+                    try:
+                        self._set_result_value(
+                            flow_row, external_name, row[internal_name],
+                            external_type
+                        )
+                    except Exception:
+                        # TODO print a warning maybe ?
+                        pass
+
         return list(flow_rows.values())

@@ -6,6 +6,7 @@ from ixnetwork_restpy import SessionAssistant, StatViewAssistant
 from abstract_open_traffic_generator.api import *
 from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.control import *
+from abstract_open_traffic_generator import result
 from ixnetwork_open_traffic_generator.validation import Validation
 from ixnetwork_open_traffic_generator.vport import Vport
 from ixnetwork_open_traffic_generator.ngpf import Ngpf
@@ -158,10 +159,28 @@ class IxNetworkApi(Api):
     def get_capture_results(self, request):
         """Gets capture file and returns it as a byte stream
         """
-        capture = self._vport.find(Name=request.port_name).Capture
-        capture.Stop('allTraffic')
-        time.sleep(3)
-
+        with Timer(self, 'Captures stop'):
+            capture = self._vport.find(Name=request.port_name).Capture
+            capture.Stop('allTraffic')
+            
+            #   Internally setting max time_out to 90sec with 3sec polling interval.
+            #   Todo: Need to discuss and incorporate time_out field within model
+            retry_count = 30
+            port_ready = True
+            for x in range(retry_count):
+                port_ready = True
+                time.sleep(3)
+                capture = self._vport.find(Name=request.port_name).Capture
+                if capture.HardwareEnabled and capture.DataCaptureState == 'notReady':
+                    port_ready = False
+                    continue
+                if capture.SoftwareEnabled and capture.ControlCaptureState == 'notReady':
+                    port_ready = False
+                    continue
+                break
+            if not port_ready:
+                self.warning("Capture was not stopped for this port %s" % (request.port_name))
+        
         payload = {'arg1': [self._vport.href]}
         url = '%s/vport/operations/getCaptureInfos' % self._ixnetwork.href
         response = self._request('POST', url, payload)
@@ -182,6 +201,7 @@ class IxNetworkApi(Api):
         """Abstract API implementation
         """
         self._connect()
+        # TODO: these should be returned as a list of port stat object
         return self.vport.results(request)
 
     def get_flow_results(self, request):
@@ -208,6 +228,8 @@ class IxNetworkApi(Api):
         response = self.traffic_item.results(request)
         if len(self._errors) > 0:
             raise Exception('\n'.join(self._errors))
+
+        # TODO: these should be returned as a list of flow stat object
         return response
 
     def add_error(self, error):

@@ -3,25 +3,27 @@
 To build `python setup.py sdist --formats=gztar bdist_wheel --universal`
 """
 import os
-import shutil
 from setuptools import setup
 import requests
 
 
-# download the latest version of the open-traffic-generator/models 
+# TODO: We shouldn't be fetching latest version
+# download the latest version of the open-traffic-generator/models
 # openapi.yaml spec which this package is based on
-latest = requests.request('GET', 
-    'https://github.com/open-traffic-generator/models/releases/latest/download',
-    allow_redirects=False)
-openapi_url = latest.headers['location'] + "/openapi.yaml"
-download = requests.request('GET', openapi_url)
-assert(download.status_code == 200)
+OPENAPI_URL = (
+    'https://github.com/open-traffic-generator/models/releases/latest/download'
+    '/openapi.yaml'
+)
+response = requests.request('GET', OPENAPI_URL, allow_redirects=True)
+assert response.status_code == 200
+
+# put the downloaded file inside docs dir of package
 doc_dir = './ixnetwork_open_traffic_generator/docs'
 if os.path.exists(doc_dir) is False:
     os.mkdir(doc_dir)
-with open(os.path.join(doc_dir, 'openapi.yaml'), 'wb') as fid:
-    fid.write(download.content)
- 
+with open(os.path.join(doc_dir, 'openapi.yaml'), 'wb') as fp:
+    fp.write(response.content)
+
 # read long description and version number
 pkg_name = 'ixnetwork_open_traffic_generator'
 base_dir = os.path.abspath(os.path.dirname(__file__))
@@ -55,11 +57,15 @@ setup(
     install_requires=[
         'pyaml',
         'jsonpath-ng',
-        'abstract-open-traffic-generator==0.0.64', 
+        'abstract-open-traffic-generator==0.0.64',
         'ixnetwork-restpy>=1.0.52'
     ],
-    tests_require=[
-        'pytest'
-    ]
+    extras_require={
+        'dev': [
+            'pytest',
+            'flake8==3.8.4',
+            'dpkt==1.9.4',
+            'ipaddr==2.2.0'
+        ]
+    }
 )
-
