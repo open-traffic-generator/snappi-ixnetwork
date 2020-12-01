@@ -8,17 +8,34 @@ from ixnetwork_open_traffic_generator.timer import Timer
 class Vport(object):
     """Transforms OpenAPI objects into IxNetwork objects
 
-    - Port to /vport
-    - Port.Capture to /vport/capture
-    - Port.Layer1 to /vport/l1Config/...
-
-    Uses resourcemanager to set the vport location and l1Config as it is the
-    most efficient way.  
-    DO NOT use the AssignPorts API as it is too slow. 
-
     Args
     ----
     - ixnetworkapi (IxNetworkApi): instance of the IxNetworkApi class
+
+    Transformations
+    ---------------
+    - /components/schemas/Port to /vport
+    - /components/schemas/Capture to /vport/capture
+    - /components/schemas/Layer1 to /vport/l1Config/...
+
+    Process
+    -------
+    - Remove any vports that are not in the config.ports
+    - Add any vports that are in the config.ports
+    - If the location of the config.ports.location is different than the
+      the /vport -connectedTo property set it to None
+    - If the config.ports.location is None don't connect the ports
+      else connect the port, get the vport type, set the card mode based on the
+      config.layer1.speed
+
+    Notes
+    -----
+    - Uses resourcemanager to set the vport location and l1Config as it is the
+      most efficient way. DO NOT use the AssignPorts API as it is too slow. 
+    - Only setup l1Config if location is connected. 
+    - Given a connected location and speed the vport -type, card resource mode
+      and l1Config sub node are derived.
+
     """
     _SPEED_MAP = {
         'speed_100_gbps': 'speed100g',
@@ -78,7 +95,8 @@ class Vport(object):
 
     def _import(self, imports):
         if len(imports) > 0:
-            self._resource_manager.ImportConfig(json.dumps(imports), False)
+            for errata in self._resource_manager.ImportConfig(json.dumps(imports), False):
+                self._api.info(errata)
 
     def _delete_vports(self):
         """Delete any vports from the api server that do not exist in the new config
@@ -102,6 +120,7 @@ class Vport(object):
                 location = getattr(port, 'location', None)
                 if location is None:
                     vport_import['connectedTo'] = location
+                    port.location = None
                 imports.append(vport_import)
         self._import(imports)
         for name, vport in self._api.select_vports().items():
@@ -176,7 +195,7 @@ class Vport(object):
             location = getattr(port, 'location', None)
             if location is not None and ';' in location:
                 chassis_address = location.split(';')[0]
-                chassis.find(Hostname='^(%s)$' % chassis_address)
+                chassis.find(Hostname='^%s$' % chassis_address)
                 if len(chassis) == 0:
                     add_addresses.append(chassis_address)
                 check_addresses.append(chassis_address)
