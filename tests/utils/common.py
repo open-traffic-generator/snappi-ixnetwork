@@ -9,6 +9,7 @@ from abstract_open_traffic_generator import (
     config, port, layer1, flow, control, result, capture
 )
 from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
+from ipaddr import IPv4Address
 
 
 if sys.version_info[0] >= 3:
@@ -397,6 +398,7 @@ def total_bytes_in_frame_size_range(start, end, step, count):
 
     return total_bytes * total_count + partial_bytes
 
+
 def to_hex(lst):
     """
     Takes lst of data from packet capture and converts to hex
@@ -408,3 +410,74 @@ def to_hex(lst):
     value = reduce(lambda x,y: hex(x)+hex(y), lst)
     value = value[0:2]+value[2:].replace("0x","").lstrip("0")
     return value
+
+
+def stats_ok(api, size, packets):
+    """
+    Returns true if stats are as expected, false otherwise.
+    """
+    port_results, flow_results = utils.get_all_stats(api)
+
+    frames_ok = utils.total_frames_ok(port_results, flow_results, packets)
+    bytes_ok = utils.total_bytes_ok(port_results, flow_results, packets * size)
+    ok = frames_ok and bytes_ok
+
+    if utils.flow_transmit_matches(flow_results, 'stopped') and not ok:
+        raise Exception('Stats not ok after flows are stopped')
+
+    return ok
+
+
+def generate_ip_counter_list(start_ip, step_ip, count, up):
+    """
+    Example:
+        generate_ip_counter_list('10.1.1.1', '0.1.2.0', 10, True)
+        returns: ['10.1.1.1', '10.2.3.1', '10.3.5.1', '10.4.7.1', '10.5.9.1',
+                  '10.6.11.1', '10.7.13.1', '10.8.15.1', '10.9.17.1', 
+                  '10.10.19.1']
+    """
+    ip_list = []
+    for num in range(count):
+        ip_list.append(start_ip)
+        if up:
+            ip = IPv4Address(start_ip)+int(IPv4Address(step_ip))
+            start_ip = ip.exploded
+        else:
+            ip = IPv4Address(start_ip)-int(IPv4Address(step_ip))
+            start_ip = ip.exploded
+    return ip_list
+
+
+def generate_mac_counter_list(start_mac, step_mac, count, up):
+    """
+    Example:
+        generate_mac_counter_list("AA:BB:CC:DD:00:28", "00:00:00:00:02:01", 
+                                   10, True)
+        returns: ['AA:BB:CC:DD:00:28', 'AA:BB:CC:DD:02:29', 'AA:BB:CC:DD:04:2A',
+                  'AA:BB:CC:DD:06:2B', 'AA:BB:CC:DD:08:2C', 'AA:BB:CC:DD:0A:2D', 
+                  'AA:BB:CC:DD:0C:2E', 'AA:BB:CC:DD:0E:2F', 'AA:BB:CC:DD:10:30',
+                  'AA:BB:CC:DD:12:31']
+    """
+    mac_list = []
+    step_mac = "".join(step_mac.split(":"))
+    for num in range(count):
+        mac_list.append(start_mac)
+        start_mac = "".join(start_mac.split(":"))
+        if up:
+            mac = "{:012X}".format(int(start_mac, 16) + int(step_mac, 16))
+            start_mac = ":".join([mac[indx]+mac[indx+1] for indx in range(0, 12, 2)])
+        else:
+            mac = "{:012X}".format(int(start_mac, 16) - int(step_mac, 16))
+            start_mac = ":".join([mac[indx]+mac[indx+1] for indx in range(0, 12, 2)])
+    return mac_list
+
+
+def generate_value_list_with_packet_count(value_list, packet_count):
+    """
+    Example:
+        generate_value_list_with_packet_count(['10.1.1.1', '10.1.1.3'], 6)
+        returns: ['10.1.1.1', '10.1.1.3', '10.1.1.1', '10.1.1.3', 
+                  '10.1.1.1', '10.1.1.3']
+    """
+    ret_value = value_list * packet_count
+    return ret_value[:packet_count]
