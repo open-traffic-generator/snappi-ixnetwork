@@ -197,23 +197,12 @@ class IxNetworkApi(Api):
         pcap_file_bytes = self._request('GET', url)
         return pcap_file_bytes
 
-    def _to_result_port_object(self, result_dict):
-        ob = result.Port()
-        ob.__dict__ = result_dict
-        return ob
-
-    def _to_result_flow_object(self, result_dict):
-        ob = result.Flow()
-        ob.__dict__ = result_dict
-        return ob
-
     def get_port_results(self, request):
         """Abstract API implementation
         """
         self._connect()
-        return [
-            self._to_result_port_object(d) for d in self.vport.results(request)
-        ]
+        # TODO: these should be returned as a list of port stat object
+        return self.vport.results(request)
 
     def get_flow_results(self, request):
         """Abstract API implementation
@@ -239,7 +228,9 @@ class IxNetworkApi(Api):
         response = self.traffic_item.results(request)
         if len(self._errors) > 0:
             raise Exception('\n'.join(self._errors))
-        return [self._to_result_port_object(d) for d in response]
+
+        # TODO: these should be returned as a list of flow stat object
+        return response
 
     def add_error(self, error):
         """Add an error to the global errors

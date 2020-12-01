@@ -20,7 +20,10 @@ class TrafficItem(CustomField):
         ('frames_rx_rate', 'Rx Frame Rate', float),
         ('bytes_tx', 'Tx Bytes', int),
         ('bytes_rx', 'Rx Bytes', int),
-        ('loss', 'Loss %', float)
+        ('loss', 'Loss %', float),
+        # TODO: these are not defined in API spec
+        ('bytes_tx_rate', 'Tx Rate (Bps)', float),
+        ('bytes_rx_rate', 'Rx Rate (Bps)', float),
     ]
 
     _STACK_IGNORE = ['ethernet.fcs']
@@ -560,6 +563,9 @@ class TrafficItem(CustomField):
                     self._set_result_value(flow_row, 'transmit', self._get_state(traffic_item['state']))
                     self._set_result_value(flow_row, 'port_tx', stream['txPortName'])
                     self._set_result_value(flow_row, 'port_rx', rx_port_name)
+                    # init all columns with corresponding zero-values so that
+                    # the underlying dictionary contains all requested columns
+                    # in an event of unwanted exceptions
                     for external_name, _, external_type in self._RESULT_COLUMNS:
                         self._set_result_value(
                             flow_row, external_name, 0, external_type
@@ -577,6 +583,8 @@ class TrafficItem(CustomField):
                 if float(row['Tx Frame Rate']) > 0 or int(row['Tx Frames']) == 0:
                     flow_row['transmit'] = 'started'
                 for external_name, internal_name, external_type in self._RESULT_COLUMNS:
+                    # keep plugging values for next columns even if the
+                    # current one raises exception
                     try:
                         self._set_result_value(
                             flow_row, external_name, row[internal_name],

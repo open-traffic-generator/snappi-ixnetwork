@@ -43,7 +43,7 @@ jobs:
     
     - name: Test whl distribution installation
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl[dev]
+        ${{steps.path.outputs.pythonv}} -m pip install --upgrade dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl[dev]
 
     - name: Run tests
       run: |

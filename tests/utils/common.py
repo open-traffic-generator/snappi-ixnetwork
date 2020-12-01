@@ -334,8 +334,8 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
         for stat in port_stats:
             print(
                 row_format.format(
-                    stat.name, stat.frames_tx, stat.bytes_tx, stat.frames_rx,
-                    stat.bytes_rx, stat.frames_tx_rate
+                    stat['name'], stat['frames_tx'], stat['bytes_tx'],
+                    stat['frames_rx'], stat['bytes_rx'], stat['frames_tx_rate']
                 )
             )
         print(border)
@@ -349,30 +349,34 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
         print(border)
         print(row_format.format('Flow', 'Rx Frames', 'Rx Bytes'))
         for stat in flow_stats:
-            print(row_format.format(stat.name, stat.frames_rx, stat.bytes_rx))
+            print(
+                row_format.format(
+                    stat['name'], stat['frames_rx'], stat['bytes_rx']
+                )
+            )
         print(border)
         print("")
         print("")
 
 
 def flow_transmit_matches(flow_results, state):
-    return len(flow_results) == len(
-        list(filter(lambda f: f.transmit == state, flow_results))
+    return len(flow_results) == all(
+        [f['transmit'] == state for f in flow_results]
     )
 
 
 def total_frames_ok(port_results, flow_results, expected):
-    port_tx = sum([p.frames_tx for p in port_results])
-    port_rx = sum([p.frames_rx for p in port_results])
-    flow_rx = sum([f.frames_rx for f in flow_results])
+    port_tx = sum([p['frames_tx'] for p in port_results])
+    port_rx = sum([p['frames_rx'] for p in port_results])
+    flow_rx = sum([f['frames_rx'] for f in flow_results])
 
     return port_tx == port_rx == flow_rx == expected
 
 
 def total_bytes_ok(port_results, flow_results, expected):
-    port_tx = sum([p.bytes_tx for p in port_results])
-    port_rx = sum([p.bytes_rx for p in port_results])
-    flow_rx = sum([f.bytes_rx for f in flow_results])
+    port_tx = sum([p['bytes_tx'] for p in port_results])
+    port_rx = sum([p['bytes_rx'] for p in port_results])
+    flow_rx = sum([f['bytes_rx'] for f in flow_results])
 
     return port_tx == port_rx == flow_rx == expected
 
@@ -407,8 +411,8 @@ def to_hex(lst):
         [0,30] is converted to 0x1e
     """
     from functools import reduce
-    value = reduce(lambda x,y: hex(x)+hex(y), lst)
-    value = value[0:2]+value[2:].replace("0x","").lstrip("0")
+    value = reduce(lambda x, y: hex(x) + hex(y), lst)
+    value = value[0:2] + value[2:].replace("0x", "").lstrip("0")
     return value
 
 
@@ -416,13 +420,13 @@ def stats_ok(api, size, packets):
     """
     Returns true if stats are as expected, false otherwise.
     """
-    port_results, flow_results = utils.get_all_stats(api)
+    port_results, flow_results = get_all_stats(api)
 
-    frames_ok = utils.total_frames_ok(port_results, flow_results, packets)
-    bytes_ok = utils.total_bytes_ok(port_results, flow_results, packets * size)
+    frames_ok = total_frames_ok(port_results, flow_results, packets)
+    bytes_ok = total_bytes_ok(port_results, flow_results, packets * size)
     ok = frames_ok and bytes_ok
 
-    if utils.flow_transmit_matches(flow_results, 'stopped') and not ok:
+    if flow_transmit_matches(flow_results, 'stopped') and not ok:
         raise Exception('Stats not ok after flows are stopped')
 
     return ok
@@ -433,17 +437,17 @@ def generate_ip_counter_list(start_ip, step_ip, count, up):
     Example:
         generate_ip_counter_list('10.1.1.1', '0.1.2.0', 10, True)
         returns: ['10.1.1.1', '10.2.3.1', '10.3.5.1', '10.4.7.1', '10.5.9.1',
-                  '10.6.11.1', '10.7.13.1', '10.8.15.1', '10.9.17.1', 
+                  '10.6.11.1', '10.7.13.1', '10.8.15.1', '10.9.17.1',
                   '10.10.19.1']
     """
     ip_list = []
     for num in range(count):
         ip_list.append(start_ip)
         if up:
-            ip = IPv4Address(start_ip)+int(IPv4Address(step_ip))
+            ip = IPv4Address(start_ip) + int(IPv4Address(step_ip))
             start_ip = ip.exploded
         else:
-            ip = IPv4Address(start_ip)-int(IPv4Address(step_ip))
+            ip = IPv4Address(start_ip) - int(IPv4Address(step_ip))
             start_ip = ip.exploded
     return ip_list
 
@@ -465,10 +469,14 @@ def generate_mac_counter_list(start_mac, step_mac, count, up):
         start_mac = "".join(start_mac.split(":"))
         if up:
             mac = "{:012X}".format(int(start_mac, 16) + int(step_mac, 16))
-            start_mac = ":".join([mac[indx]+mac[indx+1] for indx in range(0, 12, 2)])
+            start_mac = ":".join(
+                [mac[indx] + mac[indx + 1] for indx in range(0, 12, 2)]
+            )
         else:
             mac = "{:012X}".format(int(start_mac, 16) - int(step_mac, 16))
-            start_mac = ":".join([mac[indx]+mac[indx+1] for indx in range(0, 12, 2)])
+            start_mac = ":".join(
+                [mac[indx] + mac[indx + 1] for indx in range(0, 12, 2)]
+            )
     return mac_list
 
 
@@ -476,7 +484,7 @@ def generate_value_list_with_packet_count(value_list, packet_count):
     """
     Example:
         generate_value_list_with_packet_count(['10.1.1.1', '10.1.1.3'], 6)
-        returns: ['10.1.1.1', '10.1.1.3', '10.1.1.1', '10.1.1.3', 
+        returns: ['10.1.1.1', '10.1.1.3', '10.1.1.1', '10.1.1.3',
                   '10.1.1.1', '10.1.1.3']
     """
     ret_value = value_list * packet_count

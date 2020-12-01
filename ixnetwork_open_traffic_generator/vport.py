@@ -586,7 +586,9 @@ class Vport(object):
                 port_row, 'link', 'up'
                 if vport['connectionState'] == 'connectedLinkUp' else 'down')
             self._set_result_value(port_row, 'capture', 'stopped')
-            # initialize remaining columns with 0
+            # init all columns with corresponding zero-values so that
+            # the underlying dictionary contains all requested columns
+            # in an event of unwanted exceptions
             for ext_name, _, typ in self._RESULT_COLUMNS:
                 self._set_result_value(port_row, ext_name, 0, typ)
 
@@ -595,6 +597,8 @@ class Vport(object):
         try:
             table = self._api.assistant.StatViewAssistant('Port Statistics')
             for row in table.Rows:
+                # keep plugging values for next columns even if the
+                # current one raises exception
                 try:
                     port_row = port_rows[row['Port Name']]
                     for ext_name, int_name, typ in self._RESULT_COLUMNS:
