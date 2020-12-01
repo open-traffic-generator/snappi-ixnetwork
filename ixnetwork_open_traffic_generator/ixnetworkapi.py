@@ -463,9 +463,15 @@ class IxNetworkApi(Api):
         return self._config
 
     def check_protocol_statistics(self):
-        view = StatViewAssistant(self._ixnetwork, 'Protocols Summary')
-        view.CheckCondition('Sessions Not Started', StatViewAssistant.EQUAL, 0)
-        view.CheckCondition('Sessions Down', StatViewAssistant.EQUAL, 0)
+        start = time.time()
+        url = '%s/operations/gettopologystatus' % self._ixnetwork.href
+        check = True
+        while check is True and time.time() - start < 90:
+            check = False
+            results = self._ixnetwork._connection._execute(url, None)
+            for result in results:
+                if result['arg2'][0]['arg2'] != result['arg2'][3]['arg2']:
+                    check = True
 
     def info(self, message):
         self._ixnetwork.info('[ixn-otg] %s' % message)
