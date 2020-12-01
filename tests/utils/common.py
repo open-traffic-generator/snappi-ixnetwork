@@ -399,6 +399,19 @@ def total_bytes_in_frame_size_range(start, end, step, count):
     return total_bytes * total_count + partial_bytes
 
 
+def to_hex(lst):
+    """
+    Takes lst of data from packet capture and converts to hex
+
+    Ex: [11,184] is converted to 0xbb8
+        [0,30] is converted to 0x1e
+    """
+    from functools import reduce
+    value = reduce(lambda x,y: hex(x)+hex(y), lst)
+    value = value[0:2]+value[2:].replace("0x","").lstrip("0")
+    return value
+
+
 def stats_ok(api, size, packets):
     """
     Returns true if stats are as expected, false otherwise.
