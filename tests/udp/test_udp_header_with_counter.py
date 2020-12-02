@@ -3,7 +3,7 @@ import utils
 from abstract_open_traffic_generator import flow as Flow
 
 
-@pytest.mark.parametrize('packets', [1])
+@pytest.mark.parametrize('packets', [100])
 @pytest.mark.parametrize('size', [74])
 def test_udp_header_with_counter(api, b2b_raw_config, size, packets):
     """
