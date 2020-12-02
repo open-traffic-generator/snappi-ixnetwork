@@ -455,12 +455,13 @@ def generate_ip_counter_list(start_ip, step_ip, count, up):
 def generate_mac_counter_list(start_mac, step_mac, count, up):
     """
     Example:
-        generate_mac_counter_list("AA:BB:CC:DD:00:28", "00:00:00:00:02:01", 
+        generate_mac_counter_list("AA:BB:CC:DD:00:28", "00:00:00:00:02:01",
                                    10, True)
-        returns: ['AA:BB:CC:DD:00:28', 'AA:BB:CC:DD:02:29', 'AA:BB:CC:DD:04:2A',
-                  'AA:BB:CC:DD:06:2B', 'AA:BB:CC:DD:08:2C', 'AA:BB:CC:DD:0A:2D', 
-                  'AA:BB:CC:DD:0C:2E', 'AA:BB:CC:DD:0E:2F', 'AA:BB:CC:DD:10:30',
-                  'AA:BB:CC:DD:12:31']
+        returns: ['AA:BB:CC:DD:00:28', 'AA:BB:CC:DD:02:29',
+                  'AA:BB:CC:DD:04:2A', 'AA:BB:CC:DD:06:2B',
+                  'AA:BB:CC:DD:08:2C', 'AA:BB:CC:DD:0A:2D',
+                  'AA:BB:CC:DD:0C:2E', 'AA:BB:CC:DD:0E:2F',
+                  'AA:BB:CC:DD:10:30', 'AA:BB:CC:DD:12:31']
     """
     mac_list = []
     step_mac = "".join(step_mac.split(":"))

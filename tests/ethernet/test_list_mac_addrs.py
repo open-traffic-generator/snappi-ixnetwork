@@ -7,7 +7,7 @@ def test_fixed_mac_addrs(api, settings, b2b_raw_config):
     """
     Configure a raw ethernet flow with,
     - fixed src and dst MAC address
-    - 10 frames of 1518B size each
+    - 100 frames of 1518B size each
     - 10% line rate
 
     Validate,
@@ -17,14 +17,15 @@ def test_fixed_mac_addrs(api, settings, b2b_raw_config):
     f = b2b_raw_config.flows[0]
     size = 100
     packets = 10
-    source = '00:0C:29:E3:53:EA'
-    destination = '00:0C:29:E3:53:F4'
+    step = '05:00:00:02:01:00'
+    src = utils.generate_mac_counter_list('00:0C:29:E3:53:EA', step, 5, True)
+    dst = utils.generate_mac_counter_list('00:0C:29:E3:53:F4', step, 5, True)
 
     f.packet = [
         flow.Header(
             flow.Ethernet(
-                src=flow.Pattern(source),
-                dst=flow.Pattern(destination)
+                src=flow.Pattern(src),
+                dst=flow.Pattern(dst)
             )
         )
     ]
@@ -37,9 +38,7 @@ def test_fixed_mac_addrs(api, settings, b2b_raw_config):
         lambda: utils.stats_ok(api, size, packets), 'stats to be as expected'
     )
 
-    source = utils.generate_value_list_with_packet_count([source], packets)
-    destination = utils.generate_value_list_with_packet_count(
-        [destination], packets
-    )
+    src = utils.generate_value_list_with_packet_count(src, packets)
+    dst = utils.generate_value_list_with_packet_count(dst, packets)
     size = utils.generate_value_list_with_packet_count([size], packets)
-    eth.captures_ok(api, b2b_raw_config, size, source, destination)
+    eth.captures_ok(api, b2b_raw_config, size, src, dst)
