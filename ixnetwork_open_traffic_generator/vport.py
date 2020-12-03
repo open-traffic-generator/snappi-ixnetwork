@@ -436,7 +436,12 @@ class Vport(object):
         if fcoe is False and vport_type.endswith('Fcoe'):
             vport_type = vport_type.replace('Fcoe', '')
         if vport_type != vport['type']:
-            imports.append({'xpath': vport['xpath'], 'type': vport_type})
+            imports.append(
+                {
+                    'xpath': vport['xpath'] + '/l1Config',
+                    'currentType': vport_type
+                }
+            )
         if fcoe is True and vport_type.endswith('Fcoe'):
             self._configure_fcoe(vport, layer1.flow_control, imports)
         return vport_type
