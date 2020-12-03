@@ -583,7 +583,7 @@ class TrafficItem(CustomField):
                         self._set_result_value(
                             flow_row, external_name, 0, external_type
                         )
-                    flow_rows[flow_row['name'] + flow_row['port_tx'] + flow_row['port_rx']] = flow_row
+                    flow_rows[traffic_item['name'] + stream['txPortName'] + rx_port_name] = flow_row
 
         # resolve result values
         table = self._api.assistant.StatViewAssistant(
