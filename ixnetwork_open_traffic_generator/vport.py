@@ -337,24 +337,23 @@ class Vport(object):
             return
         if self._api.config.layer1 is None:
             return
-        vports = self._api.select_vports()
         reset_auto_negotiation = dict()
-        # set the vport type first and commit it otherwise some settings
-        # such as l1config/... will not be committed properly
-        imports = []
-        for layer1 in self._api.config.layer1:
-            for port_name in layer1.port_names:
-                self._set_vport_type(vports[port_name], layer1, imports)
-        self._import(imports)
+        # set and commit the card resource mode
         vports = self._api.select_vports()
-        # set the resource mode changes and any other l1config/... changes
         imports = []
         for layer1 in self._api.config.layer1:
             for port_name in layer1.port_names:
                 self._set_card_resource_mode(vports[port_name], layer1,
                                              imports)
         self._import(imports)
-        # set the remaineder of l1config properties
+        # set the vport type
+        imports = []
+        for layer1 in self._api.config.layer1:
+            for port_name in layer1.port_names:
+                self._set_vport_type(vports[port_name], layer1, imports)
+        self._import(imports)
+        vports = self._api.select_vports()
+        # set the remainder of l1config properties
         imports = []
         for layer1 in self._api.config.layer1:
             for port_name in layer1.port_names:
