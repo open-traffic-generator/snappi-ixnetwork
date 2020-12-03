@@ -338,16 +338,23 @@ class Vport(object):
         if self._api.config.layer1 is None:
             return
         vports = self._api.select_vports()
+        reset_auto_negotiation = dict()
         # set the vport type first and commit it otherwise some settings
         # such as l1config/... will not be committed properly
         imports = []
-        reset_auto_negotiation = dict()
         for layer1 in self._api.config.layer1:
             for port_name in layer1.port_names:
                 self._set_vport_type(vports[port_name], layer1, imports)
         self._import(imports)
+        vports = self._api.select_vports()
         # set the resource mode changes and any other l1config/... changes
-        # and commit them
+        imports = []
+        for layer1 in self._api.config.layer1:
+            for port_name in layer1.port_names:
+                self._set_card_resource_mode(vports[port_name], layer1,
+                                             imports)
+        self._import(imports)
+        # set the remaineder of l1config properties
         imports = []
         for layer1 in self._api.config.layer1:
             for port_name in layer1.port_names:
@@ -372,12 +379,16 @@ class Vport(object):
                 'connectedLinkUp', 'connectedLinkDown'
         ]:
             return
-        self._set_card_resource_mode(vport, layer1, imports)
+        self._set_fcoe(vport, layer1, imports)
         self._set_auto_negotiation(vport, layer1, imports)
 
     def _set_card_resource_mode(self, vport, layer1, imports):
         """If the card has an aggregation mode set it according to the speed
         """
+        if vport['connectionState'] not in [
+                'connectedLinkUp', 'connectedLinkDown'
+        ]:
+            return
         speed_mode_map = {
             'speed_1_gbps': 'normal',
             'speed_10_gbps': 'tengig',
@@ -436,14 +447,10 @@ class Vport(object):
         if fcoe is False and vport_type.endswith('Fcoe'):
             vport_type = vport_type.replace('Fcoe', '')
         if vport_type != vport['type']:
-            imports.append(
-                {
-                    'xpath': vport['xpath'] + '/l1Config',
-                    'currentType': vport_type
-                }
-            )
-        if fcoe is True and vport_type.endswith('Fcoe'):
-            self._configure_fcoe(vport, layer1.flow_control, imports)
+            imports.append({
+                'xpath': vport['xpath'] + '/l1Config',
+                'currentType': vport_type
+            })
         return vport_type
 
     def _set_ethernet_auto_negotiation(self, vport, layer1, imports):
@@ -521,35 +528,33 @@ class Vport(object):
                 layer1.auto_negotiate,
             })
 
-    def _configure_fcoe(self, vport, flow_control, imports):
-        if flow_control is not None and flow_control.choice == 'ieee_802_1qbb':
-            pfc = flow_control.ieee_802_1qbb
-            fcoe = {
-                'xpath':
-                vport['xpath'] + '/l1Config/' +
-                vport['type'].replace('Fcoe', '') + '/fcoe',
-                'enablePFCPauseDelay':
-                False if pfc.pfc_delay == 0 else True,
-                'flowControlType':
-                Vport._FLOW_CONTROL_MAP[flow_control.choice],
-                'pfcPauseDelay':
-                pfc.pfc_delay,
-                'pfcPriorityGroups': [
-                    -1 if pfc.pfc_class_0 is None else pfc.pfc_class_0,
-                    -1 if pfc.pfc_class_1 is None else pfc.pfc_class_1,
-                    -1 if pfc.pfc_class_2 is None else pfc.pfc_class_2,
-                    -1 if pfc.pfc_class_3 is None else pfc.pfc_class_3,
-                    -1 if pfc.pfc_class_4 is None else pfc.pfc_class_4,
-                    -1 if pfc.pfc_class_5 is None else pfc.pfc_class_5,
-                    -1 if pfc.pfc_class_6 is None else pfc.pfc_class_6,
-                    -1 if pfc.pfc_class_7 is None else pfc.pfc_class_7,
-                ],
-                'priorityGroupSize':
-                'priorityGroupSize-8',
-                'supportDataCenterMode':
-                True
-            }
-            imports.append(fcoe)
+    def _set_fcoe(self, vport, layer1, imports):
+        if hasattr(layer1, 'flow_control') and layer1.flow_control is None:
+            return
+        xpath = '%s/l1Config/%s/fcoe' % (vport['xpath'], vport['type'].replace(
+            'Fcoe', ''))
+        fcoe = {
+            'xpath': xpath,
+            'flowControlType':
+            Vport._FLOW_CONTROL_MAP[layer1.flow_control.choice]
+        }
+        if layer1.flow_control.choice == 'ieee_802_1qbb':
+            pfc = layer1.flow_control.ieee_802_1qbb
+            fcoe['enablePFCPauseDelay'] = False if pfc.pfc_delay == 0 else True
+            fcoe['pfcPauseDelay'] = pfc.pfc_delay
+            fcoe['pfcPriorityGroups'] = [
+                -1 if pfc.pfc_class_0 is None else pfc.pfc_class_0,
+                -1 if pfc.pfc_class_1 is None else pfc.pfc_class_1,
+                -1 if pfc.pfc_class_2 is None else pfc.pfc_class_2,
+                -1 if pfc.pfc_class_3 is None else pfc.pfc_class_3,
+                -1 if pfc.pfc_class_4 is None else pfc.pfc_class_4,
+                -1 if pfc.pfc_class_5 is None else pfc.pfc_class_5,
+                -1 if pfc.pfc_class_6 is None else pfc.pfc_class_6,
+                -1 if pfc.pfc_class_7 is None else pfc.pfc_class_7,
+            ]
+            fcoe['priorityGroupSize'] = 'priorityGroupSize-8'
+            fcoe['supportDataCenterMode'] = True
+        imports.append(fcoe)
 
     def _clear_ownership(self, locations):
         try:
