@@ -33,6 +33,7 @@ class TrafficItem(CustomField):
         'pfcPause': 'pfc_pause',
         'vlan': 'vlan',
         'ipv4': 'ipv4',
+        'ipv6': 'ipv6',
         'tcp': 'tcp',
         'udp': 'udp',
         'gtpu': 'gtpv1',
@@ -45,6 +46,7 @@ class TrafficItem(CustomField):
         'pfcpause': 'pfcPause',
         'vlan': 'vlan',
         'ipv4': 'ipv4',
+        'ipv6': 'ipv6',
         'tcp': 'tcp',
         'udp': 'udp',
         'gtpv1': 'gtpu',
@@ -107,6 +109,17 @@ class TrafficItem(CustomField):
         'dst': 'ipv4.header.dstIp',
     }
 
+    _IPV6 = {
+        'version' : 'ipv6.header.versionTrafficClassFlowLabel.version',
+        'traffic_class' : 'ipv6.header.versionTrafficClassFlowLabel.trafficClass',
+        'flow_label' : 'ipv6.header.versionTrafficClassFlowLabel.flowLabel',
+        'payload_length' : 'ipv6.header.payloadLength',
+        'next_header' : 'ipv6.header.nextHeader',
+        'hop_limit' : 'ipv6.header.hopLimit',
+        'src' : 'ipv6.header.srcIP',
+        'dst' : 'ipv6.header.dstIP'
+    }
+    
     _TOS = {
         "precedence": "ipv4.header.priority.tos.precedence",
         "delay": "ipv4.header.priority.tos.delay",
