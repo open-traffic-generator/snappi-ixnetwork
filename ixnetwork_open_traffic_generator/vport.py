@@ -133,9 +133,12 @@ class Vport(object):
 
     def _import(self, imports):
         if len(imports) > 0:
-            for errata in self._resource_manager.ImportConfig(
-                    json.dumps(imports), False):
-                self._api.info(errata)
+            errata = self._resource_manager.ImportConfig(
+                json.dumps(imports), False)
+            for item in errata:
+                self._api.warning(item)
+            return len(errata) == 0
+        return True
 
     def _delete_vports(self):
         """Delete any vports from the api server that do not exist in the new config
@@ -345,7 +348,12 @@ class Vport(object):
             for port_name in layer1.port_names:
                 self._set_card_resource_mode(vports[port_name], layer1,
                                              imports)
-        self._import(imports)
+        if self._import(imports) is False:
+            # WARNING: this retry is because no reasonable answer as to why
+            # changing card mode periodically fails with this opaque message
+            # 'Releasing ownership on ports failed.'
+            self._api.info('Retrying card resource mode change')
+            self._import(imports)
         # set the vport type
         imports = []
         for layer1 in self._api.config.layer1:
