@@ -252,7 +252,7 @@ class Vport(object):
         if len(check_addresses) > 0:
             with Timer(
                     self._api,
-                    'Location hosts check [%s]' % ', '.join(check_addresses)):
+                    'Location hosts ready [%s]' % ', '.join(check_addresses)):
                 start_time = time.time()
                 while True:
                     chassis.find(Hostname='^(%s)$' % '|'.join(check_addresses),
@@ -274,7 +274,7 @@ class Vport(object):
             location_supported = False
 
         locations = []
-        self._add_hosts(10)
+        self._add_hosts(60)
         vports = self._api.select_vports()
         imports = []
         clear_locations = []
