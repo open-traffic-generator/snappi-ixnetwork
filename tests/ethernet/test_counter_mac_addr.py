@@ -1,58 +1,66 @@
 from abstract_open_traffic_generator import flow
-from abstract_open_traffic_generator.flow import Counter
 import utils
-import eth
 
 
-def test_fixed_mac_addrs(api, settings, b2b_raw_config):
+def test_counter_mac_addrs(api, settings, b2b_raw_config):
     """
     Configure a raw ethernet flow with,
-    - fixed src and dst MAC address
-    - 10 frames of 1518B size each
-    - 10% line rate
+    - counter pattern for src and dst MAC address and ether type
 
     Validate,
-    - tx/rx frame count is as expected
-    - all captured frames have expected src and dst MAC address
+    - Fetch the ethernet header config via restpy and validate
+    against expected
     """
     f = b2b_raw_config.flows[0]
-    size = 100
-    packets = 10
+    count = 10
     src = '00:0C:29:E3:53:EA'
     dst = '00:0C:29:E3:53:F4'
     step = '00:00:00:00:01:00'
+    eth_type = '8100'
+    eth_step = '2'
 
-    src_mac_list = Counter(
+    src_mac_list = flow.Counter(
         start=src,
         step=step,
-        count=packets
+        count=count
     )
 
-    dst_mac_list = Counter(
+    dst_mac_list = flow.Counter(
         start=dst,
         step=step,
-        count=packets,
+        count=count,
         up=False
+    )
+
+    eth_type_list = flow.Counter(
+        start=eth_type,
+        step=eth_step,
+        count=count
     )
 
     f.packet = [
         flow.Header(
             flow.Ethernet(
                 src=flow.Pattern(src_mac_list),
-                dst=flow.Pattern(dst_mac_list)
+                dst=flow.Pattern(dst_mac_list),
+                ether_type=flow.Pattern(eth_type_list)
             )
         )
     ]
-    f.duration = flow.Duration(flow.FixedPackets(packets=packets))
-    f.size = flow.Size(size)
-    f.rate = flow.Rate(value=10, unit='line')
 
-    utils.start_traffic(api, b2b_raw_config)
-    utils.wait_for(
-        lambda: utils.stats_ok(api, size, packets), 'stats to be as expected'
-    )
+    utils.apply_config(api, b2b_raw_config)
 
-    src = utils.generate_mac_counter_list(src, step, packets, True)
-    dst = utils.generate_mac_counter_list(dst, step, packets, False)
-    size = utils.generate_value_list_with_packet_count([size], packets)
-    eth.captures_ok(api, b2b_raw_config, size, src, dst)
+    attrs = {
+        'Destination MAC Address': (
+            dst.lower(),
+            step,
+            str(count)
+        ),
+        'Source MAC Address': (
+            src.lower(),
+            step,
+            str(count)
+        ),
+        'Ethernet-Type': (eth_type, eth_step, str(count)),
+    }
+    utils.validate_config(api, 'ethernet', **attrs)

@@ -9,7 +9,6 @@ from abstract_open_traffic_generator import (
     config, port, layer1, flow, control, result, capture
 )
 from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
-from ipaddr import IPv4Address
 
 
 if sys.version_info[0] >= 3:
@@ -432,61 +431,114 @@ def stats_ok(api, size, packets):
     return ok
 
 
-def generate_ip_counter_list(start_ip, step_ip, count, up):
+def value_list_with_packet_count(value_list, packet_count):
     """
     Example:
-        generate_ip_counter_list('10.1.1.1', '0.1.2.0', 10, True)
-        returns: ['10.1.1.1', '10.2.3.1', '10.3.5.1', '10.4.7.1', '10.5.9.1',
-                  '10.6.11.1', '10.7.13.1', '10.8.15.1', '10.9.17.1',
-                  '10.10.19.1']
-    """
-    ip_list = []
-    for num in range(count):
-        ip_list.append(start_ip)
-        if up:
-            ip = IPv4Address(start_ip) + int(IPv4Address(step_ip))
-            start_ip = ip.exploded
-        else:
-            ip = IPv4Address(start_ip) - int(IPv4Address(step_ip))
-            start_ip = ip.exploded
-    return ip_list
-
-
-def generate_mac_counter_list(start_mac, step_mac, count, up):
-    """
-    Example:
-        generate_mac_counter_list("AA:BB:CC:DD:00:28", "00:00:00:00:02:01",
-                                   10, True)
-        returns: ['AA:BB:CC:DD:00:28', 'AA:BB:CC:DD:02:29',
-                  'AA:BB:CC:DD:04:2A', 'AA:BB:CC:DD:06:2B',
-                  'AA:BB:CC:DD:08:2C', 'AA:BB:CC:DD:0A:2D',
-                  'AA:BB:CC:DD:0C:2E', 'AA:BB:CC:DD:0E:2F',
-                  'AA:BB:CC:DD:10:30', 'AA:BB:CC:DD:12:31']
-    """
-    mac_list = []
-    step_mac = "".join(step_mac.split(":"))
-    for num in range(count):
-        mac_list.append(start_mac)
-        start_mac = "".join(start_mac.split(":"))
-        if up:
-            mac = "{:012X}".format(int(start_mac, 16) + int(step_mac, 16))
-            start_mac = ":".join(
-                [mac[indx] + mac[indx + 1] for indx in range(0, 12, 2)]
-            )
-        else:
-            mac = "{:012X}".format(int(start_mac, 16) - int(step_mac, 16))
-            start_mac = ":".join(
-                [mac[indx] + mac[indx + 1] for indx in range(0, 12, 2)]
-            )
-    return mac_list
-
-
-def generate_value_list_with_packet_count(value_list, packet_count):
-    """
-    Example:
-        generate_value_list_with_packet_count(['10.1.1.1', '10.1.1.3'], 6)
+        value_list_with_packet_count(['10.1.1.1', '10.1.1.3'], 6)
         returns: ['10.1.1.1', '10.1.1.3', '10.1.1.1', '10.1.1.3',
                   '10.1.1.1', '10.1.1.3']
     """
     ret_value = value_list * packet_count
     return ret_value[:packet_count]
+
+
+def mac_or_ip_to_num(mac_or_ip_addr, mac=True):
+    """
+    Example:
+    mac_or_ip_to_num('00:0C:29:E3:53:EA')
+    returns: 52242371562
+    mac_or_ip_to_num('10.1.1.1', False)
+    returns: 167837953
+    """
+    sep = ':' if mac else '.'
+    addr = []
+    if mac:
+        addr = mac_or_ip_addr.split(sep)
+    else:
+        addr = ["{:02x}".format(int(i)) for i in mac_or_ip_addr.split(sep)]
+    return int("".join(addr), 16)
+
+
+def num_to_mac_or_ip(mac_or_ip_addr, mac=True):
+    """
+    Example:
+    num_to_mac_or_ip(52242371562)
+    returns: '00:0C:29:E3:53:EA'
+    num_to_mac_or_ip(167837953, False)
+    returns: '10.1.1.1'
+    """
+    sep = ':' if mac else '.'
+    fmt = '{:012x}' if mac else '{:08x}'
+    rng = 12 if mac else 8
+    mac_or_ip = fmt.format(mac_or_ip_addr)
+    addr = []
+    for i in range(0, rng, 2):
+        if mac:
+            addr.append(mac_or_ip[i] + mac_or_ip[i + 1])
+        else:
+            addr.append(str(int(mac_or_ip[i] + mac_or_ip[i + 1], 16)))
+    return sep.join(addr)
+
+
+def mac_or_ip_addr_from_counter_pattern(start_addr, step, count, up, mac=True):
+    """
+    Example:
+    mac_or_ip_addr_from_counter_pattern('10.1.1.1', '0.0.1.1', 2, True, False)
+    returns: ['00:0C:29:E3:53:EA', '00:0C:29:E3:54:EA']
+    mac_or_ip_addr_from_counter_pattern('10.1.1.1', '0.0.1.1', 2, True, False)
+    teturns: ['10.1.1.1', '10.1.2.2']
+    """
+    addr_list = []
+    for num in range(count):
+        addr_list.append(start_addr)
+        if up:
+            start_addr = mac_or_ip_to_num(
+                start_addr, mac) + mac_or_ip_to_num(step, mac)
+        else:
+            start_addr = mac_or_ip_to_num(
+                start_addr, mac) - mac_or_ip_to_num(step, mac)
+        start_addr = num_to_mac_or_ip(start_addr, mac)
+    return addr_list
+
+
+def apply_config(api, cfg):
+    """
+    Applies configuration, starts capture and starts flows.
+    """
+    print('Setting config ...')
+    api.set_state(control.State(control.ConfigState(config=cfg, state='set')))
+
+
+def get_value(field):
+    """
+    Returns the values based on valuetype
+    """
+    if field.ValueType == 'singleValue':
+        return field.SingleValue
+    elif field.ValueType in ['increment', 'decrement']:
+        return field.StartValue, field.StepValue, field.CountValue
+    elif field.ValueType in ['repeatableRandomRange']:
+        return field.MinValue, field.MaxValue, \
+            field.StepValue, field.Seed, field.CountValue
+    else:
+        return field.ValueList
+
+
+def get_packet_information(api, packet_header):
+    """
+    Takes any packet_header for ex ethernet, ipv4, udp, tcp and returns
+    the packet information of that header
+    """
+    trafficItem = api._ixnetwork.Traffic.TrafficItem.find()
+    configElement = trafficItem.ConfigElement.find()
+    pckt_info = {}
+    stack = configElement.Stack.find(StackTypeId=packet_header)
+    for field in stack.Field.find():
+        pckt_info[field.DisplayName] = get_value(field)
+    return pckt_info
+
+
+def validate_config(api, packet_header, **kwargs):
+    packet_info = get_packet_information(api, packet_header)
+    for key in kwargs:
+        assert packet_info[key] == kwargs[key]

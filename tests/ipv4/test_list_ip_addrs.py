@@ -1,32 +1,35 @@
 from abstract_open_traffic_generator import flow
 import utils
-import ipv4
 
 
-def test_fixed_mac_addrs(api, settings, b2b_raw_config):
+def test_list_ip_addr(api, settings, b2b_raw_config):
     """
-    Configure a raw ethernet flow with,
-    - fixed src and dst MAC address
-    - 10 frames of 1518B size each
-    - 10% line rate
+    Configure a raw IPv4 flow with,
+    - list pattern src and dst IPv4 address
 
     Validate,
-    - tx/rx frame count is as expected
-    - all captured frames have expected src and dst MAC address
+    - Fetch the IPv4 header config via restpy and validate
+      against expected
     """
     f = b2b_raw_config.flows[0]
-    size = 100
-    packets = 10
     step = '05:00:00:02:01:00'
-    src = utils.generate_mac_counter_list('00:0C:29:E3:53:EA', step, 5, True)
-    dst = utils.generate_mac_counter_list('00:0C:29:E3:53:F4', step, 5, True)
+    src = utils.mac_or_ip_addr_from_counter_pattern(
+        '00:0C:29:E3:53:EA', step, 5, True
+    )
+    dst = utils.mac_or_ip_addr_from_counter_pattern(
+        '00:0C:29:E3:53:F4', step, 5, True
+    )
 
     step = '0.0.1.0'
     src_ip = '10.1.1.1'
     dst_ip = '20.1.1.1'
 
-    src_ip_list = utils.generate_ip_counter_list(src_ip, step, 5, True)
-    dst_ip_list = utils.generate_ip_counter_list(dst_ip, step, 5, True)
+    src_ip_list = utils.mac_or_ip_addr_from_counter_pattern(
+        src_ip, step, 5, True, False
+    )
+    dst_ip_list = utils.mac_or_ip_addr_from_counter_pattern(
+        dst_ip, step, 5, True, False
+    )
 
     f.packet = [
         flow.Header(
@@ -42,16 +45,10 @@ def test_fixed_mac_addrs(api, settings, b2b_raw_config):
             )
         )
     ]
-    f.duration = flow.Duration(flow.FixedPackets(packets=packets))
-    f.size = flow.Size(size)
-    f.rate = flow.Rate(value=10, unit='line')
 
-    utils.start_traffic(api, b2b_raw_config)
-    utils.wait_for(
-        lambda: utils.stats_ok(api, size, packets), 'stats to be as expected'
-    )
-
-    src_ip = utils.generate_value_list_with_packet_count(src_ip_list, packets)
-    dst_ip = utils.generate_value_list_with_packet_count(dst_ip_list, packets)
-    size = utils.generate_value_list_with_packet_count([size], packets)
-    ipv4.captures_ok(api, b2b_raw_config, size, src_ip, dst_ip)
+    utils.apply_config(api, b2b_raw_config)
+    attrs = {
+        'Destination Address': dst_ip_list,
+        'Source Address': src_ip_list,
+    }
+    utils.validate_config(api, 'ipv4', **attrs)
