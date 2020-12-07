@@ -310,8 +310,11 @@ class TrafficItem(CustomField):
                         stack_type_id] != header.choice:
                     stacks_to_remove.append(ixn_stack[i])
                     stack = self._add_stack(ixn_stream, ixn_stack[i], header)
-                else:
+                elif stack_type_id == 'ethernet':
                     stack = ixn_stack[i]
+                else:
+                    stacks_to_remove.append(ixn_stack[i])
+                    stack = self._add_stack(ixn_stream, ixn_stack[i], header)
             self._configure_field(stack.Field, header)
         for stack in stacks_to_remove:
             stack.Remove()
