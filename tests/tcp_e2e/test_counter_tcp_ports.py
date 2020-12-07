@@ -1,7 +1,9 @@
 from abstract_open_traffic_generator import flow
 import utils
+import pytest
 
 
+@pytest.mark.skip(reason="skip until moved to other repo")
 def test_counter_tcp_ports(api, settings, b2b_raw_config):
     """
     Configure a raw TCP flow with,
