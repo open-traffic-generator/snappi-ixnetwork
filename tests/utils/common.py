@@ -489,3 +489,46 @@ def generate_value_list_with_packet_count(value_list, packet_count):
     """
     ret_value = value_list * packet_count
     return ret_value[:packet_count]
+
+
+def apply_config(api, cfg):
+    """
+    Applies configuration, starts capture and starts flows.
+    """
+    print('Setting config ...')
+    api.set_state(control.State(control.ConfigState(config=cfg, state='set')))
+
+
+def get_value(field):
+    """
+    Returns the values based on valuetype
+    """
+    if field.ValueType == 'singleValue':
+        return field.SingleValue
+    elif field.ValueType in ['increment', 'decrement']:
+        return field.StartValue, field.StepValue, field.CountValue
+    elif field.ValueType in ['repeatableRandomRange']:
+        return field.MinValue, field.MaxValue, \
+            field.StepValue, field.Seed, field.CountValue
+    else:
+        return field.ValueList
+
+
+def get_packet_information(api, packet_header):
+    """
+    Takes any packet_header for ex ethernet, ipv4, udp, tcp and returns
+    the packet information of that header
+    """
+    trafficItem = api._ixnetwork.Traffic.TrafficItem.find()
+    configElement = trafficItem.ConfigElement.find()
+    pckt_info = {}
+    stack = configElement.Stack.find(StackTypeId=packet_header)
+    for field in stack.Field.find():
+        pckt_info[field.DisplayName] = get_value(field)
+    return pckt_info
+
+
+def validate_config(api, packet_header, **kwargs):
+    packet_info = get_packet_information(api, packet_header)
+    for key in kwargs:
+        assert packet_info[key] == kwargs[key]

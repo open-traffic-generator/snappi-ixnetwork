@@ -3,13 +3,14 @@ import utils
 from abstract_open_traffic_generator import flow as Flow
 
 
-@pytest.mark.parametrize('packets', [1000])
+@pytest.mark.skip(reason="skip until moved to other repo")
+@pytest.mark.parametrize('packets', [100])
 @pytest.mark.parametrize('size', [74])
-def test_udp_header_with_fixed_length_fixed_checksum(api, b2b_raw_config, size, packets):
+def test_udp_header_with_list(api, b2b_raw_config, size, packets):
     """
     Configure a raw udp flow with,
-    - fixed src and dst Port address, length, checksum
-    - 1000 frames of 74B size each
+    - Non-default list values of src and dst Port address, length, checksum
+    - 100 frames of 74B size each
     - 10% line rate
 
     Validate,
@@ -23,20 +24,20 @@ def test_udp_header_with_fixed_length_fixed_checksum(api, b2b_raw_config, size, 
             Flow.Ethernet(
                 src=Flow.Pattern('00:0c:29:1d:10:67'),
                 dst=Flow.Pattern('00:0c:29:1d:10:71')
-                )
-            ),
+            )
+        ),
         Flow.Header(
             Flow.Ipv4(
                 src=Flow.Pattern("10.10.10.1"),
-                dst=Flow.Pattern("10.10.10.2"),
-                )
-            ),
+                dst=Flow.Pattern("10.10.10.2")
+            )
+        ),
         Flow.Header(
             Flow.Udp(
-                src_port=Flow.Pattern("3000"),
-                dst_port=Flow.Pattern("4000"),
-                length=Flow.Pattern("38"),
-                checksum=Flow.Pattern("5")
+                src_port=Flow.Pattern(["3000", "3001"]),
+                dst_port=Flow.Pattern(["4000", "4001"]),
+                length=Flow.Pattern(["35", "36"]),
+                checksum=Flow.Pattern(["5", "6"])
             )
         ),
     ]
@@ -46,7 +47,7 @@ def test_udp_header_with_fixed_length_fixed_checksum(api, b2b_raw_config, size, 
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: results_ok(api,size,packets), 'stats to be as expected'
+        lambda: results_ok(api, size, packets), 'stats to be as expected'
     )
 
     captures_ok(api, b2b_raw_config, size)
@@ -66,13 +67,19 @@ def captures_ok(api, cfg, size):
     """
     Returns normally if patterns in captured packets are as expected.
     """
-    src = 3000
-    dst = 4000
-    length = 38
-    checksum = 5
+    src = [3000, 3001]
+    dst = [4000, 4001]
+    length = [35, 36]
+    checksum = [5, 6]
     cap_dict = utils.get_all_captures(api, cfg)
+    assert len(cap_dict) == 1
+
     for k in cap_dict:
+        packet_num = 0
         for packet in cap_dict[k]:
-            assert utils.to_hex(packet[36:38]) == hex(dst) and utils.to_hex(packet[34:36]) == hex(src)
-            assert utils.to_hex(packet[38:40]) == hex(length) and utils.to_hex(packet[40:42]) == hex(checksum)
+            assert utils.to_hex(packet[34:36]) == hex(src[packet_num])
+            assert utils.to_hex(packet[36:38]) == hex(dst[packet_num])
+            assert utils.to_hex(packet[38:40]) == hex(length[packet_num])
+            assert utils.to_hex(packet[40:42]) == hex(checksum[packet_num])
             assert len(packet) == size
+            packet_num = (packet_num + 1) % 2
