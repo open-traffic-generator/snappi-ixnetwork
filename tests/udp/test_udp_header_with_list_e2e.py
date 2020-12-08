@@ -6,7 +6,7 @@ from abstract_open_traffic_generator import flow as Flow
 @pytest.mark.skip(reason="skip until moved to other repo")
 @pytest.mark.parametrize('packets', [100])
 @pytest.mark.parametrize('size', [74])
-def test_udp_header_with_list(api, b2b_raw_config, size, packets):
+def test_udp_header_with_list_e2e(api, b2b_raw_config, size, packets):
     """
     Configure a raw udp flow with,
     - Non-default list values of src and dst Port address, length, checksum

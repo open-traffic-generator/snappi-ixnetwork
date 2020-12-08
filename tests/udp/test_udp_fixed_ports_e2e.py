@@ -6,7 +6,7 @@ from abstract_open_traffic_generator import flow
 @pytest.mark.skip(reason="skip until moved to other repo")
 @pytest.mark.parametrize('packets', [1])
 @pytest.mark.parametrize('size', [74])
-def test_udp_fixed_ports(api, b2b_raw_config, size, packets):
+def test_udp_fixed_ports_e2e(api, b2b_raw_config, size, packets):
     """
     Configure a raw udp flow with,
     - fixed src and dst Port address

@@ -4,11 +4,10 @@ import pytest
 
 
 @pytest.mark.skip(reason="skip until moved to other repo")
-def test_counter_tcp_ports(api, settings, b2b_raw_config):
+def test_list_tcp_ports_e2e(api, settings, b2b_raw_config):
     """
     Configure a raw TCP flow with,
-    - src port incrementing from 5000 to 5018 with step value 2
-    - dst port decrementing from 6000 to 5082 with step value 2
+    - list of 6 src ports and 3 dst ports
     - 100 frames of 1518B size each
     - 10% line rate
     Validate,
@@ -35,11 +34,9 @@ def test_counter_tcp_ports(api, settings, b2b_raw_config):
         flow.Header(
             flow.Tcp(
                 src_port=flow.Pattern(
-                    flow.Counter(start='5000', step='2', count=10)
+                    ['5000', '5050', '5015', '5040', '5032', '5021']
                 ),
-                dst_port=flow.Pattern(
-                    flow.Counter(start='6000', step='2', count=10, up=False)
-                ),
+                dst_port=flow.Pattern(['6000', '6015', '6050']),
             )
         )
     ]
@@ -70,20 +67,19 @@ def captures_ok(api, cfg, size, packets):
     Returns normally if patterns in captured packets are as expected.
     """
     src = [
-        [0x13, 0x88], [0x13, 0x8A], [0x13, 0x8C], [0x13, 0x8E], [0x13, 0x90],
-        [0x13, 0x92], [0x13, 0x94], [0x13, 0x96], [0x13, 0x98], [0x13, 0x9A]
+        [0x13, 0x88], [0x13, 0xBA], [0x13, 0x97], [0x13, 0xB0], [0x13, 0xA8],
+        [0x13, 0x9D]
     ]
-    dst = [
-        [0x17, 0x70], [0x17, 0x6E], [0x17, 0x6C], [0x17, 0x6A], [0x17, 0x68],
-        [0x17, 0x66], [0x17, 0x64], [0x17, 0x62], [0x17, 0x60], [0x17, 0x5E]
-    ]
+    dst = [[0x17, 0x70], [0x17, 0x7F], [0x17, 0xA2]]
 
     cap_dict = utils.get_all_captures(api, cfg)
     assert len(cap_dict) == 1
 
     for k in cap_dict:
         i = 0
+        j = 0
         for b in cap_dict[k]:
-            assert b[34:36] == src[i] and b[36:38] == dst[i]
-            i = (i + 1) % 10
+            assert b[34:36] == src[i] and b[36:38] == dst[j]
+            i = (i + 1) % 6
+            j = (j + 1) % 3
             assert len(b) == size

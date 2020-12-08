@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.mark.skip(reason="skip until moved to other repo")
-def test_random_tcp_ports(api, settings, b2b_raw_config):
+def test_random_tcp_ports_e2e(api, settings, b2b_raw_config):
     """
     Configure a raw TCP flow with,
     - random src port (from possible values 5000, 5001 and 5002)
