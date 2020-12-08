@@ -1,8 +1,7 @@
 from abstract_open_traffic_generator import flow
-import utils
 
 
-def test_counter_ip_addr(api, settings, b2b_raw_config):
+def test_counter_ip_addr(api, b2b_raw_config, utils):
     """
     Configure a raw IPv4 flow with,
     - Counter Pattern src and dst IPv4 address

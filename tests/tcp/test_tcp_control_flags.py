@@ -1,11 +1,7 @@
-import pytest
-import utils
 from abstract_open_traffic_generator import flow as Flow
 
 
-@pytest.mark.parametrize('packets', [100])
-@pytest.mark.parametrize('size', [1500])
-def test_tcp_control_flags(api, b2b_raw_config, size, packets):
+def test_tcp_control_flags(api, b2b_raw_config, utils):
     """
     Configure a raw tcp flow with,
     - with different control flags
@@ -19,6 +15,9 @@ def test_tcp_control_flags(api, b2b_raw_config, size, packets):
     src_port = '3000'
     dst_port = '4000'
     control_flags = '111100101'
+    size = 1500
+    packets = 100
+
     flow.packet = [
         Flow.Header(
             Flow.Ethernet(

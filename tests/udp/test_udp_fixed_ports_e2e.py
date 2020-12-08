@@ -3,10 +3,8 @@ import utils
 from abstract_open_traffic_generator import flow
 
 
-@pytest.mark.skip(reason="skip until moved to other repo")
-@pytest.mark.parametrize('packets', [1])
-@pytest.mark.parametrize('size', [74])
-def test_udp_fixed_ports_e2e(api, b2b_raw_config, size, packets):
+@pytest.mark.e2e
+def test_udp_fixed_ports_e2e(api, b2b_raw_config):
     """
     Configure a raw udp flow with,
     - fixed src and dst Port address
@@ -18,6 +16,8 @@ def test_udp_fixed_ports_e2e(api, b2b_raw_config, size, packets):
     - all captured frames have expected src and dst Port address
     """
     f = b2b_raw_config.flows[0]
+    packets = 1
+    size = 74
 
     f.packet = [
         flow.Header(

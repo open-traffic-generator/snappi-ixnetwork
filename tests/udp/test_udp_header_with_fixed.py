@@ -1,14 +1,7 @@
-import pytest
-import utils
 from abstract_open_traffic_generator import flow as Flow
 
 
-@pytest.mark.parametrize('packets', [1000])
-@pytest.mark.parametrize('size', [74])
-def test_udp_header_with_fixed(api,
-                               b2b_raw_config,
-                               size,
-                               packets):
+def test_udp_header_with_fixed(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,
     - fixed src and dst Port address, length, checksum
@@ -23,6 +16,8 @@ def test_udp_header_with_fixed(api,
     dst_port = '4000'
     length = '38'
     checksum = '5'
+    packets = 1000
+    size = 74
     flow = b2b_raw_config.flows[0]
 
     flow.packet = [
@@ -59,4 +54,3 @@ def test_udp_header_with_fixed(api,
         'UDP-Checksum': checksum
     }
     utils.validate_config(api, 'udp', **attrs)
-

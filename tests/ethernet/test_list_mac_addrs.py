@@ -1,8 +1,7 @@
 from abstract_open_traffic_generator import flow
-import utils
 
 
-def test_list_mac_addrs(api, settings, b2b_raw_config):
+def test_list_mac_addrs(api, b2b_raw_config, utils):
     """
     Configure a raw ethernet flow with,
     - list pattern for src and dst MAC address

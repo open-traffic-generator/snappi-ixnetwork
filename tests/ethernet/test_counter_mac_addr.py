@@ -1,8 +1,7 @@
 from abstract_open_traffic_generator import flow
-import utils
 
 
-def test_counter_mac_addrs(api, settings, b2b_raw_config):
+def test_counter_mac_addrs(api, b2b_raw_config, utils):
     """
     Configure a raw ethernet flow with,
     - counter pattern for src and dst MAC address and ether type

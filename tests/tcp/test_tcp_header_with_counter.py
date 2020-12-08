@@ -1,11 +1,7 @@
-import pytest
-import utils
 from abstract_open_traffic_generator import flow as Flow
 
 
-@pytest.mark.parametrize('packets', [100])
-@pytest.mark.parametrize('size', [74])
-def test_tcp_header_with_counter(api, b2b_raw_config, size, packets):
+def test_tcp_header_with_counter(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,
     - Non-default Counter Pattern values of src and
@@ -20,6 +16,9 @@ def test_tcp_header_with_counter(api, b2b_raw_config, size, packets):
 
     src_port = ('5000', '2', '10')
     dst_port = ('6000', '2', '10')
+    size = 74
+    packets = 100
+
     flow.packet = [
         Flow.Header(
             Flow.Ethernet(

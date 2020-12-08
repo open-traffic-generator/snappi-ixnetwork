@@ -1,14 +1,7 @@
-import pytest
-import utils
 from abstract_open_traffic_generator import flow as Flow
 
 
-@pytest.mark.parametrize('packets', [1000])
-@pytest.mark.parametrize('size', [74])
-def test_tcp_header_with_fixed(api,
-                               b2b_raw_config,
-                               size,
-                               packets):
+def test_tcp_header_with_fixed(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,
     - fixed src and dst Port address
@@ -20,6 +13,8 @@ def test_tcp_header_with_fixed(api,
     """
     src_port = '3000'
     dst_port = '4000'
+    size = 74
+    packets = 1000
     flow = b2b_raw_config.flows[0]
 
     flow.packet = [

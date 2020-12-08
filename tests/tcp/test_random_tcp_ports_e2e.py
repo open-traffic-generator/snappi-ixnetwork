@@ -3,7 +3,7 @@ import utils
 import pytest
 
 
-@pytest.mark.skip(reason="skip until moved to other repo")
+@pytest.mark.e2e
 def test_random_tcp_ports_e2e(api, settings, b2b_raw_config):
     """
     Configure a raw TCP flow with,
