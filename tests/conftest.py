@@ -2,30 +2,30 @@ import pytest
 import json
 import yaml
 
-import utils
+import utils as utl
 
 
 def pytest_addoption(parser):
     # called before running tests to register command line options for pytest
-    utils.settings.register_pytest_command_line_options(parser)
+    utl.settings.register_pytest_command_line_options(parser)
 
 
 def pytest_configure(config):
     # callled before running (configuring) tests to load global settings with
     # values provided over command line
-    utils.settings.load_from_pytest_command_line(config)
+    utl.settings.load_from_pytest_command_line(config)
 
 
 @pytest.fixture(scope='session')
 def settings():
     # global settings
-    return utils.settings
+    return utl.settings
 
 
 @pytest.fixture(scope='session')
 def api():
     # handle to make API calls
-    api = utils.get_api_client()
+    api = utl.get_api_client()
     yield api
     if api.assistant is not None:
         api.assistant.Session.remove()
@@ -33,7 +33,12 @@ def api():
 
 @pytest.fixture(scope='session')
 def b2b_raw_config():
-    return utils.get_b2b_raw_config()
+    return utl.get_b2b_raw_config()
+
+
+@pytest.fixture(scope='session')
+def utils():
+    return utl
 
 
 @pytest.fixture(scope='session')
@@ -79,7 +84,7 @@ def tx_port():
     """Returns a transmit port
     """
     from abstract_open_traffic_generator.port import Port
-    return Port(name='Tx Port', location=utils.settings.ports[0])
+    return Port(name='Tx Port', location=utl.settings.ports[0])
 
 
 @pytest.fixture(scope='session')
@@ -87,7 +92,7 @@ def rx_port():
     """Returns a receive port
     """
     from abstract_open_traffic_generator.port import Port
-    return Port(name='Rx Port', location=utils.settings.ports[1])
+    return Port(name='Rx Port', location=utl.settings.ports[1])
 
 
 @pytest.fixture(scope='session')
