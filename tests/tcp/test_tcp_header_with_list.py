@@ -1,11 +1,7 @@
-import pytest
-import utils
 from abstract_open_traffic_generator import flow as Flow
 
 
-@pytest.mark.parametrize('packets', [100])
-@pytest.mark.parametrize('size', [74])
-def test_tcp_header_with_list(api, b2b_raw_config, size, packets):
+def test_tcp_header_with_list(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,
     - Non-default list values of src and dst Port address, length, checksum
@@ -19,6 +15,9 @@ def test_tcp_header_with_list(api, b2b_raw_config, size, packets):
 
     src_port = ['3000', '3001']
     dst_port = ['4000', '4001']
+    packets = 100
+    size = 74
+
     flow.packet = [
         Flow.Header(
             Flow.Ethernet(

@@ -51,12 +51,13 @@ cfg = config.Config(ports=[tx, rx], flows=[flw])
 api.set_state(control.State(control.ConfigState(config=cfg, state='set')))
 api.set_state(control.State(control.FlowTransmitState(state='start')))
 
-# fetch tx port stats and wait until total frames sent is correct
-while 10000 != sum([
-    p['frames_tx'] for p in api.get_port_results(
-        result.PortRequest(port_names=[tx.name], column_names=['frames_tx'])
-    )
-]):
-    continue
+# fetch tx port stats and wait until total frames sent is correct or retry
+# retry count is 0
+retry = 5
+request = result.PortRequest(port_names=[tx.name], column_names=['frames_tx'])
+
+while sum([p['frames_tx'] for p in api.get_port_results(request)]) != 10000:
+    assert retry > 0
+    retry -= 1
 
 ```

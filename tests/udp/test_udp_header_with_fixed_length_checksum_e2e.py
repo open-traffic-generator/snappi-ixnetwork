@@ -3,13 +3,8 @@ import utils
 from abstract_open_traffic_generator import flow as Flow
 
 
-@pytest.mark.skip(reason="skip until moved to other repo")
-@pytest.mark.parametrize('packets', [1000])
-@pytest.mark.parametrize('size', [74])
-def test_udp_header_with_fixed_length_checksum_e2e(api,
-                                                     b2b_raw_config,
-                                                     size,
-                                                     packets):
+@pytest.mark.e2e
+def test_udp_header_with_fixed_length_checksum_e2e(api, b2b_raw_config):
     """
     Configure a raw udp flow with,
     - fixed src and dst Port address, length, checksum
@@ -21,20 +16,22 @@ def test_udp_header_with_fixed_length_checksum_e2e(api,
     - all captured frames have expected src and dst Port address
     """
     flow = b2b_raw_config.flows[0]
+    packets = 1000
+    size = 74
 
     flow.packet = [
         Flow.Header(
             Flow.Ethernet(
                 src=Flow.Pattern('00:0c:29:1d:10:67'),
                 dst=Flow.Pattern('00:0c:29:1d:10:71')
-                )
-            ),
+            )
+        ),
         Flow.Header(
             Flow.Ipv4(
                 src=Flow.Pattern("10.10.10.1"),
                 dst=Flow.Pattern("10.10.10.2"),
-                )
-            ),
+            )
+        ),
         Flow.Header(
             Flow.Udp(
                 src_port=Flow.Pattern("3000"),

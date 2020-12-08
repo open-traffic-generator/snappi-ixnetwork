@@ -47,7 +47,7 @@ jobs:
 
     - name: Run tests
       run: |
-        ${{steps.path.outputs.pythonv}} -m pytest --api_server="10.39.47.41:11149" --ports="10.39.35.12;11;03 10.39.35.12;11;04" tests
+        ${{steps.path.outputs.pythonv}} -m pytest --api_server="10.39.47.41:11149" --ports="10.39.35.12;11;03 10.39.35.12;11;04" tests -m "not e2e"
 
   create_release_and_deploy:
     needs: build_and_test
