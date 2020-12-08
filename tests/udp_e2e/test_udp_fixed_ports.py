@@ -3,6 +3,7 @@ import utils
 from abstract_open_traffic_generator import flow
 
 
+@pytest.mark.skip(reason="skip until moved to other repo")
 @pytest.mark.parametrize('packets', [1])
 @pytest.mark.parametrize('size', [74])
 def test_udp_fixed_ports(api, b2b_raw_config, size, packets):
@@ -23,14 +24,14 @@ def test_udp_fixed_ports(api, b2b_raw_config, size, packets):
             flow.Ethernet(
                 src=flow.Pattern('00:0c:29:1d:10:67'),
                 dst=flow.Pattern('00:0c:29:1d:10:71')
-                )
-            ),
+            )
+        ),
         flow.Header(
             flow.Ipv4(
                 src=flow.Pattern("10.10.10.1"),
                 dst=flow.Pattern("10.10.10.2")
-                )
-            ),
+            )
+        ),
         flow.Header(
             flow.Udp(
                 src_port=flow.Pattern("3000"),
@@ -44,7 +45,7 @@ def test_udp_fixed_ports(api, b2b_raw_config, size, packets):
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: stats_ok(api,size,packets), 'stats to be as expected'
+        lambda: stats_ok(api, size, packets), 'stats to be as expected'
     )
 
     captures_ok(api, b2b_raw_config, size)
@@ -70,8 +71,8 @@ def captures_ok(api, cfg, size):
     """
     Returns normally if patterns in captured packets are as expected.
     """
-    dst = [0x0F,0xA0]
-    src = [0x0B,0xB8]
+    dst = [0x0F, 0xA0]
+    src = [0x0B, 0xB8]
     cap_dict = utils.get_all_captures(api, cfg)
     for k in cap_dict:
         for b in cap_dict[k]:

@@ -1,5 +1,4 @@
 import json
-from jsonpath_ng.ext import parse
 import time
 import re
 from ixnetwork_open_traffic_generator.timer import Timer
@@ -115,8 +114,8 @@ class Vport(object):
     def config(self):
         """Transform config.ports into Ixnetwork.Vport
         1) delete any vport that is not part of the config
-        2) create a vport for every config.ports[] that is not present in IxNetwork
-        3) set config.ports[].location to /vport -location using resourcemanager
+        2) create a vport for every config.ports[] not present in IxNetwork
+        3) set config.ports[].location to /vport -location or -connectedTo
         4) set /vport/l1Config/... properties using the corrected /vport -type
         5) connectPorts to use new l1Config settings and clearownership
         """
@@ -134,8 +133,12 @@ class Vport(object):
 
     def _import(self, imports):
         if len(imports) > 0:
-            for errata in self._resource_manager.ImportConfig(json.dumps(imports), False):
-                self._api.info(errata)
+            errata = self._resource_manager.ImportConfig(
+                json.dumps(imports), False)
+            for item in errata:
+                self._api.warning(item)
+            return len(errata) == 0
+        return True
 
     def _delete_vports(self):
         """Delete any vports from the api server that do not exist in the new config
@@ -173,7 +176,8 @@ class Vport(object):
         imports = []
         vports = self._api.select_vports()
         for vport in vports.values():
-            if vport['capture']['hardwareEnabled'] is True or vport['capture']['softwareEnabled'] is True:
+            if vport['capture']['hardwareEnabled'] is True or vport['capture'][
+                    'softwareEnabled'] is True:
                 capture = {
                     'xpath': vport['capture']['xpath'],
                     'captureMode': 'captureTriggerMode',
@@ -241,15 +245,18 @@ class Vport(object):
         add_addresses = set(add_addresses)
         check_addresses = set(check_addresses)
         if len(add_addresses) > 0:
-            with Timer(self._api, 'Add location hosts [%s]' % ', '.join(add_addresses)):      
+            with Timer(self._api,
+                       'Add location hosts [%s]' % ', '.join(add_addresses)):
                 for add_address in add_addresses:
                     chassis.add(Hostname=add_address)
         if len(check_addresses) > 0:
-            with Timer(self._api, 'Location hosts check [%s]' % ', '.join(check_addresses)):      
+            with Timer(
+                    self._api,
+                    'Location hosts ready [%s]' % ', '.join(check_addresses)):
                 start_time = time.time()
                 while True:
                     chassis.find(Hostname='^(%s)$' % '|'.join(check_addresses),
-                                State='^ready$')
+                                 State='^ready$')
                     if len(chassis) == len(check_addresses):
                         break
                     if time.time() - start_time > HostReadyTimeout:
@@ -261,12 +268,13 @@ class Vport(object):
     def _set_location(self):
         location_supported = True
         try:
-            self._api._ixnetwork._connection._options(self._api._ixnetwork.href + '/locations')
-        except:
+            self._api._ixnetwork._connection._options(
+                self._api._ixnetwork.href + '/locations')
+        except Exception:
             location_supported = False
 
         locations = []
-        self._add_hosts(10)
+        self._add_hosts(60)
         vports = self._api.select_vports()
         imports = []
         clear_locations = []
@@ -300,7 +308,8 @@ class Vport(object):
         self._clear_ownership(clear_locations)
         with Timer(self._api, 'Location connect [%s]' % ', '.join(locations)):
             self._import(imports)
-        with Timer(self._api, 'Location state check [%s]' % ', '.join(locations)):
+        with Timer(self._api,
+                   'Location state check [%s]' % ', '.join(locations)):
             self._api._vport.find(ConnectionState='^(?!connectedLink).*$')
             if len(self._api._vport) > 0:
                 self._api._vport.ConnectPorts()
@@ -308,16 +317,19 @@ class Vport(object):
             timeout = 30
             while True:
                 self._api._vport.find(Name='^(%s)$' % '|'.join(locations),
-                                    ConnectionState='^connectedLink')
+                                      ConnectionState='^connectedLink')
                 if len(self._api._vport) == len(locations):
                     break
                 if time.time() - start > timeout:
                     raise RuntimeError(
-                        'After %s seconds, not all locations [%s] are reachable' %
-                        (timeout, ', '.join([vport.Name for vport in self._api._vport])))
+                        'After %s seconds, not all locations [%s] are reachable'
+                        % (timeout, ', '.join(
+                            [vport.Name for vport in self._api._vport])))
                 time.sleep(2)
-            for vport in self._api._vport.find(ConnectionState='^(?!connectedLinkUp).*$'):
-                self._api.warning('%s %s' % (vport.Name, vport.ConnectionState))
+            for vport in self._api._vport.find(
+                    ConnectionState='^(?!connectedLinkUp).*$'):
+                self._api.warning('%s %s' %
+                                  (vport.Name, vport.ConnectionState))
 
     def _set_layer1(self):
         """Set the /vport/l1Config/... properties
@@ -328,15 +340,36 @@ class Vport(object):
             return
         if self._api.config.layer1 is None:
             return
+        reset_auto_negotiation = dict()
+        # set and commit the card resource mode
         vports = self._api.select_vports()
         imports = []
-        reset_auto_negotiation = dict()
         for layer1 in self._api.config.layer1:
             for port_name in layer1.port_names:
-                vport = vports[port_name]
-                self._set_l1config_properties(vport, layer1, imports)
+                self._set_card_resource_mode(vports[port_name], layer1,
+                                             imports)
+        if self._import(imports) is False:
+            # WARNING: this retry is because no reasonable answer as to why
+            # changing card mode periodically fails with this opaque message
+            # 'Releasing ownership on ports failed.'
+            self._api.info('Retrying card resource mode change')
+            self._import(imports)
+        # set the vport type
+        imports = []
+        for layer1 in self._api.config.layer1:
+            for port_name in layer1.port_names:
+                self._set_vport_type(vports[port_name], layer1, imports)
         self._import(imports)
-        # Due to dependency attribute (ieeeL1Defaults) resetting enableAutoNegotiation
+        vports = self._api.select_vports()
+        # set the remainder of l1config properties
+        imports = []
+        for layer1 in self._api.config.layer1:
+            for port_name in layer1.port_names:
+                self._set_l1config_properties(vports[port_name], layer1,
+                                              imports)
+        self._import(imports)
+        # Due to dependency attribute (ieeeL1Defaults)
+        # reset enableAutoNegotiation
         imports = []
         for layer1 in self._api.config.layer1:
             for port_name in layer1.port_names:
@@ -353,13 +386,16 @@ class Vport(object):
                 'connectedLinkUp', 'connectedLinkDown'
         ]:
             return
-        self._set_vport_type(vport, layer1, imports)
-        self._set_card_resource_mode(vport, layer1, imports)
+        self._set_fcoe(vport, layer1, imports)
         self._set_auto_negotiation(vport, layer1, imports)
 
     def _set_card_resource_mode(self, vport, layer1, imports):
         """If the card has an aggregation mode set it according to the speed
         """
+        if vport['connectionState'] not in [
+                'connectedLinkUp', 'connectedLinkDown'
+        ]:
+            return
         speed_mode_map = {
             'speed_1_gbps': 'normal',
             'speed_10_gbps': 'tengig',
@@ -381,7 +417,8 @@ class Vport(object):
                     break
         if aggregation_mode is not None and aggregation_mode != card[
                 'aggregationMode']:
-            self._api.info('Setting %s to resource mode %s' % (card['description'], aggregation_mode))
+            self._api.info('Setting %s to resource mode %s' %
+                           (card['description'], aggregation_mode))
             imports.append({
                 'xpath': card['xpath'],
                 'aggregationMode': aggregation_mode
@@ -409,7 +446,7 @@ class Vport(object):
         elegible_fcoe_vport_types = [
             'ethernet', 'tenGigLan', 'fortyGigLan', 'tenGigWan',
             'hundredGigLan', 'tenFortyHundredGigLan', 'novusHundredGigLan',
-            'novusTenGigLan', 'krakenFourHundredGigLan', 
+            'novusTenGigLan', 'krakenFourHundredGigLan',
             'aresOneFourHundredGigLan', 'starFourHundredGigLan'
         ]
         if fcoe is True and vport_type in elegible_fcoe_vport_types:
@@ -417,9 +454,10 @@ class Vport(object):
         if fcoe is False and vport_type.endswith('Fcoe'):
             vport_type = vport_type.replace('Fcoe', '')
         if vport_type != vport['type']:
-            imports.append({'xpath': vport['xpath'], 'type': vport_type})
-        if fcoe is True and vport_type.endswith('Fcoe'):
-            self._configure_fcoe(vport, layer1.flow_control, imports)
+            imports.append({
+                'xpath': vport['xpath'] + '/l1Config',
+                'currentType': vport_type
+            })
         return vport_type
 
     def _set_ethernet_auto_negotiation(self, vport, layer1, imports):
@@ -469,9 +507,14 @@ class Vport(object):
             layer1.ieee_media_defaults,
             'speed':
             Vport._SPEED_MAP[layer1.speed],
-            'enableAutoNegotiation': layer1.auto_negotiate,
-            'enableRsFec': None if layer1.auto_negotiation is None else layer1.auto_negotiation.rs_fec,
-            'linkTraining': None if layer1.auto_negotiation is None else layer1.auto_negotiation.link_training
+            'enableAutoNegotiation':
+            False if layer1.auto_negotiate is None else layer1.auto_negotiate,
+            'enableRsFec':
+            False if layer1.auto_negotiation is None else
+            layer1.auto_negotiation.rs_fec,
+            'linkTraining':
+            False if layer1.auto_negotiation is None else
+            layer1.auto_negotiation.link_training
         }
         self._add_l1config_import(vport, proposed_import, imports)
 
@@ -480,7 +523,7 @@ class Vport(object):
             return Vport._VM_SPEED_MAP[layer1.speed]
         else:
             return Vport._SPEED_MAP[layer1.speed]
-    
+
     def _reset_auto_negotiation(self, vport, layer1, imports):
         if layer1.speed.endswith(
                 '_mbps') is False and layer1.speed != 'speed_1_gbps':
@@ -492,39 +535,38 @@ class Vport(object):
                 layer1.auto_negotiate,
             })
 
-    def _configure_fcoe(self, vport, flow_control, imports):
-        if flow_control is not None and flow_control.choice == 'ieee_802_1qbb':
-            pfc = flow_control.ieee_802_1qbb
-            fcoe = {
-                'xpath':
-                vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', '') + '/fcoe',
-                'enablePFCPauseDelay':
-                False if pfc.pfc_delay == 0 else True,
-                'flowControlType':
-                Vport._FLOW_CONTROL_MAP[flow_control.choice],
-                'pfcPauseDelay':
-                pfc.pfc_delay,
-                'pfcPriorityGroups': [
-                    -1 if pfc.pfc_class_0 is None else pfc.pfc_class_0,
-                    -1 if pfc.pfc_class_1 is None else pfc.pfc_class_1,
-                    -1 if pfc.pfc_class_2 is None else pfc.pfc_class_2,
-                    -1 if pfc.pfc_class_3 is None else pfc.pfc_class_3,
-                    -1 if pfc.pfc_class_4 is None else pfc.pfc_class_4,
-                    -1 if pfc.pfc_class_5 is None else pfc.pfc_class_5,
-                    -1 if pfc.pfc_class_6 is None else pfc.pfc_class_6,
-                    -1 if pfc.pfc_class_7 is None else pfc.pfc_class_7,
-                ],
-                'priorityGroupSize':
-                'priorityGroupSize-8',
-                'supportDataCenterMode':
-                True
-            }
-            imports.append(fcoe)
+    def _set_fcoe(self, vport, layer1, imports):
+        if hasattr(layer1, 'flow_control') and layer1.flow_control is None:
+            return
+        xpath = '%s/l1Config/%s/fcoe' % (vport['xpath'], vport['type'].replace(
+            'Fcoe', ''))
+        fcoe = {
+            'xpath': xpath,
+            'flowControlType':
+            Vport._FLOW_CONTROL_MAP[layer1.flow_control.choice]
+        }
+        if layer1.flow_control.choice == 'ieee_802_1qbb':
+            pfc = layer1.flow_control.ieee_802_1qbb
+            fcoe['enablePFCPauseDelay'] = False if pfc.pfc_delay == 0 else True
+            fcoe['pfcPauseDelay'] = pfc.pfc_delay
+            fcoe['pfcPriorityGroups'] = [
+                -1 if pfc.pfc_class_0 is None else pfc.pfc_class_0,
+                -1 if pfc.pfc_class_1 is None else pfc.pfc_class_1,
+                -1 if pfc.pfc_class_2 is None else pfc.pfc_class_2,
+                -1 if pfc.pfc_class_3 is None else pfc.pfc_class_3,
+                -1 if pfc.pfc_class_4 is None else pfc.pfc_class_4,
+                -1 if pfc.pfc_class_5 is None else pfc.pfc_class_5,
+                -1 if pfc.pfc_class_6 is None else pfc.pfc_class_6,
+                -1 if pfc.pfc_class_7 is None else pfc.pfc_class_7,
+            ]
+            fcoe['priorityGroupSize'] = 'priorityGroupSize-8'
+            fcoe['supportDataCenterMode'] = True
+        imports.append(fcoe)
 
     def _clear_ownership(self, locations):
         try:
             force_ownership = self._api.config.options.port_options.location_preemption
-        except:
+        except Exception:
             force_ownership = False
         if force_ownership is True:
             available_hardware_hrefs = {}
@@ -532,15 +574,18 @@ class Vport(object):
             for location in locations:
                 if ';' in location:
                     clp = location.split(';')
-                    chassis = self._api._ixnetwork.AvailableHardware.Chassis.find(Hostname=clp[0])
+                    chassis = self._api._ixnetwork.AvailableHardware.Chassis.find(
+                        Hostname=clp[0])
                     if len(chassis) > 0:
-                        available_hardware_hrefs[location] = '%s/card/%s/port/%s' % (
-                            chassis.href, abs(int(clp[1])), abs(int(clp[2])))
+                        available_hardware_hrefs[
+                            location] = '%s/card/%s/port/%s' % (
+                                chassis.href, abs(int(clp[1])), abs(int(
+                                    clp[2])))
                 elif '/' in location:
                     appliance = location.split('/')[0]
                     locations = self._api._ixnetwork.Locations
-                    locations.find(Hostname=appliance)  
-                    if len(locations) == 0:    
+                    locations.find(Hostname=appliance)
+                    if len(locations) == 0:
                         locations.add(Hostname=appliance)
                     ports = locations.Ports.find(Location='^%s$' % location)
                     if len(ports) > 0:
@@ -557,7 +602,7 @@ class Vport(object):
             return
         try:
             row[column_name] = column_type(column_value)
-        except:
+        except Exception:
             if column_type.__name__ in ['float', 'int']:
                 row[column_name] = 0
             else:
@@ -596,6 +641,7 @@ class Vport(object):
 
         try:
             table = self._api.assistant.StatViewAssistant('Port Statistics')
+            # TBD: REMOVE unnecessary try/except
             for row in table.Rows:
                 # keep plugging values for next columns even if the
                 # current one raises exception
@@ -603,9 +649,8 @@ class Vport(object):
                     port_row = port_rows[row['Port Name']]
                     for ext_name, int_name, typ in self._RESULT_COLUMNS:
                         try:
-                            self._set_result_value(
-                                port_row, ext_name, row[int_name], typ
-                            )
+                            self._set_result_value(port_row, ext_name,
+                                                   row[int_name], typ)
                         except Exception:
                             # TODO print a warning maybe ?
                             pass
