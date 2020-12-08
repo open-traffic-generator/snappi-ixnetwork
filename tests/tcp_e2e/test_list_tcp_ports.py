@@ -1,12 +1,13 @@
 from abstract_open_traffic_generator import flow
 import utils
+import pytest
 
 
-def test_random_tcp_ports(api, settings, b2b_raw_config):
+@pytest.mark.skip(reason="skip until moved to other repo")
+def test_list_tcp_ports(api, settings, b2b_raw_config):
     """
     Configure a raw TCP flow with,
-    - random src port (from possible values 5000, 5001 and 5002)
-    - random dst port (from possible values 6000, 6001)
+    - list of 6 src ports and 3 dst ports
     - 100 frames of 1518B size each
     - 10% line rate
     Validate,
@@ -33,11 +34,9 @@ def test_random_tcp_ports(api, settings, b2b_raw_config):
         flow.Header(
             flow.Tcp(
                 src_port=flow.Pattern(
-                    flow.Random(min='5000', max='5002', seed='5000')
+                    ['5000', '5050', '5015', '5040', '5032', '5021']
                 ),
-                dst_port=flow.Pattern(
-                    flow.Random(min='6000', max='6001', seed='6000')
-                )
+                dst_port=flow.Pattern(['6000', '6015', '6050']),
             )
         )
     ]
@@ -67,26 +66,20 @@ def captures_ok(api, cfg, size, packets):
     """
     Returns normally if patterns in captured packets are as expected.
     """
-    src = {0x88: 0, 0x89: 0, 0x8A: 0}
-    dst = {0x70: 0, 0x71: 0}
+    src = [
+        [0x13, 0x88], [0x13, 0xBA], [0x13, 0x97], [0x13, 0xB0], [0x13, 0xA8],
+        [0x13, 0x9D]
+    ]
+    dst = [[0x17, 0x70], [0x17, 0x7F], [0x17, 0xA2]]
 
     cap_dict = utils.get_all_captures(api, cfg)
     assert len(cap_dict) == 1
 
     for k in cap_dict:
+        i = 0
+        j = 0
         for b in cap_dict[k]:
-            # only second byte varies across all port numbers
-            # hence check that first byte in src and dst port is as expected
-            # and increment count for second byte (to track occurrence count)
-            assert b[34] == 0x13
-            src[b[35]] += 1
-            assert b[36] == 0x17
-            dst[b[37]] += 1
-
+            assert b[34:36] == src[i] and b[36:38] == dst[j]
+            i = (i + 1) % 6
+            j = (j + 1) % 3
             assert len(b) == size
-
-    # make sure we have at least one occurrence of each port number in src and
-    # dst dict
-    # TODO: check should be stricter
-    assert all([src[i] >= 0 for i in src])
-    assert all([dst[i] >= 0 for i in dst])
