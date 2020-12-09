@@ -1,12 +1,10 @@
 import json
 import time
 from collections import namedtuple
-from jsonpath_ng.ext import parse
-from ixnetwork_restpy import SessionAssistant, StatViewAssistant
+from ixnetwork_restpy import TestPlatform, SessionAssistant
 from abstract_open_traffic_generator.api import *
 from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.control import *
-from abstract_open_traffic_generator import result
 from ixnetwork_open_traffic_generator.validation import Validation
 from ixnetwork_open_traffic_generator.vport import Vport
 from ixnetwork_open_traffic_generator.ngpf import Ngpf
@@ -21,9 +19,9 @@ class IxNetworkApi(Api):
     ----
     - address (str): The address of the IxNetwork API Server
     - port (str): The rest port of the IxNetwork API Server
-    - username (str): The username for Linux IxNetwork API Server multi session environments
+    - username (str): The username for Linux IxNetwork API Server
         This is not required when connecting to single session environments
-    - password (str): The password for Linux IxNetwork API Server multi session environments
+    - password (str): The password for Linux IxNetwork API Server
         This is not required when connecting to single session environments
     """
     def __init__(self,
@@ -34,7 +32,7 @@ class IxNetworkApi(Api):
                  license_servers=[],
                  log_level='info'):
         """Create a session
-        - address (str): The ip address of the TestPlatform to connect to 
+        - address (str): The ip address of the TestPlatform to connect to
         where test sessions will be created or connected to.
         - port (str): The rest port of the TestPlatform to connect to.
         - username (str): The username to be used for authentication
@@ -129,7 +127,7 @@ class IxNetworkApi(Api):
         else:
             self.vport.config()
             with Timer(self, 'Devices configuration'):
-               self.ngpf.config()
+                self.ngpf.config()
             with Timer(self, 'Flows configuration'):
                 self.traffic_item.config()
         self._running_config = self._config
@@ -162,7 +160,7 @@ class IxNetworkApi(Api):
         with Timer(self, 'Captures stop'):
             capture = self._vport.find(Name=request.port_name).Capture
             capture.Stop('allTraffic')
-            
+
             #   Internally setting max time_out to 90sec with 3sec polling interval.
             #   Todo: Need to discuss and incorporate time_out field within model
             retry_count = 30
@@ -179,8 +177,9 @@ class IxNetworkApi(Api):
                     continue
                 break
             if not port_ready:
-                self.warning("Capture was not stopped for this port %s" % (request.port_name))
-        
+                self.warning("Capture was not stopped for this port %s" %
+                             (request.port_name))
+
         payload = {'arg1': [self._vport.href]}
         url = '%s/vport/operations/getCaptureInfos' % self._ixnetwork.href
         response = self._request('POST', url, payload)
@@ -244,23 +243,34 @@ class IxNetworkApi(Api):
         """Connect to an IxNetwork API Server.
         """
         if self._assistant is None:
-            self._assistant = SessionAssistant(
-                IpAddress=self._address,
-                RestPort=self._port,
-                UserName=self._username,
-                Password=self._password,
-                LogLevel=self._log_level)
+            platform = TestPlatform(self._address, rest_port=self._password)
+            platform.Authenticate(self._username, self._password)
+            url = '%s://%s:%s/ixnetworkweb/api/v1/usersettings/ixnrest' % \
+                (platform.Scheme, platform.Hostname, platform.RestPort)
+            platform._connection._session.request(
+                'put',
+                url,
+                data=json.dumps({'enableClassicProtocols': True}),
+                verify=False)
+            self._assistant = SessionAssistant(IpAddress=self._address,
+                                               RestPort=self._port,
+                                               UserName=self._username,
+                                               Password=self._password,
+                                               LogLevel=self._log_level)
             self._ixnetwork = self._assistant.Session.Ixnetwork
             self._vport = self._ixnetwork.Vport
             self._topology = self._ixnetwork.Topology
             self._traffic = self._ixnetwork.Traffic
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
             if len(self._license_servers) > 0:
-                self._ixnetwork.Globals.Licensing.LicensingServers = self._license_servers
+                self._ixnetwork.Globals.Licensing \
+                    .LicensingServers = self._license_servers
             try:
-                version = pkg_resources.get_distribution("ixnetwork-open-traffic-generator").version
-            except Exception as e:
-                version = "ixnetwork-open-traffic-generator not installed using pip, unable to determine version"
+                version = pkg_resources.get_distribution(
+                    "ixnetwork-open-traffic-generator").version
+            except Exception:
+                version = "ixnetwork-open-traffic-generator not installed " \
+                    "using pip, unable to determine version"
             self.info(version)
 
     def _request(self, method, url, payload=None):
@@ -299,12 +309,12 @@ class IxNetworkApi(Api):
             if ixn_obj._SDM_NAME == 'trafficItem':
                 # can't remove traffic items that are started
                 start_states = [
-                    'txStopWatchExpected', 
-                    'locked', 'started',
-                    'startedWaitingForStats', 
-                    'startedWaitingForStreams',
-                    'stoppedWaitingForStats']
-                for item in ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names)):
+                    'txStopWatchExpected', 'locked', 'started',
+                    'startedWaitingForStats', 'startedWaitingForStreams',
+                    'stoppedWaitingForStats'
+                ]
+                for item in ixn_obj.find(Name='^(%s)$' %
+                                         '|'.join(invalid_names)):
                     if item.State in start_states:
                         item.StopStatelessTraffic()
                 if len(ixn_obj) > 0:
@@ -312,7 +322,9 @@ class IxNetworkApi(Api):
                     while poll:
                         poll = False
                         for v in self.select_traffic_items().values():
-                            if v['state'] not in ['error', 'stopped', 'unapplied']:
+                            if v['state'] not in [
+                                    'error', 'stopped', 'unapplied'
+                            ]:
                                 poll = True
             ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names))
             if len(ixn_obj) > 0:
@@ -374,7 +386,8 @@ class IxNetworkApi(Api):
                     'properties': ['currentType'],
                     'filters': []
                 }, {
-                    'child': 'capture',
+                    'child':
+                    'capture',
                     'properties': ['hardwareEnabled', 'softwareEnabled'],
                     'filters': []
                 }, {
@@ -412,7 +425,8 @@ class IxNetworkApi(Api):
                     'properties': ['name', 'state', 'enabled'],
                     'filters': traffic_item_filters
                 }, {
-                    'child': 'highLevelStream',
+                    'child':
+                    'highLevelStream',
                     'properties': ['txPortName', 'rxPortNames', 'state'],
                     'filters': []
                 }],
@@ -472,10 +486,12 @@ class IxNetworkApi(Api):
         return results[0]['chassis'][0]['card'][0]['port'][0]['xpath']
 
     def clear_ownership(self, available_hardware_hrefs, location_hrefs):
-        hrefs = list(available_hardware_hrefs.values()) + list(location_hrefs.values())
+        hrefs = list(available_hardware_hrefs.values()) + list(
+            location_hrefs.values())
         if len(hrefs) == 0:
             return
-        names = list(available_hardware_hrefs.keys()) + list(location_hrefs.keys())        
+        names = list(available_hardware_hrefs.keys()) + list(
+            location_hrefs.keys())
         with Timer(self, 'Location preemption [%s]' % ', '.join(names)):
             payload = {'arg1': [href for href in hrefs]}
             url = '%s/operations/clearownership' % payload['arg1'][0]
