@@ -310,11 +310,8 @@ class TrafficItem(CustomField):
                         stack_type_id] != header.choice:
                     stacks_to_remove.append(ixn_stack[i])
                     stack = self._add_stack(ixn_stream, ixn_stack[i], header)
-                elif stack_type_id == 'ethernet':
-                    stack = ixn_stack[i]
                 else:
-                    stacks_to_remove.append(ixn_stack[i])
-                    stack = self._add_stack(ixn_stream, ixn_stack[i], header)
+                    stack = ixn_stack[i]
             self._configure_field(stack.Field, header)
         for stack in stacks_to_remove:
             stack.Remove()
@@ -348,15 +345,19 @@ class TrafficItem(CustomField):
                            field_type_id,
                            pattern,
                            field_choice=False):
-        if pattern == None:
-            return
-
+        
         custom_field = getattr(self, field_type_id, None)
         if custom_field is not None:
-            custom_field(ixn_field, pattern)
+            if pattern is not None:
+                custom_field(ixn_field, pattern)
             return
 
         ixn_field = ixn_field.find(FieldTypeId=field_type_id)
+        self._set_default(ixn_field, field_choice)
+        
+        if pattern == None:
+            return
+        
         if pattern.choice == 'fixed':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
@@ -394,6 +395,20 @@ class TrafficItem(CustomField):
         if pattern.ingress_result_name is not None:
             ixn_field.TrackingEnabled = True
             self._api.ixn_objects[pattern.ingress_result_name] = ixn_field.href
+
+    def _set_default(self, ixn_field, field_choice):
+        """We are setting all the field to default. Otherwise test is keeping the same value from previous run."""
+        if ixn_field.ReadOnly:
+            return
+        
+        if ixn_field.SupportsAuto:
+            if ixn_field.Auto is not True:
+                ixn_field.Auto = True
+        else:
+            ixn_field.update(Auto=False,
+                             ActiveFieldChoice=field_choice,
+                             ValueType='singleValue',
+                             SingleValue=ixn_field.DefaultValue)
 
     def _configure_size(self, ixn_stream, size):
         """ Transform frameSize flows.size to /traffic/trafficItem[*]/configElement[*]/frameSize
