@@ -248,7 +248,10 @@ class IxNetworkApi(Api):
             url = '%s://%s:%s/ixnetworkweb/api/v1/usersettings/ixnrest' % \
                 (platform.Scheme, platform.Hostname, platform.RestPort)
             platform._connection._session.request(
-                'PUT', url, data={'enableClassicProtocols': True})
+                'put',
+                url,
+                data=json.dumps({'enableClassicProtocols': True}),
+                verify=False)
             self._assistant = SessionAssistant(IpAddress=self._address,
                                                RestPort=self._port,
                                                UserName=self._username,
