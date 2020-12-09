@@ -1,10 +1,7 @@
 from abstract_open_traffic_generator import flow
-import utils
-import pytest
 
 
-@pytest.mark.e2e
-def test_tcp_flow_capture(api, settings, b2b_raw_config):
+def test_tcp_flow_capture(api, b2b_raw_config, utils):
     """
     Configure a raw TCP flow with,
     - list of 6 src ports and 3 dst ports
@@ -46,13 +43,13 @@ def test_tcp_flow_capture(api, settings, b2b_raw_config):
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: results_ok(api, b2b_raw_config, size, packets),
+        lambda: results_ok(api, b2b_raw_config, utils, size, packets),
         'stats to be as expected', timeout_seconds=10
     )
-    captures_ok(api, b2b_raw_config, size, packets)
+    captures_ok(api, b2b_raw_config, utils, size, packets)
 
 
-def results_ok(api, cfg, size, packets):
+def results_ok(api, cfg, utils, size, packets):
     """
     Returns true if stats are as expected, false otherwise.
     """
@@ -62,7 +59,7 @@ def results_ok(api, cfg, size, packets):
     return frames_ok and bytes_ok
 
 
-def captures_ok(api, cfg, size, packets):
+def captures_ok(api, cfg, utils, size, packets):
     """
     Returns normally if patterns in captured packets are as expected.
     """

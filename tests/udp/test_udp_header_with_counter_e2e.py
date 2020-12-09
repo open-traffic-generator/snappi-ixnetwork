@@ -4,7 +4,7 @@ from abstract_open_traffic_generator import flow as Flow
 
 
 @pytest.mark.e2e
-def test_udp_header_with_counter_e2e(api, b2b_raw_config, size, packets):
+def test_udp_header_with_counter_e2e(api, b2b_raw_config):
     """
     Configure a raw udp flow with,
     - Non-default Counter Pattern values of src and
