@@ -355,7 +355,7 @@ class TrafficItem(CustomField):
         ixn_field = ixn_field.find(FieldTypeId=field_type_id)
         self._set_default(ixn_field, field_choice)
         
-        if pattern == None:
+        if pattern is None:
             return
         
         if pattern.choice == 'fixed':
