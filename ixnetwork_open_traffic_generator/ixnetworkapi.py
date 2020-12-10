@@ -243,9 +243,6 @@ class IxNetworkApi(Api):
             raise Exception('\n'.join(self._errors))
 
         # TODO: these should be returned as a list of flow stat object
-        print('Final Result ...')
-        print(response)
-        
         return response
 
     def add_error(self, error):
