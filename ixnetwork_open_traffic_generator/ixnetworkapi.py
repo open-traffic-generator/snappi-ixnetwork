@@ -143,6 +143,8 @@ class IxNetworkApi(Api):
         """
         self._connect()
         self._capture_request = request
+        if self._capture_request is not None and request.state is 'stop':
+            self._stop_capture()
 
     def _start_capture(self):
         if self._capture_request is not None:
@@ -153,6 +155,18 @@ class IxNetworkApi(Api):
                 url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
                 response = self._request('POST', url, payload)
                 self._ixnetwork.StartCapture()
+
+    def _stop_capture(self):
+        with Timer(self, 'Captures stop'):
+            if self._capture_request.port_names:
+                payload = {'arg1': []}
+                for vport_name, vport in self.select_vports().items():
+                    if vport_name in self._capture_request.port_names:
+                        payload['arg1'].append(vport['href'])
+                url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
+                self._request('POST', url, payload)
+            else:
+                self._ixnetwork.StopCapture()
 
     def get_capture_results(self, request):
         """Gets capture file and returns it as a byte stream
