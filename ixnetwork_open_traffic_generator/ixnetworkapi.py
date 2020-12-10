@@ -164,7 +164,7 @@ class IxNetworkApi(Api):
                     if vport_name in self._capture_request.port_names:
                         payload['arg1'].append(vport['href'])
                 url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
-                response = self._request('POST', url, payload)
+                self._request('POST', url, payload)
             else:
                 self._ixnetwork.StopCapture()
 
