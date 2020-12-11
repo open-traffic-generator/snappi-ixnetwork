@@ -1,8 +1,5 @@
-import json
-import time
 from ixnetwork_open_traffic_generator.timer import Timer
 from ixnetwork_open_traffic_generator.customfield import CustomField
-from ixnetwork_restpy import StatViewAssistant
 
 
 class TrafficItem(CustomField):
