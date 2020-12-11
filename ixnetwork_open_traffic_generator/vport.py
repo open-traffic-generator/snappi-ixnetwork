@@ -314,7 +314,7 @@ class Vport(object):
             if len(self._api._vport) > 0:
                 self._api._vport.ConnectPorts()
             start = time.time()
-            timeout = 30
+            timeout = 90
             while True:
                 self._api._vport.find(Name='^(%s)$' % '|'.join(locations),
                                       ConnectionState='^connectedLink')
