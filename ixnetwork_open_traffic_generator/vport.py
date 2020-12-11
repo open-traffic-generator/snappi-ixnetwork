@@ -314,17 +314,19 @@ class Vport(object):
             if len(self._api._vport) > 0:
                 self._api._vport.ConnectPorts()
             start = time.time()
-            timeout = 180
+            timeout = 10
             while True:
                 self._api._vport.find(Name='^(%s)$' % '|'.join(locations),
                                       ConnectionState='^connectedLink')
                 if len(self._api._vport) == len(locations):
                     break
                 if time.time() - start > timeout:
+                    unreachable = []
+                    self._api._vport.find(ConnectionState='^(?!connectedLink).*$')
+                    for vport in self._api._vport:
+                        unreachable.append('%s [%s: %s]' % (vport.Name, vport.ConnectionState, vport.ConnectionStatus))
                     raise RuntimeError(
-                        'After %s seconds, not all locations [%s] are reachable'
-                        % (timeout, ', '.join(
-                            [vport.Name for vport in self._api._vport])))
+                        'After %s seconds, %s are unreachable' % (timeout, ', '.join(unreachable)))
                 time.sleep(2)
             for vport in self._api._vport.find(
                     ConnectionState='^(?!connectedLinkUp).*$'):
