@@ -143,7 +143,7 @@ class IxNetworkApi(Api):
         """
         self._connect()
         self._capture_request = request
-        if self._capture_request is not None and request.state is 'stop':
+        if self._capture_request is not None and request.state == 'stop':
             self._stop_capture()
 
     def _start_capture(self):
@@ -153,7 +153,7 @@ class IxNetworkApi(Api):
                 for vport in self.select_vports().values():
                     payload['arg1'].append(vport['href'])
                 url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
-                response = self._request('POST', url, payload)
+                self._request('POST', url, payload)
                 self._ixnetwork.StartCapture()
 
     def _stop_capture(self):
@@ -453,7 +453,7 @@ class IxNetworkApi(Api):
         try:
             for traffic_item in results[0]['trafficItem']:
                 traffic_items[traffic_item['name']] = traffic_item
-        except:
+        except Exception:
             pass
         return traffic_items
 
@@ -509,7 +509,7 @@ class IxNetworkApi(Api):
         with Timer(self, 'Location preemption [%s]' % ', '.join(names)):
             payload = {'arg1': [href for href in hrefs]}
             url = '%s/operations/clearownership' % payload['arg1'][0]
-            results = self._ixnetwork._connection._execute(url, payload)
+            self._ixnetwork._connection._execute(url, payload)
 
     def get_config(self):
         return self._config
