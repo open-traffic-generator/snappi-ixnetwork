@@ -22,7 +22,6 @@ class CustomField(object):
         '26': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
         '28': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
         '30': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
-        '24': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
         '36': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
         '38': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
         '46': 'ipv4.header.priority.ds.phb.expeditedForwardingPHB.expeditedForwardingPHB'
