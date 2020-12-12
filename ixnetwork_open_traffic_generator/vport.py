@@ -615,8 +615,18 @@ class Vport(object):
             self._column_names = []
         else:
             self._column_names = request.column_names
+        
+        port_filter = {'property': 'name', 'regex': '.*'}
+        port_names = [port.name for port in self._api._config.ports]
+        if request and request.port_names:
+            port_names = request.port_names
+        if len(port_names) == 1:
+            port_filter['regex'] = '^%s$' % port_names[0]
+        elif len(port_names) > 1:
+            port_filter['regex'] = '^(%s)$' % '|'.join(port_names)
+            
         port_rows = {}
-        for vport in self._api.select_vports().values():
+        for vport in self._api.select_vports(port_name_filters=[port_filter]).values():
             port_row = {}
             self._set_result_value(port_row, 'name', vport['name'])
             location = vport['location']

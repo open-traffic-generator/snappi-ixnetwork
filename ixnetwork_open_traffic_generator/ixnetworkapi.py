@@ -378,7 +378,7 @@ class IxNetworkApi(Api):
         results = self._ixnetwork._connection._execute(url, payload)
         return results[0]['chassis'][0]['card'][0]
 
-    def select_vports(self):
+    def select_vports(self, port_name_filters=[]):
         """Select all vports.
         Return them in a dict keyed by vport name.
         """
@@ -394,7 +394,7 @@ class IxNetworkApi(Api):
                         'name', 'type', 'location', 'connectionState',
                         'connectionStatus', 'assignedTo', 'connectedTo'
                     ],
-                    'filters': []
+                    'filters': port_name_filters
                 }, {
                     'child': 'l1Config',
                     'properties': ['currentType'],
