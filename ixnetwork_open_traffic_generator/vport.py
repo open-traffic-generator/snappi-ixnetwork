@@ -618,8 +618,7 @@ class Vport(object):
         
         port_filter = {'property': 'name', 'regex': '.*'}
         port_names = [port.name for port in self._api._config.ports]
-        if request is not None and request.port_names is not None \
-                and request.port_names:
+        if request and request.port_names:
             port_names = request.port_names
         if len(port_names) == 1:
             port_filter['regex'] = '^%s$' % port_names[0]
