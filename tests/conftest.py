@@ -5,6 +5,11 @@ import yaml
 import utils as utl
 
 
+def pytest_exception_interact(node, call, report):
+    # end all pytests on first exception that is encountered
+    pytest.exit(call.excinfo.traceback[0])
+
+
 def pytest_addoption(parser):
     # called before running tests to register command line options for pytest
     utl.settings.register_pytest_command_line_options(parser)
@@ -233,8 +238,7 @@ def b2b_ipv4_flow_config(options, tx_port, rx_port, b2b_ipv4_devices):
         Size, Rate, Duration, FixedPackets, Header, Ethernet, Vlan, Ipv4
 
     names = [device.name for device in b2b_ipv4_devices]
-    tx_rx_devices = DeviceTxRx(tx_device_names=names,
-                               rx_device_names=names)
+    tx_rx_devices = DeviceTxRx(tx_device_names=names, rx_device_names=names)
     flow = Flow(name='Ipv4 Flow',
                 tx_rx=TxRx(tx_rx_devices),
                 packet=[Header(Ethernet()),
@@ -259,25 +263,24 @@ def b2b_ipv4_flows_config(options, tx_port, rx_port, b2b_ipv4_devices):
         Size, Rate, Duration, FixedPackets, Header, Ethernet, Vlan, Ipv4
 
     names = [device.name for device in b2b_ipv4_devices]
-    tx_rx_devices = DeviceTxRx(tx_device_names=names,
-                               rx_device_names=names)
+    tx_rx_devices = DeviceTxRx(tx_device_names=names, rx_device_names=names)
     flow1 = Flow(name='Ipv4 Flow 1',
-                tx_rx=TxRx(tx_rx_devices),
-                packet=[Header(Ethernet()),
-                        Header(Vlan()),
-                        Header(Ipv4())],
-                size=Size(512),
-                rate=Rate(unit='pps', value=1000),
-                duration=Duration(FixedPackets(10000)))
+                 tx_rx=TxRx(tx_rx_devices),
+                 packet=[Header(Ethernet()),
+                         Header(Vlan()),
+                         Header(Ipv4())],
+                 size=Size(512),
+                 rate=Rate(unit='pps', value=1000),
+                 duration=Duration(FixedPackets(10000)))
 
     flow2 = Flow(name='Ipv4 Flow 2',
-                tx_rx=TxRx(tx_rx_devices),
-                packet=[Header(Ethernet()),
-                        Header(Vlan()),
-                        Header(Ipv4())],
-                size=Size(512),
-                rate=Rate(unit='pps', value=1000),
-                duration=Duration(FixedPackets(10000)))
+                 tx_rx=TxRx(tx_rx_devices),
+                 packet=[Header(Ethernet()),
+                         Header(Vlan()),
+                         Header(Ipv4())],
+                 size=Size(512),
+                 rate=Rate(unit='pps', value=1000),
+                 duration=Duration(FixedPackets(10000)))
     return Config(ports=[tx_port, rx_port],
                   devices=b2b_ipv4_devices,
                   flows=[flow1, flow2],

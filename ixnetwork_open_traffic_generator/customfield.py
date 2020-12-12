@@ -22,7 +22,7 @@ class CustomField(object):
         '26': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
         '28': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
         '30': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
-        '24': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
+        '34': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
         '36': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
         '38': 'ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB',
         '46': 'ipv4.header.priority.ds.phb.expeditedForwardingPHB.expeditedForwardingPHB'
@@ -56,7 +56,7 @@ class CustomField(object):
                 field_type_id = CustomField._IPv4_DSCP_ECN[field_type_id]
                 self._configure_pattern(ixn_field, field_type_id, priority.dscp.ecn, field_choice=True)
         elif priority.choice == 'tos':
-            self._configure_field(ixn_field, priority, field_choice = True)
+            self._configure_field(ixn_field, priority, field_choice=True)
 
     def _get_first_value(self, phb_pattern):
         if phb_pattern.choice == 'fixed':
