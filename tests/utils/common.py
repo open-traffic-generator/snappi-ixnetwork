@@ -526,19 +526,39 @@ def get_value(field):
 
 def get_packet_information(api, packet_header):
     """
-    Takes any packet_header for ex ethernet, ipv4, udp, tcp and returns
+    Takes any packet_header or header position
+    for ex ethernet, ipv4, udp, tcp and returns
     the packet information of that header
+
+    if string is passed the header is filtered by name
+    if int is passed header is filtered by index
     """
     trafficItem = api._ixnetwork.Traffic.TrafficItem.find()
     configElement = trafficItem.ConfigElement.find()
     pckt_info = {}
-    stack = configElement.Stack.find(StackTypeId=packet_header)
+    if isinstance(packet_header, int):
+        stack = configElement.Stack.find()[packet_header]
+    else:
+        stack = configElement.Stack.find(StackTypeId=packet_header)
     for field in stack.Field.find():
         pckt_info[field.DisplayName] = get_value(field)
     return pckt_info
 
 
 def validate_config(api, packet_header, **kwargs):
+    """
+    validate config with key and values pairs against
+    packet header.
+    ex:
+    attrs = {
+        'Destination MAC Address': '00:0C:29:E3:53:EA',
+        'Source MAC Address': '00:0C:29:E3:53:F4',
+        'Ethernet-Type': '8100',
+    }
+    validate_config(api, 'ethernet', **attrs)
+        or
+    validate_config(api, 0, **attrs) <with packet index>
+    """
     packet_info = get_packet_information(api, packet_header)
     for key in kwargs:
         assert packet_info[key] == kwargs[key]
