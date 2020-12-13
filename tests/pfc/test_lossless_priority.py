@@ -1,4 +1,3 @@
-import time
 import pytest
 from abstract_open_traffic_generator import (
     config, port, layer1, flow, flow_ipv4
@@ -8,8 +7,31 @@ from abstract_open_traffic_generator import (
 @pytest.mark.e2e
 def test_lossless_priority(api, settings, utils):
     """
-    TBD
+    Configure ports where,
+    - tx port can only respond to pause frames for priority 3 (lossless)
+    - rx port is capable of sending pause frames for priorities 1 (lossy) and 3
+    Configure two raw IPv4 flows on tx port where,
+    - 1st flow is mapped to priority queue 1 and sends 1M frames with PHB_CS1
+    - 2nd flow is mapped to priority queue 3 and sends 1M frames with PHB_CS3
+    - both flows start after 1 second delay
+    - 10% line rate
+    Configure one raw PFC Pause flow on rx port where,
+    - pause frames for priorties 1 and 3 are sent for 20 seconds (pause storm)
+    Validate,
+    - tx/rx frame count is 1M until pause storm is over
+    - flow 3 has no rx until pause storm is over
+    - tx/rx frame count is 2M after pause storm is over
+    - flow 3 has expected rx after pause storm is over
     """
+
+    size = 128
+    packets = 1000000
+    # these are mostly not required when configuring raw traffic
+    tx_mac = '00:CD:DC:CD:DC:CD'
+    rx_mac = '00:AB:BC:AB:BC:AB'
+    tx_ip = '1.1.1.2'
+    rx_ip = '1.1.1.1'
+
     tx = port.Port(name='raw_tx', location=settings.ports[0])
     rx = port.Port(name='raw_rx', location=settings.ports[1])
 
@@ -21,11 +43,9 @@ def test_lossless_priority(api, settings, utils):
     )
 
     rx_l1 = layer1.Layer1(
-        name='rxl1', port_names=[rx.name], speed=settings.speed, media='fiber'
+        name='rxl1', port_names=[rx.name], speed=settings.speed, media='fiber',
+        flow_control=layer1.FlowControl(choice=layer1.Ieee8021qbb())
     )
-
-    size = 128
-    packets = 1000000
 
     tx_f1 = flow.Flow(
         name='tx_f1',
@@ -35,14 +55,15 @@ def test_lossless_priority(api, settings, utils):
         packet=[
             flow.Header(
                 flow.Ethernet(
-                    src=flow.Pattern('00:CD:DC:CD:DC:CD'),
-                    dst=flow.Pattern('00:AB:BC:AB:BC:AB')
+                    src=flow.Pattern(tx_mac),
+                    dst=flow.Pattern(rx_mac),
+                    pfc_queue=flow.Pattern('1')
                 )
             ),
             flow.Header(
                 flow.Ipv4(
-                    src=flow.Pattern('1.1.1.2'),
-                    dst=flow.Pattern('1.1.1.1'),
+                    src=flow.Pattern(tx_ip),
+                    dst=flow.Pattern(rx_ip),
                     priority=flow_ipv4.Priority(
                         flow_ipv4.Dscp(
                             flow.Pattern(flow_ipv4.Dscp.PHB_CS1)
@@ -53,7 +74,7 @@ def test_lossless_priority(api, settings, utils):
         ],
         duration=flow.Duration(
             flow.FixedPackets(
-                packets=packets, delay=1000000000, delay_unit='nanoseconds'
+                packets=packets, delay=10**9, delay_unit='nanoseconds'
             )
         ),
         size=flow.Size(size),
@@ -68,14 +89,15 @@ def test_lossless_priority(api, settings, utils):
         packet=[
             flow.Header(
                 flow.Ethernet(
-                    src=flow.Pattern('00:CD:DC:CD:DC:CD'),
-                    dst=flow.Pattern('00:AB:BC:AB:BC:AB')
+                    src=flow.Pattern(tx_mac),
+                    dst=flow.Pattern(rx_mac),
+                    pfc_queue=flow.Pattern('3')
                 )
             ),
             flow.Header(
                 flow.Ipv4(
-                    src=flow.Pattern('1.1.1.2'),
-                    dst=flow.Pattern('1.1.1.1'),
+                    src=flow.Pattern(tx_ip),
+                    dst=flow.Pattern(rx_ip),
                     priority=flow_ipv4.Priority(
                         flow_ipv4.Dscp(
                             flow.Pattern(flow_ipv4.Dscp.PHB_CS3)
@@ -86,7 +108,7 @@ def test_lossless_priority(api, settings, utils):
         ],
         duration=flow.Duration(
             flow.FixedPackets(
-                packets=packets, delay=1000000000, delay_unit='nanoseconds'
+                packets=packets, delay=10**9, delay_unit='nanoseconds'
             )
         ),
         size=flow.Size(size),
@@ -101,14 +123,14 @@ def test_lossless_priority(api, settings, utils):
         packet=[
             flow.Header(
                 flow.PfcPause(
-                    src=flow.Pattern('00:AB:BC:AB:BC:AB'),
-                    dst=flow.Pattern('00:CD:DC:CD:DC:CD'),
-                    pause_class_1=flow.Pattern('111'),
-                    pause_class_3=flow.Pattern('111')
+                    src=flow.Pattern(rx_mac),
+                    class_enable_vector=flow.Pattern('8'),
+                    pause_class_1=flow.Pattern('FFFF'),
+                    pause_class_3=flow.Pattern('FFFF')
                 )
             )
         ],
-        duration=flow.Duration(flow.FixedPackets(packets=packets * 100)),
+        duration=flow.Duration(flow.FixedSeconds(seconds=20)),
         size=flow.Size(size),
         rate=flow.Rate(value=100, unit='line')
     )
@@ -119,19 +141,21 @@ def test_lossless_priority(api, settings, utils):
     )
 
     utils.start_traffic(api, cfg)
-    time.sleep(5)
     utils.wait_for(
-        lambda: results_ok(api, cfg, utils, size, packets),
-        'stats to be as expected', timeout_seconds=10
+        lambda: results_ok(api, cfg, utils, size, packets, 0),
+        'stats to be as expected', timeout_seconds=30
+    )
+    utils.wait_for(
+        lambda: results_ok(api, cfg, utils, size, packets, packets),
+        'stats to be as expected', timeout_seconds=30
     )
 
 
-def results_ok(api, cfg, utils, size, packets):
+def results_ok(api, cfg, utils, size, f1_pkt, f3_pkt):
     """
     Returns true if stats are as expected, false otherwise.
     """
     port_results, flow_results = utils.get_all_stats(api)
-    # frames_ok = utils.total_frames_ok(port_results, flow_results, packets)
 
     port_tx = sum(
         [p['frames_tx'] for p in port_results if p['name'] == 'raw_tx']
@@ -143,16 +167,4 @@ def results_ok(api, cfg, utils, size, packets):
         [f['frames_rx'] for f in flow_results if f['name'] == 'tx_f3']
     )
 
-    return port_tx == packets and tx_f1 == packets and tx_f3 == 0
-
-
-def get_quanta(speed, line_rate, nanoseconds):
-    if speed == 'speed_1_gbps':
-        speed = 1
-    elif speed == 'speed_100_fd_mbps':
-        speed = 0.1
-    b = (speed * nanoseconds) // 512
-    if b > 65535:
-        raise Exception('Pause quanta %d greater than 65535' % b)
-
-    return b
+    return port_tx == f1_pkt + f3_pkt and tx_f1 == f1_pkt and tx_f3 == f3_pkt
