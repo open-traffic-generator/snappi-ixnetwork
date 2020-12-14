@@ -109,17 +109,31 @@ def validate_port_stats_based_on_column_name(port_results,
     """
 
     total_bytes = (f1_packets * f1_size) + (f2_packets * f2_size)
+    total_packets = f1_packets + f2_packets
+    tolerance = 10
     for row in port_results:
         if row['name'] == 'raw_tx':
             if column_name == 'frames_tx':
-                assert row[column_name] == f1_packets + f2_packets
+                assert row[column_name] < total_packets + \
+                    (total_packets * tolerance) / 100
+                assert row[column_name] > total_packets - \
+                    (total_packets * tolerance) / 100
             elif column_name == 'bytes_tx':
-                assert row[column_name] == total_bytes
+                assert row[column_name] < total_bytes + \
+                    (total_bytes * tolerance) / 100
+                assert row[column_name] > total_bytes - \
+                    (total_bytes * tolerance) / 100
         elif row['name'] == 'raw_rx':
             if column_name == 'frames_rx':
-                assert row[column_name] == f1_packets + f2_packets
+                assert row[column_name] < total_packets + \
+                    (total_packets * tolerance) / 100
+                assert row[column_name] > total_packets - \
+                    (total_packets * tolerance) / 100
             elif column_name == 'bytes_rx':
-                assert row[column_name] == total_bytes
+                assert row[column_name] < total_bytes + \
+                    (total_bytes * tolerance) / 100
+                assert row[column_name] > total_bytes - \
+                    (total_bytes * tolerance) / 100
 
 
 def validate_flow_stats_based_on_flow_name(flow_results, flow_name):
