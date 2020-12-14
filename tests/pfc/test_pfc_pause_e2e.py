@@ -6,7 +6,7 @@ from abstract_open_traffic_generator import (
 
 @pytest.mark.e2e
 @pytest.mark.parametrize('lossless_priorities', [[3, 4]])
-def test_lossless_priority(api, settings, utils, lossless_priorities):
+def test_pfc_pause_e2e(api, settings, utils, lossless_priorities):
     """
     Configure ports where,
     - tx port can only respond to pause frames for `lossless_priorities`
@@ -71,7 +71,7 @@ def test_lossless_priority(api, settings, utils, lossless_priorities):
                             src=flow.Pattern('1.1.1.2'),
                             dst=flow.Pattern('1.1.1.1'),
                             priority=flow_ipv4.Priority(
-                                flow_ipv4.Dscp(flow.Pattern(str(i * 8)))
+                                flow_ipv4.Dscp(phb=flow.Pattern(str(i * 8)))
                             )
                         )
                     )
