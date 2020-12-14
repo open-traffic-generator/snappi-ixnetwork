@@ -24,7 +24,7 @@ def test_lossless_priority(api, settings, utils, lossless_priorities):
     """
 
     size = 128
-    packets = 100_000
+    packets = 100000
 
     tx = port.Port(name='raw_tx', location=settings.ports[0])
     rx = port.Port(name='raw_rx', location=settings.ports[1])
