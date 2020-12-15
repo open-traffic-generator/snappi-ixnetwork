@@ -87,9 +87,9 @@ class CustomField(object):
         The implementation will only support fixed patterns for control_op_code and time
         '''
         from abstract_open_traffic_generator.flow import Ethernet, Custom, Header, Pattern
-        ether = Ethernet(src=ethernetpause.src,
-                         dst=ethernetpause.dst,
-                         ether_type=Pattern('8808') if ethernetpause.ether_type == None else ethernetpause.ether_type)
+        ether = Ethernet(src=(lambda: Pattern('00:00:aa:00:00:01'), lambda: ethernetpause.src)[bool(ethernetpause.src)](),
+                         dst=(lambda: Pattern('01:80:c2:00:00:01'), lambda: ethernetpause.dst)[bool(ethernetpause.dst)](),
+                         ether_type=(lambda: Pattern('8808'), lambda: ethernetpause.ether_type)[bool(ethernetpause.ether_type)]())
         new_headers.append(Header(ether))
         control_op_code = '0001' if ethernetpause.control_op_code is None else self._get_first_value(ethernetpause.control_op_code).zfill(4)
         time = 'FFFF' if ethernetpause.time is None else self._get_first_value(ethernetpause.time).zfill(4)
