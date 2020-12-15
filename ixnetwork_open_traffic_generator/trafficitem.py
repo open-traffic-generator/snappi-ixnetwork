@@ -490,8 +490,14 @@ class TrafficItem(CustomField):
         3) Execute requested transmit action (start|stop|pause|resume)
         """
         regex = ''
-        if request.flow_names is not None and len(request.flow_names) > 0:
-            regex = '^(%s)$' % '|'.join(request.flow_names)
+        flow_names = [flow.name for flow in self._api._config.flows]
+        if request and request.flow_names:
+            flow_names = request.flow_names
+        if len(flow_names) == 1:
+            regex = '^%s$' % flow_names[0]
+        elif len(flow_names) > 1:
+            regex = '^(%s)$' % '|'.join(flow_names)
+
         if request.state == 'start':
             all_flow_names = ' '.join(
                 [flow.name for flow in self._api.config.flows])
@@ -515,20 +521,20 @@ class TrafficItem(CustomField):
             with Timer(self._api, 'Flows start'):
                 self._api._traffic_item.StartStatelessTrafficBlocking()
         elif request.state == 'stop':
-            self._api._traffic_item.find(Name=regex, State='^start$')
+            self._api._traffic_item.find(Name=regex, State='^started$')
             if len(self._api._traffic_item) > 0:
                 with Timer(self._api, 'Flows stop'):
                     self._api._traffic_item.StopStatelessTrafficBlocking()
         elif request.state == 'pause':
-            self._api._traffic_item.find(Name=regex, State='^start$')
+            self._api._traffic_item.find(Name=regex, State='^started$')
             if len(self._api._traffic_item) > 0:
                 with Timer(self._api, 'Flows pause'):
-                    self._api._traffic_item.PauseStatelessTrafficBlocking(True)
+                    self._api._traffic_item.PauseStatelessTraffic(True)
         elif request.state == 'resume':
             self._api._traffic_item.find(Name=regex, State='^stopped$')
             if len(self._api._traffic_item) > 0:
                 with Timer(self._api, 'Flows resume'):
-                    self._api._traffic_item.PauseStatelessTrafficBlocking(False)
+                    self._api._traffic_item.PauseStatelessTraffic(False)
 
     def _set_result_value(self,
                           row,
