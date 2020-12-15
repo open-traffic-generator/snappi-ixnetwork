@@ -86,7 +86,7 @@ class Vport(object):
     }
     _FLOW_CONTROL_MAP = {
         'ieee_802_1qbb': 'ieee802.1Qbb',
-        'ieee_802_3x': 'ieee_802_3x'
+        'ieee_802_3x': 'ieee802.3x'
     }
 
     _RESULT_COLUMNS = [
@@ -389,6 +389,8 @@ class Vport(object):
         ]:
             return
         self._set_fcoe(vport, layer1, imports)
+        self._import(imports)
+        
         self._set_auto_negotiation(vport, layer1, imports)
 
     def _set_card_resource_mode(self, vport, layer1, imports):
