@@ -49,11 +49,24 @@ def test_flow_ipv4(serializer, tx_port, rx_port, b2b_ipv4_devices, api):
                        rate=Rate('line', 50),
                        duration=Duration(FixedPackets(packets=0)))
 
+    test_pattern = Priority(Pattern(Counter(start='0', step='1', count=256)))
+    ip_pattern_flow = Flow(name='IPv4 Pattern',
+                       tx_rx=TxRx(endpoint),
+                       packet=[
+                           Header(Ethernet()),
+                           Header(Vlan()),
+                           Header(Ipv4(priority=test_pattern,
+                                       src=Pattern('1.1.1.2'),
+                                       dst=Pattern('1.1.1.1'))),
+                       ],
+                       duration=Duration(Continuous()))
+    
     config = Config(ports=[tx_port, rx_port],
                     devices=b2b_ipv4_devices,
                     flows=[
                         ip_dscp_flow,
                         ip_tos_flow,
+                        ip_pattern_flow
                     ])
     api.set_state(State(ConfigState(config=config, state='set')))
 

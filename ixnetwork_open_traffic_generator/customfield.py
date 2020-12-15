@@ -57,6 +57,8 @@ class CustomField(object):
                 self._configure_pattern(ixn_field, field_type_id, priority.dscp.ecn, field_choice=True)
         elif priority.choice == 'tos':
             self._configure_field(ixn_field, priority, field_choice=True)
+        else:
+            self._configure_pattern(ixn_field, 'ipv4.header.priority.raw', priority.raw, field_choice=True)
 
     def _get_first_value(self, phb_pattern):
         if phb_pattern.choice == 'fixed':
