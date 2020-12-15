@@ -1,7 +1,10 @@
 from abstract_open_traffic_generator import flow
 from abstract_open_traffic_generator import result
+import pytest
 
 
+@pytest.mark.e2e
+# This shouldn't be e2e, need discussion of how to disable/delete flow
 def test_port_and_flow_stats(api, b2b_raw_config, utils):
     """
     configure two flows f1 and f2
