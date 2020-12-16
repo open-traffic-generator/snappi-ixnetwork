@@ -294,6 +294,9 @@ class Vport(object):
 
         resource_group = None
         location = getattr(port, 'location', None)
+        if location is None or len(location) == 0:
+            return
+        
         (hostname, cardid, portid) = location.split(';')
         layer1 = self._get_layer1(port)
         if layer1 is not None:
