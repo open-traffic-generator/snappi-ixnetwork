@@ -218,6 +218,7 @@ class TrafficItem(CustomField):
     def _configure_options(self, flow):
         enable_min_frame_size = False
         if (len(flow.packet) == 1 and flow.packet[0].choice == 'pfcpause'
+                and flow.size is not None
                 and flow.size.choice == 'fixed' and flow.size.fixed <= 64):
             enable_min_frame_size = True
         if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:
