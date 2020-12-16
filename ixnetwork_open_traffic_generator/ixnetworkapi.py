@@ -347,6 +347,42 @@ class IxNetworkApi(Api):
     def _get_topology_name(self, port_name):
         return 'Topology %s' % port_name
 
+    def select_card_aggregation(self, location):
+        (hostname, cardid, portid) = location.split(';')
+        payload = {
+            'selects': [{
+                'from':
+                '/availableHardware',
+                'properties': [],
+                'children': [{
+                    'child':
+                    'chassis',
+                    'properties': [],
+                    'filters': [{
+                        'property': 'hostname',
+                        'regex': '^%s$' % hostname
+                    }]
+                }, {
+                    'child':
+                    'card',
+                    'properties': ['*'],
+                    'filters': [{
+                        'property': 'cardId',
+                        'regex': '^%s$' % abs(int(cardid))
+                    }]
+                }, {
+                    'child':
+                    'aggregation',
+                    'properties': ['*'],
+                    'filters': []
+                }],
+                'inlines': []
+            }]
+        }
+        url = '%s/operations/select?xpath=true' % self._ixnetwork.href
+        results = self._ixnetwork._connection._execute(url, payload)
+        return results[0]['chassis'][0]['card'][0]
+
     def select_chassis_card(self, vport):
         pieces = vport['connectionStatus'].split(';')
         payload = {
