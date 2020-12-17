@@ -466,8 +466,9 @@ class Vport(object):
 
     def _reset_resource_mode(self, card, speed_mode_map):
         # add check for novus NOVUS10
-        if re.search('novus', card['description'].lower()) and 'normal' in card[
-                'availableModes']:
+        novus10g_modes = ['normal', 'tenGigAggregation']
+        if re.search('novus', card['description'].lower()) and set(
+                novus10g_modes) == set(card['availableModes']):
             speed_mode_map['speed_10_gbps'] = 'normal'
     
     def _set_card_resource_mode(self, vport, layer1, imports):
