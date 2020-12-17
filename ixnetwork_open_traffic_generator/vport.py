@@ -299,27 +299,27 @@ class Vport(object):
         
         (hostname, cardid, portid) = location.split(';')
         layer1 = self._get_layer1(port)
+        speed_mode_map = Vport._SPEED_MODE_MAP
         if layer1 is not None:
             card_info = self._api.select_card_aggregation(location)
             if 'aggregation' in card_info.keys() and len(card_info[
-                             'aggregation']) > 1:
+                             'aggregation']) > 0:
                 for aggregation in card_info['aggregation']:
-                    if portid in [port.split('/')[-1] for port in aggregation['resourcePorts']]:
+                    if portid in [port.split('/')[-1] for port in aggregation[
+                            'resourcePorts']]:
+                        self._reset_resource_mode(card_info, speed_mode_map)
                         resource_group = aggregation
                         break
 
         aggregation_mode = None
         if resource_group is not None:
-            if layer1.speed in Vport._SPEED_MODE_MAP:
-                mode = Vport._SPEED_MODE_MAP[layer1.speed]
+            if layer1.speed in speed_mode_map:
+                mode = speed_mode_map[layer1.speed]
                 for available_mode in resource_group['availableModes']:
                     if re.search(mode, available_mode.lower()) is not None:
                         layer1.__setattr__('takencare', True)
                         aggregation_mode = available_mode
                         break
-            else:
-                self._api.warning("Please check post %s is valid for speed %s" %
-                                  (port.name, layer1.speed))
 
         imports = []
         if aggregation_mode is not None:
@@ -336,11 +336,6 @@ class Vport(object):
                     if self._import(imports) is False:
                         self._api.info('Retrying card resource mode change')
                         self._import(imports)
-            
-            if portid not in [port.split('/')[-1] for port in aggregation[
-                    'activePorts']]:
-                self._api.warning("Please check post %s is valid for speed %s" %
-                                  (port.name, layer1.speed))
     
     def _set_location(self):
         location_supported = True
@@ -491,12 +486,9 @@ class Vport(object):
             return
 
         aggregation_mode = None
-        speed_mode_map = Vport._SPEED_MODE_MAP
-        
-        if layer1.speed in speed_mode_map:
+        if layer1.speed in Vport._SPEED_MODE_MAP:
             card = self._api.select_chassis_card(vport)
-            self._reset_resource_mode(card, speed_mode_map)
-            mode = speed_mode_map[layer1.speed]
+            mode = Vport._SPEED_MODE_MAP[layer1.speed]
             for available_mode in card['availableModes']:
                 if re.search(mode, available_mode.lower()) is not None:
                     aggregation_mode = available_mode
