@@ -318,21 +318,29 @@ class Vport(object):
                         aggregation_mode = available_mode
                         break
             else:
-                self._api.warning("Please check speed %s is valid for port %s" %
-                                  (layer1.speed, port.name))
+                self._api.warning("Please check post %s is valid for speed %s" %
+                                  (port.name, layer1.speed))
 
         imports = []
-        if aggregation_mode is not None and aggregation_mode != \
-                resource_group['mode']:
-            imports.append({
-                'xpath': resource_group['xpath'],
-                'mode': aggregation_mode
-            })
-            with Timer(self._api,
-                       'Aggregation speed change for card %s' %port.name):
-                if self._import(imports) is False:
-                    self._api.info('Retrying card resource mode change')
-                    self._import(imports)
+        if aggregation_mode is not None:
+            if aggregation_mode != resource_group['mode']:
+                imports.append({
+                    'xpath': resource_group['xpath'],
+                    'mode': aggregation_mode
+                })
+
+                self._api.info('Setting port %s to resource mode %s' %
+                               (port.name, aggregation_mode))
+                with Timer(self._api,
+                           'Aggregation mode speed change'):
+                    if self._import(imports) is False:
+                        self._api.info('Retrying card resource mode change')
+                        self._import(imports)
+            
+            if portid not in [port.split('/')[-1] for port in aggregation[
+                    'activePorts']]:
+                self._api.warning("Please check post %s is valid for speed %s" %
+                                  (port.name, layer1.speed))
     
     def _set_location(self):
         location_supported = True
@@ -350,6 +358,10 @@ class Vport(object):
         for port in self._api.config.ports:
             vport = vports[port.name]
             location = getattr(port, 'location', None)
+            # calling little bit costly operation? Otherwise we can't handle same port config for
+            # multiple run (_set_card_resource_mode reset to card level). Also some ports are
+            # handling multiple speed ('novusFourByTwentyFiveGigNonFanOut' and 'novusFourByTenGigNonFanOut')
+            self._set_aggregation(port)
             if location_supported is True:
                 if vport['location'] == location and vport[
                         'connectionState'].startswith('connectedLink'):
@@ -359,7 +371,6 @@ class Vport(object):
                         'connectionState'].startswith('connectedLink'):
                     continue
                     
-            self._set_aggregation(port)
             self._api.ixn_objects[port.name] = vport['href']
             vport = {'xpath': vports[port.name]['xpath']}
             if location_supported is True:
