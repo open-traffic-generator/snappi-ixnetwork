@@ -595,7 +595,8 @@ class Vport(object):
             if key == 'xpath':
                 continue
             if key in l1config and l1config[key] != proposed_import[key]:
-                imports += [key, proposed_import[key]]
+                imports.append(proposed_import)
+                return
 
     def _set_gigabit_auto_negotiation(self, vport, layer1, imports):
         proposed_import = {
@@ -613,9 +614,9 @@ class Vport(object):
             'linkTraining':
             False if layer1.auto_negotiation is None else
             layer1.auto_negotiation.link_training,
-            'media':
-            'copper' if layer1.media is None else layer1.media,
         }
+        if layer1.media is not None:
+            proposed_import['media'] = layer1.media
             
         self._add_l1config_import(vport, proposed_import, imports)
 
