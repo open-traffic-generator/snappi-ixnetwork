@@ -355,7 +355,9 @@ class Vport(object):
                 self._api._ixnetwork.href + '/locations')
         except Exception:
             location_supported = False
-
+        
+        self._add_hosts(60)
+        
         # calling little bit costly operation? Otherwise we can't handle same port config for
         # multiple run (_set_card_resource_mode reset to card level). Also some ports are
         # handling multiple speed ('novusFourByTwentyFiveGigNonFanOut' and 'novusFourByTenGigNonFanOut')
@@ -367,10 +369,9 @@ class Vport(object):
             if self._import(imports) is False:
                 self._api.info('Retrying card resource mode change')
                 self._import(imports)
-        
-        locations = []
-        self._add_hosts(60)
+                
         vports = self._api.select_vports()
+        locations = []
         imports = []
         clear_locations = []
         for port in self._api.config.ports:
@@ -594,8 +595,7 @@ class Vport(object):
             if key == 'xpath':
                 continue
             if key in l1config and l1config[key] != proposed_import[key]:
-                imports.append(proposed_import)
-                return
+                imports += [key, proposed_import[key]]
 
     def _set_gigabit_auto_negotiation(self, vport, layer1, imports):
         proposed_import = {
@@ -612,8 +612,11 @@ class Vport(object):
             layer1.auto_negotiation.rs_fec,
             'linkTraining':
             False if layer1.auto_negotiation is None else
-            layer1.auto_negotiation.link_training
+            layer1.auto_negotiation.link_training,
+            'media':
+            'copper' if layer1.media is None else layer1.media,
         }
+            
         self._add_l1config_import(vport, proposed_import, imports)
 
     def _get_speed(self, vport, layer1):
