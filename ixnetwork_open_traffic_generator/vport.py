@@ -281,7 +281,7 @@ class Vport(object):
     def _get_layer1(self, port):
         if hasattr(self._api.config, 'layer1') is False:
             return
-        if self._api.config.layer1 is None:
+        if len(self._api.config.layer1) == 0:
             return
         for layer1 in self._api.config.layer1:
             for port_names in layer1.port_names:
@@ -299,19 +299,21 @@ class Vport(object):
         
         (hostname, cardid, portid) = location.split(';')
         layer1 = self._get_layer1(port)
+        if layer1 is None:
+            return
+        
         speed_mode_map = Vport._SPEED_MODE_MAP
-        if layer1 is not None:
-            self._api.info("Checking port %s to set Layer1 speed %s" %
-                           (port.name, layer1.speed))
-            card_info = self._api.select_card_aggregation(location)
-            if 'aggregation' in card_info.keys() and len(card_info[
-                             'aggregation']) > 0:
-                for aggregation in card_info['aggregation']:
-                    if portid in [port.split('/')[-1] for port in aggregation[
-                            'resourcePorts']]:
-                        self._reset_resource_mode(card_info, speed_mode_map)
-                        resource_group = aggregation
-                        break
+        self._api.info("Checking port %s to set Layer1 speed %s" %
+                       (port.name, layer1.speed))
+        card_info = self._api.select_card_aggregation(location)
+        if 'aggregation' in card_info.keys() and len(card_info[
+                         'aggregation']) > 0:
+            for aggregation in card_info['aggregation']:
+                if portid in [port.split('/')[-1] for port in aggregation[
+                        'resourcePorts']]:
+                    self._reset_resource_mode(card_info, speed_mode_map)
+                    resource_group = aggregation
+                    break
         
         aggregation_mode = None
         if resource_group is not None:
@@ -324,10 +326,10 @@ class Vport(object):
                         break
             else:
                 self._api.warning("Speed %s not avialable within internal map" %
-                                  (layer1.speed))
+                                  layer1.speed)
         else:
             self._api.warning("Please check physical port number for port %s" %
-                              (port.name))
+                              port.name)
 
         if aggregation_mode is not None:
             if aggregation_mode != resource_group['mode']:
