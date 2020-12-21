@@ -431,6 +431,23 @@ def stats_ok(api, size, packets):
     return ok
 
 
+def is_traffic_stopped(api):
+    """
+    Returns true if traffic in stop state
+    """
+    port_results, flow_results = get_all_stats(api)
+    return all([f['transmit'] == 'stopped' for f in flow_results])
+
+
+def is_stats_accumulated(api, packets):
+    """
+    Returns true if stats gets accumulated
+    """
+    port_results, flow_results = get_all_stats(api)
+    frames_ok = total_frames_ok(port_results, flow_results, packets)
+    return frames_ok
+
+
 def value_list_with_packet_count(value_list, packet_count):
     """
     Example:
