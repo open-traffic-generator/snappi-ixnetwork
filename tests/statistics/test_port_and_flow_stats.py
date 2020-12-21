@@ -3,8 +3,7 @@ from abstract_open_traffic_generator import result
 import pytest
 
 
-@pytest.mark.e2e
-# This shouldn't be e2e, need discussion of how to disable/delete flow
+@pytest.mark.skip(reason="Reason for skip #174")
 def test_port_and_flow_stats(api, b2b_raw_config, utils):
     """
     configure two flows f1 and f2
@@ -26,21 +25,6 @@ def test_port_and_flow_stats(api, b2b_raw_config, utils):
     f2_size = 1500
     ports = b2b_raw_config.ports
     flow1 = b2b_raw_config.flows[0]
-
-    flow1.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=flow.Pattern('00:0c:29:1d:10:67'),
-                dst=flow.Pattern('00:0c:29:1d:10:71')
-            )
-        ),
-        flow.Header(
-            flow.Ipv4(
-                src=flow.Pattern("10.10.10.1"),
-                dst=flow.Pattern("10.10.10.2")
-            )
-        ),
-    ]
 
     flow2 = flow.Flow(
         name='f2',
@@ -64,6 +48,11 @@ def test_port_and_flow_stats(api, b2b_raw_config, utils):
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
     utils.wait_for(
         lambda: utils.is_traffic_stopped(api), 'traffic to stop'
+    )
+
+    utils.wait_for(
+        lambda: utils.is_stats_accumulated(api, f1_packets + f2_packets),
+        'stats to be accumulated'
     )
 
     # Validation on Port statistics based on port names
@@ -128,30 +117,17 @@ def validate_port_stats_based_on_column_name(port_results,
 
     total_bytes = (f1_packets * f1_size) + (f2_packets * f2_size)
     total_packets = f1_packets + f2_packets
-    tolerance = 10
     for row in port_results:
         if row['name'] == 'raw_tx':
             if column_name == 'frames_tx':
-                assert row[column_name] < total_packets + \
-                    (total_packets * tolerance) / 100
-                assert row[column_name] > total_packets - \
-                    (total_packets * tolerance) / 100
+                assert row[column_name] == total_packets
             elif column_name == 'bytes_tx':
-                assert row[column_name] < total_bytes + \
-                    (total_bytes * tolerance) / 100
-                assert row[column_name] > total_bytes - \
-                    (total_bytes * tolerance) / 100
+                assert row[column_name] == total_bytes
         elif row['name'] == 'raw_rx':
             if column_name == 'frames_rx':
-                assert row[column_name] < total_packets + \
-                    (total_packets * tolerance) / 100
-                assert row[column_name] > total_packets - \
-                    (total_packets * tolerance) / 100
+                assert row[column_name] == total_packets
             elif column_name == 'bytes_rx':
-                assert row[column_name] < total_bytes + \
-                    (total_bytes * tolerance) / 100
-                assert row[column_name] > total_bytes - \
-                    (total_bytes * tolerance) / 100
+                assert row[column_name] == total_bytes
 
 
 def validate_flow_stats_based_on_flow_name(flow_results, flow_name):
