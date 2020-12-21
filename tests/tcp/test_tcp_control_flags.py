@@ -1,6 +1,8 @@
 from abstract_open_traffic_generator import flow as Flow
+import pytest
 
 
+@pytest.mark.issue174
 def test_tcp_control_flags(api, b2b_raw_config, utils):
     """
     Configure a raw tcp flow with,

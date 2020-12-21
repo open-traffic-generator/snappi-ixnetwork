@@ -3,7 +3,8 @@ from abstract_open_traffic_generator import result
 import pytest
 
 
-@pytest.mark.skip(reason="Reason for skip #174")
+# @pytest.mark.skip(reason="Reason for skip #174")
+@pytest.mark.issue174
 def test_port_and_flow_stats(api, b2b_raw_config, utils):
     """
     configure two flows f1 and f2
@@ -25,6 +26,21 @@ def test_port_and_flow_stats(api, b2b_raw_config, utils):
     f2_size = 1500
     ports = b2b_raw_config.ports
     flow1 = b2b_raw_config.flows[0]
+
+    flow1.packet = [
+        flow.Header(
+            flow.Ethernet(
+                src=flow.Pattern('00:0c:29:1d:10:67'),
+                dst=flow.Pattern('00:0c:29:1d:10:71')
+            )
+        ),
+        flow.Header(
+            flow.Ipv4(
+                src=flow.Pattern("10.10.10.1"),
+                dst=flow.Pattern("10.10.10.2")
+            )
+        ),
+    ]
 
     flow2 = flow.Flow(
         name='f2',
