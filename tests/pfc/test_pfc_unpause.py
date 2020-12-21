@@ -9,12 +9,12 @@ from abstract_open_traffic_generator import (
 def test_pfc_unpause(api, settings, utils, lossless_priorities):
     """
     Configure ports where,
-    - tx port can only respond to pause and un-pause frames for 
+    - tx port can only respond to pause and un-pause frames for
       'lossless_priorities'
     - rx port is to send pause and un-pause frames on lossless priorities
     Configure raw IPv4 flows on tx port with lossless_priorities where,
     - each flow is mapped to corresponding PHB_CS and priority queue value
-    - each flow sends 100K frames at 10% of packets pps rate 
+    - each flow sends 100K frames at 10% of packets pps rate
       with start delay of 1s
     Configure one raw PFC Pause flow and one un-pause flow on rx port where,
     - pause frames are sent for 10 seconds (pause storm)
@@ -140,23 +140,25 @@ def test_pfc_unpause(api, settings, utils, lossless_priorities):
         options=config.Options(port.Options(location_preemption=True))
     )
     utils.start_traffic(api, cfg)
+
     utils.wait_for(
         lambda: results_ok(
-            api, utils, packets
+            api, utils, packets, lossless_priorities
         ),
         'stats to be as expected', timeout_seconds=10
     )
 
     utils.wait_for(
-        lambda: results_ok(api, utils, packets, False),
+        lambda: results_ok(api, utils, packets, lossless_priorities, False),
         'stats to be as expected', timeout_seconds=20
     )
 
 
-def results_ok(api, utils, packets, check_for_pause=True):
+def results_ok(api, utils, packets, lossless_priorities, check_for_pause=True):
     """
     Returns true if stats are as expected, false otherwise.
     """
+    port_results = api.get_port_results(utils.result.PortRequest())
     flow_results = api.get_flow_results(utils.result.FlowRequest())
     pause = [
         f['frames_rx'] for f in flow_results if f['name'] == 'rx_pfc_pause'
@@ -181,4 +183,14 @@ def results_ok(api, utils, packets, check_for_pause=True):
             continue
         if "tx_prio_" in fl['name']:
             ok.append(False)
+    p_stats = {p['name']: p for p in port_results}
+    priorities = [
+        'pfc_class_{}_frames_rx'.format(p) for p in lossless_priorities
+    ]
+    for stat in p_stats['raw_tx']:
+        if (check_for_pause is False) and (stat in priorities):
+            ok.append(
+                p_stats['raw_tx'][stat] == packets * 2
+            )
+
     return all(ok)
