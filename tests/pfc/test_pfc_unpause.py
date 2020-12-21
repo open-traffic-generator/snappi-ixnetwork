@@ -72,7 +72,7 @@ def test_pfc_unpause(api, settings, utils, lossless_priorities):
                             src=flow.Pattern('1.1.1.2'),
                             dst=flow.Pattern('1.1.1.1'),
                             priority=flow_ipv4.Priority(
-                                flow_ipv4.Dscp(flow.Pattern(str(prio)))
+                                flow_ipv4.Dscp(flow.Pattern(str(prio * 8)))
                             )
                         )
                     )
@@ -106,7 +106,8 @@ def test_pfc_unpause(api, settings, utils, lossless_priorities):
             ],
             duration=flow.Duration(flow.FixedSeconds(seconds=10)),
             size=flow.Size(size),
-            rate=flow.Rate(value=packets / 10, unit='pps')
+            rate=flow.Rate(value=50, unit='line')
+            # rate=flow.Rate(value=packets / 10, unit='pps')
         )
     )
 
@@ -131,7 +132,8 @@ def test_pfc_unpause(api, settings, utils, lossless_priorities):
                 seconds=10, delay=(10**9) * 10, delay_unit='nanoseconds'
             )),
             size=flow.Size(size),
-            rate=flow.Rate(value=packets / 10, unit='pps')
+            rate=flow.Rate(value=50, unit='line')
+            # rate=flow.Rate(value=packets / 10, unit='pps')
         )
     )
 
@@ -150,7 +152,7 @@ def test_pfc_unpause(api, settings, utils, lossless_priorities):
 
     utils.wait_for(
         lambda: results_ok(api, utils, packets, lossless_priorities, False),
-        'stats to be as expected', timeout_seconds=20
+        'stats to be as expected', timeout_seconds=30
     )
 
 
@@ -158,6 +160,9 @@ def results_ok(api, utils, packets, lossless_priorities, check_for_pause=True):
     """
     Returns true if stats are as expected, false otherwise.
     """
+    priorities = [
+        'pfc_class_{}_frames_rx'.format(p) for p in lossless_priorities
+    ]
     port_results = api.get_port_results(utils.result.PortRequest())
     flow_results = api.get_flow_results(utils.result.FlowRequest())
     pause = [
@@ -166,31 +171,30 @@ def results_ok(api, utils, packets, lossless_priorities, check_for_pause=True):
     un_pause = [
         f['frames_rx'] for f in flow_results if f['name'] == 'rx_pfc_unpause'
     ][0]
-    ok = []
+    ok = [False] * len(lossless_priorities)
+    ok_port = [False] * len(lossless_priorities)
+
+    count = 0
 
     for fl in flow_results:
         if fl['name'] == 'rx_unpause' or fl['name'] == 'rx_pause':
             continue
-        if pause < packets and pause > 0 and check_for_pause and \
-           "tx_prio_" in fl['name']:
-            ok.append(fl['frames_tx'] == fl['frames_rx'] == 0)
+        if pause > 0 and un_pause == 0 and check_for_pause and \
+           fl['name'].startswith("tx_prio_"):
+            ok[count] = fl['frames_tx'] == fl['frames_rx'] == 0
+            count += 1
             continue
-        if un_pause <= packets and un_pause > 0 and \
-           (check_for_pause is False) and "tx_prio_" in fl['name']:
-            ok.append(
-                fl['frames_tx'] == fl['frames_rx'] == packets
-            )
-            continue
-        if "tx_prio_" in fl['name']:
-            ok.append(False)
-    p_stats = {p['name']: p for p in port_results}
-    priorities = [
-        'pfc_class_{}_frames_rx'.format(p) for p in lossless_priorities
-    ]
-    for stat in p_stats['raw_tx']:
-        if (check_for_pause is False) and (stat in priorities):
-            ok.append(
-                p_stats['raw_tx'][stat] == packets * 2
-            )
+        if un_pause > 0 and (check_for_pause is False) \
+           and fl['name'].startswith("tx_prio_"):
+            ok[count] = fl['frames_tx'] == fl['frames_rx'] == packets
+            count += 1
 
-    return all(ok)
+    p_stats = {p['name']: p for p in port_results}
+    count = 0
+    for stat in priorities:
+        if check_for_pause is False:
+            ok_port[count] = p_stats['raw_tx'][stat] == \
+                p_stats['raw_rx']['frames_tx']
+            count += 1
+
+    return all(ok if check_for_pause else ok + ok_port)
