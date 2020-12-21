@@ -261,7 +261,7 @@ class IxNetworkApi(Api):
         """Connect to an IxNetwork API Server.
         """
         if self._assistant is None:
-            platform = TestPlatform(self._address, rest_port=self._password)
+            platform = TestPlatform(self._address, rest_port=self._port)
             platform.Authenticate(self._username, self._password)
             url = '%s://%s:%s/ixnetworkweb/api/v1/usersettings/ixnrest' % \
                 (platform.Scheme, platform.Hostname, platform.RestPort)
