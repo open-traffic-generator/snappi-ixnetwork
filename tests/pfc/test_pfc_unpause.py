@@ -9,18 +9,19 @@ from abstract_open_traffic_generator import (
 def test_pfc_unpause(api, settings, utils, lossless_priorities):
     """
     Configure ports where,
-    - tx port can only respond to pause frames for `lossless_priorities`
-    - rx port is capable of sending pause frames for all priorities
-    Configure 8 raw IPv4 flows on tx port where,
+    - tx port can only respond to pause and un-pause frames for 
+      'lossless_priorities'
+    - rx port is to send pause and un-pause frames on lossless priorities
+    Configure raw IPv4 flows on tx port with lossless_priorities where,
     - each flow is mapped to corresponding PHB_CS and priority queue value
-    - each flow sends 100K frames at 10% line rate and with start delay of 1s
-    Configure one raw PFC Pause flow on rx port where,
-    - pause frames are sent for 20 seconds (pause storm)
+    - each flow sends 100K frames at 10% of packets pps rate 
+      with start delay of 1s
+    Configure one raw PFC Pause flow and one un-pause flow on rx port where,
+    - pause frames are sent for 10 seconds (pause storm)
+    - un-pause frames are sent for 10 seconds with start delay of 10s
     Validate,
-    - tx/rx frame count is 600K before and 800K after pause storm
-    - rx frame count for flows pertaining to `lossless_priorities` is 0 before
-      and 100K after pause storm
-    - rx frame count for rest of the flows is 100K before and after pause storm
+    - tx/rx frame count is 0 before and (lossless_priorities * 100k)
+      after pause storm
     """
 
     size = 128
