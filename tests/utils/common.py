@@ -165,6 +165,60 @@ def get_b2b_raw_config():
     )
 
 
+def get_b2b_raw_config_two_flows():
+    """
+    Returns raw b2b traffic config patched with ports and speed from global
+    settings and two flows
+    """
+    ports = []
+    # modify config to use port locations provided in settings.json
+    for i, n in enumerate(['raw_tx', 'raw_rx']):
+        ports.append(port.Port(name=n, location=settings.ports[i]))
+
+    l1 = None
+    # modify speed
+    if settings.speed is not None:
+        l1 = [
+            layer1.Layer1(
+                name='l1', port_names=[p.name for p in ports],
+                speed=settings.speed
+            )
+        ]
+
+    c = capture.Capture(
+        name='c1', port_names=[ports[1].name], enable=True,
+        choice=[], format='pcap'
+    )
+
+    # flow1 with first two ports as tx/rx
+    f1 = flow.Flow(
+        name='flow1',
+        tx_rx=flow.TxRx(
+            flow.PortTxRx(
+                tx_port_name=ports[0].name,
+                rx_port_name=ports[1].name
+            )
+        )
+    )
+    # flow2 with first two ports as tx/rx
+    f2 = flow.Flow(
+        name='flow2',
+        tx_rx=flow.TxRx(
+            flow.PortTxRx(
+                tx_port_name=ports[0].name,
+                rx_port_name=ports[1].name
+            )
+        )
+    )
+
+    # forcefully take ownership of ports owned by other users
+    o = config.Options(port.Options(location_preemption=True))
+
+    return config.Config(
+        ports=ports, layer1=l1, flows=[f1, f2], captures=[c], options=o
+    )
+
+
 def get_capture_port_names(cfg):
     """
     Returns name of ports for which capture is enabled.

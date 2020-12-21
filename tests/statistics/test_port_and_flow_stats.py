@@ -1,14 +1,12 @@
 from abstract_open_traffic_generator import flow
 from abstract_open_traffic_generator import result
-import pytest
 
 
-@pytest.mark.skip(reason="Reason for skip #174")
-def test_port_and_flow_stats(api, b2b_raw_config, utils):
+def test_port_and_flow_stats(api, b2b_raw_config_two_flows, utils):
     """
-    configure two flows f1 and f2
-    - Send 1000 packets from f1 of size 74B
-    - Send 2000 packets from f2 of size 1500B
+    configure two flows flow1 and flow2
+    - Send 1000 packets from flow1 of size 74B
+    - Send 2000 packets from flow2 of size 1500B
 
     Validation:
     1) Get port statistics based on port name & column names and assert
@@ -23,19 +21,8 @@ def test_port_and_flow_stats(api, b2b_raw_config, utils):
     f2_packets = 2000
     f1_size = 74
     f2_size = 1500
-    ports = b2b_raw_config.ports
-    flow1 = b2b_raw_config.flows[0]
-
-    flow2 = flow.Flow(
-        name='f2',
-        tx_rx=flow.TxRx(
-            flow.PortTxRx(
-                tx_port_name=ports[0].name,
-                rx_port_name=ports[1].name
-            )
-        )
-    )
-    b2b_raw_config.flows.append(flow2)
+    flow1 = b2b_raw_config_two_flows.flows[0]
+    flow2 = b2b_raw_config_two_flows.flows[1]
 
     flow1.duration = flow.Duration(flow.FixedPackets(packets=f1_packets))
     flow1.size = flow.Size(f1_size)
@@ -45,7 +32,7 @@ def test_port_and_flow_stats(api, b2b_raw_config, utils):
     flow2.size = flow.Size(f2_size)
     flow2.rate = flow.Rate(value=10, unit='line')
 
-    utils.start_traffic(api, b2b_raw_config, start_capture=False)
+    utils.start_traffic(api, b2b_raw_config_two_flows, start_capture=False)
     utils.wait_for(
         lambda: utils.is_traffic_stopped(api), 'traffic to stop'
     )
@@ -76,7 +63,7 @@ def test_port_and_flow_stats(api, b2b_raw_config, utils):
                                                  f2_size)
 
     # Validation on Flow statistics based on flow names
-    flow_names = ['f1', 'f2']
+    flow_names = ['flow1', 'flow2']
     for flow_name in flow_names:
         flow_results = api.get_flow_results(result.FlowRequest(
                                             flow_names=[flow_name],
@@ -148,14 +135,14 @@ def validate_flow_stats_based_on_column_name(flow_results,
     Validate Flow stats based on column_names
     """
     for row in flow_results:
-        if row['name'] == 'f1':
+        if row['name'] == 'flow1':
             if column_name == 'frames_tx':
                 assert row[column_name] == f1_packets
             elif column_name == 'frames_rx':
                 assert row[column_name] == f1_packets
             elif column_name == 'bytes_rx':
                 assert row[column_name] == f1_packets * f1_size
-        elif row['name'] == 'f2':
+        elif row['name'] == 'flow2':
             if column_name == 'frames_tx':
                 assert row[column_name] == f2_packets
             elif column_name == 'frames_rx':

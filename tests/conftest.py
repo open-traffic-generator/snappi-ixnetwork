@@ -42,6 +42,11 @@ def b2b_raw_config():
 
 
 @pytest.fixture(scope='session')
+def b2b_raw_config_two_flows():
+    return utl.get_b2b_raw_config_two_flows()
+
+
+@pytest.fixture(scope='session')
 def utils():
     return utl
 
