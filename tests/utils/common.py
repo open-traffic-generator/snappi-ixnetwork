@@ -73,6 +73,7 @@ class Settings(object):
         self.api_server = None
         self.ports = None
         self.speed = None
+        self.media = None
         self.timeout_seconds = None
         self.interval_seconds = None
         self.log_level = None
@@ -137,7 +138,7 @@ def get_b2b_raw_config():
         l1 = [
             layer1.Layer1(
                 name='l1', port_names=[p.name for p in ports],
-                speed=settings.speed
+                speed=settings.speed, media=settings.media
             )
         ]
 

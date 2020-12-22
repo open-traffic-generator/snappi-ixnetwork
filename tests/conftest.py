@@ -21,7 +21,7 @@ def pytest_configure(config):
     utl.settings.load_from_pytest_command_line(config)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def settings():
     # global settings
     return utl.settings
@@ -36,12 +36,12 @@ def api():
         api.assistant.Session.remove()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def b2b_raw_config():
     return utl.get_b2b_raw_config()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def utils():
     return utl
 

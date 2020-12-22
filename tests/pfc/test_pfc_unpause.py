@@ -31,7 +31,8 @@ def test_pfc_unpause(api, settings, utils, lossless_priorities):
     rx = port.Port(name='raw_rx', location=settings.ports[1])
 
     tx_l1 = layer1.Layer1(
-        name='txl1', port_names=[tx.name], speed=settings.speed, media='fiber',
+        name='txl1', port_names=[tx.name], speed=settings.speed,
+        media=settings.media,
         flow_control=layer1.FlowControl(
             choice=layer1.Ieee8021qbb(
                 pfc_class_0=0 if 0 in lossless_priorities else None,
@@ -47,7 +48,8 @@ def test_pfc_unpause(api, settings, utils, lossless_priorities):
     )
 
     rx_l1 = layer1.Layer1(
-        name='rxl1', port_names=[rx.name], speed=settings.speed, media='fiber',
+        name='rxl1', port_names=[rx.name], speed=settings.speed,
+        media=settings.media,
         flow_control=layer1.FlowControl(choice=layer1.Ieee8021qbb())
     )
 
