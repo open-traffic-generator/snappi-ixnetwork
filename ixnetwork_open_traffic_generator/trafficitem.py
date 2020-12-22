@@ -290,9 +290,17 @@ class TrafficItem(CustomField):
         any stack items so that the stack list matches the headers list.
         If the headers list is empty then use the traffic generator default stack.
         """
-        stacks_to_remove = []
         ixn_stack = ixn_stream.Stack.find()
         headers = self.adjust_header(headers)
+        if len(headers) < len(ixn_stack) and len(
+                headers) > 0:
+            for i in range(len(headers), len(ixn_stack)):
+                stack_type_id = ixn_stack[i].StackTypeId
+                if stack_type_id not in self._STACK_IGNORE:
+                    ixn_stack[i].Remove()
+
+        stacks_to_remove = []
+        ixn_stack = ixn_stream.Stack.find()
         for i in range(0, len(headers)):
             header = headers[i]
             if len(ixn_stack) <= i:
