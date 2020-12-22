@@ -1,10 +1,8 @@
 from abstract_open_traffic_generator import flow
 from abstract_open_traffic_generator import result
-import pytest
 
 
-@pytest.mark.skip(reason="Reason for skip #174")
-def test_port_and_flow_stats(api, b2b_raw_config, utils):
+def test_stats_filter(api, b2b_raw_config, utils):
     """
     configure two flows f1 and f2
     - Send 1000 packets from f1 of size 74B

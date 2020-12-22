@@ -5,7 +5,7 @@ import pytest
 
 
 @pytest.mark.e2e
-def test_port_and_flow_stats_e2e(api, b2b_raw_config, utils):
+def test_stats_filter_e2e(api, b2b_raw_config, utils):
     """
     configure two flows f1 and f2
     - Send continuous packets from f1 of size 74B
