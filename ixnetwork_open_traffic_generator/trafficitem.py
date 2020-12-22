@@ -617,6 +617,8 @@ class TrafficItem(CustomField):
                 flow_row = flow_rows[row['Traffic Item'] + row['Tx Port'] + row['Rx Port']]
                 if float(row['Tx Frame Rate']) > 0 or int(row['Tx Frames']) == 0:
                     flow_row['transmit'] = 'started'
+                else:
+                    flow_row['transmit'] = 'stopped'
                 for external_name, internal_name, external_type in self._RESULT_COLUMNS:
                     # keep plugging values for next columns even if the
                     # current one raises exception
