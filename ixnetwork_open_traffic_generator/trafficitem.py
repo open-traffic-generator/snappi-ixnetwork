@@ -23,7 +23,7 @@ class TrafficItem(CustomField):
         ('bytes_rx_rate', 'Rx Rate (Bps)', float),
     ]
 
-    _STACK_IGNORE = ['ethernet.fcs']
+    _STACK_IGNORE = ['ethernet.fcs', 'pfcPause.fcs']
 
     _TYPE_TO_HEADER = {
         'ethernet': 'ethernet',
