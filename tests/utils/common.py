@@ -137,7 +137,7 @@ def get_b2b_raw_config():
         l1 = [
             layer1.Layer1(
                 name='l1', port_names=[p.name for p in ports],
-                speed=settings.speed, media='fiber'
+                speed=settings.speed
             )
         ]
 

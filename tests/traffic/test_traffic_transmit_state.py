@@ -4,16 +4,13 @@ from abstract_open_traffic_generator import flow
 def test_traffic_transmit_state(api, b2b_raw_config, utils):
     """
     configure two flows f1 and f2
-    - Send 1000 packets from f1 of size 74B
-    - Send 2000 packets from f2 of size 1500B
+    - Send fixed packets from f1
+    - Send continuous packets from f2
+    - Send fixed packets from f3
 
     Validation:
-    1) Get port statistics based on port name & column names and assert
-    each port & column has returned the values and assert them against
-    packets and frame size sent
-    2) Get flow statistics based on flow name & column names and assert
-    each flow & column has returned the values and assert them against
-    packets and frame size sent
+    1) Validate the transmit state of the f1 & f3
+       as stopped after packets exhausted
     """
 
     f1_packets = 1000
