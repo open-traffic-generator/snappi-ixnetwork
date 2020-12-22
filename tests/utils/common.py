@@ -432,11 +432,12 @@ def stats_ok(api, size, packets):
     return ok
 
 
-def is_traffic_stopped(api):
+def is_traffic_stopped(api, flow_names=[]):
     """
     Returns true if traffic in stop state
     """
-    port_results, flow_results = get_all_stats(api)
+    flow_results = api.get_flow_results(result.FlowRequest(
+                                        flow_names=flow_names))
     return all([f['transmit'] == 'stopped' for f in flow_results])
 
 
