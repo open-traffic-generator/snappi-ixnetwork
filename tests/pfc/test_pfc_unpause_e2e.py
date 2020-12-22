@@ -6,7 +6,7 @@ from abstract_open_traffic_generator import (
 
 @pytest.mark.e2e
 @pytest.mark.parametrize('lossless_priorities', [[3, 4]])
-def test_pfc_unpause(api, settings, utils, lossless_priorities):
+def test_pfc_unpause_e2e(api, settings, utils, lossless_priorities):
     """
     Configure ports where,
     - tx port can only respond to pause and un-pause frames for
