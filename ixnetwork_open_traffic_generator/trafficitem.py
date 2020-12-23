@@ -310,6 +310,9 @@ class TrafficItem(CustomField):
             self._configure_field(stack.Field, header)
 
         # scan and compare new stack to overcome IxNetwork stack serialization
+        # then remove additional stack
+        if len(headers) == 0:
+            return
         stacks_to_remove = []
         ixn_stack = ixn_stream.Stack.find()
         header_index = 0
