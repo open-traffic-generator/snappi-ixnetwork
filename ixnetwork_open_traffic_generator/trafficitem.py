@@ -218,6 +218,7 @@ class TrafficItem(CustomField):
     def _configure_options(self, flow):
         enable_min_frame_size = False
         if (len(flow.packet) == 1 and flow.packet[0].choice == 'pfcpause'
+                and flow.size is not None
                 and flow.size.choice == 'fixed' and flow.size.fixed <= 64):
             enable_min_frame_size = True
         if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:
@@ -616,6 +617,8 @@ class TrafficItem(CustomField):
                 flow_row = flow_rows[row['Traffic Item'] + row['Tx Port'] + row['Rx Port']]
                 if float(row['Tx Frame Rate']) > 0 or int(row['Tx Frames']) == 0:
                     flow_row['transmit'] = 'started'
+                else:
+                    flow_row['transmit'] = 'stopped'
                 for external_name, internal_name, external_type in self._RESULT_COLUMNS:
                     # keep plugging values for next columns even if the
                     # current one raises exception

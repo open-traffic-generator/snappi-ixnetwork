@@ -204,6 +204,10 @@ class IxNetworkApi(Api):
         payload = {'arg1': self._vport.href, 'arg2': file_id}
         response = self._request('POST', url, payload)
 
+        url = '%s/vport/operations/releaseCapturePorts' % self._ixnetwork.href
+        payload = {'arg1': [self._vport.href]}
+        response = self._request('POST', url, payload)
+
         path = '%s/capture' % self._ixnetwork.Globals.PersistencePath
         url = '%s/files?absolute=%s&filename=%s.cap' % (self._ixnetwork.href,
                                                         path, file_name)
@@ -257,7 +261,7 @@ class IxNetworkApi(Api):
         """Connect to an IxNetwork API Server.
         """
         if self._assistant is None:
-            platform = TestPlatform(self._address, rest_port=self._password)
+            platform = TestPlatform(self._address, rest_port=self._port)
             platform.Authenticate(self._username, self._password)
             url = '%s://%s:%s/ixnetworkweb/api/v1/usersettings/ixnrest' % \
                 (platform.Scheme, platform.Hostname, platform.RestPort)
