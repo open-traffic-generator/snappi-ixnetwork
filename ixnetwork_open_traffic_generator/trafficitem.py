@@ -23,11 +23,11 @@ class TrafficItem(CustomField):
         ('bytes_rx_rate', 'Rx Rate (Bps)', float),
     ]
 
-    _STACK_IGNORE = ['ethernet.fcs']
+    _STACK_IGNORE = ['ethernet.fcs', 'pfcPause.fcs']
 
     _TYPE_TO_HEADER = {
         'ethernet': 'ethernet',
-        'pfcPause': 'pfc_pause',
+        'pfcPause': 'pfcpause',
         'vlan': 'vlan',
         'ipv4': 'ipv4',
         'ipv6': 'ipv6',
@@ -290,9 +290,8 @@ class TrafficItem(CustomField):
         any stack items so that the stack list matches the headers list.
         If the headers list is empty then use the traffic generator default stack.
         """
-        stacks_to_remove = []
-        ixn_stack = ixn_stream.Stack.find()
         headers = self.adjust_header(headers)
+        ixn_stack = ixn_stream.Stack.find()
         for i in range(0, len(headers)):
             header = headers[i]
             if len(ixn_stack) <= i:
@@ -302,16 +301,34 @@ class TrafficItem(CustomField):
                 if stack_type_id in self._STACK_IGNORE:
                     stack = self._add_stack(ixn_stream, stack, header)
                 elif stack_type_id not in TrafficItem._TYPE_TO_HEADER:
-                    stacks_to_remove.append(ixn_stack[i])
                     stack = self._add_stack(ixn_stream, ixn_stack[i], header)
                 elif TrafficItem._TYPE_TO_HEADER[
                         stack_type_id] != header.choice:
-                    stacks_to_remove.append(ixn_stack[i])
                     stack = self._add_stack(ixn_stream, ixn_stack[i], header)
                 else:
                     stack = ixn_stack[i]
             self._configure_field(stack.Field, header)
-        for stack in stacks_to_remove:
+
+        # scan and compare new stack to overcome IxNetwork stack serialization
+        # then remove additional stack
+        if len(headers) == 0:
+            return
+        stacks_to_remove = []
+        ixn_stack = ixn_stream.Stack.find()
+        header_index = 0
+        for i in range(0, len(ixn_stack)):
+            stack_type_id = ixn_stack[i].StackTypeId
+            if stack_type_id in self._STACK_IGNORE:
+                continue
+            if len(headers) <= header_index:
+                stacks_to_remove.append(ixn_stack[i])
+                continue
+            if TrafficItem._TYPE_TO_HEADER[
+                    stack_type_id] != headers[header_index].choice:
+                stacks_to_remove.append(ixn_stack[i])
+            else:
+                header_index += 1
+        for stack in stacks_to_remove[::-1]:
             stack.Remove()
 
     def _add_stack(self, ixn_stream, ixn_stack, header):
