@@ -1,9 +1,11 @@
+import csv
 import json
 import os
 import time
 import io
 import dpkt
 import sys
+from datetime import datetime
 
 from abstract_open_traffic_generator import (
     config, port, layer1, flow, control, result, capture
@@ -311,6 +313,36 @@ def wait_for(func, condition_str, interval_seconds=None, timeout_seconds=None):
             raise Exception(msg)
 
         time.sleep(interval_seconds)
+
+
+def new_logs_dir(prefix='logs'):
+    """
+    creates a new dir with prefix and current timestamp
+    """
+    file_name = prefix + "-" + datetime.strftime(
+        datetime.now(), "%Y%m%d-%H%M%S"
+    )
+    logs_dir = os.path.join(get_root_dir(), "logs")
+    csv_dir = os.path.join(logs_dir, file_name)
+    # don't use exist_ok - since it's not supported in python2
+    if not os.path.exists(csv_dir):
+        os.makedirs(csv_dir)
+    return csv_dir
+
+
+def append_csv_row(dirname, filename, column_names, result_dict):
+    """
+    creates a new csv with column names if it doesn't exist and appends a
+    single row specified by result_dict
+    """
+    path = os.path.join(dirname, filename)
+
+    with open(path, 'a') as fp:
+        csv_writer = csv.writer(fp)
+        if os.path.getsize(path) == 0:
+            csv_writer.writerow(column_names)
+
+        csv_writer.writerow([result_dict[key] for key in column_names])
 
 
 def print_stats(port_stats=None, flow_stats=None, clear_screen=None):

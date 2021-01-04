@@ -77,6 +77,19 @@ class Vport(object):
         'speed_10_fd_mbps': 'speed100',
         'speed_10_hd_mbps': 'speed100'
     }
+
+    _SPEED_MODE_MAP = {
+        'speed_1_gbps': 'normal',
+        'speed_10_gbps': 'tengig',
+        'speed_25_gbps': 'twentyfivegig',
+        'speed_40_gbps': 'fortygig',
+        'speed_50_gbps': 'fiftygig',
+        'speed_100_gbps':
+            '^(?!.*(twohundredgig|fourhundredgig)).*hundredgig.*$',
+        'speed_200_gbps': 'twohundredgig',
+        'speed_400_gbps': 'fourhundredgig'
+    }
+    
     _ADVERTISE_MAP = {
         'advertise_one_thousand_mbps': 'speed1000',
         'advertise_one_hundred_fd_mbps': 'speed100fd',
@@ -265,6 +278,76 @@ class Vport(object):
                             % (HostReadyTimeout, ', '.join(check_addresses)))
                     time.sleep(2)
 
+    def _get_layer1(self, port):
+        if hasattr(self._api.config, 'layer1') is False:
+            return
+        if len(self._api.config.layer1) == 0:
+            return
+        for layer1 in self._api.config.layer1:
+            for port_names in layer1.port_names:
+                if port.name in port_names:
+                    return layer1
+        
+    def _set_aggregation(self, port, imports):
+        """ If the card has multiple resource group to control speed within port
+        set it according to the speed"""
+
+        resource_group = None
+        location = getattr(port, 'location', None)
+        if location is None or len(location) == 0:
+            return
+        
+        (hostname, cardid, portid) = location.split(';')
+        layer1 = self._get_layer1(port)
+        if layer1 is None:
+            return
+        
+        speed_mode_map = Vport._SPEED_MODE_MAP
+        self._api.info("Checking port %s to set Layer1 speed %s" %
+                       (port.name, layer1.speed))
+        card_info = self._api.select_card_aggregation(location)
+        if 'aggregation' in card_info.keys() and len(card_info[
+                         'aggregation']) > 0:
+            for aggregation in card_info['aggregation']:
+                if portid in [port.split('/')[-1] for port in aggregation[
+                        'resourcePorts']]:
+                    self._reset_resource_mode(card_info, speed_mode_map)
+                    resource_group = aggregation
+                    break
+        
+        aggregation_mode = None
+        if resource_group is not None:
+            if layer1.speed in speed_mode_map:
+                mode = speed_mode_map[layer1.speed]
+                for available_mode in resource_group['availableModes']:
+                    if re.search(mode, available_mode.lower()) is not None:
+                        layer1.__setattr__('speed_taken_care', True)
+                        aggregation_mode = available_mode
+                        break
+            else:
+                self._api.warning("Speed %s not avialable within internal map" %
+                                  layer1.speed)
+        else:
+            self._api.warning("Please check physical port number for port %s" %
+                              port.name)
+
+        if aggregation_mode is not None:
+            if aggregation_mode != resource_group['mode']:
+                imports.append({
+                    'xpath': resource_group['xpath'],
+                    'mode': aggregation_mode
+                })
+    
+                self._api.info('Setting port %s to resource mode %s' %
+                               (port.name, aggregation_mode))
+            else:
+                self._api.info("Port %s already set to resource mode %s" %
+                               (port.name, aggregation_mode))
+        else:
+            self._api.warning("Speed %s not available within RG of port %s" %
+                              (layer1.speed, port.name))
+            
+    
     def _set_location(self):
         location_supported = True
         try:
@@ -272,15 +355,29 @@ class Vport(object):
                 self._api._ixnetwork.href + '/locations')
         except Exception:
             location_supported = False
-
-        locations = []
+        
         self._add_hosts(60)
+        
+        # calling little bit costly operation? Otherwise we can't handle same port config for
+        # multiple run (_set_card_resource_mode reset to card level). Also some ports are
+        # handling multiple speed ('novusFourByTwentyFiveGigNonFanOut' and 'novusFourByTenGigNonFanOut')
+        imports = []
+        with Timer(self._api,
+                   'Aggregation mode speed change'):
+            for port in self._api.config.ports:
+                self._set_aggregation(port, imports)
+            if self._import(imports) is False:
+                self._api.info('Retrying card resource mode change')
+                self._import(imports)
+                
         vports = self._api.select_vports()
+        locations = []
         imports = []
         clear_locations = []
         for port in self._api.config.ports:
             vport = vports[port.name]
             location = getattr(port, 'location', None)
+
             if location_supported is True:
                 if vport['location'] == location and vport[
                         'connectionState'].startswith('connectedLink'):
@@ -289,6 +386,7 @@ class Vport(object):
                 if len(vport['connectedTo']) > 0 and vport[
                         'connectionState'].startswith('connectedLink'):
                     continue
+                    
             self._api.ixn_objects[port.name] = vport['href']
             vport = {'xpath': vports[port.name]['xpath']}
             if location_supported is True:
@@ -393,28 +491,25 @@ class Vport(object):
         
         self._set_auto_negotiation(vport, layer1, imports)
 
+    def _reset_resource_mode(self, card, speed_mode_map):
+        # add check for novus NOVUS10
+        novus10g_modes = ['normal', 'tenGigAggregation']
+        if re.search('novus', card['description'].lower()) and set(
+                novus10g_modes) == set(card['availableModes']):
+            speed_mode_map['speed_10_gbps'] = 'normal'
+    
     def _set_card_resource_mode(self, vport, layer1, imports):
         """If the card has an aggregation mode set it according to the speed
         """
         if vport['connectionState'] not in [
                 'connectedLinkUp', 'connectedLinkDown'
-        ]:
+        ] or hasattr(layer1, 'speed_taken_care'):
             return
-        speed_mode_map = {
-            'speed_1_gbps': 'normal',
-            'speed_10_gbps': 'tengig',
-            'speed_25_gbps': 'twentyfivegig',
-            'speed_40_gbps': 'fortygig',
-            'speed_50_gbps': 'fiftygig',
-            'speed_100_gbps':
-            '^(?!.*(twohundredgig|fourhundredgig)).*hundredgig.*$',
-            'speed_200_gbps': 'twohundredgig',
-            'speed_400_gbps': 'fourhundredgig'
-        }
+
         aggregation_mode = None
-        if layer1.speed in speed_mode_map:
-            mode = speed_mode_map[layer1.speed]
+        if layer1.speed in Vport._SPEED_MODE_MAP:
             card = self._api.select_chassis_card(vport)
+            mode = Vport._SPEED_MODE_MAP[layer1.speed]
             for available_mode in card['availableModes']:
                 if re.search(mode, available_mode.lower()) is not None:
                     aggregation_mode = available_mode
@@ -518,8 +613,11 @@ class Vport(object):
             layer1.auto_negotiation.rs_fec,
             'linkTraining':
             False if layer1.auto_negotiation is None else
-            layer1.auto_negotiation.link_training
+            layer1.auto_negotiation.link_training,
         }
+        if layer1.media is not None:
+            proposed_import['media'] = layer1.media
+            
         self._add_l1config_import(vport, proposed_import, imports)
 
     def _get_speed(self, vport, layer1):
