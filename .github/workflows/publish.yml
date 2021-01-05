@@ -31,7 +31,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade -r requirements.txt
+        ${{steps.path.outputs.pythonv}} -m pip install --upgrade -r requirements.txt
 
     - name: Build distributions
       run: |
