@@ -32,7 +32,7 @@ Please make sure that the setup meets [Python Prerequisites](#python-prerequisit
   ```sh
   # provide intended API Server and port addresses
   vi tests/settings.json
-  python -m pytest tests/ethernet/test_fixed_mac_addrs.py
+  python -m pytest tests/tcp/test_tcp_flow_capture.py
   ```
 
 #### Python Prerequisites
