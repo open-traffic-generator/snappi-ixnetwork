@@ -5,15 +5,24 @@ To build `python setup.py sdist --formats=gztar bdist_wheel --universal`
 import os
 from setuptools import setup
 import requests
+import json
 
 
-# TODO: We shouldn't be fetching latest version
-# download the latest version of the open-traffic-generator/models
-# openapi.yaml spec which this package is based on
-OPENAPI_URL = (
-    'https://github.com/open-traffic-generator/models/releases/latest/download'
-    '/openapi.yaml'
+RELEASES_URL = (
+    'https://api.github.com/repos/open-traffic-generator/models/releases'
 )
+
+response = requests.request('GET', RELEASES_URL, allow_redirects=True)
+assert response.status_code == 200
+releases = json.loads(response.content)
+# get latest release from v0.0.x branch
+MODELS_RELEASES = [r['tag_name'] for r in releases if 'v0.0.' in r['tag_name']]
+
+OPENAPI_URL = (
+    'https://github.com/open-traffic-generator/models/releases/download/%s'
+    '/openapi.yaml'
+) % MODELS_RELEASES[0]
+
 response = requests.request('GET', OPENAPI_URL, allow_redirects=True)
 assert response.status_code == 200
 
@@ -57,7 +66,7 @@ setup(
     install_requires=[
         'pyaml',
         'jsonpath-ng',
-        'abstract-open-traffic-generator==0.0.64',
+        'abstract-open-traffic-generator==0.0.65',
         'ixnetwork-restpy>=1.0.52'
     ],
     extras_require={
