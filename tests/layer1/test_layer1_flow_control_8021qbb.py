@@ -3,9 +3,10 @@ from abstract_open_traffic_generator.layer1 import *
 from abstract_open_traffic_generator.control import *
 
 
-def test_layer1_fcoe(api, tx_port, rx_port, options, utils):
+def test_layer1_flow_control_8021qbb(api, tx_port, rx_port, options, utils):
     """
-    Test that layer1 fcoe configuration settings are being applied correctly.
+    Test that layer1 flow control 8021qbb configuration settings
+    are being applied correctly.
 
     Validation: Validate the layer1 properties applied using Restpy
     """
@@ -38,18 +39,18 @@ def test_layer1_fcoe(api, tx_port, rx_port, options, utils):
                     layer1=[fcoe1, fcoe2],
                     options=options)
     api.set_state(State(ConfigState(config=config, state='set')))
-    validate_fcoe_config(api,
-                         port1_delay,
-                         port1_pfc_priority_groups,
-                         directed_address)
+    validate_8021qbb_config(api,
+                            port1_delay,
+                            port1_pfc_priority_groups,
+                            directed_address)
 
 
-def validate_fcoe_config(api,
-                         port1_delay,
-                         port1_pfc_priority_groups,
-                         directed_address):
+def validate_8021qbb_config(api,
+                            port1_delay,
+                            port1_pfc_priority_groups,
+                            directed_address):
     """
-    Validate FCOE config using Restpy
+    Validate 8021qbb config using Restpy
     """
     ixnetwork = api._ixnetwork
     port1 = ixnetwork.Vport.find()[0]

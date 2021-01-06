@@ -5,7 +5,7 @@ from abstract_open_traffic_generator.layer1 import *
 from abstract_open_traffic_generator.control import *
 
 
-@pytest.mark.skip(reason="Waiting for PR #178")
+@pytest.mark.e2e
 def test_layer1(api, options, utils):
     """Test that layer1 configuration settings are being applied correctly
     A user should be able to configure ports with/without locations.
@@ -19,7 +19,7 @@ def test_layer1(api, options, utils):
     speed_type = {'speed_100_fd_mbps': '100',
                   'speed_1_gbps': '1000',
                   'speed_10_gbps': '10000'}
-    media = 'fiber'
+    media = utils.settings.media
 
     port1 = Port(name='port1', location=utils.settings.ports[0])
     port2 = Port(name='port2', location=utils.settings.ports[1])
