@@ -309,7 +309,7 @@ class Vport(object):
         if 'aggregation' in card_info.keys() and len(card_info[
                          'aggregation']) > 0:
             for aggregation in card_info['aggregation']:
-                if portid in [port.split('/')[-1] for port in aggregation[
+                if portid in [res_port.split('/')[-1] for res_port in aggregation[
                         'resourcePorts']]:
                     self._reset_resource_mode(card_info, speed_mode_map)
                     resource_group = aggregation
