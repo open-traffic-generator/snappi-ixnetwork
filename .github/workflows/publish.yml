@@ -14,10 +14,10 @@ on: [push, pull_request, workflow_dispatch, repository_dispatch]
 
 jobs:
   build_and_test:
-    runs-on: [self-hosted, windows, x64]
+    runs-on: [self-hosted, Linux, Ubuntu, x64]
     strategy:
       matrix:
-        python-version: [27, 38]
+        python-version: [python27, python38]
     outputs:
       version: ${{ steps.get_version.outputs.version }}
 
@@ -27,11 +27,11 @@ jobs:
 
     - name: Set python path
       id: path
-      run: echo "::set-output name=pythonv::c:/${{matrix.python-version}}/python"
+      run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
 
     - name: Install dependencies
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install --user --upgrade -r requirements.txt
+        ${{steps.path.outputs.pythonv}} -m pip install --upgrade -r requirements.txt
 
     - name: Build distributions
       run: |
@@ -47,11 +47,11 @@ jobs:
 
     - name: Run tests
       run: |
-        ${{steps.path.outputs.pythonv}} -m pytest --api_server="10.39.47.41:11149" --ports="10.39.35.12;11;03 10.39.35.12;11;04" tests -m "not e2e"
+        ${{steps.path.outputs.pythonv}} -m pytest --api_server="10.39.71.97:443" --ports="10.39.65.230;6;1 10.39.65.230;6;2" --media="fiber" tests -m "not e2e"
 
   create_release_and_deploy:
     needs: build_and_test
-    runs-on: [self-hosted, windows, x64]
+    runs-on: [self-hosted, Linux, Ubuntu, x64]
     if: github.event_name == 'push'
     steps:
     - name: Get all changes
@@ -92,5 +92,5 @@ jobs:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        c:/38/Scripts/twine upload dist/ixnetwork_open_traffic_generator-${{ needs.build_and_test.outputs.version  }}-py2.py3-none-any.whl
-        c:/38/Scripts/twine upload dist/ixnetwork_open_traffic_generator-${{ needs.build_and_test.outputs.version  }}.tar.gz
+        /home/otg/python38/bin/python -m twine upload dist/ixnetwork_open_traffic_generator-${{ needs.build_and_test.outputs.version  }}-py2.py3-none-any.whl
+        /home/otg/python38/bin/python -m twine upload dist/ixnetwork_open_traffic_generator-${{ needs.build_and_test.outputs.version  }}.tar.gz
