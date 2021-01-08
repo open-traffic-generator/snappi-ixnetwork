@@ -608,6 +608,9 @@ class Vport(object):
     def _set_gigabit_auto_negotiation(self, vport, layer1, imports):
         advertise = []
         advertise.append(Vport._SPEED_MAP[layer1.speed])
+        auto_field_name  = 'enableAutoNegotiation'
+        if re.search('novustengiglan', vport['type'].lower()) is not None:
+            auto_field_name = 'autoNegotiate'
         proposed_import = {
             'xpath':
             vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', ''),
@@ -615,7 +618,7 @@ class Vport(object):
             layer1.ieee_media_defaults,
             'speed':
             Vport._SPEED_MAP[layer1.speed],
-            'autoNegotiate':
+            '{0}'.format(auto_field_name):
             False if layer1.auto_negotiate is None else layer1.auto_negotiate,
             'enableRsFec':
             False if layer1.auto_negotiation is None else
