@@ -8,7 +8,7 @@ def test_layer1_flow_control_8021qbb(api, tx_port, rx_port, options, utils):
     Test that layer1 flow control 8021qbb configuration settings
     are being applied correctly.
 
-    Validation: Validate the layer1 properties applied using Restpy
+    Validation: Validate the layer1 8021qbb properties applied using Restpy
     """
     port1_delay = 3
     port1_pfc_priority_groups = [1, 0, -1, -1, 7, -1, -1, -1]
