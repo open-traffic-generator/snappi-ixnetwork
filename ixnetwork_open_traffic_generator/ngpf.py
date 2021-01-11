@@ -100,7 +100,11 @@ class Ngpf(object):
         elif pattern.choice == 'list':
             ixn_obj.ValueList(pattern.list)
         elif pattern.choice == 'counter':
-            pass
+            method = "Increment" if pattern.counter.up else "Decrement"
+            getattr(ixn_obj, method)(
+                start_value=pattern.counter.start,
+                step_value=pattern.counter.step
+            )
         elif pattern.choice == 'random':
             pass
 
