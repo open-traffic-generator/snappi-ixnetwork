@@ -212,9 +212,9 @@ class Vport(object):
                 pallette = {'xpath': capture['xpath'] + '/filterPallette'}
                 filter = {'xpath': capture['xpath'] + '/filter'}
                 trigger = {'xpath': capture['xpath'] + '/trigger'}
+                capture['hardwareEnabled'] = True
                 if capture_item.basic is not None and len(
                         capture_item.basic) > 0:
-                    capture['hardwareEnabled'] = True
                     filter['captureFilterEnable'] = True
                     trigger['captureTriggerEnable'] = True
                     filter['captureFilterEnable'] = True
