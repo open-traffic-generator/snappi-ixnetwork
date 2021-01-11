@@ -22,7 +22,7 @@ def test_layer1_flow_control_8021qbb(api, tx_port, rx_port, options, utils):
                    port_names=[tx_port.name],
                    speed=utils.settings.speed,
                    auto_negotiate=True,
-                   media='fiber',
+                   media=utils.settings.media,
                    flow_control=FlowControl(directed_address=directed_address,
                                             choice=enabled_pfc))
 
@@ -31,7 +31,7 @@ def test_layer1_flow_control_8021qbb(api, tx_port, rx_port, options, utils):
                    port_names=[rx_port.name],
                    auto_negotiate=True,
                    speed=utils.settings.speed,
-                   media='fiber',
+                   media=utils.settings.media,
                    flow_control=FlowControl(directed_address=directed_address,
                                             choice=disabled_pfc))
 
@@ -57,10 +57,11 @@ def validate_8021qbb_config(api,
     port2 = ixnetwork.Vport.find()[1]
     type = port1.Type.replace('Fcoe', '')
     type = type[0].upper() + type[1:]
-    port1_type = eval('port1.L1Config.' + type)
-    port1_fcoe = (eval('port1.L1Config.' + type + '.Fcoe'))
-    port2_fcoe = (eval('port2.L1Config.' + type + '.Fcoe'))
-    assert port1_type.FlowControlDirectedAddress == directed_address
-    assert port1_fcoe.PfcPauseDelay == port1_delay
-    assert port1_fcoe.PfcPriorityGroups == port1_pfc_priority_groups
-    assert port2_fcoe.EnablePFCPauseDelay is False
+    assert getattr(port1.L1Config, type).FlowControlDirectedAddress \
+        == directed_address
+    assert getattr(port1.L1Config, type).Fcoe.PfcPauseDelay \
+        == port1_delay
+    assert getattr(port1.L1Config, type).Fcoe.PfcPriorityGroups  \
+        == port1_pfc_priority_groups
+    assert getattr(port2.L1Config, type).Fcoe.EnablePFCPauseDelay \
+        is False

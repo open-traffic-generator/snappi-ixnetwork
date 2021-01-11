@@ -65,22 +65,22 @@ def validate_layer1_config(api,
     ixnetwork = api._ixnetwork
     port1 = ixnetwork.Vport.find()[0]
     port2 = ixnetwork.Vport.find()[1]
-    type = port1.Type
-    type = type[0].upper() + type[1:]
+    type = (port1.Type)[0].upper() + (port1.Type)[1:]
     ports_assigned = [vport.Location for vport in ixnetwork.Vport.find()]
     assert (all([vport.ActualSpeed == int(speed_type[speed])
                 for vport in ixnetwork.Vport.find()]))
     assert ports_assigned == ports
-    assert (eval(
-        'port1.L1Config.' + type + '.EnableAutoNegotiation')) == auto_negotiate
-    assert (eval(
-        'port2.L1Config.' + type + '.EnableAutoNegotiation')) == auto_negotiate
-    assert (eval(
-        'port1.L1Config.' + type + '.IeeeL1Defaults')) == ieee_media_defaults
-    assert (eval(
-        'port2.L1Config.' + type + '.IeeeL1Defaults')) == ieee_media_defaults
+    assert getattr(port1.L1Config, type).EnableAutoNegotiation \
+        == auto_negotiate
+    assert getattr(port2.L1Config, type).EnableAutoNegotiation \
+        == auto_negotiate
+    assert getattr(port1.L1Config, type).IeeeL1Defaults \
+        == ieee_media_defaults
+    assert getattr(port2.L1Config, type).IeeeL1Defaults \
+        == ieee_media_defaults
     if speed == 'speed_100_gbps':
-        assert (eval(
-            'port1.L1Config.' + type + '.EnableRsFec')) == rs_fec
-        assert (eval(
-            'port1.L1Config.' + type + '.LinkTraining')) == link_training
+        assert getattr(port1.L1Config, type).EnableRsFec \
+            == rs_fec
+        assert getattr(port1.L1Config, type).LinkTraining \
+            == link_training
+

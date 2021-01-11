@@ -18,7 +18,7 @@ def test_layer1_flow_control_8023x(api, tx_port, rx_port, options, utils):
                    port_names=[tx_port.name],
                    speed=utils.settings.speed,
                    auto_negotiate=True,
-                   media='fiber',
+                   media=utils.settings.media,
                    flow_control=FlowControl(directed_address=directed_address,
                                             choice=enabled_pfc))
 
@@ -26,7 +26,7 @@ def test_layer1_flow_control_8023x(api, tx_port, rx_port, options, utils):
                    port_names=[rx_port.name],
                    auto_negotiate=True,
                    speed=utils.settings.speed,
-                   media='fiber',
+                   media=utils.settings.media,
                    flow_control=FlowControl(directed_address=directed_address,
                                             choice=enabled_pfc))
 
@@ -48,9 +48,9 @@ def validate_8023x_config(api,
     port2 = ixnetwork.Vport.find()[1]
     type = port1.Type.replace('Fcoe', '')
     type = type[0].upper() + type[1:]
-    port1_type = eval('port1.L1Config.' + type)
-    port1_fcoe = (eval('port1.L1Config.' + type + '.Fcoe'))
-    port2_fcoe = (eval('port2.L1Config.' + type + '.Fcoe'))
-    assert port1_type.FlowControlDirectedAddress == directed_address
-    assert port1_fcoe.FlowControlType == 'ieee802.3x'
-    assert port2_fcoe.FlowControlType == 'ieee802.3x'
+    assert getattr(port1.L1Config, type).FlowControlDirectedAddress \
+        == directed_address
+    assert getattr(port1.L1Config, type).Fcoe.FlowControlType \
+        == 'ieee802.3x'
+    assert getattr(port2.L1Config, type).Fcoe.FlowControlType \
+        == 'ieee802.3x'

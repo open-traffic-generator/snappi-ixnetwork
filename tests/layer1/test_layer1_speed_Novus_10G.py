@@ -43,7 +43,7 @@ def test_layer1(api, options, utils):
         api.set_state(State(ConfigState(config=config, state='set')))
         validate_layer1_config(api, utils.settings.ports, speed_type, speed,
                                media, auto_negotiate)
-
+ 
 
 def validate_layer1_config(api,
                            ports,
@@ -57,16 +57,16 @@ def validate_layer1_config(api,
     ixnetwork = api._ixnetwork
     port1 = ixnetwork.Vport.find()[0]
     port2 = ixnetwork.Vport.find()[1]
-    type = port1.Type
-    type = type[0].upper() + type[1:]
-
+    type = (port1.Type)[0].upper() + (port1.Type)[1:]
     ports_assigned = [vport.Location for vport in ixnetwork.Vport.find()]
     assert (all([vport.ActualSpeed == int(speed_type[speed])
                 for vport in ixnetwork.Vport.find()]))
     assert ports_assigned == ports
-    assert (eval('port1.L1Config.' + type + '.Media')) == media
-    assert (eval('port2.L1Config.' + type + '.Media')) == media
-    assert (eval(
-        'port1.L1Config.' + type + '.AutoNegotiate')) == auto_negotiate
-    assert (eval(
-        'port1.L1Config.' + type + '.AutoNegotiate')) == auto_negotiate
+    assert getattr(port1.L1Config, type).Media \
+        == media
+    assert getattr(port2.L1Config, type).Media \
+        == media
+    assert getattr(port1.L1Config, type).AutoNegotiate \
+        == auto_negotiate
+    assert getattr(port2.L1Config, type).AutoNegotiate \
+        == auto_negotiate
