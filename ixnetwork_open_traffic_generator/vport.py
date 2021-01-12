@@ -200,17 +200,21 @@ class Vport(object):
                 imports.append(capture)
         for capture_item in self._api.config.captures:
             for port_name in capture_item.port_names:
+                capture_mode = 'captureTriggerMode'
+                if capture_item.overwrite:
+                    capture_mode = 'captureContinuousMode'
                 capture = {
                     'xpath': vports[port_name]['xpath'] + '/capture',
-                    'captureMode': 'captureTriggerMode',
+                    'captureMode': capture_mode,
                     'hardwareEnabled': False,
                     'softwareEnabled': False
                 }
                 pallette = {'xpath': capture['xpath'] + '/filterPallette'}
                 filter = {'xpath': capture['xpath'] + '/filter'}
                 trigger = {'xpath': capture['xpath'] + '/trigger'}
-                if capture_item.basic is not None:
-                    capture['hardwareEnabled'] = True
+                capture['hardwareEnabled'] = True
+                if capture_item.basic is not None and len(
+                        capture_item.basic) > 0:
                     filter['captureFilterEnable'] = True
                     trigger['captureTriggerEnable'] = True
                     filter['captureFilterEnable'] = True
