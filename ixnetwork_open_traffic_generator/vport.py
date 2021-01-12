@@ -591,14 +591,26 @@ class Vport(object):
     def _add_l1config_import(self, vport, proposed_import, imports):
         type = vport['type'].replace('Fcoe', '')
         l1config = vport['l1Config'][type]
+        key_to_remove = []
         for key in proposed_import:
             if key == 'xpath':
                 continue
-            if key in l1config and l1config[key] != proposed_import[key]:
-                imports.append(proposed_import)
-                return
+            if key not in l1config or l1config[key] == proposed_import[key]:
+                key_to_remove.append(key)
+        # add this constrain due to handle some specific use case (1G to 10G)
+        if 'speed' in key_to_remove and 'speedAuto' not in key_to_remove:
+            key_to_remove.remove('speed')
+        for key in key_to_remove:
+            proposed_import.pop(key)
+        if len(proposed_import) > 0:
+            imports.append(proposed_import)
 
     def _set_gigabit_auto_negotiation(self, vport, layer1, imports):
+        advertise = []
+        advertise.append(Vport._SPEED_MAP[layer1.speed])
+        auto_field_name  = 'enableAutoNegotiation'
+        if re.search('novustengiglan', vport['type'].lower()) is not None:
+            auto_field_name = 'autoNegotiate'
         proposed_import = {
             'xpath':
             vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', ''),
@@ -606,7 +618,7 @@ class Vport(object):
             layer1.ieee_media_defaults,
             'speed':
             Vport._SPEED_MAP[layer1.speed],
-            'enableAutoNegotiation':
+            '{0}'.format(auto_field_name):
             False if layer1.auto_negotiate is None else layer1.auto_negotiate,
             'enableRsFec':
             False if layer1.auto_negotiation is None else
@@ -614,6 +626,8 @@ class Vport(object):
             'linkTraining':
             False if layer1.auto_negotiation is None else
             layer1.auto_negotiation.link_training,
+            'speedAuto':
+            advertise
         }
         if layer1.media is not None:
             proposed_import['media'] = layer1.media
