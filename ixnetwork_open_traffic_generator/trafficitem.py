@@ -536,8 +536,14 @@ class TrafficItem(CustomField):
             self._api._start_capture()
         self._api._traffic_item.find(Name=regex)
         if request.state == 'start':
-            with Timer(self._api, 'Flows start'):
-                self._api._traffic_item.StartStatelessTrafficBlocking()
+            self._api._traffic_item.find(Name=regex, State='^stopped$')
+            if len(self._api._traffic_item) > 0:
+                with Timer(self._api, 'Flows start'):
+                    self._api._traffic_item.StartStatelessTrafficBlocking()
+            self._api._traffic_item.find(Name=regex, State='^started$')
+            if len(self._api._traffic_item) > 0:
+                with Timer(self._api, 'Flows resume'):
+                    self._api._traffic_item.PauseStatelessTraffic(False)
         elif request.state == 'stop':
             self._api._traffic_item.find(Name=regex, State='^started$')
             if len(self._api._traffic_item) > 0:
@@ -548,11 +554,6 @@ class TrafficItem(CustomField):
             if len(self._api._traffic_item) > 0:
                 with Timer(self._api, 'Flows pause'):
                     self._api._traffic_item.PauseStatelessTraffic(True)
-        elif request.state == 'resume':
-            self._api._traffic_item.find(Name=regex, State='^stopped$')
-            if len(self._api._traffic_item) > 0:
-                with Timer(self._api, 'Flows resume'):
-                    self._api._traffic_item.PauseStatelessTraffic(False)
 
     def _set_result_value(self,
                           row,
