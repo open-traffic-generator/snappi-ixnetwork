@@ -5,8 +5,10 @@ from abstract_open_traffic_generator.layer1 import *
 from abstract_open_traffic_generator.control import *
 
 
-@pytest.mark.e2e
-def test_layer1(api, options, utils):
+@pytest.mark.l1_manual
+@pytest.mark.parametrize('speed', ['speed_100_fd_mbps', 'speed_1_gbps',
+                                   'speed_10_gbps'])
+def test_layer1(api, options, utils, speed):
     """Test that layer1 configuration settings are being applied correctly
     A user should be able to configure ports with/without locations.
     The expectation should be if a location is configured the user wants to
@@ -23,26 +25,25 @@ def test_layer1(api, options, utils):
 
     port1 = Port(name='port1', location=utils.settings.ports[0])
     port2 = Port(name='port2', location=utils.settings.ports[1])
-    for speed in speed_type.keys():
-        auto_negotiate = False
-        if speed == 'speed_1_gbps':
-            auto_negotiate = True
-        port1_l1 = Layer1(name='port1 settings',
-                          port_names=[port1.name],
-                          speed=speed,
-                          auto_negotiate=auto_negotiate,
-                          media=media)
-        port2_l1 = Layer1(name='port2 settings',
-                          port_names=[port2.name],
-                          speed=speed,
-                          auto_negotiate=auto_negotiate,
-                          media=media)
+    auto_negotiate = False
+    if speed == 'speed_1_gbps':
+        auto_negotiate = True
+    port1_l1 = Layer1(name='port1 settings',
+                      port_names=[port1.name],
+                      speed=speed,
+                      auto_negotiate=auto_negotiate,
+                      media=media)
+    port2_l1 = Layer1(name='port2 settings',
+                      port_names=[port2.name],
+                      speed=speed,
+                      auto_negotiate=auto_negotiate,
+                      media=media)
 
-        config = Config(ports=[port1, port2], layer1=[port1_l1, port2_l1],
-                        options=options)
-        api.set_state(State(ConfigState(config=config, state='set')))
-        validate_layer1_config(api, utils.settings.ports, speed_type, speed,
-                               media, auto_negotiate)
+    config = Config(ports=[port1, port2], layer1=[port1_l1, port2_l1],
+                    options=options)
+    api.set_state(State(ConfigState(config=config, state='set')))
+    validate_layer1_config(api, utils.settings.ports, speed_type, speed,
+                           media, auto_negotiate)
  
 
 def validate_layer1_config(api,
