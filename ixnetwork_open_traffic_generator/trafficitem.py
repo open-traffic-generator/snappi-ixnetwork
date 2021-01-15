@@ -204,7 +204,7 @@ class TrafficItem(CustomField):
                 self._configure_size(ixn_ce, flow.size)
                 self._configure_rate(ixn_ce, flow.rate)
                 self._configure_tx_control(ixn_ce, hl_stream_count, flow.duration)
-                self._configure_options(flow)
+            self._configure_options()
 
     def _configure_tracking(self, flow, ixn_tracking):
         """Set tracking options"""
@@ -215,12 +215,13 @@ class TrafficItem(CustomField):
         if set(tracking_options) != set(ixn_tracking.TrackBy):
             ixn_tracking.update(TrackBy=tracking_options)
         
-    def _configure_options(self, flow):
+    def _configure_options(self):
         enable_min_frame_size = False
-        if (len(flow.packet) == 1 and flow.packet[0].choice == 'pfcpause'
-                and flow.size is not None
-                and flow.size.choice == 'fixed' and flow.size.fixed <= 64):
-            enable_min_frame_size = True
+        for flow in self._api.config.flows:
+            if (len(flow.packet) == 1 and flow.packet[
+                    0].choice == 'pfcpause'):
+                enable_min_frame_size = True
+                break
         if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:
             self._api._traffic.EnableMinFrameSize = enable_min_frame_size
 
