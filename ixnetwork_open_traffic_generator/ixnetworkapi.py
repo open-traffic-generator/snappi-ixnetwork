@@ -5,6 +5,7 @@ from ixnetwork_restpy import TestPlatform, SessionAssistant
 from abstract_open_traffic_generator.api import *
 from abstract_open_traffic_generator.config import *
 from abstract_open_traffic_generator.control import *
+from abstract_open_traffic_generator.result import RequestDetail
 from ixnetwork_open_traffic_generator.validation import Validation
 from ixnetwork_open_traffic_generator.vport import Vport
 from ixnetwork_open_traffic_generator.ngpf import Ngpf
@@ -48,6 +49,7 @@ class IxNetworkApi(Api):
         self._running_config = None
         self._config = None
         self._assistant = None
+        self._ixn_errors = list()
         self.validation = Validation(self)
         self.vport = Vport(self)
         self.ngpf = Ngpf(self)
@@ -110,7 +112,29 @@ class IxNetworkApi(Api):
             self._set_flow_transmit_state(state.flow_transmit_state)
         elif state.choice == 'port_capture_state':
             self._set_port_capture_state(state.port_capture_state)
+        return self._request_detail()
 
+    def _request_detail(self):
+        request_detail = RequestDetail()
+        errors = self._errors
+        warnings = list()
+        app_erros = self._globals.AppErrors.find()
+        if len(app_erros) > 0:
+            current_errors = app_erros[0].Error.find()
+            if len(current_errors) > 0:
+                for i in range(0, len(current_errors)):
+                    error = current_errors[i]
+                    match = [o for o in self._ixn_errors if o.Name == error.Name
+                                                    and o.LastModified == error.LastModified]
+                    if len(match) == 0:
+                        if error.ErrorLevel == 'kWarning':
+                            warnings.append("IxNet - {0}".format(error.Description))
+                        if error.ErrorLevel == 'kError':
+                            errors.append("IxNet - {0}".format(error.Description))
+        request_detail.errors = errors
+        request_detail.warnings = warnings
+        return request_detail
+    
     def _set_config_state(self, config_state):
         """Set or update the configuration
         """
@@ -280,6 +304,7 @@ class IxNetworkApi(Api):
             self._topology = self._ixnetwork.Topology
             self._traffic = self._ixnetwork.Traffic
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
+            self._globals = self._ixnetwork.Globals
             if len(self._license_servers) > 0:
                 self._ixnetwork.Globals.Licensing \
                     .LicensingServers = self._license_servers
@@ -290,6 +315,12 @@ class IxNetworkApi(Api):
                 version = "ixnetwork-open-traffic-generator not installed " \
                     "using pip, unable to determine version"
             self.info(version)
+        self._backup_erros()
+    
+    def _backup_erros(self):
+        app_erros = self._globals.AppErrors.find()
+        if len(app_erros) > 0:
+            self._ixn_errors = app_erros[0].Error.find()
 
     def _request(self, method, url, payload=None):
         connection, url = self._assistant.Session._connection._normalize_url(
