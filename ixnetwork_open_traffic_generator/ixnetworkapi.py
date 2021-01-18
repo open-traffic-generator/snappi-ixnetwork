@@ -122,8 +122,7 @@ class IxNetworkApi(Api):
         if len(app_erros) > 0:
             current_errors = app_erros[0].Error.find()
             if len(current_errors) > 0:
-                for i in range(0, len(current_errors)):
-                    error = current_errors[i]
+                for error in current_errors:
                     match = [o for o in self._ixn_errors if o.Name == error.Name
                                                     and o.LastModified == error.LastModified]
                     if len(match) == 0:
@@ -315,12 +314,12 @@ class IxNetworkApi(Api):
                 version = "ixnetwork-open-traffic-generator not installed " \
                     "using pip, unable to determine version"
             self.info(version)
-        self._backup_erros()
+        self._backup_errors()
     
-    def _backup_erros(self):
-        app_erros = self._globals.AppErrors.find()
-        if len(app_erros) > 0:
-            self._ixn_errors = app_erros[0].Error.find()
+    def _backup_errors(self):
+        app_errors = self._globals.AppErrors.find()
+        if len(app_errors) > 0:
+            self._ixn_errors = app_errors[0].Error.find()
 
     def _request(self, method, url, payload=None):
         connection, url = self._assistant.Session._connection._normalize_url(
