@@ -1,10 +1,8 @@
 from abstract_open_traffic_generator.config import Config
 from abstract_open_traffic_generator.capture import (Capture)
 from abstract_open_traffic_generator.control import *
-import pytest
 
 
-@pytest.mark.skip(reason="skip until #209 gets fixed")
 def test_capture_overwrite(api, tx_port, options):
     """Demonstrates how to configure basic capture settings
     """
