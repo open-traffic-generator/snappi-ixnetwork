@@ -118,9 +118,9 @@ class IxNetworkApi(Api):
         request_detail = RequestDetail()
         errors = self._errors
         warnings = list()
-        app_erros = self._globals.AppErrors.find()
-        if len(app_erros) > 0:
-            current_errors = app_erros[0].Error.find()
+        app_errors = self._globals.AppErrors.find()
+        if len(app_errors) > 0:
+            current_errors = app_errors[0].Error.find()
             if len(current_errors) > 0:
                 for error in current_errors:
                     match = [o for o in self._ixn_errors if o.Name == error.Name
