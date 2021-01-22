@@ -534,10 +534,6 @@ class TrafficItem(CustomField):
                     self._api._ixnetwork.ClearStats(
                         ['waitForPortStatsRefresh', 'waitForTrafficStatsRefresh'])
             self._api._start_capture()
-        elif request.state == 'stop':
-            if len(self._api._topology.find()) > 0:
-                with Timer(self._api, 'Devices stop'):
-                    self._api._ixnetwork.StopAllProtocols('sync')
         self._api._traffic_item.find(Name=regex)
         if len(self._api._traffic_item) > 0:
             if request.state == 'start':
@@ -559,6 +555,10 @@ class TrafficItem(CustomField):
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows pause'):
                         self._api._traffic_item.PauseStatelessTraffic(True)
+        if request.state == 'stop':
+            if len(self._api._topology.find()) > 0:
+                with Timer(self._api, 'Devices stop'):
+                    self._api._ixnetwork.StopAllProtocols('sync')
 
     def _set_result_value(self,
                           row,
