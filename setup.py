@@ -15,8 +15,8 @@ RELEASES_URL = (
 response = requests.request('GET', RELEASES_URL, allow_redirects=True)
 assert response.status_code == 200
 releases = json.loads(response.content)
-# get latest release from v0.0.x branch
-MODELS_RELEASES = [r['tag_name'] for r in releases if 'v0.0.' in r['tag_name']]
+# get latest release from v0.1.x branch
+MODELS_RELEASES = [r['tag_name'] for r in releases if 'v0.1.' in r['tag_name']]
 
 OPENAPI_URL = (
     'https://github.com/open-traffic-generator/models/releases/download/%s'
@@ -27,14 +27,14 @@ response = requests.request('GET', OPENAPI_URL, allow_redirects=True)
 assert response.status_code == 200
 
 # put the downloaded file inside docs dir of package
-doc_dir = './ixnetwork_open_traffic_generator/docs'
+doc_dir = './snappi_ixnetwork/docs'
 if os.path.exists(doc_dir) is False:
     os.mkdir(doc_dir)
 with open(os.path.join(doc_dir, 'openapi.yaml'), 'wb') as fp:
     fp.write(response.content)
 
 # read long description and version number
-pkg_name = 'ixnetwork_open_traffic_generator'
+pkg_name = 'snappi_ixnetwork'
 base_dir = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(base_dir, 'README.md')) as fid:
     long_description = fid.read()
@@ -64,13 +64,11 @@ setup(
     include_package_data=True,
     python_requires='>=2.7, <4',
     install_requires=[
-        'pyaml',
-        'jsonpath-ng',
-        'abstract-open-traffic-generator==0.0.66',
         'ixnetwork-restpy>=1.0.52'
     ],
     extras_require={
         'dev': [
+            'snappi==0.1.16',
             'pytest',
             'flake8==3.8.4',
             'dpkt==1.9.4',
