@@ -466,13 +466,14 @@ class TrafficItem(CustomField):
         ixn_frame_rate = ixn_stream.FrameRate
         args = {}
         value = None
-        if rate.choice == 'line':
+        if rate.choice == 'percentage':
             args['Type'] = 'percentLineRate'
-            value = rate.line
+            value = rate.percentage
         elif rate.choice == 'pps':
             args['Type'] = 'framesPerSecond'
             value = rate.pps
         else:
+            # TODO: fix for other units
             args['Type'] = 'bitsPerSecond'
             args['BitRateUnitsType'] = TrafficItem._BIT_RATE_UNITS_TYPE[
                 rate.unit]
@@ -492,18 +493,18 @@ class TrafficItem(CustomField):
             args['MinGapBytes'] = duration.continuous.gap
             args['StartDelay'] = duration.continuous.delay
             args['StartDelayUnits'] = duration.continuous.delay_unit
-        elif duration.choice == 'packets':
+        elif duration.choice == 'fixed_packets':
             args['Type'] = 'fixedFrameCount'
-            args['FrameCount'] = duration.packets.packets / hl_stream_count
-            args['MinGapBytes'] = duration.packets.gap
-            args['StartDelay'] = duration.packets.delay
-            args['StartDelayUnits'] = duration.packets.delay_unit
-        elif duration.choice == 'seconds':
+            args['FrameCount'] = duration.fixed_packets.packets / hl_stream_count
+            args['MinGapBytes'] = duration.fixed_packets.gap
+            args['StartDelay'] = duration.fixed_packets.delay
+            args['StartDelayUnits'] = duration.fixed_packets.delay_unit
+        elif duration.choice == 'fixed_seconds':
             args['Type'] = 'fixedDuration'
-            args['Duration'] = duration.seconds.seconds
-            args['MinGapBytes'] = duration.seconds.gap
-            args['StartDelay'] = duration.seconds.delay
-            args['StartDelayUnits'] = duration.seconds.delay_unit
+            args['Duration'] = duration.fixed_seconds.seconds
+            args['MinGapBytes'] = duration.fixed_seconds.gap
+            args['StartDelay'] = duration.fixed_seconds.delay
+            args['StartDelayUnits'] = duration.fixed_seconds.delay_unit
         elif duration.choice == 'burst':
             args['Type'] = 'custom'
             args['BurstPacketCount'] = duration.burst.packets
