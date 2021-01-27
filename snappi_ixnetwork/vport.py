@@ -134,6 +134,7 @@ class Vport(object):
         """
         self._resource_manager = self._api._ixnetwork.ResourceManager
         self._ixn_vport = self._api._vport
+        self._layer1_check = []
         with Timer(self._api, 'Ports configuration'):
             self._delete_vports()
             self._create_vports()
@@ -288,8 +289,6 @@ class Vport(object):
                     time.sleep(2)
 
     def _get_layer1(self, port):
-        if hasattr(self._api.snappi_config, 'layer1') is False:
-            return
         if len(self._api.snappi_config.layer1) == 0:
             return
         for layer1 in self._api.snappi_config.layer1:
@@ -302,8 +301,8 @@ class Vport(object):
         set it according to the speed"""
 
         resource_group = None
-        location = getattr(port, 'location', None)
-        if location is None or len(location) == 0:
+        location = port.location
+        if len(location) == 0:
             return
         
         (hostname, cardid, portid) = location.split(';')
@@ -318,7 +317,7 @@ class Vport(object):
         if 'aggregation' in card_info.keys() and len(card_info[
                          'aggregation']) > 0:
             for aggregation in card_info['aggregation']:
-                if portid in [res_port.split('/')[-1] for res_port in aggregation[
+                if portid.lstrip('0') in [res_port.split('/')[-1] for res_port in aggregation[
                         'resourcePorts']]:
                     self._reset_resource_mode(card_info, speed_mode_map)
                     resource_group = aggregation
@@ -330,7 +329,7 @@ class Vport(object):
                 mode = speed_mode_map[layer1.speed]
                 for available_mode in resource_group['availableModes']:
                     if re.search(mode, available_mode.lower()) is not None:
-                        layer1.__setattr__('speed_taken_care', True)
+                        self._layer1_check.append(layer1.name)
                         aggregation_mode = available_mode
                         break
             else:
@@ -445,9 +444,7 @@ class Vport(object):
         This should only happen if the vport connectionState is connectedLink...
         as it determines the ./l1Config child node.
         """
-        if hasattr(self._api.snappi_config, 'layer1') is False:
-            return
-        if self._api.snappi_config.layer1 is None:
+        if len(self._api.snappi_config.layer1) == 0:
             return
         reset_auto_negotiation = dict()
         # set and commit the card resource mode
@@ -512,7 +509,7 @@ class Vport(object):
         """
         if vport['connectionState'] not in [
                 'connectedLinkUp', 'connectedLinkDown'
-        ] or hasattr(layer1, 'speed_taken_care'):
+        ] or layer1.name in self._layer1_check:
             return
 
         aggregation_mode = None
@@ -548,7 +545,7 @@ class Vport(object):
         be switched to a type without the Fcoe extension.
         """
         fcoe = False
-        if hasattr(layer1, 'flow_control') and layer1.flow_control is not None:
+        if layer1.flow_control.choice is not None:
             fcoe = True
         vport_type = vport['type']
         elegible_fcoe_vport_types = [
@@ -630,10 +627,10 @@ class Vport(object):
             '{0}'.format(auto_field_name):
             False if layer1.auto_negotiate is None else layer1.auto_negotiate,
             'enableRsFec':
-            False if layer1.auto_negotiation is None else
+            False if layer1.auto_negotiation.rs_fec is None else
             layer1.auto_negotiation.rs_fec,
             'linkTraining':
-            False if layer1.auto_negotiation is None else
+            False if layer1.auto_negotiation.link_training is None else
             layer1.auto_negotiation.link_training,
             'speedAuto':
             advertise
@@ -661,7 +658,7 @@ class Vport(object):
             })
 
     def _set_fcoe(self, vport, layer1, imports):
-        if hasattr(layer1, 'flow_control') and layer1.flow_control is None:
+        if layer1.flow_control.choice is None:
             return
         xpath = '%s/l1Config/%s/fcoe' % (vport['xpath'], vport['type'].replace(
             'Fcoe', ''))
