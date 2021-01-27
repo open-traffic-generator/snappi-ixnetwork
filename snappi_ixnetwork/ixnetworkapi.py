@@ -26,8 +26,7 @@ class Api(snappi.Api):
         This is not required when connecting to single session environments
     """
     def __init__(self,
-                 address='127.0.0.1',
-                 port='11009',
+                 host=None,
                  username='admin',
                  password='admin',
                  license_servers=[],
@@ -39,9 +38,10 @@ class Api(snappi.Api):
         - username (str): The username to be used for authentication
         - password (str): The password to be used for authentication
         """
-        super(Api, self).__init__()
-        self._address = address
-        self._port = port
+        super(Api, self).__init__(
+            host='https://127.0.0.1:11009' if host is None else host
+        )
+        self._address, self._port = self._get_addr_port(self.host)
         self._username = username
         self._password = password
         self._license_servers = license_servers
@@ -54,6 +54,19 @@ class Api(snappi.Api):
         self.vport = Vport(self)
         self.ngpf = Ngpf(self)
         self.traffic_item = TrafficItem(self)
+
+    def _get_addr_port(self, host):
+        items = host.split('/')
+        items = items[-1].split(':')
+
+        addr = items[0]
+        if len(items) == 2:
+            return addr, items[-1]
+        else:
+            if host.startswith('https'):
+                return addr, '443'
+            else:
+                return addr, '80'
 
     @property
     def config(self):
