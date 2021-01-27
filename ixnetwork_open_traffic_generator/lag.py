@@ -9,7 +9,7 @@ class Lag(object):
 
     Args
     ----
-    - ixnetworkapi (IxNetworkApi): instance of the IxNetworkApi class
+    - ixnetworkapi (Api): instance of the Api class
     """
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi

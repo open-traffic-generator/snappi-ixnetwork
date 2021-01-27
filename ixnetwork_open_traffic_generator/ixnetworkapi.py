@@ -2,18 +2,18 @@ import json
 import time
 from collections import namedtuple
 from ixnetwork_restpy import TestPlatform, SessionAssistant
-from abstract_open_traffic_generator.api import *
-from abstract_open_traffic_generator.config import *
-from abstract_open_traffic_generator.control import *
-from abstract_open_traffic_generator.result import RequestDetail
-from ixnetwork_open_traffic_generator.validation import Validation
-from ixnetwork_open_traffic_generator.vport import Vport
-from ixnetwork_open_traffic_generator.ngpf import Ngpf
-from ixnetwork_open_traffic_generator.trafficitem import TrafficItem
-from ixnetwork_open_traffic_generator.timer import Timer
+import snappi
+# from abstract_open_traffic_generator.config import *
+# from abstract_open_traffic_generator.control import *
+# from abstract_open_traffic_generator.result import RequestDetail
+from snappi_ixnetwork.validation import Validation
+from snappi_ixnetwork.vport import Vport
+from snappi_ixnetwork.ngpf import Ngpf
+from snappi_ixnetwork.trafficitem import TrafficItem
+from snappi_ixnetwork.timer import Timer
 
 
-class IxNetworkApi(Api):
+class Api(snappi.Api):
     """IxNetwork implementation of the abstract-open-traffic-generator package
 
     Args
@@ -39,7 +39,7 @@ class IxNetworkApi(Api):
         - username (str): The username to be used for authentication
         - password (str): The password to be used for authentication
         """
-        super(IxNetworkApi, self).__init__()
+        super(Api, self).__init__()
         self._address = address
         self._port = port
         self._username = username
@@ -253,7 +253,7 @@ class IxNetworkApi(Api):
             The request content MUST be based on the OpenAPI #/components/schemas/Result.FlowRequest model.
             See the docs/openapi.yaml document for all model details.
         """
-        from abstract_open_traffic_generator.result import FlowRequest
+        # from abstract_open_traffic_generator.result import FlowRequest
         self._errors = []
         if isinstance(request, (FlowRequest, str, dict)) is False:
             raise TypeError(

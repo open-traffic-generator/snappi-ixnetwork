@@ -1,5 +1,5 @@
-from ixnetwork_open_traffic_generator.timer import Timer
-from ixnetwork_open_traffic_generator.customfield import CustomField
+from snappi_ixnetwork.timer import Timer
+from snappi_ixnetwork.customfield import CustomField
 
 
 class TrafficItem(CustomField):
@@ -7,7 +7,7 @@ class TrafficItem(CustomField):
 
     Args
     ----
-    - ixnetworkapi (IxNetworkApi): instance of the ixnetworkapi class
+    - ixnetworkapi (Api): instance of the ixnetworkapi class
     
     """
     _RESULT_COLUMNS = [

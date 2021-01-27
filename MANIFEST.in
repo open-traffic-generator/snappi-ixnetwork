@@ -6,4 +6,4 @@ include README.md
 include VERSION
 include setup.py
 
-recursive-include ixnetwork_open_traffic_generator *.py *.yaml
+recursive-include snappi_ixnetwork *.py *.yaml

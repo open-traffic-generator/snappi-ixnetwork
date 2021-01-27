@@ -13,6 +13,6 @@ __pycache__/
 *.log
 *.pcap
 *.cap
-ixnetwork_open_traffic_generator/docs
+snappi_ixnetwork/docs
 
 scratch

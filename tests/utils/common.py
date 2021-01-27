@@ -7,10 +7,10 @@ import dpkt
 import sys
 from datetime import datetime
 
-from abstract_open_traffic_generator import (
-    config, port, layer1, flow, control, result, capture
-)
-from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
+# from abstract_open_traffic_generator import (
+#     config, port, layer1, flow, control, result, capture
+# )
+from snappi_ixnetwork.ixnetworkapi import Api
 
 
 if sys.version_info[0] >= 3:

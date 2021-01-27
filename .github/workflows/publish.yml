@@ -43,11 +43,11 @@ jobs:
     
     - name: Test whl distribution installation
       run: |
-        ${{steps.path.outputs.pythonv}} -m pip install --upgrade dist/ixnetwork_open_traffic_generator-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl[dev]
+        ${{steps.path.outputs.pythonv}} -m pip install --upgrade dist/snappi_ixnetwork-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl[dev]
 
-    - name: Run tests
-      run: |
-        ${{steps.path.outputs.pythonv}} -m pytest --api_server="10.39.71.97:443" --ports="10.39.65.230;6;1 10.39.65.230;6;2" --media="fiber" tests -m "not e2e and not l1_manual"
+    # - name: Run tests
+    #   run: |
+    #     ${{steps.path.outputs.pythonv}} -m pytest --api_server="10.39.71.97:443" --ports="10.39.65.230;6;1 10.39.65.230;6;2" --media="fiber" tests -m "not e2e and not l1_manual"
 
   create_release_and_deploy:
     needs: build_and_test
@@ -92,5 +92,5 @@ jobs:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
-        /home/otg/python38/bin/python -m twine upload dist/ixnetwork_open_traffic_generator-${{ needs.build_and_test.outputs.version  }}-py2.py3-none-any.whl
-        /home/otg/python38/bin/python -m twine upload dist/ixnetwork_open_traffic_generator-${{ needs.build_and_test.outputs.version  }}.tar.gz
+        /home/otg/python38/bin/python -m twine upload dist/snappi_ixnetwork-${{ needs.build_and_test.outputs.version  }}-py2.py3-none-any.whl
+        /home/otg/python38/bin/python -m twine upload dist/snappi_ixnetwork-${{ needs.build_and_test.outputs.version  }}.tar.gz

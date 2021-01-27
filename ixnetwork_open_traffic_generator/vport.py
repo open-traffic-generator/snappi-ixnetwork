@@ -1,7 +1,7 @@
 import json
 import time
 import re
-from ixnetwork_open_traffic_generator.timer import Timer
+from snappi_ixnetwork.timer import Timer
 
 
 class Vport(object):
@@ -9,7 +9,7 @@ class Vport(object):
 
     Args
     ----
-    - ixnetworkapi (IxNetworkApi): instance of the IxNetworkApi class
+    - ixnetworkapi (Api): instance of the Api class
 
     Transformations
     ---------------

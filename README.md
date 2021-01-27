@@ -17,14 +17,14 @@ python -m pip install --upgrade snappi[ixnetwork]
 ## Start scripting
 ```python
 # for constructing traffic configuration
-from abstract_open_traffic_generator import (
-    port, flow, config, control, result
-)
+# from abstract_open_traffic_generator import (
+#     port, flow, config, control, result
+# )
 # for making API calls
-from ixnetwork_open_traffic_generator.ixnetworkapi import IxNetworkApi
+from snappi_ixnetwork.ixnetworkapi import Api
 
 # provide API server and port addresses
-api = IxNetworkApi(address='127.0.0.1', port=11009)
+api = Api(address='127.0.0.1', port=11009)
 tx = port.Port(name='Tx Port', location='127.0.0.1;2;1')
 rx = port.Port(name='Rx Port', location='127.0.0.1;2;2')
 

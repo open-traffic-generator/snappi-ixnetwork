@@ -6,7 +6,7 @@ class Ngpf(object):
 
     Args
     ----
-    - ixnetworkapi (IxNetworkApi): instance of the ixnetworkapi class
+    - ixnetworkapi (Api): instance of the ixnetworkapi class
     """
     _TPID_MAP = {
         '8100': 'ethertype8100',

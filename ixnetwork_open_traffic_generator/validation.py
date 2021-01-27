@@ -8,7 +8,7 @@ class Validation(object):
 
     Args
     ----
-    - ixnetworkapi (IxNetworkApi): instance of the ixnetworkapi class
+    - ixnetworkapi (Api): instance of the ixnetworkapi class
     """
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
