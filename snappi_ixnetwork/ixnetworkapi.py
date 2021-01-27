@@ -125,16 +125,11 @@ class Api(snappi.Api):
     #     request_detail.warnings = warnings
     #     return request_detail
     
-    def _deserialize(self, config):
-        if isinstance(config, str) is True:
-            config = snappi.Api().config()
-            config.deserialize(config)
-        return config
-    
     def set_config(self, config):
         """Set or update the configuration
         """
-        config = self._deserialize(config)
+        if isinstance(config, str) is True:
+            config = self.config().deserialize(config)
         self._config = config
         self._config_objects = {}
         self._ixn_objects = {}
@@ -156,8 +151,9 @@ class Api(snappi.Api):
     def set_transmit_state(self, flow_transmit_state):
         """Set the transmit state of flows
         """
-        flow_transmit_state = self._deserialize(
-                                        flow_transmit_state)
+        if isinstance(flow_transmit_state, str) is True:
+            flow_transmit_state = self.transmit_state().deserialize(
+                                    flow_transmit_state)
         self._connect()
         return self.traffic_item.transmit(flow_transmit_state)
 
@@ -240,38 +236,40 @@ class Api(snappi.Api):
     def get_port_metrics(self, request):
         """Abstract API implementation
         """
-        request = self._deserialize(request)
-        self._connect()
-        # TODO: these should be returned as a list of port stat object
-        return self.vport.results(request)
+        self._errors = []
+        if isinstance(request, (type(self.port_metrics_request()),
+                                str)) is False:
+            raise TypeError(
+                'The content must be of type Union[PortMetricsRequest, str]')
+        if isinstance(request, str) is True:
+            request = self.port_metrics_request().deserialize(
+                request)
+        response = self.vport.results(request)
+        if len(self._errors) > 0:
+            raise Exception('\n'.join(self._errors))
+        return self.port_metrics().deserialize(response)
 
     def get_flow_metrics(self, request):
         """Abstract API implementation
 
         Args
         ----
-        - request (Union[FlowRequest, str, dict]): A request for flow results.
+        - request (Union[FlowRequest, str]): A request for flow results.
             The request content MUST be based on the OpenAPI #/components/schemas/Result.FlowRequest model.
             See the docs/openapi.yaml document for all model details.
         """
-        from snappi import FlowMetricsRequest
         self._errors = []
-        if isinstance(request, (FlowMetricsRequest, str, dict)) is False:
+        if isinstance(request, (type(self.flow_metrics_request()),
+                                str)) is False:
             raise TypeError(
-                'The content must be of type Union[FlowRequest, str, dict]')
+                'The content must be of type Union[FlowMetricsRequest, str]')
         if isinstance(request, str) is True:
-            request = json.loads(
-                request,
-                object_hook=lambda otg: namedtuple('otg', otg.keys())
-                (*otg.values()))
-        elif isinstance(request, dict) is True:
-            request = namedtuple('otg', request.keys())(*request.values())
+            request = self.flow_metrics_request().deserialize(
+                request)
         response = self.traffic_item.results(request)
         if len(self._errors) > 0:
             raise Exception('\n'.join(self._errors))
-
-        # TODO: these should be returned as a list of flow stat object
-        return response
+        return self.flow_metrics().deserialize(response)
 
     def add_error(self, error):
         """Add an error to the global errors
@@ -308,13 +306,13 @@ class Api(snappi.Api):
             if len(self._license_servers) > 0:
                 self._ixnetwork.Globals.Licensing \
                     .LicensingServers = self._license_servers
-            # try:
-            #     version = pkg_resources.get_distribution(
-            #         "ixnetwork-open-traffic-generator").version
-            # except Exception:
-            #     version = "ixnetwork-open-traffic-generator not installed " \
-            #         "using pip, unable to determine version"
-            # self.info(version)
+            try:
+                version = pkg_resources.get_distribution(
+                    "snappi_ixnetwork").version
+            except Exception:
+                version = "snappi_ixnetwork not installed " \
+                    "using pip, unable to determine version"
+            self.info(version)
         self._backup_errors()
     
     def _backup_errors(self):

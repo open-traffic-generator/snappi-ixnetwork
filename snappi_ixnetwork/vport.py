@@ -797,4 +797,4 @@ class Vport(object):
             # TODO print a warning maybe ?
             pass
 
-        return port_rows.values()
+        return list(port_rows.values())
