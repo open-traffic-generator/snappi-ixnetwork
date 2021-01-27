@@ -1,7 +1,7 @@
 # Keysight IxNetwork Open Traffic Generator
 [![Build](https://github.com/open-traffic-generator/ixnetwork/workflows/Build/badge.svg)](https://github.com/open-traffic-generator/ixnetwork/actions)
-[![pypi](https://img.shields.io/pypi/v/ixnetwork-open-traffic-generator.svg)](https://pypi.org/project/ixnetwork-open-traffic-generator)
-[![python](https://img.shields.io/pypi/pyversions/ixnetwork-open-traffic-generator.svg)](https://pypi.python.org/pypi/ixnetwork-open-traffic-generator)
+[![pypi](https://img.shields.io/pypi/v/snappi_ixnetwork.svg)](https://pypi.org/project/snappi_ixnetwork)
+[![python](https://img.shields.io/pypi/pyversions/snappi_ixnetwork.svg)](https://pypi.python.org/pypi/snappi_ixnetwork)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://en.wikipedia.org/wiki/MIT_License)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/open-traffic-generator/ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/ixnetwork/alerts/)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/open-traffic-generator/ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/ixnetwork/context:python)
@@ -12,7 +12,7 @@ To start contributing, please see [contributing.md](contributing.md).
 # Getting Started
 ## Install client package
 ```
-python -m pip install --upgrade ixnetwork-open-traffic-generator
+python -m pip install --upgrade snappi[ixnetwork]
 ```
 ## Start scripting
 ```python
