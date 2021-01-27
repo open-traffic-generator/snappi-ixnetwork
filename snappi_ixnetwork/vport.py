@@ -156,14 +156,14 @@ class Vport(object):
     def _delete_vports(self):
         """Delete any vports from the api server that do not exist in the new config
         """
-        self._api._remove(self._ixn_vport, self._api.config.ports)
+        self._api._remove(self._ixn_vport, self._api.snappi_config.ports)
 
     def _create_vports(self):
         """Add any vports to the api server that do not already exist
         """
         vports = self._api.select_vports()
         imports = []
-        for port in self._api.config.ports:
+        for port in self._api.snappi_config.ports:
             if port.name not in vports.keys():
                 index = len(vports) + len(imports) + 1
                 vport_import = {
@@ -184,8 +184,8 @@ class Vport(object):
     def _create_capture(self):
         """Overwrite any capture settings
         """
-        if self._api.config.captures is None:
-            self._api.config.captures = []
+        if self._api.snappi_config.captures is None:
+            self._api.snappi_config.captures = []
         imports = []
         vports = self._api.select_vports()
         for vport in vports.values():
@@ -198,7 +198,7 @@ class Vport(object):
                     'softwareEnabled': False
                 }
                 imports.append(capture)
-        for capture_item in self._api.config.captures:
+        for capture_item in self._api.snappi_config.captures:
             for port_name in capture_item.port_names:
                 capture_mode = 'captureTriggerMode'
                 if capture_item.overwrite:
@@ -256,7 +256,7 @@ class Vport(object):
         chassis = self._api._ixnetwork.AvailableHardware.Chassis
         add_addresses = []
         check_addresses = []
-        for port in self._api.config.ports:
+        for port in self._api.snappi_config.ports:
             location = getattr(port, 'location', None)
             if location is not None and ';' in location:
                 chassis_address = location.split(';')[0]
@@ -288,11 +288,11 @@ class Vport(object):
                     time.sleep(2)
 
     def _get_layer1(self, port):
-        if hasattr(self._api.config, 'layer1') is False:
+        if hasattr(self._api.snappi_config, 'layer1') is False:
             return
-        if len(self._api.config.layer1) == 0:
+        if len(self._api.snappi_config.layer1) == 0:
             return
-        for layer1 in self._api.config.layer1:
+        for layer1 in self._api.snappi_config.layer1:
             for port_names in layer1.port_names:
                 if port.name in port_names:
                     return layer1
@@ -373,7 +373,7 @@ class Vport(object):
         imports = []
         with Timer(self._api,
                    'Aggregation mode speed change'):
-            for port in self._api.config.ports:
+            for port in self._api.snappi_config.ports:
                 self._set_aggregation(port, imports)
             if self._import(imports) is False:
                 self._api.info('Retrying card resource mode change')
@@ -383,7 +383,7 @@ class Vport(object):
         locations = []
         imports = []
         clear_locations = []
-        for port in self._api.config.ports:
+        for port in self._api.snappi_config.ports:
             vport = vports[port.name]
             location = getattr(port, 'location', None)
 
@@ -445,15 +445,15 @@ class Vport(object):
         This should only happen if the vport connectionState is connectedLink...
         as it determines the ./l1Config child node.
         """
-        if hasattr(self._api.config, 'layer1') is False:
+        if hasattr(self._api.snappi_config, 'layer1') is False:
             return
-        if self._api.config.layer1 is None:
+        if self._api.snappi_config.layer1 is None:
             return
         reset_auto_negotiation = dict()
         # set and commit the card resource mode
         vports = self._api.select_vports()
         imports = []
-        for layer1 in self._api.config.layer1:
+        for layer1 in self._api.snappi_config.layer1:
             for port_name in layer1.port_names:
                 self._set_card_resource_mode(vports[port_name], layer1,
                                              imports)
@@ -465,14 +465,14 @@ class Vport(object):
             self._import(imports)
         # set the vport type
         imports = []
-        for layer1 in self._api.config.layer1:
+        for layer1 in self._api.snappi_config.layer1:
             for port_name in layer1.port_names:
                 self._set_vport_type(vports[port_name], layer1, imports)
         self._import(imports)
         vports = self._api.select_vports()
         # set the remainder of l1config properties
         imports = []
-        for layer1 in self._api.config.layer1:
+        for layer1 in self._api.snappi_config.layer1:
             for port_name in layer1.port_names:
                 self._set_l1config_properties(vports[port_name], layer1,
                                               imports)
@@ -480,7 +480,7 @@ class Vport(object):
         # Due to dependency attribute (ieeeL1Defaults)
         # reset enableAutoNegotiation
         imports = []
-        for layer1 in self._api.config.layer1:
+        for layer1 in self._api.snappi_config.layer1:
             for port_name in layer1.port_names:
                 vport = vports[port_name]
                 if port_name in reset_auto_negotiation and reset_auto_negotiation[
@@ -690,7 +690,7 @@ class Vport(object):
 
     def _clear_ownership(self, locations):
         try:
-            force_ownership = self._api.config.options.port_options.location_preemption
+            force_ownership = self._api.snappi_config.options.port_options.location_preemption
         except Exception:
             force_ownership = False
         if force_ownership is True:

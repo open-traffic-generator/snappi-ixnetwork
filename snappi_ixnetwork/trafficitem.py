@@ -180,9 +180,9 @@ class TrafficItem(CustomField):
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
         ixn_traffic_item = self._api._traffic_item
-        self._api._remove(ixn_traffic_item, self._api.config.flows)
-        if self._api.config.flows is not None:
-            for flow in self._api.config.flows:
+        self._api._remove(ixn_traffic_item, self._api.snappi_config.flows)
+        if len(self._api.snappi_config.flows) > 0:
+            for flow in self._api.snappi_config.flows:
                 args = {
                     'Name': flow.name,
                     'TrafficItemType': 'l2L3',
@@ -217,7 +217,7 @@ class TrafficItem(CustomField):
         
     def _configure_options(self):
         enable_min_frame_size = False
-        for flow in self._api.config.flows:
+        for flow in self._api.snappi_config.flows:
             if (len(flow.packet) == 1 and flow.packet[
                     0].choice == 'pfcpause'):
                 enable_min_frame_size = True
@@ -226,7 +226,7 @@ class TrafficItem(CustomField):
             self._api._traffic.EnableMinFrameSize = enable_min_frame_size
 
     def _get_traffic_type(self, flow):
-        if flow.tx_rx is None:
+        if flow.tx_rx.choice is None:
             raise ValueError('%s Flow.tx_rx property cannot be None' %
                              flow.name)
         elif flow.tx_rx.choice == 'port':
@@ -251,15 +251,15 @@ class TrafficItem(CustomField):
         if (endpoint.choice == "port"):
             args['Sources'].append(
                 self._api.get_ixn_object(
-                    endpoint.port.tx_port_name).Protocols.find().href)
-            if endpoint.port.rx_port_name != None:
+                    endpoint.port.tx_name).Protocols.find().href)
+            if endpoint.port.rx_name != None:
                 args['Destinations'].append(
                     self._api.get_ixn_object(
-                        endpoint.port.rx_port_name).Protocols.find().href)
+                        endpoint.port.rx_name).Protocols.find().href)
         else:
-            for port_name in endpoint.device.tx_device_names:
+            for port_name in endpoint.device.tx_names:
                 args['Sources'].append(self._api.get_ixn_href(port_name))
-            for port_name in endpoint.device.rx_device_names:
+            for port_name in endpoint.device.rx_names:
                 args['Destinations'].append(self._api.get_ixn_href(port_name))
         ixn_endpoint_set.find()
         if len(ixn_endpoint_set) > 1:
@@ -361,38 +361,46 @@ class TrafficItem(CustomField):
                            field_type_id,
                            pattern,
                            field_choice=False):
-        
         custom_field = getattr(self, field_type_id, None)
         if custom_field is not None:
-            if pattern is not None:
+            if pattern.choice is not None:
                 custom_field(ixn_field, pattern)
             return
-
+    
         ixn_field = ixn_field.find(FieldTypeId=field_type_id)
         self._set_default(ixn_field, field_choice)
-        
-        if pattern is None:
+    
+        if pattern.choice is None:
             return
-        
-        if pattern.choice == 'fixed':
+    
+        if pattern.choice == 'value':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
                              ValueType='singleValue',
-                             SingleValue=pattern.fixed)
-        elif pattern.choice == 'list':
+                             SingleValue=pattern.value)
+        elif pattern.choice == 'values':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
                              ValueType='valueList',
-                             ValueList=pattern.list)
-        elif pattern.choice == 'counter':
-            value_type = 'increment' if pattern.counter.up is True else 'decrement'
+                             ValueList=pattern.values)
+        elif pattern.choice == 'increment':
             try:
                 ixn_field.update(Auto=False,
-                                ValueType=value_type,
-                                ActiveFieldChoice=field_choice,
-                                StartValue=pattern.counter.start,
-                                StepValue=pattern.counter.step,
-                                CountValue=pattern.counter.count)
+                                 ValueType='increment',
+                                 ActiveFieldChoice=field_choice,
+                                 StartValue=pattern.increment.start,
+                                 StepValue=pattern.increment.step,
+                                 CountValue=pattern.increment.count)
+            except Exception as e:
+                print(e)
+        elif pattern.choice == 'decrement':
+            try:
+                ixn_field.update(Auto=False,
+                                 ValueType='decrement',
+                                 ActiveFieldChoice=field_choice,
+                                 StartValue=pattern.decrement.start,
+                                 StepValue=pattern.decrement.step,
+                                 CountValue=pattern.decrement.count)
             except Exception as e:
                 print(e)
         elif pattern.choice == 'random':
@@ -407,10 +415,10 @@ class TrafficItem(CustomField):
         else:
             # TBD: add to set_config errors - invalid pattern specified
             pass
-
-        if pattern.ingress_result_name is not None:
+    
+        if pattern.metric_group is not None:
             ixn_field.TrackingEnabled = True
-            self._api.ixn_objects[pattern.ingress_result_name] = ixn_field.href
+            self._api.ixn_objects[pattern.metric_group] = ixn_field.href
 
     def _set_default(self, ixn_field, field_choice):
         """We are setting all the field to default. Otherwise test is keeping the same value from previous run."""
@@ -429,7 +437,7 @@ class TrafficItem(CustomField):
     def _configure_size(self, ixn_stream, size):
         """ Transform frameSize flows.size to /traffic/trafficItem[*]/configElement[*]/frameSize
         """
-        if size is None:
+        if size.choice is None:
             return
         ixn_frame_size = ixn_stream.FrameSize
         args = {}
@@ -453,25 +461,29 @@ class TrafficItem(CustomField):
     def _configure_rate(self, ixn_stream, rate):
         """ Transform frameRate flows.rate to /traffic/trafficItem[*]/configElement[*]/frameRate
         """
-        if rate is None:
+        if rate.choice is None:
             return
         ixn_frame_rate = ixn_stream.FrameRate
         args = {}
-        if rate.unit == 'line':
+        value = None
+        if rate.choice == 'line':
             args['Type'] = 'percentLineRate'
-        elif rate.unit == 'pps':
+            value = rate.line
+        elif rate.choice == 'pps':
             args['Type'] = 'framesPerSecond'
+            value = rate.pps
         else:
             args['Type'] = 'bitsPerSecond'
             args['BitRateUnitsType'] = TrafficItem._BIT_RATE_UNITS_TYPE[
                 rate.unit]
-        args['Rate'] = rate.value
+            value = rate.bps
+        args['Rate'] = value
         self._update(ixn_frame_rate, **args)
 
     def _configure_tx_control(self, ixn_stream, hl_stream_count, duration):
         """Transform duration flows.duration to /traffic/trafficItem[*]/configElement[*]/TransmissionControl
         """
-        if duration is None:
+        if duration.choice is None:
             return
         ixn_tx_control = ixn_stream.TransmissionControl
         args = {}
@@ -519,7 +531,7 @@ class TrafficItem(CustomField):
 
         if request.state == 'start':
             all_flow_names = ' '.join(
-                [flow.name for flow in self._api.config.flows])
+                [flow.name for flow in self._api.snappi_config.flows])
             self._api._traffic_item.find(State='^unapplied$')
             if len(self._api._topology.find()) > 0:
                 with Timer(self._api, 'Devices start'):

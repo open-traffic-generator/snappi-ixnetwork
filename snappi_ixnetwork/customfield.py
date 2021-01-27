@@ -61,10 +61,12 @@ class CustomField(object):
             self._configure_pattern(ixn_field, 'ipv4.header.priority.raw', priority.raw, field_choice=True)
 
     def _get_first_value(self, phb_pattern):
-        if phb_pattern.choice == 'fixed':
-            value = phb_pattern.fixed
-        elif phb_pattern.choice == 'list':
-            value = phb_pattern.list[0]
+        if phb_pattern.choice is None:
+            return None
+        if phb_pattern.choice == 'value':
+            value = phb_pattern.value
+        elif phb_pattern.choice == 'value_list':
+            value = phb_pattern.value_list[0]
         elif phb_pattern.choice == 'counter':
             value = phb_pattern.counter.start
         else:
@@ -75,6 +77,7 @@ class CustomField(object):
         ''''''
         new_headers = list()
         for header in headers:
+            header = header.parent
             if header.choice == 'ethernetpause':
                 self._ethernet_pause(new_headers, header.ethernetpause)
             elif header.choice == 'gtpv1':

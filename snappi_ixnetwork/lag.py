@@ -38,14 +38,14 @@ class Lag(object):
     def _delete_vports(self):
         """Delete any vports from the api server that do not exist in the new config
         """
-        self._api._remove(self._ixn_lag, self._api.config.lags)
+        self._api._remove(self._ixn_lag, self._api.snappi_config.lags)
     
     def _create_vports(self):
         """Add any vports to the api server that do not already exist
         """
         vports = self._api.select_vports()
         imports = []
-        for port in self._api.config.ports:
+        for port in self._api.snappi_config.ports:
             if port.name not in vports.keys():
                 index = len(vports) + len(imports) + 1
                 imports.append(
@@ -63,7 +63,7 @@ class Lag(object):
         """
         vports = self._api.select_vports()
         imports = []
-        for port in self._api.config.ports:
+        for port in self._api.snappi_config.ports:
             capture = {
                 'xpath': vports[port.name]['xpath'] + '/capture',
                 'captureMode': 'captureTriggerMode',
@@ -110,7 +110,7 @@ class Lag(object):
     def _set_location(self):
         vports = self._api.select_vports()
         imports = []
-        for port in self._api.config.ports:
+        for port in self._api.snappi_config.ports:
             self._api.ixn_objects[port.name] = vports[port.name]['href']
             vport = {
                 'xpath': vports[port.name]['xpath'],
@@ -122,14 +122,14 @@ class Lag(object):
     def _set_layer1(self):
         """Set the /vport/l1Config/... properties
         """
-        if hasattr(self._api.config, 'layer1') is False:
+        if hasattr(self._api.snappi_config, 'layer1') is False:
             return
-        if self._api.config.layer1 is None:
+        if self._api.snappi_config.layer1 is None:
             return
         vports = self._api.select_vports()
         imports = []
         reset_auto_negotiation = dict()
-        for layer1 in self._api.config.layer1:
+        for layer1 in self._api.snappi_config.layer1:
             for port_name in layer1.port_names:
                 vport = vports[port_name]
                 if vport['connectionState'] in ['connectedLinkUp', 'connectedLinkDown']:
@@ -142,7 +142,7 @@ class Lag(object):
         
         # Due to dependency attribute (ieeeL1Defaults) resetting enableAutoNegotiation
         imports = []
-        for layer1 in self._api.config.layer1:
+        for layer1 in self._api.snappi_config.layer1:
             for port_name in layer1.port_names:
                 vport = vports[port_name]
                 if port_name in reset_auto_negotiation and reset_auto_negotiation[port_name]:
@@ -258,7 +258,7 @@ class Lag(object):
     def _connect(self):
         self._ixn_vport.find(ConnectionState='^((?!connectedLink).)*$')
         try:
-            force_ownership = self._api.config.options.port_options.location_preemption
+            force_ownership = self._api.snappi_config.options.port_options.location_preemption
         except:
             force_ownership = False
         try:

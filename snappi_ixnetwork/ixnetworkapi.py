@@ -3,9 +3,6 @@ import time
 from collections import namedtuple
 from ixnetwork_restpy import TestPlatform, SessionAssistant
 import snappi
-# from abstract_open_traffic_generator.config import *
-# from abstract_open_traffic_generator.control import *
-# from abstract_open_traffic_generator.result import RequestDetail
 from snappi_ixnetwork.validation import Validation
 from snappi_ixnetwork.vport import Vport
 from snappi_ixnetwork.ngpf import Ngpf
@@ -69,7 +66,7 @@ class Api(snappi.Api):
                 return addr, '80'
 
     @property
-    def config(self):
+    def snappi_config(self):
         return self._config
 
     def get_config_object(self, name):
@@ -108,49 +105,37 @@ class Api(snappi.Api):
             o.__dict__[k] = self._dict_to_obj(v)
         return o
 
-    def set_state(self, state):
-        """Abstract API implementation
-        """
-        if isinstance(state, (State, str, dict, type(None))) is False:
-            raise TypeError(
-                'The content must be of type (Config, str, dict, type(None))' %
-                Config.__class__)
-        if isinstance(state, str) is True:
-            state = self._dict_to_obj(json.loads(state))
-        elif isinstance(state, dict) is True:
-            state = self._dict_to_obj(state)
-        if state.choice == 'config_state':
-            self._set_config_state(state.config_state)
-        elif state.choice == 'flow_transmit_state':
-            self._set_flow_transmit_state(state.flow_transmit_state)
-        elif state.choice == 'port_capture_state':
-            self._set_port_capture_state(state.port_capture_state)
-        return self._request_detail()
-
-    def _request_detail(self):
-        request_detail = RequestDetail()
-        errors = self._errors
-        warnings = list()
-        app_errors = self._globals.AppErrors.find()
-        if len(app_errors) > 0:
-            current_errors = app_errors[0].Error.find()
-            if len(current_errors) > 0:
-                for error in current_errors:
-                    match = [o for o in self._ixn_errors if o.Name == error.Name
-                                                    and o.LastModified == error.LastModified]
-                    if len(match) == 0:
-                        if error.ErrorLevel == 'kWarning':
-                            warnings.append("IxNet - {0}".format(error.Description))
-                        if error.ErrorLevel == 'kError':
-                            errors.append("IxNet - {0}".format(error.Description))
-        request_detail.errors = errors
-        request_detail.warnings = warnings
-        return request_detail
+    # def _request_detail(self):
+    #     request_detail = RequestDetail()
+    #     errors = self._errors
+    #     warnings = list()
+    #     app_errors = self._globals.AppErrors.find()
+    #     if len(app_errors) > 0:
+    #         current_errors = app_errors[0].Error.find()
+    #         if len(current_errors) > 0:
+    #             for error in current_errors:
+    #                 match = [o for o in self._ixn_errors if o.Name == error.Name
+    #                                                 and o.LastModified == error.LastModified]
+    #                 if len(match) == 0:
+    #                     if error.ErrorLevel == 'kWarning':
+    #                         warnings.append("IxNet - {0}".format(error.Description))
+    #                     if error.ErrorLevel == 'kError':
+    #                         errors.append("IxNet - {0}".format(error.Description))
+    #     request_detail.errors = errors
+    #     request_detail.warnings = warnings
+    #     return request_detail
     
-    def _set_config_state(self, config_state):
+    def _deserialize(self, config):
+        if isinstance(config, str) is True:
+            config = snappi.Api().config()
+            config.deserialize(config)
+        return config
+    
+    def set_config(self, config):
         """Set or update the configuration
         """
-        self._config = config_state.config
+        config = self._deserialize(config)
+        self._config = config
         self._config_objects = {}
         self._ixn_objects = {}
         self._capture_request = None
@@ -168,9 +153,11 @@ class Api(snappi.Api):
                 self.traffic_item.config()
         self._running_config = self._config
 
-    def _set_flow_transmit_state(self, flow_transmit_state):
+    def set_transmit_state(self, flow_transmit_state):
         """Set the transmit state of flows
         """
+        flow_transmit_state = self._deserialize(
+                                        flow_transmit_state)
         self._connect()
         return self.traffic_item.transmit(flow_transmit_state)
 
@@ -250,14 +237,15 @@ class Api(snappi.Api):
         pcap_file_bytes = self._request('GET', url)
         return pcap_file_bytes
 
-    def get_port_results(self, request):
+    def get_port_metrics(self, request):
         """Abstract API implementation
         """
+        request = self._deserialize(request)
         self._connect()
         # TODO: these should be returned as a list of port stat object
         return self.vport.results(request)
 
-    def get_flow_results(self, request):
+    def get_flow_metrics(self, request):
         """Abstract API implementation
 
         Args
@@ -266,9 +254,9 @@ class Api(snappi.Api):
             The request content MUST be based on the OpenAPI #/components/schemas/Result.FlowRequest model.
             See the docs/openapi.yaml document for all model details.
         """
-        # from abstract_open_traffic_generator.result import FlowRequest
+        from snappi import FlowMetricsRequest
         self._errors = []
-        if isinstance(request, (FlowRequest, str, dict)) is False:
+        if isinstance(request, (FlowMetricsRequest, str, dict)) is False:
             raise TypeError(
                 'The content must be of type Union[FlowRequest, str, dict]')
         if isinstance(request, str) is True:
@@ -320,13 +308,13 @@ class Api(snappi.Api):
             if len(self._license_servers) > 0:
                 self._ixnetwork.Globals.Licensing \
                     .LicensingServers = self._license_servers
-            try:
-                version = pkg_resources.get_distribution(
-                    "ixnetwork-open-traffic-generator").version
-            except Exception:
-                version = "ixnetwork-open-traffic-generator not installed " \
-                    "using pip, unable to determine version"
-            self.info(version)
+            # try:
+            #     version = pkg_resources.get_distribution(
+            #         "ixnetwork-open-traffic-generator").version
+            # except Exception:
+            #     version = "ixnetwork-open-traffic-generator not installed " \
+            #         "using pip, unable to determine version"
+            # self.info(version)
         self._backup_errors()
     
     def _backup_errors(self):
@@ -361,7 +349,8 @@ class Api(snappi.Api):
         """Remove any ixnetwork objects that are not found in the items list.
         If the items list does not exist remove everything.
         """
-        valid_names = [item.name for item in items]
+        valid_names = [item.name for item in items
+                       if item.name is not None]
         invalid_names = []
         for item in ixn_obj.find():
             if item.Name not in valid_names:

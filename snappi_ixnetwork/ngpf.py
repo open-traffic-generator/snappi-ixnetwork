@@ -23,7 +23,7 @@ class Ngpf(object):
         """Transform /components/schemas/Device into /topology
         """
         self._imports = []
-        self._configure_topology(self._api._topology, self._api.config.devices)
+        self._configure_topology(self._api._topology, self._api.snappi_config.devices)
 
     def _update(self, ixn_object, **kwargs):
         update = False
@@ -38,6 +38,7 @@ class Ngpf(object):
         Topology name is device.container_name
         """
         topologies = {}
+        devices = devices._items
         for device in devices:
             topology = lambda: None
             topology.name = self._api._get_topology_name(device.container_name)
@@ -65,6 +66,8 @@ class Ngpf(object):
         """Transform /components/schemas/Device into /topology/deviceGroup
         One /topology/deviceGroup for every device in port.devices 
         """
+        if device.choice is None:
+            return
         args = {'Name': device.name, 'Multiplier': device.device_count}
         ixn_device_group.find(Name='^%s$' % device.name)
         if len(ixn_device_group) == 0:
@@ -91,20 +94,20 @@ class Ngpf(object):
             self._configure_bgpv4(ixn_ipv4.BgpIpv4Peer, device.bgpv4)
 
     def _configure_pattern(self, ixn_obj, pattern, enum_map=None):
-        if pattern is None:
+        if pattern.choice is None:
             return
-        elif enum_map is not None and pattern.fixed is not None:
-            ixn_obj.Single(enum_map[pattern.fixed])
-        elif pattern.choice == 'fixed':
-            ixn_obj.Single(pattern.fixed)
-        elif pattern.choice == 'list':
-            ixn_obj.ValueList(pattern.list)
-        elif pattern.choice == 'counter':
-            method = "Increment" if pattern.counter.up else "Decrement"
-            getattr(ixn_obj, method)(
-                start_value=pattern.counter.start,
-                step_value=pattern.counter.step
-            )
+        elif enum_map is not None and pattern.choice == 'value':
+            ixn_obj.Single(enum_map[pattern.value])
+        elif pattern.choice == 'value':
+            ixn_obj.Single(pattern.value)
+        elif pattern.choice == 'values':
+            ixn_obj.ValueList(pattern.values)
+        elif pattern.choice == 'increment':
+            ixn_obj.Increment(pattern.increment.start,
+                              pattern.increment.step)
+        elif pattern.choice == 'decrement':
+            ixn_obj.Decrement(pattern.decrement.start,
+                              pattern.decrement.step)
         elif pattern.choice == 'random':
             pass
 
@@ -112,18 +115,18 @@ class Ngpf(object):
         """Transform Device.Ethernet to /topology/.../ethernet
         """
         self._api._remove(ixn_ethernet, [ethernet])
-        args = {
-            'Name': ethernet.name,
-        }
+        args = {}
         ixn_ethernet.find(Name='^%s$' % ethernet.name)
         if len(ixn_ethernet) == 0:
             ixn_ethernet.add(**args)
         else:
             self._update(ixn_ethernet, **args)
-        self._api.ixn_objects[ethernet.name] = ixn_ethernet.href
+        if ethernet.name is not None:
+            self._api.ixn_objects[ethernet.name] = ixn_ethernet.href
+            ixn_ethernet.Name = ethernet.name
         self._configure_pattern(ixn_ethernet.Mac, ethernet.mac)
         self._configure_pattern(ixn_ethernet.Mtu, ethernet.mtu)
-        if ethernet.vlans is not None:
+        if len(ethernet.vlans) > 0:
             ixn_ethernet.VlanCount = len(ethernet.vlans)
             ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
             self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
@@ -133,10 +136,10 @@ class Ngpf(object):
         """Transform Device.Vlan to /topology/.../vlan
         """
         for i in range(0, len(ixn_vlans.find())):
-            args = {'Name': vlans[i].name}
             ixn_vlan = ixn_vlans[i]
-            self._update(ixn_vlan, **args)
-            self._api.ixn_objects[vlans[i].name] = ixn_vlan.href
+            if vlans[i].name is not None:
+                self._update(ixn_vlan, **args)
+                self._api.ixn_objects[vlans[i].name] = ixn_vlan.href
             self._configure_pattern(ixn_vlan.VlanId, vlans[i].id)
             self._configure_pattern(ixn_vlan.Priority, vlans[i].priority)
             self._configure_pattern(ixn_vlan.Tpid,
@@ -147,20 +150,20 @@ class Ngpf(object):
         """Transform Device.Ipv4 to /topology/.../ipv4
         """
         self._api._remove(ixn_ipv4, [ipv4])
-        args = {
-            'Name': ipv4.name,
-        }
+        args = {}
         ixn_ipv4.find(Name='^%s$' % ipv4.name)
         if len(ixn_ipv4) == 0:
             ixn_ipv4.add(**args)[-1]
         else:
             self._update(ixn_ipv4, **args)
-        self._api.ixn_objects[ipv4.name] = ixn_ipv4.href
+        if ipv4.name is not None:
+            ixn_ipv4.Name = ipv4.name
+            self._api.ixn_objects[ipv4.name] = ixn_ipv4.href
         self._configure_pattern(ixn_ipv4.Address, ipv4.address)
         self._configure_pattern(ixn_ipv4.GatewayIp, ipv4.gateway)
         self._configure_pattern(ixn_ipv4.Prefix, ipv4.prefix)
         return ixn_ipv4
-
+    
     def _configure_ipv6(self, ixn_ipv6, ipv6):
         self._api._remove(ixn_ipv6, [ipv6])
         args = {

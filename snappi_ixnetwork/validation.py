@@ -15,7 +15,7 @@ class Validation(object):
     
     def validate_config(self):
         self._unique_name_errors = []
-        self.__check_config_objects(self._api.config)
+        self.__check_config_objects(self._api.snappi_config)
         if len(self._unique_name_errors) > 0:
             raise NameError(', '.join(self._unique_name_errors))
 
