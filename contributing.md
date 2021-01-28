@@ -24,7 +24,7 @@ Please make sure that the setup meets [Python Prerequisites](#python-prerequisit
   python -m pip install --upgrade -r requirements.txt
   # it won't actually install this package, so any new changes in project src
   # will be reflected immediately
-  python -m pip install --upgrade -e .[dev]
+  python -m pip install --upgrade -e ".[dev]"
   ```
 
 - Run Tests.

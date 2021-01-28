@@ -1,8 +1,4 @@
 import pytest
-from abstract_open_traffic_generator.port import Port
-from abstract_open_traffic_generator.device import *
-from abstract_open_traffic_generator.config import *
-from abstract_open_traffic_generator.control import *
 
 
 @pytest.mark.skip(reason="BGP models have not been finalized")

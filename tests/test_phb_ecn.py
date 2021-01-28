@@ -1,10 +1,7 @@
 import pytest
-from abstract_open_traffic_generator.flow import *
-from abstract_open_traffic_generator.flow_ipv4 import *
-from abstract_open_traffic_generator.config import Config
-from abstract_open_traffic_generator.control import *
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_phb_ecn(serializer, api, tx_port, rx_port):
     """
     This will test that phb and ecn are set on an ipv4 header

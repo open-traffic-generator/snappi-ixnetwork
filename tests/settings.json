@@ -1,10 +1,11 @@
 {
     "username": "common",
-    "api_server": "localhost:11009",
+    "api_server": "https://localhost:443",
     "ports": [
         "localhost;1;1",
         "localhost;1;2"
     ],
+    "ext": "ixnetwork",
     "speed": "speed_1_gbps",
     "media": null,
     "timeout_seconds": 30,

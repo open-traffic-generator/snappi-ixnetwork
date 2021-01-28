@@ -1,8 +1,7 @@
-from abstract_open_traffic_generator import (
-    flow, flow_ipv4
-)
+import pytest
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_counter_ip_dscp(api, b2b_raw_config, utils):
     """
     Configure a raw IPv4 flow with,
@@ -44,6 +43,7 @@ def test_counter_ip_dscp(api, b2b_raw_config, utils):
         utils.validate_config(api, 'ipv4', **attrs)
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_ip_priority_tos(api, b2b_raw_config, utils):
     """
     Configure a raw IPv4 flow with,

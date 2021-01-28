@@ -1,6 +1,3 @@
-from abstract_open_traffic_generator import flow as Flow
-
-
 def test_udp_header_with_list(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,
@@ -9,49 +6,40 @@ def test_udp_header_with_list(api, b2b_raw_config, utils):
     - 10% line rate
 
     Validate,
-    - tx/rx frame count is as expected
-    - all captured frames have expected src and dst Port address
+    - Validate the config against restpy
     """
     flow = b2b_raw_config.flows[0]
 
-    src_port = ['3000', '3001']
-    dst_port = ['4000', '4001']
-    length = ['35', '36']
-    checksum = ['5', '6']
+    src_port = [3000, 3001]
+    dst_port = [4000, 4001]
+    length = [35, 36]
+    checksum = [5, 6]
     size = 74
     packets = 100
 
-    flow.packet = [
-        Flow.Header(
-            Flow.Ethernet(
-                src=Flow.Pattern('00:0c:29:1d:10:67'),
-                dst=Flow.Pattern('00:0c:29:1d:10:71')
-            )
-        ),
-        Flow.Header(
-            Flow.Ipv4(
-                src=Flow.Pattern('10.10.10.1'),
-                dst=Flow.Pattern('10.10.10.2')
-            )
-        ),
-        Flow.Header(
-            Flow.Udp(
-                src_port=Flow.Pattern(src_port),
-                dst_port=Flow.Pattern(dst_port),
-                length=Flow.Pattern(length),
-                checksum=Flow.Pattern(checksum)
-            )
-        ),
-    ]
-    flow.duration = Flow.Duration(Flow.FixedPackets(packets=packets))
-    flow.size = Flow.Size(size)
-    flow.rate = Flow.Rate(value=10, unit='line')
+    flow.size.fixed = size
+    flow.duration.fixed_packets.packets = packets
+    flow.rate.percentage = 10
 
-    utils.apply_config(api, b2b_raw_config)
+    eth, ip, udp = flow.packet.ethernet().ipv4().udp()
+
+    eth.src.value = '00:0c:29:1d:10:67'
+    eth.dst.value = '00:0c:29:1d:10:71'
+
+    ip.src.value = '10.10.10.1'
+    ip.dst.value = '10.10.10.2'
+
+    udp.src_port.values = src_port
+    udp.dst_port.values = dst_port
+    udp.length.values = length
+    udp.checksum.values = checksum
+
+    api.set_config(b2b_raw_config)
+
     attrs = {
-        'UDP-Source-Port': src_port,
-        'UDP-Dest-Port': dst_port,
-        'UDP-Length': length,
-        'UDP-Checksum': checksum
+        'UDP-Source-Port': [str(src) for src in src_port],
+        'UDP-Dest-Port': [str(dst) for dst in dst_port],
+        'UDP-Length': [str(len) for len in length],
+        'UDP-Checksum': [str(chksum) for chksum in checksum]
     }
     utils.validate_config(api, 'udp', **attrs)

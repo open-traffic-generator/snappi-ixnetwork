@@ -1,9 +1,7 @@
 import pytest
-from abstract_open_traffic_generator.flow import *
-from abstract_open_traffic_generator.config import *
-from abstract_open_traffic_generator.control import *
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_flow_rates(serializer, api, tx_port, rx_port):
     """
     This will test supported Flow Rate

@@ -1,6 +1,7 @@
-from abstract_open_traffic_generator import flow
+import pytest
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_tcp_flow_capture(api, b2b_raw_config, utils):
     """
     Configure a raw TCP flow with,

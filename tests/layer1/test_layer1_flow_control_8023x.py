@@ -1,8 +1,7 @@
-from abstract_open_traffic_generator.config import *
-from abstract_open_traffic_generator.layer1 import *
-from abstract_open_traffic_generator.control import *
+import pytest
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_layer1_flow_control_8023x(api, tx_port, rx_port, options, utils):
     """
     Test that layer1 flow controle 8023x configuration settings

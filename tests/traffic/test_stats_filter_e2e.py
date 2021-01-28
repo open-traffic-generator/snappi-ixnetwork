@@ -1,9 +1,7 @@
-from abstract_open_traffic_generator import flow
-from abstract_open_traffic_generator import result
-import time
 import pytest
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.e2e
 def test_stats_filter_e2e(api, b2b_raw_config, utils):
     """

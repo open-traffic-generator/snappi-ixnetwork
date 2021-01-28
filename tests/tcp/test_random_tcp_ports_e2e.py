@@ -1,8 +1,7 @@
-from abstract_open_traffic_generator import flow
-import utils
 import pytest
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.e2e
 def test_random_tcp_ports_e2e(api, settings, b2b_raw_config):
     """
