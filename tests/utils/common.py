@@ -110,28 +110,29 @@ class Settings(object):
 settings = Settings()
 
 
-def start_traffic(api, cfg):
+def start_traffic(api, cfg, start_capture=True):
     """
     Applies configuration, and starts flows.
     """
     print('Setting config ...')
     api.set_config(cfg)
-
+    # TODO: Add capture start
     print('Starting transmit on all flows ...')
     transmit_state = api.transmit_state()
     transmit_state.state = 'start'
     api.set_transmit_state(transmit_state)
 
 
-def stop_traffic(api):
+def stop_traffic(api, stop_capture=True):
     """
     Stops flows
     """
 
-    print('Starting transmit on all flows ...')
+    print('Stopping transmit on all flows ...')
     transmit_state = api.transmit_state()
     transmit_state.state = 'stop'
     api.set_transmit_state(transmit_state)
+    # TODO: Add capture stop
 
 
 def seconds_elapsed(start_seconds):

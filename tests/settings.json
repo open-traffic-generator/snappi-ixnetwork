@@ -7,7 +7,7 @@
     ],
     "ext": "ixnetwork",
     "speed": "speed_1_gbps",
-    "media": "null",
+    "media": null,
     "timeout_seconds": 30,
     "interval_seconds": 0.5,
     "log_level": "info",
