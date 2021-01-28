@@ -185,8 +185,6 @@ class Vport(object):
     def _create_capture(self):
         """Overwrite any capture settings
         """
-        if self._api.snappi_config.captures is None:
-            self._api.snappi_config.captures = []
         imports = []
         vports = self._api.select_vports()
         for vport in vports.values():
@@ -200,6 +198,8 @@ class Vport(object):
                 }
                 imports.append(capture)
         for capture_item in self._api.snappi_config.captures:
+            if capture_item.port_names is None:
+                continue
             for port_name in capture_item.port_names:
                 capture_mode = 'captureTriggerMode'
                 if capture_item.overwrite:

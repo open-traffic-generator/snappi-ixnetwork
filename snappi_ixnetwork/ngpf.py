@@ -166,15 +166,15 @@ class Ngpf(object):
     
     def _configure_ipv6(self, ixn_ipv6, ipv6):
         self._api._remove(ixn_ipv6, [ipv6])
-        args = {
-            'Name': ipv6.name,
-        }
+        args = {}
         ixn_ipv6.find(Name='^%s$' % ipv6.name)
         if len(ixn_ipv6) == 0:
             ixn_ipv6.add(**args)[-1]
         else:
             self.update(ixn_ipv6, **args)
-        self._api.ixn_objects[ipv6.name] = ixn_ipv6.href
+        if ipv6.name is not None:
+            ixn_ipv6.Name = ipv6.name
+            self._api.ixn_objects[ipv6.name] = ixn_ipv6.href
         self._configure_pattern(ixn_ipv6.Address, ipv6.address)
         self._configure_pattern(ixn_ipv6.GatewayIp, ipv6.gateway)
         self._configure_pattern(ixn_ipv6.Prefix, ipv6.prefix)

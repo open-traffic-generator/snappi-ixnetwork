@@ -233,7 +233,7 @@ class TrafficItem(CustomField):
             encap = 'raw'
         else:
             encap = None
-            for name in flow.tx_rx.device.tx_device_names:
+            for name in flow.tx_rx.device.tx_names:
                 device = self._api.get_config_object(name)
                 if device.choice == 'ethernet':
                     encap = 'ethernetVlan'
