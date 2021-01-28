@@ -1,9 +1,7 @@
 import pytest
-from abstract_open_traffic_generator import (
-    config, port, layer1, flow
-)
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.e2e
 def test_global_unpause_e2e(api, settings, utils):
     """

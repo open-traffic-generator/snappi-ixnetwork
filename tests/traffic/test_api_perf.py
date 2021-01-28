@@ -2,7 +2,7 @@ import pytest
 import utils
 import traceback
 import time
-from abstract_open_traffic_generator import flow, control, result
+
 
 
 CSV_COLUMNS = [
@@ -13,6 +13,7 @@ CSV_COLUMNS = [
 CSV_DIR = utils.new_logs_dir()
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.e2e
 @pytest.mark.parametrize(
     'config_type', ['one_flow_tcp_128b', 'ten_flows_tcp_128b']

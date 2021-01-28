@@ -1,10 +1,7 @@
 import pytest
-from abstract_open_traffic_generator.flow import *
-from abstract_open_traffic_generator.flow_ipv4 import *
-from abstract_open_traffic_generator.config import *
-from abstract_open_traffic_generator.control import *
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_flow_ipv4(serializer, tx_port, rx_port, b2b_ipv4_devices, api):
     """IPv4 Flow with different priority test traffic configuration
     """

@@ -1,5 +1,3 @@
-from abstract_open_traffic_generator import flow
-from abstract_open_traffic_generator import result
 import pytest
 
 

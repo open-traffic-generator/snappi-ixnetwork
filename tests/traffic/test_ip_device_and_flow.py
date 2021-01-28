@@ -1,9 +1,7 @@
 import pytest
-from abstract_open_traffic_generator import (
-    flow, device, control
-)
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.e2e
 def test_ip_device_and_flow(api, b2b_raw_config, utils):
     """

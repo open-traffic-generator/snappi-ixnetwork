@@ -1,10 +1,4 @@
 import pytest
-import time
-from abstract_open_traffic_generator.config import *
-from abstract_open_traffic_generator.capture import *
-from abstract_open_traffic_generator.flow import *
-from abstract_open_traffic_generator.control import *
-from abstract_open_traffic_generator.result import CaptureRequest
 
 
 @pytest.mark.skip(reason="Fix - intermittent failure as rx ports are not set in capture mode")

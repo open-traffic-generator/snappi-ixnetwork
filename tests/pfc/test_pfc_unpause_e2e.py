@@ -1,9 +1,7 @@
 import pytest
-from abstract_open_traffic_generator import (
-    config, port, layer1, flow, flow_ipv4
-)
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.e2e
 @pytest.mark.parametrize('lossless_priorities', [[3, 4]])
 def test_pfc_unpause_e2e(api, settings, utils, lossless_priorities):

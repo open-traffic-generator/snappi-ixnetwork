@@ -1,10 +1,7 @@
 import pytest
-from abstract_open_traffic_generator.port import *
-from abstract_open_traffic_generator.config import *
-from abstract_open_traffic_generator.layer1 import *
-from abstract_open_traffic_generator.control import *
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.l1_manual
 @pytest.mark.parametrize('speed', ['speed_10_gbps', 'speed_25_gbps',
                                    'speed_40_gbps', 'speed_100_gbps'])

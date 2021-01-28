@@ -1,6 +1,7 @@
-from abstract_open_traffic_generator import flow
+import pytest
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_traffic_transmit_state(api, b2b_raw_config, utils):
     """
     configure two flows f1 and f2

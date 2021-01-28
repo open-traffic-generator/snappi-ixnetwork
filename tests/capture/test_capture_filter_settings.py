@@ -1,11 +1,7 @@
-from abstract_open_traffic_generator.config import Config
-from abstract_open_traffic_generator.capture import (Capture,
-                                                     BasicFilter,
-                                                     MacAddressFilter,
-                                                     CustomFilter)
-from abstract_open_traffic_generator.control import *
+import pytest
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_capture_filter_settings(api, tx_port, options):
     """Demonstrates how to configure basic capture settings
 

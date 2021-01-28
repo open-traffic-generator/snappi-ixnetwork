@@ -1,8 +1,7 @@
 import pytest
-import utils
-from abstract_open_traffic_generator import flow as Flow
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.e2e
 def test_udp_header_with_list_e2e(api, b2b_raw_config):
     """

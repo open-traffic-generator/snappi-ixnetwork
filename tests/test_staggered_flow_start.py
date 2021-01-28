@@ -1,8 +1,5 @@
 import pytest
 import time
-from abstract_open_traffic_generator.config import *
-from abstract_open_traffic_generator.flow import *
-from abstract_open_traffic_generator.control import *
 
 
 @pytest.mark.skip(reason="Fix -breaks build - needs investigation")

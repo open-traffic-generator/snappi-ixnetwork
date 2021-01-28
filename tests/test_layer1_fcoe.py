@@ -1,10 +1,7 @@
 import pytest
-from abstract_open_traffic_generator.port import *
-from abstract_open_traffic_generator.config import *
-from abstract_open_traffic_generator.layer1 import *
-from abstract_open_traffic_generator.control import *
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_layer1_fcoe(serializer, api, tx_port, rx_port, options):
     """Test that layer1 fcoe configuration settings are being applied correctly.
     """

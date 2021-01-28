@@ -1,9 +1,7 @@
 import pytest
-import abstract_open_traffic_generator.port as port
-import abstract_open_traffic_generator.config as config
-import abstract_open_traffic_generator.control as control
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_ports(serializer, api, tx_port, rx_port, options):
     """Demonstrates adding ports to a configuration and setting the
     configuration on the traffic generator.

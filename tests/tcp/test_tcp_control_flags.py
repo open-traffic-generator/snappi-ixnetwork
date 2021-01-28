@@ -1,6 +1,7 @@
-from abstract_open_traffic_generator import flow as Flow
+import pytest
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_tcp_control_flags(api, b2b_raw_config, utils):
     """
     Configure a raw tcp flow with,

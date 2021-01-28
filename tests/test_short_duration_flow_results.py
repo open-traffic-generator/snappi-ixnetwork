@@ -1,7 +1,4 @@
 import pytest
-import abstract_open_traffic_generator.control as control
-import abstract_open_traffic_generator.result as result
-import abstract_open_traffic_generator.flow as flow
 
 
 @pytest.mark.skip(reason="Fix - Do not use pandas")
