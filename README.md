@@ -1,4 +1,4 @@
-# Keysight IxNetwork Open Traffic Generator
+# Snappi Extension for IxNetwork
 [![Build](https://github.com/open-traffic-generator/ixnetwork/workflows/Build/badge.svg)](https://github.com/open-traffic-generator/ixnetwork/actions)
 [![pypi](https://img.shields.io/pypi/v/snappi_ixnetwork.svg)](https://pypi.org/project/snappi_ixnetwork)
 [![python](https://img.shields.io/pypi/pyversions/snappi_ixnetwork.svg)](https://pypi.python.org/pypi/snappi_ixnetwork)
@@ -6,58 +6,57 @@
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/open-traffic-generator/ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/ixnetwork/alerts/)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/open-traffic-generator/ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/ixnetwork/context:python)
 
-The Keysight IxNetwork implementation of the open-traffic-generator models.  
+This extension allows executing test scripts written using [snappi](https://github.com/open-traffic-generator/snappi) against  
+IxNetwork, (one of) Keysight's implementation of [Open Traffic Generator](https://github.com/open-traffic-generator/models/releases).
+
 To start contributing, please see [contributing.md](contributing.md).
 
-# Getting Started
-## Install client package
+## Install on a client
+
+```sh
+python -m pip install --upgrade "snappi[ixnetwork]"
 ```
-python -m pip install --upgrade snappi[ixnetwork]
-```
+
 ## Start scripting
+
 ```python
-# for constructing traffic configuration
-# from abstract_open_traffic_generator import (
-#     port, flow, config, control, result
-# )
-# for making API calls
-from snappi_ixnetwork.ixnetworkapi import Api
+"""
+Configure a raw TCP flow with,
+- tx port as source to rx port as destination
+- frame count 10000, each of size 128 bytes
+- transmit rate of 1000 packets per second
+Validate,
+- frames transmitted and received for configured flow is as expected
+"""
 
-# provide API server and port addresses
-api = Api(address='127.0.0.1', port=11009)
-tx = port.Port(name='Tx Port', location='127.0.0.1;2;1')
-rx = port.Port(name='Rx Port', location='127.0.0.1;2;2')
-
-# configure one TCP flow (with default protocol headers) to send 10000 packets,
-# each of 128 bytes at 10% of max line rate
-flw = flow.Flow(
-    name='Flow %s->%s' % (tx.name, rx.name),
-    tx_rx=flow.TxRx(
-        flow.PortTxRx(tx_port_name=tx.name, rx_port_name=rx.name)
-    ),
-    packet=[
-        flow.Header(flow.Ethernet()),
-        flow.Header(flow.Vlan()),
-        flow.Header(flow.Ipv4()),
-        flow.Header(flow.Tcp())
-    ],
-    size=flow.Size(128),
-    rate=flow.Rate(value=10, unit='line'),
-    duration=flow.Duration(flow.FixedPackets(packets=10000))
+import snappi
+# host is IxNetwork API Server
+api = snappi.api(host='https://localhost:443', ext='ixnetwork')
+# new config
+config = api.config()
+# port location is chassis-ip;card-id;port-id
+tx, rx = (
+    config.ports
+    .port(name='tx', location='192.168.0.1;2;1')
+    .port(name='rx', location='192.168.0.1;2;2')
 )
-
-# push configuration and start transmitting flows
-cfg = config.Config(ports=[tx, rx], flows=[flw])
-api.set_state(control.State(control.ConfigState(config=cfg, state='set')))
-api.set_state(control.State(control.FlowTransmitState(state='start')))
-
-# fetch tx port stats and wait until total frames sent is correct or retry
-# retry count is 0
-retry = 5
-request = result.PortRequest(port_names=[tx.name], column_names=['frames_tx'])
-
-while sum([p['frames_tx'] for p in api.get_port_results(request)]) != 10000:
-    assert retry > 0
-    retry -= 1
-
+# configure only one flow
+flw = config.flows.flow(name='flw')[-1]
+# configure rate, size, frame count and endpoints
+flw.size.fixed = 128
+flw.rate.pps = 1000
+flw.duration.fixed_packets.packets = 10000
+flw.tx_rx.port.tx_name = tx.name
+flw.tx_rx.port.rx_name = rx.name
+# configure protocol headers with defaults fields
+flw.packet.ethernet().vlan().ipv4().tcp()
+# set configuration and start traffic
+api.set_config(config)
+ts = api.transmit_state()
+ts.state = ts.START
+api.set_transmit_state(ts)
+# wait for flow metrics to be as expected
+metrics = lambda: api.get_flow_metrics(api.flow_metrics_request())
+while not all([m.frames_tx == 10000 == m.frames_rx for m in metrics()]):
+    continue
 ```
