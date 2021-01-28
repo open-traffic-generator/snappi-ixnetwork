@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_tcp_header_with_list(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,
@@ -12,40 +8,30 @@ def test_tcp_header_with_list(api, b2b_raw_config, utils):
     Validate,
     - Config is applied using validate config
     """
-    flow = b2b_raw_config.flows[0]
 
-    src_port = ['3000', '3001']
-    dst_port = ['4000', '4001']
+    src_port = [3000, 3001]
+    dst_port = [4000, 4001]
     packets = 100
     size = 74
+    # flow = snappi.Api().config().flows.flow()[-1]
+    flow = b2b_raw_config.flows[0]
+    flow.packet.ethernet().ipv4().tcp()
+    eth = flow.packet[0]
+    ipv4 = flow.packet[1]
+    tcp = flow.packet[2]
+    eth.src.value = '00:0c:29:1d:10:67'
+    eth.dst.value = '00:0c:29:1d:10:71'
+    ipv4.src.value = '10.10.10.1'
+    ipv4.dst.value = '10.10.10.2'
+    tcp.src_port.values = src_port
+    tcp.dst_port.values = dst_port
+    flow.duration.fixed_packets.packets = packets
+    flow.size.fixed = size
+    flow.rate.percentage = 10
 
-    flow.packet = [
-        Flow.Header(
-            Flow.Ethernet(
-                src=Flow.Pattern('00:0c:29:1d:10:67'),
-                dst=Flow.Pattern('00:0c:29:1d:10:71')
-            )
-        ),
-        Flow.Header(
-            Flow.Ipv4(
-                src=Flow.Pattern('10.10.10.1'),
-                dst=Flow.Pattern('10.10.10.2')
-            )
-        ),
-        Flow.Header(
-            Flow.Tcp(
-                src_port=Flow.Pattern(src_port),
-                dst_port=Flow.Pattern(dst_port),
-            )
-        ),
-    ]
-    flow.duration = Flow.Duration(Flow.FixedPackets(packets=packets))
-    flow.size = Flow.Size(size)
-    flow.rate = Flow.Rate(value=10, unit='line')
-
-    utils.apply_config(api, b2b_raw_config)
+    api.set_config(b2b_raw_config)
     attrs = {
-        'TCP-Source-Port': src_port,
-        'TCP-Dest-Port': dst_port,
+        'TCP-Source-Port': [str(i) for i in src_port],
+        'TCP-Dest-Port': [str(i) for i in dst_port],
     }
     utils.validate_config(api, 'tcp', **attrs)
