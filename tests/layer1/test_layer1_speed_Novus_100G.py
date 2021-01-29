@@ -1,11 +1,10 @@
 import pytest
 
 
-@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.l1_manual
 @pytest.mark.parametrize('speed', ['speed_10_gbps', 'speed_25_gbps',
                                    'speed_40_gbps', 'speed_100_gbps'])
-def test_layer1(api, options, utils, speed):
+def test_layer1(api, utils, speed):
     """Test that layer1 configuration settings are being applied correctly
     A user should be able to configure ports with/without locations.
     The expectation should be if a location is configured the user wants to
@@ -22,25 +21,24 @@ def test_layer1(api, options, utils, speed):
                   'speed_100_gbps': '100000'}
     port_locations = get_port_locations(utils.settings.ports[0])
     location = port_locations[speed]
-    port = Port(name='port1', location=location)
+    config = api.config()
+    port = config.ports.port(name='port1', location=location)[-1]
     auto_negotiate = True
     ieee_media_defaults = False
     link_training = False
     rs_fec = True
     if speed in ['speed_10_gbps', 'speed_25_gbps', 'speed_100_gbps']:
         auto_negotiate = False
-    port_l1 = Layer1(name='port1 settings',
-                     port_names=[port.name],
-                     speed=speed,
-                     auto_negotiate=auto_negotiate,
-                     ieee_media_defaults=ieee_media_defaults,
-                     auto_negotiation=AutoNegotiation(
-                         link_training=link_training,
-                         rs_fec=rs_fec))
-
-    config = Config(ports=[port], layer1=[port_l1],
-                    options=options)
-    api.set_state(State(ConfigState(config=config, state='set')))
+    port_l1 = config.layer1.layer1()[-1]
+    port_l1.name = 'port1 settings'
+    port_l1.port_names = [port.name]
+    port_l1.speed = speed
+    port_l1.media = utils.settings.media
+    port_l1.auto_negotiate = auto_negotiate
+    port_l1.ieee_media_defaults = ieee_media_defaults
+    port_l1.auto_negotiation.link_training = link_training
+    port_l1.auto_negotiation.rs_fec = rs_fec
+    api.set_config(config)
     validate_layer1_config(api, port_locations[speed], speed_type, speed,
                            auto_negotiate, ieee_media_defaults,
                            link_training, rs_fec)

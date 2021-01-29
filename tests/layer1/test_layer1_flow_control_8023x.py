@@ -1,8 +1,4 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
-def test_layer1_flow_control_8023x(api, tx_port, rx_port, options, utils):
+def test_layer1_flow_control_8023x(api, utils):
     """
     Test that layer1 flow controle 8023x configuration settings
     are being applied correctly.
@@ -12,27 +8,25 @@ def test_layer1_flow_control_8023x(api, tx_port, rx_port, options, utils):
 
     directed_address = '01 80 C2 00 00 01'
 
-    enabled_pfc = Ieee8023x()
-    fcoe1 = Layer1(name='pfc delay-1',
-                   port_names=[tx_port.name],
-                   speed=utils.settings.speed,
-                   auto_negotiate=True,
-                   media=utils.settings.media,
-                   flow_control=FlowControl(directed_address=directed_address,
-                                            choice=enabled_pfc))
+    config = api.config()
+    config.ports.port().port()
+    tx_port, rx_port = config.ports[0], config.ports[1]
+    tx_port.name, rx_port.name = "Tx port", "Rx port"
+    tx_port.location = utils.settings.ports[0]
+    rx_port.location = utils.settings.ports[1]
 
-    fcoe2 = Layer1(name='pfc delay-2',
-                   port_names=[rx_port.name],
-                   auto_negotiate=True,
-                   speed=utils.settings.speed,
-                   media=utils.settings.media,
-                   flow_control=FlowControl(directed_address=directed_address,
-                                            choice=enabled_pfc))
-
-    config = Config(ports=[tx_port, rx_port],
-                    layer1=[fcoe1, fcoe2],
-                    options=options)
-    api.set_state(State(ConfigState(config=config, state='set')))
+    config.layer1.layer1().layer1()
+    fcoe1, fcoe2 = config.layer1[0], config.layer1[1]
+    fcoe1.name, fcoe2.name = 'pfc delay-1', 'pfc delay-2'
+    fcoe1.port_names, fcoe2.port_names = [tx_port.name], [rx_port.name]
+    fcoe1.speed, fcoe2.speed = utils.settings.speed, utils.settings.speed
+    fcoe1.auto_negotiate, fcoe2.auto_negotiate = True, True
+    fcoe1.media, fcoe2.media = utils.settings.media, utils.settings.media
+    fcoe1.flow_control.directed_address = directed_address
+    fcoe2.flow_control.directed_address = directed_address
+    fcoe1.flow_control.choice = 'ieee_802_3x'
+    fcoe2.flow_control.choice = 'ieee_802_3x'
+    api.set_config(config)
     validate_8023x_config(api,
                           directed_address)
 
