@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_counter_ip_addr(api, b2b_raw_config, utils):
     """
     Configure a raw IPv4 flow with,
@@ -25,36 +21,19 @@ def test_counter_ip_addr(api, b2b_raw_config, utils):
     src_ip = '10.1.1.1'
     dst_ip = '20.1.1.1'
 
-    src_ip_list = flow.Counter(
-        start=src_ip,
-        step=step,
-        count=count
-    )
+    f.packet.ethernet().ipv4()
+    eth = f.packet[0]
+    ipv4 = f.packet[1]
+    eth.src.values = src
+    eth.dst.values = dst
 
-    dst_ip_list = flow.Counter(
-        start=dst_ip,
-        step=step,
-        count=count,
-        up=False
-    )
-
-    f.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=flow.Pattern(src),
-                dst=flow.Pattern(dst)
-            )
-        ),
-        flow.Header(
-            flow.Ipv4(
-                src=flow.Pattern(src_ip_list),
-                dst=flow.Pattern(dst_ip_list)
-            )
-        )
-    ]
-
-    utils.apply_config(api, b2b_raw_config)
-
+    ipv4.src.increment.start = src_ip
+    ipv4.src.increment.step = step
+    ipv4.src.increment.count = count
+    ipv4.dst.decrement.start = dst_ip
+    ipv4.dst.decrement.step = step
+    ipv4.dst.decrement.count = count
+    api.set_config(b2b_raw_config)
     attrs = {
         'Destination Address': (dst_ip, step, str(count)),
         'Source Address': (src_ip, step, str(count)),

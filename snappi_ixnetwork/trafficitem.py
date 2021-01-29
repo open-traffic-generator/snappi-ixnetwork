@@ -219,7 +219,7 @@ class TrafficItem(CustomField):
         enable_min_frame_size = False
         for flow in self._api.snappi_config.flows:
             if (len(flow.packet) == 1 and flow.packet[
-                    0].choice == 'pfcpause'):
+                    0].parent.choice == 'pfcpause'):
                 enable_min_frame_size = True
                 break
         if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:

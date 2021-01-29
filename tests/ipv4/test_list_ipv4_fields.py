@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_list_ip_fields(api, b2b_raw_config, utils):
     """
     Configure a raw IPv4 flow with,
@@ -22,8 +18,6 @@ def test_list_ip_fields(api, b2b_raw_config, utils):
     src_ip = '10.1.1.1'
     dst_ip = '20.1.1.1'
 
-    pat = flow.Pattern
-
     from random import Random
     r = Random()
 
@@ -39,33 +33,25 @@ def test_list_ip_fields(api, b2b_raw_config, utils):
     header_checksum = [
         str('{:02x}'.format(r.randint(0, 65535))) for i in range(10)
     ]
+    f.packet.ethernet().ipv4()
+    eth = f.packet[0]
+    ipv4 = f.packet[1]
+    eth.src.value = src
+    eth.dst.value = dst
+    ipv4.src.value = src_ip
+    ipv4.dst.value = dst_ip
+    ipv4.header_length.values = header_length
+    ipv4.total_length.values = total_length
+    ipv4.identification.values = identification
+    ipv4.reserved.values = reserved
+    ipv4.dont_fragment.values = dont_fragment
+    ipv4.more_fragments.values = more_fragments
+    ipv4.fragment_offset.values = fragment_offset
+    ipv4.time_to_live.values = time_to_live
+    ipv4.protocol.values = protocol
+    ipv4.header_checksum.values = header_checksum
 
-    f.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=pat(src),
-                dst=pat(dst)
-            )
-        ),
-        flow.Header(
-            flow.Ipv4(
-                src=pat(src_ip),
-                dst=pat(dst_ip),
-                header_length=pat(header_length),
-                total_length=pat(total_length),
-                identification=pat(identification),
-                reserved=pat(reserved),
-                dont_fragment=pat(dont_fragment),
-                more_fragments=pat(more_fragments),
-                fragment_offset=pat(fragment_offset),
-                time_to_live=pat(time_to_live),
-                protocol=pat(protocol),
-                header_checksum=pat(header_checksum)
-            )
-        )
-    ]
-
-    utils.apply_config(api, b2b_raw_config)
+    api.set_config(b2b_raw_config)
     attrs = {
         'Header Length': header_length,
         'Total Length (octets)': total_length,

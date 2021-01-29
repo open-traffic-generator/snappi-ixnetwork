@@ -16,7 +16,6 @@ def test_traffic_transmit_state(api, b2b_raw_config, utils):
     ports = b2b_raw_config.ports
     flow1 = b2b_raw_config.flows[0]
     flow1.name = 'tx_flow1'
-    # flow1 = snappi.Api().config().flows.flow()[-1]
     flow1.packet.ethernet().ipv4()
     flow1.packet[0].src.value = '00:0c:29:1d:10:67'
     flow1.packet[0].dst.value = '00:0c:29:1d:10:71'
@@ -24,13 +23,11 @@ def test_traffic_transmit_state(api, b2b_raw_config, utils):
     flow1.packet[1].dst.value = '10.10.10.2'
     flow2 = b2b_raw_config.flows.flow()[-1]
     flow2.name = 'tx_flow2'
-    # flow2 = snappi.Api().config().flows.flow()[-1]
     flow2.tx_rx.port.tx_name = ports[0].name
     flow2.tx_rx.port.rx_name = ports[1].name
 
     flow3 = b2b_raw_config.flows.flow()[-1]
     flow3.name = 'tx_flow3'
-    # flow3 = snappi.Api().config().flows.flow()[-1]
     flow3.tx_rx.port.tx_name = ports[0].name
     flow3.tx_rx.port.rx_name = ports[1].name
 
@@ -47,12 +44,11 @@ def test_traffic_transmit_state(api, b2b_raw_config, utils):
     flow3.rate.percentage = 10
 
     utils.start_traffic(api, b2b_raw_config)
-    # state metrics is implemented yet
-    # import time
-    # time.sleep(10)
-    # utils.wait_for(
-    #     lambda: utils.is_traffic_stopped(api, flow_names=['f1', 'f3']),
-    #     'traffic to stop'
-    # )
+    import time
+    time.sleep(10)
+    utils.wait_for(
+        lambda: utils.is_traffic_stopped(api, flow_names=['f1', 'f3']),
+        'traffic to stop'
+    )
 
-    # utils.stop_traffic(api, b2b_raw_config)
+    utils.stop_traffic(api, b2b_raw_config)

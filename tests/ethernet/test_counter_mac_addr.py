@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_counter_mac_addrs(api, b2b_raw_config, utils):
     """
     Configure a raw ethernet flow with,
@@ -11,7 +7,7 @@ def test_counter_mac_addrs(api, b2b_raw_config, utils):
     - Fetch the ethernet header config via restpy and validate
     against expected
     """
-    f = b2b_raw_config.flows[0]
+    flow = b2b_raw_config.flows[0]
     count = 10
     src = '00:0C:29:E3:53:EA'
     dst = '00:0C:29:E3:53:F4'
@@ -19,36 +15,20 @@ def test_counter_mac_addrs(api, b2b_raw_config, utils):
     eth_type = '8100'
     eth_step = '2'
 
-    src_mac_list = flow.Counter(
-        start=src,
-        step=step,
-        count=count
-    )
-
-    dst_mac_list = flow.Counter(
-        start=dst,
-        step=step,
-        count=count,
-        up=False
-    )
-
-    eth_type_list = flow.Counter(
-        start=eth_type,
-        step=eth_step,
-        count=count
-    )
-
-    f.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=flow.Pattern(src_mac_list),
-                dst=flow.Pattern(dst_mac_list),
-                ether_type=flow.Pattern(eth_type_list)
-            )
-        )
-    ]
-
-    utils.apply_config(api, b2b_raw_config)
+    # import snappi
+    # flow = snappi.Api().config().flows.flow()[-1]
+    flow.packet.ethernet()
+    eth = flow.packet[-1]
+    eth.src.increment.start = src
+    eth.src.increment.step = step
+    eth.src.increment.count = count
+    eth.dst.decrement.start = dst
+    eth.dst.decrement.step = step
+    eth.dst.decrement.count = count
+    eth.ether_type.increment.start = eth_type
+    eth.ether_type.increment.step = eth_step
+    eth.ether_type.increment.count = count
+    api.set_config(b2b_raw_config)
 
     attrs = {
         'Destination MAC Address': (

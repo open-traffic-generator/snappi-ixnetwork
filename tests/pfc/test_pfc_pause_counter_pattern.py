@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_counter_pfc_pause(api, b2b_raw_config, utils):
     """
     Configure a pfc pause header fields,
@@ -13,134 +9,59 @@ def test_counter_pfc_pause(api, b2b_raw_config, utils):
     """
     f = b2b_raw_config.flows[0]
     f.name = 'pfcpause'
-    f.size = flow.Size(100)
-    src = flow.Counter(
-        start='00:AB:BC:AB:BC:AB',
-        step='00:01:00:00:01:00',
-        count=10
-    )
-    dst = flow.Counter(
-        start='00:AB:BC:AB:BC:AB',
-        step='00:01:00:00:01:00',
-        count=10
-    )
-    ether_type = flow.Counter(
-        start='8100',
-        step='1',
-        count=10
-    )
-    enable_vec = flow.Counter(
-        start='FF',
-        step='1',
-        count=10
-    )
-    cl = flow.Counter(
-        start='FFFF',
-        step='1',
-        count=10
-    )
+    f.size.fixed = 100
 
-    f.packet = [
-        flow.Header(
-            flow.PfcPause(
-                src=flow.Pattern(src),
-                dst=flow.Pattern(dst),
-                ether_type=flow.Pattern(ether_type),
-                class_enable_vector=flow.Pattern(enable_vec),
-                control_op_code=flow.Pattern('101'),
-                pause_class_0=flow.Pattern(cl),
-                pause_class_1=flow.Pattern(cl),
-                pause_class_2=flow.Pattern(cl),
-                pause_class_3=flow.Pattern(cl),
-                pause_class_4=flow.Pattern(cl),
-                pause_class_5=flow.Pattern(cl),
-                pause_class_6=flow.Pattern(cl),
-                pause_class_7=flow.Pattern(cl)
-            )
-        )
-    ]
+    f.packet.pfcpause()
+    pfc = f.packet[0]
 
-    utils.apply_config(api, b2b_raw_config)
+    pfc.src.increment.start = '00:AB:BC:AB:BC:AB'
+    pfc.src.increment.step = '00:01:00:00:01:00'
+    pfc.src.increment.count = 10
+    pfc.dst.increment.start = '00:AB:BC:AB:BC:AB'
+    pfc.dst.increment.step = '00:01:00:00:01:00'
+    pfc.dst.increment.count = 10
+    pfc.ether_type.increment.start = '8100'
+    pfc.ether_type.increment.step = 1
+    pfc.ether_type.increment.count = 10
+    pfc.class_enable_vector.increment.start = 'FF'
+    pfc.class_enable_vector.increment.step = 1
+    pfc.class_enable_vector.increment.count = 10
+    pfc.control_op_code.value = '101'
 
+    for i in range(8):
+        cl = getattr(pfc, 'pause_class_{}'.format(i))
+        cl.increment.start = 'FFFF'
+        cl.increment.step = 1
+        cl.increment.count = 10
+
+    api.set_config(b2b_raw_config)
     attrs = {
         'Destination address': (
-            dst.start.lower(), dst.step, str(dst.count)
+            '00:AB:BC:AB:BC:AB'.lower(),
+            '00:01:00:00:01:00', '10'
         ),
         'Source address': (
-            src.start.lower(), src.step, str(src.count)
+            '00:AB:BC:AB:BC:AB'.lower(),
+            '00:01:00:00:01:00', '10'
         ),
-        'Ethertype': (
-            ether_type.start, ether_type.step, str(ether_type.count)
-        ),
+        'Ethertype': ('8100', '1', '10'),
         'Control opcode': '101',
-        'priority_enable_vector': (
-            enable_vec.start.lower(), enable_vec.step, str(enable_vec.count)
-        ),
-        'PFC Queue 0': (
-            cl.start.lower(), cl.step, str(cl.count)
-        ),
-        'PFC Queue 1': (
-            cl.start.lower(), cl.step, str(cl.count)
-        ),
-        'PFC Queue 2': (
-            cl.start.lower(), cl.step, str(cl.count)
-        ),
-        'PFC Queue 3': (
-            cl.start.lower(), cl.step, str(cl.count)
-        ),
-        'PFC Queue 4': (
-            cl.start.lower(), cl.step, str(cl.count)
-        ),
-        'PFC Queue 5': (
-            cl.start.lower(), cl.step, str(cl.count)
-        ),
-        'PFC Queue 6': (
-            cl.start.lower(), cl.step, str(cl.count)
-        ),
-        'PFC Queue 7': (
-            cl.start.lower(), cl.step, str(cl.count)
-        ),
+        'priority_enable_vector': ('ff', '1', '10'),
+        'PFC Queue 0': ('ffff', '1', '10'),
+        'PFC Queue 1': ('ffff', '1', '10'),
+        'PFC Queue 2': ('ffff', '1', '10'),
+        'PFC Queue 3': ('ffff', '1', '10'),
+        'PFC Queue 4': ('ffff', '1', '10'),
+        'PFC Queue 5': ('ffff', '1', '10'),
+        'PFC Queue 6': ('ffff', '1', '10'),
+        'PFC Queue 7': ('ffff', '1', '10'),
     }
 
     utils.validate_config(api, 0, **attrs)
 
-    f.packet = [
-        flow.Header(
-            flow.PfcPause(
-                src=flow.Pattern('00:AB:BC:AB:BC:AB'),
-                dst=flow.Pattern('00:AB:BC:AB:BC:AB'),
-                ether_type=flow.Pattern('8100'),
-                class_enable_vector=flow.Pattern('FF'),
-                control_op_code=flow.Pattern('0101'),
-                pause_class_0=flow.Pattern('0000'),
-                pause_class_6=flow.Pattern('FFFF'),
-            )
-        )
-    ]
-    utils.apply_config(api, b2b_raw_config)
-    attrs = {
-        'Destination address': '00:ab:bc:ab:bc:ab',
-        'Source address': '00:ab:bc:ab:bc:ab',
-        'Ethertype': '8100',
-        'Control opcode': '101',
-        'priority_enable_vector': 'ff',
-        'PFC Queue 0': '0',
-        'PFC Queue 1': '0',
-        'PFC Queue 2': '0',
-        'PFC Queue 3': '0',
-        'PFC Queue 4': '0',
-        'PFC Queue 5': '0',
-        'PFC Queue 6': 'ffff',
-        'PFC Queue 7': '0'
-    }
+    pfc.pause_class_7.increment.start = '3333'
 
-    utils.validate_config(api, 0, **attrs)
+    api.set_config(b2b_raw_config)
 
-    f.packet[0].pfcpause.pause_class_7 = flow.Pattern(cl)
-
-    utils.apply_config(api, b2b_raw_config)
-
-    attrs['PFC Queue 7'] = (
-        cl.start.lower(), cl.step, str(cl.count)
-    )
+    attrs['PFC Queue 7'] = ('3333', '1', '10')
     utils.validate_config(api, 0, **attrs)

@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_list_mac_addrs(api, b2b_raw_config, utils):
     """
     Configure a raw ethernet flow with,
@@ -11,7 +7,7 @@ def test_list_mac_addrs(api, b2b_raw_config, utils):
     - Fetch the ethernet header config via restpy and validate
     against expected
     """
-    f = b2b_raw_config.flows[0]
+    flow = b2b_raw_config.flows[0]
     count = 10
     step = '05:00:00:02:01:00'
     src = utils.mac_or_ip_addr_from_counter_pattern(
@@ -22,17 +18,14 @@ def test_list_mac_addrs(api, b2b_raw_config, utils):
     )
     eth_type = ['8100', '88a8', '9100', '9200']
 
-    f.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=flow.Pattern(src),
-                dst=flow.Pattern(dst),
-                ether_type=flow.Pattern(eth_type)
-            )
-        )
-    ]
-
-    utils.apply_config(api, b2b_raw_config)
+    # import snappi
+    # flow = snappi.Api().config().flows.flow()[-1]
+    flow.packet.ethernet()
+    eth = flow.packet[-1]
+    eth.src.values = src
+    eth.dst.values = dst
+    eth.ether_type.values = eth_type
+    api.set_config(b2b_raw_config)
     attrs = {
         'Destination MAC Address': dst,
         'Source MAC Address': src,

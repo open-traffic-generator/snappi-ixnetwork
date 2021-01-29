@@ -1,8 +1,4 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
-def test_layer1_flow_control_8021qbb(api, tx_port, rx_port, options, utils):
+def test_layer1_flow_control_8021qbb(api, utils):
     """
     Test that layer1 flow control 8021qbb configuration settings
     are being applied correctly.
@@ -12,32 +8,35 @@ def test_layer1_flow_control_8021qbb(api, tx_port, rx_port, options, utils):
     port1_delay = 3
     port1_pfc_priority_groups = [1, 0, -1, -1, 7, -1, -1, -1]
     directed_address = '01 80 C2 00 00 01'
-
-    enabled_pfc = Ieee8021qbb(pfc_delay=3,
-                              pfc_class_0=port1_pfc_priority_groups[0],
-                              pfc_class_1=port1_pfc_priority_groups[1],
-                              pfc_class_4=port1_pfc_priority_groups[4])
-    fcoe1 = Layer1(name='enabled pfc delay',
-                   port_names=[tx_port.name],
-                   speed=utils.settings.speed,
-                   auto_negotiate=True,
-                   media=utils.settings.media,
-                   flow_control=FlowControl(directed_address=directed_address,
-                                            choice=enabled_pfc))
-
-    disabled_pfc = Ieee8021qbb(pfc_delay=0)
-    fcoe2 = Layer1(name='disabled pfc delay',
-                   port_names=[rx_port.name],
-                   auto_negotiate=True,
-                   speed=utils.settings.speed,
-                   media=utils.settings.media,
-                   flow_control=FlowControl(directed_address=directed_address,
-                                            choice=disabled_pfc))
-
-    config = Config(ports=[tx_port, rx_port],
-                    layer1=[fcoe1, fcoe2],
-                    options=options)
-    api.set_state(State(ConfigState(config=config, state='set')))
+    config = api.config()
+    config.ports.port().port()
+    tx_port = config.ports[0]
+    rx_port = config.ports[1]
+    tx_port.name = "Tx port"
+    tx_port.location = utils.settings.ports[0]
+    rx_port.location = utils.settings.ports[1]
+    rx_port.name = "Rx port"
+    config.layer1.layer1().layer1()
+    fcoe1 = config.layer1[0]
+    fcoe2 = config.layer1[1]
+    fcoe1.name = 'enabled pfc delay'
+    fcoe1.port_names = [tx_port.name]
+    fcoe1.speed = utils.settings.speed
+    fcoe1.auto_negotiate = True
+    fcoe1.media = utils.settings.media
+    fcoe1.flow_control.directed_address = directed_address
+    fcoe1.flow_control.ieee_802_1qbb.pfc_delay = 3
+    fcoe1.flow_control.ieee_802_1qbb.pfc_class_0 = port1_pfc_priority_groups[0]
+    fcoe1.flow_control.ieee_802_1qbb.pfc_class_1 = port1_pfc_priority_groups[1]
+    fcoe1.flow_control.ieee_802_1qbb.pfc_class_4 = port1_pfc_priority_groups[4]
+    fcoe2.name = 'disabled pfc delay'
+    fcoe2.port_names = [rx_port.name]
+    fcoe2.speed = utils.settings.speed
+    fcoe2.auto_negotiate = True
+    fcoe2.media = utils.settings.media
+    fcoe2.flow_control.directed_address = directed_address
+    fcoe2.flow_control.ieee_802_1qbb.pfc_delay = 0
+    api.set_config(config)
     validate_8021qbb_config(api,
                             port1_delay,
                             port1_pfc_priority_groups,

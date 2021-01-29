@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_list_ip_addr(api, b2b_raw_config, utils):
     """
     Configure a raw IPv4 flow with,
@@ -30,23 +26,14 @@ def test_list_ip_addr(api, b2b_raw_config, utils):
     dst_ip_list = utils.mac_or_ip_addr_from_counter_pattern(
         dst_ip, step, 5, True, False
     )
-
-    f.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=flow.Pattern(src),
-                dst=flow.Pattern(dst)
-            )
-        ),
-        flow.Header(
-            flow.Ipv4(
-                src=flow.Pattern(src_ip_list),
-                dst=flow.Pattern(dst_ip_list)
-            )
-        )
-    ]
-
-    utils.apply_config(api, b2b_raw_config)
+    f.packet.ethernet().ipv4()
+    eth = f.packet[0]
+    ipv4 = f.packet[1]
+    eth.src.values = src
+    eth.dst.values = dst
+    ipv4.src.values = src_ip_list
+    ipv4.dst.values = dst_ip_list
+    api.set_config(b2b_raw_config)
     attrs = {
         'Destination Address': dst_ip_list,
         'Source Address': src_ip_list,

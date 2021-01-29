@@ -348,3 +348,83 @@ def validate_config(api, packet_header, **kwargs):
     packet_info = get_packet_information(api, packet_header)
     for key in kwargs:
         assert packet_info[key] == kwargs[key]
+
+
+def is_traffic_stopped(api, flow_names=[]):
+    """
+    Returns true if traffic in stop state
+    """
+    fq = api.flow_metrics_request()
+    fq.flow_names = flow_names
+    metrics = api.get_flow_metrics(fq)
+    return all([m.transmit == 'stopped' for m in metrics])
+
+
+def value_list_with_packet_count(value_list, packet_count):
+    """
+    Example:
+        value_list_with_packet_count(['10.1.1.1', '10.1.1.3'], 6)
+        returns: ['10.1.1.1', '10.1.1.3', '10.1.1.1', '10.1.1.3',
+                  '10.1.1.1', '10.1.1.3']
+    """
+    ret_value = value_list * packet_count
+    return ret_value[:packet_count]
+
+
+def mac_or_ip_to_num(mac_or_ip_addr, mac=True):
+    """
+    Example:
+    mac_or_ip_to_num('00:0C:29:E3:53:EA')
+    returns: 52242371562
+    mac_or_ip_to_num('10.1.1.1', False)
+    returns: 167837953
+    """
+    sep = ':' if mac else '.'
+    addr = []
+    if mac:
+        addr = mac_or_ip_addr.split(sep)
+    else:
+        addr = ["{:02x}".format(int(i)) for i in mac_or_ip_addr.split(sep)]
+    return int("".join(addr), 16)
+
+
+def num_to_mac_or_ip(mac_or_ip_addr, mac=True):
+    """
+    Example:
+    num_to_mac_or_ip(52242371562)
+    returns: '00:0C:29:E3:53:EA'
+    num_to_mac_or_ip(167837953, False)
+    returns: '10.1.1.1'
+    """
+    sep = ':' if mac else '.'
+    fmt = '{:012x}' if mac else '{:08x}'
+    rng = 12 if mac else 8
+    mac_or_ip = fmt.format(mac_or_ip_addr)
+    addr = []
+    for i in range(0, rng, 2):
+        if mac:
+            addr.append(mac_or_ip[i] + mac_or_ip[i + 1])
+        else:
+            addr.append(str(int(mac_or_ip[i] + mac_or_ip[i + 1], 16)))
+    return sep.join(addr)
+
+
+def mac_or_ip_addr_from_counter_pattern(start_addr, step, count, up, mac=True):
+    """
+    Example:
+    mac_or_ip_addr_from_counter_pattern('10.1.1.1', '0.0.1.1', 2, True, False)
+    returns: ['00:0C:29:E3:53:EA', '00:0C:29:E3:54:EA']
+    mac_or_ip_addr_from_counter_pattern('10.1.1.1', '0.0.1.1', 2, True, False)
+    teturns: ['10.1.1.1', '10.1.2.2']
+    """
+    addr_list = []
+    for num in range(count):
+        addr_list.append(start_addr)
+        if up:
+            start_addr = mac_or_ip_to_num(
+                start_addr, mac) + mac_or_ip_to_num(step, mac)
+        else:
+            start_addr = mac_or_ip_to_num(
+                start_addr, mac) - mac_or_ip_to_num(step, mac)
+        start_addr = num_to_mac_or_ip(start_addr, mac)
+    return addr_list

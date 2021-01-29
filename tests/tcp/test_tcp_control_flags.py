@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_tcp_control_flags(api, b2b_raw_config, utils):
     """
     Configure a raw tcp flow with,
@@ -18,41 +14,23 @@ def test_tcp_control_flags(api, b2b_raw_config, utils):
     control_flags = '111100101'
     size = 1500
     packets = 100
-
-    flow.packet = [
-        Flow.Header(
-            Flow.Ethernet(
-                src=Flow.Pattern('00:0c:29:1d:10:67'),
-                dst=Flow.Pattern('00:0c:29:1d:10:71')
-            )
-        ),
-        Flow.Header(
-            Flow.Ipv4(
-                src=Flow.Pattern('10.10.10.1'),
-                dst=Flow.Pattern('10.10.10.2')
-            )
-        ),
-        Flow.Header(
-            Flow.Tcp(
-                src_port=Flow.Pattern(src_port),
-                dst_port=Flow.Pattern(dst_port),
-                ecn_ns=Flow.Pattern(control_flags[0]),
-                ecn_cwr=Flow.Pattern(control_flags[1]),
-                ecn_echo=Flow.Pattern(control_flags[2]),
-                ctl_urg=Flow.Pattern(control_flags[3]),
-                ctl_ack=Flow.Pattern(control_flags[4]),
-                ctl_psh=Flow.Pattern(control_flags[5]),
-                ctl_rst=Flow.Pattern(control_flags[6]),
-                ctl_syn=Flow.Pattern(control_flags[7]),
-                ctl_fin=Flow.Pattern(control_flags[8]),
-            )
-        ),
+    flow.packet.ethernet().ipv4().tcp()
+    tcp = flow.packet[-1]
+    tcp.src_port.value = src_port
+    tcp.dst_port.value = dst_port
+    flags = [
+        "ecn_ns", "ecn_cwr", "ecn_echo", "ctl_urg", "ctl_ack",
+        "ctl_psh", "ctl_rst", "ctl_syn", "ctl_fin"
     ]
-    flow.duration = Flow.Duration(Flow.FixedPackets(packets=packets))
-    flow.size = Flow.Size(size)
-    flow.rate = Flow.Rate(value=10, unit='line')
+    for i, f in enumerate(flags):
+        getattr(tcp, f).value = control_flags[i]
 
-    utils.apply_config(api, b2b_raw_config)
+    flow.duration.fixed_packets.packets = packets
+    flow.size.fixed = size
+    flow.rate.percentage = 10
+
+    api.set_config(b2b_raw_config)
+
     attrs = {
         'TCP-Source-Port': src_port,
         'TCP-Dest-Port': dst_port,

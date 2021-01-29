@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_fixed_ip_fields(api, b2b_raw_config, utils):
     """
     Configure a raw IPv4 flow with,
@@ -22,34 +18,25 @@ def test_fixed_ip_fields(api, b2b_raw_config, utils):
     src_ip = '10.1.1.1'
     dst_ip = '20.1.1.1'
 
-    pat = flow.Pattern
+    f.packet.ethernet().ipv4()
+    eth = f.packet[0]
+    ipv4 = f.packet[1]
+    eth.src.value = src
+    eth.dst.value = dst
+    ipv4.src.value = src_ip
+    ipv4.dst.value = dst_ip
+    ipv4.header_length.value = 5
+    ipv4.total_length.value = 100
+    ipv4.identification.value = 1234
+    ipv4.reserved.value = 1
+    ipv4.dont_fragment.value = 1
+    ipv4.more_fragments.value = 1
+    ipv4.fragment_offset.value = 0
+    ipv4.time_to_live.value = 50
+    ipv4.protocol.value = 200
+    ipv4.header_checksum.value = 1234
 
-    f.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=pat(src),
-                dst=pat(dst)
-            )
-        ),
-        flow.Header(
-            flow.Ipv4(
-                src=pat(src_ip),
-                dst=pat(dst_ip),
-                header_length=pat('5'),
-                total_length=pat('100'),
-                identification=pat('1234'),
-                reserved=pat('1'),
-                dont_fragment=pat('1'),
-                more_fragments=pat('1'),
-                fragment_offset=pat('0'),
-                time_to_live=pat('50'),
-                protocol=pat('200'),
-                header_checksum=pat('1234')
-            )
-        )
-    ]
-
-    utils.apply_config(api, b2b_raw_config)
+    api.set_config(b2b_raw_config)
     attrs = {
         'Header Length': '5',
         'Total Length (octets)': '100',
