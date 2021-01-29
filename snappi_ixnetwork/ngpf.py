@@ -91,7 +91,7 @@ class Ngpf(object):
                                                     device.bgpv4.ipv4.ethernet)
             ixn_ipv4 = self._configure_ipv4(ixn_ethernet.Ipv4,
                                             device.bgpv4.ipv4)
-            self._configure_bgpv4(ixn_ipv4.BgpIpv4Peer, device.bgpv4)
+            self._configure_bgpv4(ixn_device_group, ixn_ipv4.BgpIpv4Peer, device.bgpv4)
 
     def _configure_pattern(self, ixn_obj, pattern, enum_map=None):
         if pattern.choice is None:
@@ -180,7 +180,7 @@ class Ngpf(object):
         self._configure_pattern(ixn_ipv6.Prefix, ipv6.prefix)
         return ipv6
 
-    def _configure_bgpv4(self, ixn_bgpv4, bgpv4):
+    def _configure_bgpv4(self, ixn_dg, ixn_bgpv4, bgpv4):
         self._api._remove(ixn_bgpv4, [bgpv4])
         args = {
             'Name': bgpv4.name,
@@ -191,3 +191,43 @@ class Ngpf(object):
         else:
             self._update(ixn_bgpv4, **args)
         self._api.ixn_objects[bgpv4.name] = ixn_bgpv4.href
+        # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
+        as_type = 'internal'
+        if bgpv4.as_type is not None and bgpv4.as_type \
+                    is 'ebgp':
+            as_type = 'external'
+        ixn_bgpv4.Type.Single(as_type)
+        ixn_bgpv4.Enable4ByteAs.Single(True)
+        self._configure_pattern(ixn_bgpv4.LocalAs4Bytes, bgpv4.as_number)
+        self._configure_pattern(ixn_bgpv4.HoldTimer, bgpv4.hold_time_interval)
+        self._configure_pattern(ixn_bgpv4.KeepaliveTimer, bgpv4.keep_alive_interval)
+        self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_ipv4_address)
+        # self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_as_number)
+        
+        if len(bgpv4.bgpv4_route_ranges) > 0:
+            for route_range in bgpv4.bgpv4_route_ranges:
+                self._configure_bgpv4_route(ixn_dg.NetworkGroup, route_range)
+                
+        return bgpv4
+
+    def _configure_bgpv4_route(self, ixn_ng, route_range):
+        args = {
+            'Name': route_range.name,
+        }
+        ixn_ng.find(Name='^%s$' % route_range.name)
+        if len(ixn_ng) == 0:
+            ixn_ng.add(**args)[-1]
+            ixn_pool = ixn_ng.Ipv4PrefixPools.add()
+        else:
+            self._update(ixn_ng, **args)
+            ixn_pool = ixn_ng.Ipv4PrefixPools.find()
+        ixn_pool.NumberOfAddresses = route_range.route_count_per_device
+        self._configure_pattern(ixn_pool.NetworkAddress, route_range.address)
+        self._configure_pattern(ixn_pool.PrefixLength, route_range.prefix)
+        bgp_property = ixn_pool.BgpIPRouteProperty.find()
+        if route_range.as_path.choice is not None:
+            bgp_property.EnableAsPathSegments.Single(True)
+            self._configure_pattern(bgp_property.BgpAsPathSegmentList.find().BgpAsNumberList.find().AsNumber,
+                                    route_range.as_path)
+        self._configure_pattern(bgp_property.Ipv4NextHop, route_range.next_hop_address)
+        
