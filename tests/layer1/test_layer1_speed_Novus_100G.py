@@ -129,4 +129,3 @@ def validate_layer1_config(api,
             == rs_fec
         assert getattr(port.L1Config, type).LinkTraining \
             == link_training
-

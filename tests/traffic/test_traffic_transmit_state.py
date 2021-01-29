@@ -47,7 +47,9 @@ def test_traffic_transmit_state(api, b2b_raw_config, utils):
     import time
     time.sleep(10)
     utils.wait_for(
-        lambda: utils.is_traffic_stopped(api, flow_names=['f1', 'f3']),
+        lambda: utils.is_traffic_stopped(
+            api, flow_names=['tx_flow1', 'tx_flow3']
+        ),
         'traffic to stop'
     )
 
