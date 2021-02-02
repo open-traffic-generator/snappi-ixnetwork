@@ -14,7 +14,6 @@ class Vport(object):
     Transformations
     ---------------
     - /components/schemas/Port to /vport
-    - /components/schemas/Capture to /vport/capture
     - /components/schemas/Layer1 to /vport/l1Config/...
 
     Process
@@ -139,7 +138,7 @@ class Vport(object):
             self._delete_vports()
             self._create_vports()
         with Timer(self._api, 'Captures configuration'):
-            self._create_capture()
+            self._api.capture.config()
         with Timer(self._api, 'Location configuration'):
             self._set_location()
         with Timer(self._api, 'Layer1 configuration'):
@@ -181,77 +180,6 @@ class Vport(object):
         self._import(imports)
         for name, vport in self._api.select_vports().items():
             self._api.ixn_objects[name] = vport['href']
-
-    def _create_capture(self):
-        """Overwrite any capture settings
-        """
-        imports = []
-        vports = self._api.select_vports()
-        for vport in vports.values():
-            if vport['capture']['hardwareEnabled'] is True or vport['capture'][
-                    'softwareEnabled'] is True:
-                capture = {
-                    'xpath': vport['capture']['xpath'],
-                    'captureMode': 'captureTriggerMode',
-                    'hardwareEnabled': False,
-                    'softwareEnabled': False
-                }
-                imports.append(capture)
-        for capture_item in self._api.snappi_config.captures:
-            if capture_item.port_names is None:
-                continue
-            for port_name in capture_item.port_names:
-                capture_mode = 'captureTriggerMode'
-                if capture_item.overwrite:
-                    capture_mode = 'captureContinuousMode'
-                    reset = {'xpath': vports[port_name]['xpath'] + '/capture/trigger'}
-                    reset['captureTriggerEnable'] = False
-                    self._import(reset)
-                isEnable = False
-                if capture_item.enable is True:
-                    isEnable = True
-                capture = {
-                    'xpath': vports[port_name]['xpath'] + '/capture',
-                    'captureMode': capture_mode,
-                    'hardwareEnabled': isEnable,
-                    'softwareEnabled': False
-                }
-                pallette = {'xpath': capture['xpath'] + '/filterPallette'}
-                filter = {'xpath': capture['xpath'] + '/filter'}
-                trigger = {'xpath': capture['xpath'] + '/trigger'}
-                if capture_item.basic is not None and len(
-                        capture_item.basic) > 0:
-                    filter['captureFilterEnable'] = True
-                    trigger['captureTriggerEnable'] = True
-                    filter['captureFilterEnable'] = True
-                    for basic in capture_item.basic:
-                        if basic.choice == 'mac_address' and basic.mac_address.mac == 'source':
-                            pallette['SA1'] = basic.mac_address.filter
-                            pallette['SAMask1'] = basic.mac_address.mask
-                            filter[
-                                'captureFilterSA'] = 'notAddr1' if basic.not_operator is True else 'addr1'
-                            trigger['triggerFilterSA'] = filter[
-                                'captureFilterSA']
-                        elif basic.choice == 'mac_address' and basic.mac_address.mac == 'destination':
-                            pallette['DA1'] = basic.mac_address.filter
-                            pallette['DAMask1'] = basic.mac_address.mask
-                            filter[
-                                'captureFilterDA'] = 'notAddr1' if basic.not_operator is True else 'addr1'
-                            trigger['triggerFilterDA'] = filter[
-                                'captureFilterDA']
-                        elif basic.choice == 'custom':
-                            pallette['pattern1'] = basic.custom.filter
-                            pallette['patternMask1'] = basic.custom.mask
-                            pallette['patternOffset1'] = basic.custom.offset
-                            filter[
-                                'captureFilterPattern'] = 'notPattern1' if basic.not_operator is True else 'pattern1'
-                            trigger['triggerFilterPattern'] = filter[
-                                'captureFilterPattern']
-                imports.append(capture)
-                imports.append(pallette)
-                imports.append(filter)
-                imports.append(trigger)
-        self._import(imports)
 
     def _add_hosts(self, HostReadyTimeout):
         chassis = self._api._ixnetwork.AvailableHardware.Chassis

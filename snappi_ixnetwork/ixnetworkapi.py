@@ -7,6 +7,7 @@ from snappi_ixnetwork.validation import Validation
 from snappi_ixnetwork.vport import Vport
 from snappi_ixnetwork.ngpf import Ngpf
 from snappi_ixnetwork.trafficitem import TrafficItem
+from snappi_ixnetwork.capture import Capture
 from snappi_ixnetwork.timer import Timer
 
 
@@ -51,6 +52,7 @@ class Api(snappi.Api):
         self.vport = Vport(self)
         self.ngpf = Ngpf(self)
         self.traffic_item = TrafficItem(self)
+        self.capture = Capture(self)
 
     def _get_addr_port(self, host):
         items = host.split('/')

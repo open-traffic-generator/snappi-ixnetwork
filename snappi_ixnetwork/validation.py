@@ -16,9 +16,8 @@ class Validation(object):
     def validate_config(self):
         self._unique_name_errors = []
         self.__check_config_objects(self._api.snappi_config)
-        # todo : disable as not sure about snappi
-        # if len(self._unique_name_errors) > 0:
-        #     raise NameError(', '.join(self._unique_name_errors))
+        if len(self._unique_name_errors) > 0:
+            raise NameError(', '.join(self._unique_name_errors))
 
     def __check_config_objects(self, config_item):
         if config_item is None:
@@ -39,8 +38,10 @@ class Validation(object):
             if attr_name == 'name':
                 if attr_value in self._api._config_objects:
                     self._unique_name_errors.append('%s.name: "%s" is not unique' % (config_item.__class__.__name__, attr_value))
+                # todo: we will enable after finalyze model
                 if attr_value is None:
-                    self._unique_name_errors.append('%s.name: "None" is not allowed' % (config_item.__class__.__name__))
+                    continue
+                    # self._unique_name_errors.append('%s.name: "None" is not allowed' % (config_item.__class__.__name__))
                 else:
                     self._api._config_objects[attr_value] = config_item
             elif '__module__' in dir(attr_value):
