@@ -135,7 +135,6 @@ class Api(snappi.Api):
         self._config = config
         self._config_objects = {}
         self._ixn_objects = {}
-        self._capture_request = None
         self._errors = []
         self._connect()
         with Timer(self, 'Config validation'):
@@ -167,77 +166,20 @@ class Api(snappi.Api):
         """Starts capture on all ports that have capture enabled.
         """
         self._connect()
-        self._capture_request = request
-        if self._capture_request is not None and request.state == 'stop':
-            self._stop_capture()
-
-    def _start_capture(self):
-        if self._capture_request is not None:
-            with Timer(self, 'Captures start'):
-                payload = {'arg1': []}
-                for vport in self.select_vports().values():
-                    payload['arg1'].append(vport['href'])
-                url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
-                self._request('POST', url, payload)
-                self._ixnetwork.StartCapture()
-
-    def _stop_capture(self):
-        with Timer(self, 'Captures stop'):
-            if self._capture_request.port_names:
-                payload = {'arg1': []}
-                for vport_name, vport in self.select_vports().items():
-                    if vport_name in self._capture_request.port_names:
-                        payload['arg1'].append(vport['href'])
-                url = '%s/vport/operations/clearCaptureInfos' % self._ixnetwork.href
-                self._request('POST', url, payload)
-            else:
-                self._ixnetwork.StopCapture()
+        self.capture.set_capture_state(request)
 
     def get_capture(self, request):
         """Gets capture file and returns it as a byte stream
         """
-        with Timer(self, 'Captures stop'):
-            capture = self._vport.find(Name=request.port_name).Capture
-            capture.Stop('allTraffic')
-
-            #   Internally setting max time_out to 90sec with 3sec polling interval.
-            #   Todo: Need to discuss and incorporate time_out field within model
-            retry_count = 30
-            port_ready = True
-            for x in range(retry_count):
-                port_ready = True
-                time.sleep(3)
-                capture = self._vport.find(Name=request.port_name).Capture
-                if capture.HardwareEnabled and capture.DataCaptureState == 'notReady':
-                    port_ready = False
-                    continue
-                if capture.SoftwareEnabled and capture.ControlCaptureState == 'notReady':
-                    port_ready = False
-                    continue
-                break
-            if not port_ready:
-                self.warning("Capture was not stopped for this port %s" %
-                             (request.port_name))
-
-        payload = {'arg1': [self._vport.href]}
-        url = '%s/vport/operations/getCaptureInfos' % self._ixnetwork.href
-        response = self._request('POST', url, payload)
-        file_name = response['result'][0]['arg6']
-        file_id = response['result'][0]['arg1']
-
-        url = '%s/vport/operations/saveCaptureInfo' % self._ixnetwork.href
-        payload = {'arg1': self._vport.href, 'arg2': file_id}
-        response = self._request('POST', url, payload)
-
-        url = '%s/vport/operations/releaseCapturePorts' % self._ixnetwork.href
-        payload = {'arg1': [self._vport.href]}
-        response = self._request('POST', url, payload)
-
-        path = '%s/capture' % self._ixnetwork.Globals.PersistencePath
-        url = '%s/files?absolute=%s&filename=%s.cap' % (self._ixnetwork.href,
-                                                        path, file_name)
-        pcap_file_bytes = self._request('GET', url)
-        return pcap_file_bytes
+        self._errors = []
+        if isinstance(request, (type(self.capture_request()),
+                                str)) is False:
+            raise TypeError(
+                'The content must be of type Union[CaptureRequest, str]')
+        if isinstance(request, str) is True:
+            request = self.capture_request().deserialize(
+                request)
+        return self.capture.results(request)
 
     def get_port_metrics(self, request):
         """Abstract API implementation

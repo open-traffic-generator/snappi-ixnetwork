@@ -1,4 +1,6 @@
 import json
+import time
+from snappi_ixnetwork.timer import Timer
 
 class Capture(object):
     """Transforms OpenAPI objects into IxNetwork objects
@@ -38,6 +40,7 @@ class Capture(object):
     
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
+        self._capture_request = None
     
     def _import(self, imports):
         if len(imports) > 0:
@@ -170,7 +173,84 @@ class Capture(object):
                 filter['captureFilterDA'] = 'addr1'
             trigger['triggerFilterDA'] = filter[
                 'captureFilterDA']
-            
+
+    def set_capture_state(self, request):
+        """Starts capture on all ports that have capture enabled.
+        """
+        self._capture_request = request
+        if request.state == 'stop':
+            self._stop_capture()
+    
+    def _start_capture(self):
+        if self._capture_request is not None:
+            with Timer(self, 'Captures start'):
+                payload = {'arg1': []}
+                for vport in self._api.select_vports().values():
+                    payload['arg1'].append(vport['href'])
+                url = '%s/vport/operations/clearCaptureInfos' % \
+                        self._api._ixnetwork.href
+                self._api._request('POST', url, payload)
+                self._api._ixnetwork.StartCapture()
+
+    def _stop_capture(self):
+        with Timer(self, 'Captures stop'):
+            if self._capture_request.port_names:
+                payload = {'arg1': []}
+                for vport_name, vport in self._api.select_vports().items():
+                    if vport_name in self._capture_request.port_names:
+                        payload['arg1'].append(vport['href'])
+                url = '%s/vport/operations/clearCaptureInfos' % \
+                        self._api._ixnetwork.href
+                self._api._request('POST', url, payload)
+            else:
+                self._api._ixnetwork.StopCapture()
+
+    def results(self, request):
+        """Gets capture file and returns it as a byte stream
+        """
+        with Timer(self, 'Captures stop'):
+            capture = self._api._vport.find(Name=request.port_name).Capture
+            capture.Stop('allTraffic')
+
+            #   Internally setting max time_out to 90sec with 3sec polling interval.
+            #   Todo: Need to discuss and incorporate time_out field within model
+            retry_count = 30
+            port_ready = True
+            for x in range(retry_count):
+                port_ready = True
+                time.sleep(3)
+                capture = self._api._vport.find(Name=request.port_name).Capture
+                if capture.HardwareEnabled and capture.DataCaptureState == 'notReady':
+                    port_ready = False
+                    continue
+                if capture.SoftwareEnabled and capture.ControlCaptureState == 'notReady':
+                    port_ready = False
+                    continue
+                break
+            if not port_ready:
+                self._api.warning("Capture was not stopped for this port %s" %
+                             (request.port_name))
+
+        payload = {'arg1': [self._api._vport.href]}
+        url = '%s/vport/operations/getCaptureInfos' % self._api._ixnetwork.href
+        response = self._api._request('POST', url, payload)
+        file_name = response['result'][0]['arg6']
+        file_id = response['result'][0]['arg1']
+
+        url = '%s/vport/operations/saveCaptureInfo' % self._api._ixnetwork.href
+        payload = {'arg1': self._api._vport.href, 'arg2': file_id}
+        response = self._api._request('POST', url, payload)
+
+        url = '%s/vport/operations/releaseCapturePorts' % self._api._ixnetwork.href
+        payload = {'arg1': [self._api._vport.href]}
+        response = self._api._request('POST', url, payload)
+
+        path = '%s/capture' % self._api._ixnetwork.Globals.PersistencePath
+        url = '%s/files?absolute=%s&filename=%s.cap' % (self._api._ixnetwork.href,
+                                                        path, file_name)
+        pcap_file_bytes = self._api._request('GET', url)
+        return pcap_file_bytes
+        
 class GetPattern(object):
     """ This is validating captureFilterPattern and return expected patterns
     """
