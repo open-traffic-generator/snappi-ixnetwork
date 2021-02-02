@@ -144,6 +144,17 @@ class Vport(object):
         with Timer(self._api, 'Layer1 configuration'):
             self._set_layer1()
 
+    def set_link_state(self, link_state):
+        with Timer(self._api, 'Link State operation'):
+            payload = {
+                'arg1': [],
+                'arg2': link_state.state,
+            }
+            for port_name in link_state.port_names:
+                payload['arg1'].append(self._api.get_ixn_href(port_name))
+            url = '%s/vport/operations/linkupdn' % self._api._ixnetwork.href
+            self._api._request('POST', url, payload)
+    
     def _import(self, imports):
         if len(imports) > 0:
             errata = self._resource_manager.ImportConfig(

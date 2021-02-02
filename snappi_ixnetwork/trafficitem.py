@@ -1,5 +1,6 @@
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.customfield import CustomField
+import snappi
 
 
 class TrafficItem(CustomField):
@@ -235,9 +236,12 @@ class TrafficItem(CustomField):
             encap = None
             for name in flow.tx_rx.device.tx_names:
                 device = self._api.get_config_object(name)
-                if device.choice == 'ethernet':
+                if device.__class__ \
+                        is snappi.DeviceBgpv4RouteRange:
+                    encap = 'ipv4'
+                elif device.choice is 'ethernet':
                     encap = 'ethernetVlan'
-                elif device.choice == 'bgpv4':
+                elif device.choice is 'bgpv4':
                     encap = 'ipv4'
                 else:
                     encap = device.choice
@@ -257,10 +261,10 @@ class TrafficItem(CustomField):
                     self._api.get_ixn_object(
                         endpoint.port.rx_name).Protocols.find().href)
         else:
-            for port_name in endpoint.device.tx_names:
-                args['Sources'].append(self._api.get_ixn_href(port_name))
-            for port_name in endpoint.device.rx_names:
-                args['Destinations'].append(self._api.get_ixn_href(port_name))
+            for device_name in endpoint.device.tx_names:
+                args['Sources'].append(self._api.get_ixn_href(device_name))
+            for device_name in endpoint.device.rx_names:
+                args['Destinations'].append(self._api.get_ixn_href(device_name))
         ixn_endpoint_set.find()
         if len(ixn_endpoint_set) > 1:
             ixn_endpoint_set.remove()

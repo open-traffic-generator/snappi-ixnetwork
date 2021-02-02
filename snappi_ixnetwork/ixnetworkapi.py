@@ -159,6 +159,10 @@ class Api(snappi.Api):
         self._connect()
         return self.traffic_item.transmit(flow_transmit_state)
 
+    def set_link_state(self, link_state):
+        if link_state.port_names is not None:
+            self.vport.set_link_state(link_state)
+    
     def _set_port_capture_state(self, request):
         """Starts capture on all ports that have capture enabled.
         """

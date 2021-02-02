@@ -221,6 +221,8 @@ class Ngpf(object):
         else:
             self._update(ixn_ng, **args)
             ixn_pool = ixn_ng.Ipv4PrefixPools.find()
+        if route_range.name is not None:
+            self._api.ixn_objects[route_range.name] = ixn_ng.href
         ixn_pool.NumberOfAddresses = route_range.route_count_per_device
         self._configure_pattern(ixn_pool.NetworkAddress, route_range.address)
         self._configure_pattern(ixn_pool.PrefixLength, route_range.prefix)
