@@ -163,7 +163,7 @@ class Api(snappi.Api):
         if link_state.port_names is not None:
             self.vport.set_link_state(link_state)
     
-    def _set_port_capture_state(self, request):
+    def set_capture_state(self, request):
         """Starts capture on all ports that have capture enabled.
         """
         self._connect()
@@ -193,7 +193,7 @@ class Api(snappi.Api):
             else:
                 self._ixnetwork.StopCapture()
 
-    def get_capture_results(self, request):
+    def get_capture(self, request):
         """Gets capture file and returns it as a byte stream
         """
         with Timer(self, 'Captures stop'):
