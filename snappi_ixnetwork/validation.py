@@ -27,7 +27,7 @@ class Validation(object):
                 config_item, 'choice') is None:
             return
             
-        for attr_name in dir(config_item):
+        for attr_name in config_item._properties:
             if attr_name.startswith('_') or \
                         attr_name == 'parent':
                 continue

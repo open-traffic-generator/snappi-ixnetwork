@@ -66,33 +66,27 @@ class Ngpf(object):
         """Transform /components/schemas/Device into /topology/deviceGroup
         One /topology/deviceGroup for every device in port.devices 
         """
-        if device.choice is None:
-            return
         args = {'Name': device.name, 'Multiplier': device.device_count}
         ixn_device_group.find(Name='^%s$' % device.name)
         if len(ixn_device_group) == 0:
             ixn_device_group.add(**args)[-1]
         else:
             self._update(ixn_device_group, **args)
-        self._api.ixn_objects[device.name] = ixn_device_group.href
-        if device.choice == 'ethernet':
-            self._configure_ethernet(ixn_device_group.Ethernet,
-                                     device.ethernet)
-        elif device.choice == 'ipv4':
-            ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet,
-                                                    device.ipv4.ethernet)
-            self._configure_ipv4(ixn_ethernet.Ipv4, device.ipv4)
-        elif device.choice == 'ipv6':
-            ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet,
-                                                    device.ipv6.ethernet)
-            self._configure_ipv6(ixn_ethernet.Ipv6, device.ipv6)
-        elif device.choice == 'bgpv4':
-            ixn_ethernet = self._configure_ethernet(ixn_device_group.Ethernet,
-                                                    device.bgpv4.ipv4.ethernet)
-            ixn_ipv4 = self._configure_ipv4(ixn_ethernet.Ipv4,
-                                            device.bgpv4.ipv4)
-            self._configure_bgpv4(ixn_device_group, ixn_ipv4.BgpIpv4Peer, device.bgpv4)
-
+        self._config_proto_stack(ixn_device_group, device, ixn_device_group)
+    
+    def _config_proto_stack(self, ixn_obj, snappi_obj, ixn_dg):
+        self._api.ixn_objects[snappi_obj.name] = ixn_obj.href
+        for prop_name in snappi_obj._properties:
+            stack_class = getattr(self, '_configure_{0}'
+                                  .format(prop_name), None)
+            if stack_class is not None:
+                new_ixn_obj = stack_class(ixn_obj,
+                                  snappi_obj._properties[prop_name],
+                                  ixn_dg)
+                self._config_proto_stack(new_ixn_obj,
+                                 snappi_obj._properties[prop_name],
+                                 ixn_dg)
+            
     def _configure_pattern(self, ixn_obj, pattern, enum_map=None):
         if pattern.choice is None:
             return
@@ -111,9 +105,10 @@ class Ngpf(object):
         elif pattern.choice == 'random':
             pass
 
-    def _configure_ethernet(self, ixn_ethernet, ethernet):
+    def _configure_ethernet(self, ixn_parent, ethernet, ixn_dg):
         """Transform Device.Ethernet to /topology/.../ethernet
         """
+        ixn_ethernet = ixn_parent.Ethernet
         self._api._remove(ixn_ethernet, [ethernet])
         args = {}
         ixn_ethernet.find(Name='^%s$' % ethernet.name)
@@ -138,6 +133,7 @@ class Ngpf(object):
         for i in range(0, len(ixn_vlans.find())):
             ixn_vlan = ixn_vlans[i]
             if vlans[i].name is not None:
+                args = {'Name': vlans[i].name}
                 self._update(ixn_vlan, **args)
                 self._api.ixn_objects[vlans[i].name] = ixn_vlan.href
             self._configure_pattern(ixn_vlan.VlanId, vlans[i].id)
@@ -146,9 +142,10 @@ class Ngpf(object):
                                     vlans[i].tpid,
                                     enum_map=Ngpf._TPID_MAP)
 
-    def _configure_ipv4(self, ixn_ipv4, ipv4):
+    def _configure_ipv4(self, ixn_parent, ipv4, ixn_dg):
         """Transform Device.Ipv4 to /topology/.../ipv4
         """
+        ixn_ipv4 = ixn_parent.Ipv4
         self._api._remove(ixn_ipv4, [ipv4])
         args = {}
         ixn_ipv4.find(Name='^%s$' % ipv4.name)
@@ -164,7 +161,8 @@ class Ngpf(object):
         self._configure_pattern(ixn_ipv4.Prefix, ipv4.prefix)
         return ixn_ipv4
     
-    def _configure_ipv6(self, ixn_ipv6, ipv6):
+    def _configure_ipv6(self, ixn_parent, ipv6, ixn_dg):
+        ixn_ipv6 = ixn_parent.Ipv6
         self._api._remove(ixn_ipv6, [ipv6])
         args = {}
         ixn_ipv6.find(Name='^%s$' % ipv6.name)
@@ -178,9 +176,10 @@ class Ngpf(object):
         self._configure_pattern(ixn_ipv6.Address, ipv6.address)
         self._configure_pattern(ixn_ipv6.GatewayIp, ipv6.gateway)
         self._configure_pattern(ixn_ipv6.Prefix, ipv6.prefix)
-        return ipv6
+        return ixn_ipv6
 
-    def _configure_bgpv4(self, ixn_dg, ixn_bgpv4, bgpv4):
+    def _configure_bgpv4(self, ixn_parent, bgpv4, ixn_dg):
+        ixn_bgpv4 = ixn_parent.BgpIpv4Peer
         self._api._remove(ixn_bgpv4, [bgpv4])
         args = {
             'Name': bgpv4.name,
@@ -208,7 +207,7 @@ class Ngpf(object):
             for route_range in bgpv4.bgpv4_route_ranges:
                 self._configure_bgpv4_route(ixn_dg.NetworkGroup, route_range)
                 
-        return bgpv4
+        return ixn_bgpv4
 
     def _configure_bgpv4_route(self, ixn_ng, route_range):
         args = {
@@ -223,13 +222,15 @@ class Ngpf(object):
             ixn_pool = ixn_ng.Ipv4PrefixPools.find()
         if route_range.name is not None:
             self._api.ixn_objects[route_range.name] = ixn_ng.href
-        ixn_pool.NumberOfAddresses = route_range.route_count_per_device
+        ixn_ng.Multiplier = route_range.range_count
+        ixn_pool.NumberOfAddresses = route_range.address_count
         self._configure_pattern(ixn_pool.NetworkAddress, route_range.address)
         self._configure_pattern(ixn_pool.PrefixLength, route_range.prefix)
+        self._configure_pattern(ixn_pool.PrefixAddrStep, route_range.address_step)
         bgp_property = ixn_pool.BgpIPRouteProperty.find()
-        if route_range.as_path.choice is not None:
-            bgp_property.EnableAsPathSegments.Single(True)
-            self._configure_pattern(bgp_property.BgpAsPathSegmentList.find().BgpAsNumberList.find().AsNumber,
-                                    route_range.as_path)
+        # if route_range.as_path.choice is not None:
+        #     bgp_property.EnableAsPathSegments.Single(True)
+        #     self._configure_pattern(bgp_property.BgpAsPathSegmentList.find().BgpAsNumberList.find().AsNumber,
+        #                             route_range.as_path)
         self._configure_pattern(bgp_property.Ipv4NextHop, route_range.next_hop_address)
         
