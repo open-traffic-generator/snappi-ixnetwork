@@ -672,31 +672,39 @@ class Vport(object):
     def results(self, request):
         """Return port results
         """
-        if request.column_names is None:
+
+        self._column_names = request._properties.get('column_names')
+        if self._column_names is None:
             self._column_names = []
-        else:
-            self._column_names = request.column_names
-        
+        elif not isinstance(self._column_names, list):
+            msg = "Invalid format of port_names passed {},\
+                    expected list".format(self._column_names)
+            raise Exception(msg)
+
+        port_names = request._properties.get('port_names')
+        if port_names is None:
+            port_names = [port.name for port in self._api._config.ports]
+        elif not isinstance(port_names, list):
+            msg = "Invalid format of port_names passed {},\
+                    expected list".format(port_names)
+            raise Exception(msg)
+
         port_filter = {'property': 'name', 'regex': '.*'}
-        port_names = [port.name for port in self._api._config.ports]
-        if request and request.port_names:
-            port_names = request.port_names
-        if len(port_names) == 1:
-            port_filter['regex'] = '^%s$' % port_names[0]
-        elif len(port_names) > 1:
-            port_filter['regex'] = '^(%s)$' % '|'.join(port_names)
-            
-        port_rows = {}
-        for vport in self._api.select_vports(port_name_filters=[port_filter]).values():
-            port_row = {}
-            self._set_result_value(port_row, 'name', vport['name'])
-            location = vport['location']
-            if vport['connectionState'].startswith('connectedLink') is True:
+        port_filter['regex'] = '^(%s)$' % '|'.join(port_names)
+
+        port_rows = dict()
+        vports = self._api.select_vports(port_name_filters=[port_filter])
+        for vport in vports.values():
+            port_row = dict()
+            self._set_result_value(port_row, 'name', vport.get('name'))
+            location = vport.get('location')
+            if vport.get('connectionState').\
+                startswith('connectedLink') is True:
                 location += ';connected'
             elif len(location) > 0:
-                location += ';' + vport['connectionState']
+                location += ';' + vport.get('connectionState')
             else:
-                location = vport['connectionState']
+                location = vport.get('connectionState')
             self._set_result_value(port_row, 'location', location)
             self._set_result_value(
                 port_row, 'link', 'up'
@@ -712,25 +720,18 @@ class Vport(object):
 
         try:
             table = self._api.assistant.StatViewAssistant('Port Statistics')
-            # TBD: REMOVE unnecessary try/except
-            for row in table.Rows:
-                # keep plugging values for next columns even if the
-                # current one raises exception
-                try:
-                    port_row = port_rows[row['Port Name']]
-                    for ext_name, int_name, typ in self._RESULT_COLUMNS:
-                        try:
-                            self._set_result_value(port_row, ext_name,
-                                                   row[int_name], typ)
-                        except Exception:
-                            # TODO print a warning maybe ?
-                            pass
-                except Exception:
-                    # TODO print a warning maybe ?
-                    pass
-
         except Exception:
-            # TODO print a warning maybe ?
-            pass
+            self._api.warn("Could not retrive the port statistics viewer")
+            return list(port_rows.values())
 
+        for row in table.Rows:
+            vport_name = row['Port Name']
+            if vport_name is None:
+                raise Exception("Could not retrive 'Port Name' from stats")
+            port_row = port_rows.get(vport_name)
+            if port_row is None:
+                continue
+            for ext_name, int_name, typ in self._RESULT_COLUMNS:
+                row_val = row[int_name]
+                self._set_result_value(port_row, ext_name, row_val, typ)
         return list(port_rows.values())

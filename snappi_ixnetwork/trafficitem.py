@@ -610,19 +610,24 @@ class TrafficItem(CustomField):
         """Return flow results
         """
         # setup parameters
-        if request.column_names is None:
+        self._column_names =  request._properties.get('column_names')
+        if self._column_names is None:
             self._column_names = []
-        else:
-            self._column_names = request.column_names
+        elif not isinstance(self._column_names, list):
+            msg = "Invalid format of column_names passed {},\
+                    expected list".format(self._column_names)
+            raise Exception(msg)
+
+        flow_names = request._properties.get('flow_names')
+        if flow_names is None:
+            flow_names = [flow.name for flow in self._api._config.flows]
+        elif not isinstance(flow_names, list):
+            msg = "Invalid format of flow_names passed {},\
+                    expected list".format(flow_names)
+            raise Exception(msg)
+
         filter = {'property': 'name', 'regex': '.*'}
-        flow_names = [flow.name for flow in self._api._config.flows]
-        if request is not None and request.flow_names is not None and len(
-                request.flow_names) > 0:
-            flow_names = request.flow_names
-        if len(flow_names) == 1:
-            filter['regex'] = '^%s$' % flow_names[0]
-        elif len(flow_names) > 1:
-            filter['regex'] = '^(%s)$' % '|'.join(flow_names)
+        filter['regex'] = '^(%s)$' % '|'.join(flow_names)
 
         # initialize result values
         flow_rows = {}

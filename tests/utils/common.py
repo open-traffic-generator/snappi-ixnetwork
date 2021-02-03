@@ -187,14 +187,22 @@ def get_all_stats(api, print_output=True):
     Returns all port and flow stats
     """
     print('Fetching all port stats ...')
-    port_results_request = api.port_metrics_request()
-    port_results = api.get_port_metrics(port_results_request)
+    request = api.metrics_request()
+    request.choice = 'port'
+    request.port
+    port_results = api.get_metrics(request)
+    # port_results_request = api.port_metrics_request()
+    # port_results = api.get_port_metrics(port_results_request)
     if port_results is None:
         port_results = []
 
     print('Fetching all flow stats ...')
-    flow_results_request = api.flow_metrics_request()
-    flow_results = api.get_flow_metrics(flow_results_request)
+    request = api.metrics_request()
+    request.choice = 'flow'
+    request.flow
+    flow_results = api.get_metrics(request)
+    # flow_results_request = api.flow_metrics_request()
+    # flow_results = api.get_flow_metrics(flow_results_request)
     if flow_results is None:
         flow_results = []
 
@@ -354,9 +362,9 @@ def is_traffic_stopped(api, flow_names=[]):
     """
     Returns true if traffic in stop state
     """
-    fq = api.flow_metrics_request()
-    fq.flow_names = flow_names
-    metrics = api.get_flow_metrics(fq)
+    fq = api.metrics_request()
+    fq.flow.flow_names = flow_names
+    metrics = api.get_metrics(fq)
     return all([m.transmit == 'stopped' for m in metrics])
 
 
@@ -428,3 +436,12 @@ def mac_or_ip_addr_from_counter_pattern(start_addr, step, count, up, mac=True):
                 start_addr, mac) - mac_or_ip_to_num(step, mac)
         start_addr = num_to_mac_or_ip(start_addr, mac)
     return addr_list
+
+
+def is_stats_accumulated(api, packets):
+    """
+    Returns true if stats gets accumulated
+    """
+    port_results, flow_results = get_all_stats(api)
+    frames_ok = total_frames_ok(port_results, flow_results, packets)
+    return frames_ok

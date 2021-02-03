@@ -186,44 +186,38 @@ class Api(snappi.Api):
             request = self.capture_request().deserialize(
                 request)
         return self.capture.results(request)
-
-    def get_port_metrics(self, request):
-        """Abstract API implementation
+    
+    def get_metrics(self, request):
         """
-        self._errors = []
-        if isinstance(request, (type(self.port_metrics_request()),
-                                str)) is False:
-            raise TypeError(
-                'The content must be of type Union[PortMetricsRequest, str]')
-        if isinstance(request, str) is True:
-            request = self.port_metrics_request().deserialize(
-                request)
-        response = self.vport.results(request)
-        if len(self._errors) > 0:
-            raise Exception('\n'.join(self._errors))
-        return self.port_metrics().deserialize(response)
-
-    def get_flow_metrics(self, request):
-        """Abstract API implementation
+        Gets port, flow and protocol metrics.
 
         Args
         ----
-        - request (Union[FlowRequest, str]): A request for flow results.
-            The request content MUST be based on the OpenAPI #/components/schemas/Result.FlowRequest model.
-            See the docs/openapi.yaml document for all model details.
+        - request (Union[MetricsRequest, str]): A request for Port, Flow and
+          protocol metrics.
+          The request content MUST be vase on the OpenAPI model,
+          #/components/schemas/Result.MetricsRequest
+          See the docs/openapi.yaml document for all model details
         """
         self._errors = []
-        if isinstance(request, (type(self.flow_metrics_request()),
+        metric_req = self.metrics_request()
+        if isinstance(request, (type(metric_req),
                                 str)) is False:
             raise TypeError(
-                'The content must be of type Union[FlowMetricsRequest, str]')
+                'The content must be of type Union[MetricsRequest, str]')
         if isinstance(request, str) is True:
-            request = self.flow_metrics_request().deserialize(
-                request)
-        response = self.traffic_item.results(request)
-        if len(self._errors) > 0:
-            raise Exception('\n'.join(self._errors))
-        return self.flow_metrics().deserialize(response)
+            request = metric_req.deserialize(request)
+        # Need to change the code style when the choice Enum grows big
+        if request.choice == 'port':
+            response = self.vport.results(request.port)
+            return self.metrics_response().port_metrics.\
+                deserialize(response)
+        if request.choice == 'flow':
+            response = self.traffic_item.results(request.flow)
+            return self.metrics_response().flow_metrics.\
+                deserialize(response)
+        if request.choice == 'bgpv4':
+            return
 
     def add_error(self, error):
         """Add an error to the global errors
