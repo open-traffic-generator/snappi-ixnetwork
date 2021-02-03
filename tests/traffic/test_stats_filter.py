@@ -19,12 +19,9 @@ def test_stats_filter(api, b2b_raw_config, utils):
     f2_size = 1500
     port1, port2 = b2b_raw_config.ports
     flows = b2b_raw_config.flows
-    # import snappi
-    # port1, port2 = snappi.Api().config().ports.port().port()
-    # flows = snappi.Api().config().flows
     flow1, flow2 = flows.flow()
-    flow1.name = "f1"
-    flow2.name = "f2"
+    flow1.name = "flow1"
+    flow2.name = "flow2"
     flow1.duration.fixed_packets.packets = f1_packets
     flow1.size.fixed = f1_size
     flow1.rate.percentage = 10
@@ -73,7 +70,7 @@ def test_stats_filter(api, b2b_raw_config, utils):
                                                  f2_size)
 
     # Validation on Flow statistics based on flow names
-    flow_names = ['f1', 'f2']
+    flow_names = ['flow1', 'flow2']
     for flow_name in flow_names:
         req = api.metrics_request()
         req.flow.flow_names = [flow_name]

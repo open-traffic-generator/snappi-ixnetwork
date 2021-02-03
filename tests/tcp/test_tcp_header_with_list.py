@@ -13,7 +13,6 @@ def test_tcp_header_with_list(api, b2b_raw_config, utils):
     dst_port = [4000, 4001]
     packets = 100
     size = 74
-    # flow = snappi.Api().config().flows.flow()[-1]
     flow = b2b_raw_config.flows[0]
     flow.packet.ethernet().ipv4().tcp()
     eth = flow.packet[0]
