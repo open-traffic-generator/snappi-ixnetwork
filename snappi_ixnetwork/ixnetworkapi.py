@@ -48,6 +48,8 @@ class Api(snappi.Api):
         self._config = None
         self._assistant = None
         self._ixn_errors = list()
+        self._config_objects = {}
+        self._device_encap = {}
         self.validation = Validation(self)
         self.vport = Vport(self)
         self.ngpf = Ngpf(self)
@@ -73,6 +75,9 @@ class Api(snappi.Api):
 
     def get_config_object(self, name):
         return self._config_objects[name]
+
+    def get_device_encap(self, name):
+        return self._device_encap[name]
 
     @property
     def ixn_objects(self):
@@ -134,6 +139,7 @@ class Api(snappi.Api):
             config = self.config().deserialize(config)
         self._config = config
         self._config_objects = {}
+        self._device_encap = {}
         self._ixn_objects = {}
         self._errors = []
         self._connect()

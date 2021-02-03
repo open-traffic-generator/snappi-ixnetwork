@@ -109,6 +109,7 @@ class Ngpf(object):
         """Transform Device.Ethernet to /topology/.../ethernet
         """
         ixn_ethernet = ixn_parent.Ethernet
+        self._api._device_encap[ixn_dg.Name] = 'ethernetVlan'
         self._api._remove(ixn_ethernet, [ethernet])
         args = {}
         ixn_ethernet.find(Name='^%s$' % ethernet.name)
@@ -146,6 +147,7 @@ class Ngpf(object):
         """Transform Device.Ipv4 to /topology/.../ipv4
         """
         ixn_ipv4 = ixn_parent.Ipv4
+        self._api._device_encap[ixn_dg.Name] = 'ipv4'
         self._api._remove(ixn_ipv4, [ipv4])
         args = {}
         ixn_ipv4.find(Name='^%s$' % ipv4.name)
@@ -163,6 +165,7 @@ class Ngpf(object):
     
     def _configure_ipv6(self, ixn_parent, ipv6, ixn_dg):
         ixn_ipv6 = ixn_parent.Ipv6
+        self._api._device_encap[ixn_dg.Name] = 'ipv6'
         self._api._remove(ixn_ipv6, [ipv6])
         args = {}
         ixn_ipv6.find(Name='^%s$' % ipv6.name)
@@ -193,7 +196,7 @@ class Ngpf(object):
         # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
         as_type = 'internal'
         if bgpv4.as_type is not None and bgpv4.as_type \
-                    is 'ebgp':
+                    == 'ebgp':
             as_type = 'external'
         ixn_bgpv4.Type.Single(as_type)
         ixn_bgpv4.Enable4ByteAs.Single(True)

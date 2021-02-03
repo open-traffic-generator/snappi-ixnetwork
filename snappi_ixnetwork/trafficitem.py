@@ -239,12 +239,8 @@ class TrafficItem(CustomField):
                 if device.__class__ \
                         is snappi.DeviceBgpv4RouteRange:
                     encap = 'ipv4'
-                elif device.choice is 'ethernet':
-                    encap = 'ethernetVlan'
-                elif device.choice is 'bgpv4':
-                    encap = 'ipv4'
                 else:
-                    encap = device.choice
+                    encap = self._api.get_device_encap(name)
         return encap
 
     def _configure_endpoint(self, ixn_endpoint_set, endpoint):
