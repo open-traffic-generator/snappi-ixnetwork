@@ -241,7 +241,7 @@ class Vport(object):
 
         resource_group = None
         location = port.location
-        if len(location) == 0:
+        if location is None:
             return
         
         (hostname, cardid, portid) = location.split(';')
