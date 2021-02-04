@@ -682,7 +682,7 @@ class Vport(object):
             raise Exception(msg)
 
         port_names = request._properties.get('port_names')
-        if port_names is None:
+        if port_names is None or len(port_names) == 0:
             port_names = [port.name for port in self._api._config.ports]
         elif not isinstance(port_names, list):
             msg = "Invalid format of port_names passed {},\
@@ -698,8 +698,9 @@ class Vport(object):
             port_row = dict()
             self._set_result_value(port_row, 'name', vport.get('name'))
             location = vport.get('location')
-            if vport.get('connectionState').\
-                startswith('connectedLink') is True:
+            if vport.get(
+                'connectionState'
+            ).startswith('connectedLink') is True:
                 location += ';connected'
             elif len(location) > 0:
                 location += ';' + vport.get('connectionState')
@@ -732,6 +733,10 @@ class Vport(object):
             if port_row is None:
                 continue
             for ext_name, int_name, typ in self._RESULT_COLUMNS:
-                row_val = row[int_name]
-                self._set_result_value(port_row, ext_name, row_val, typ)
+                try:
+                    row_val = row[int_name]
+                    self._set_result_value(port_row, ext_name, row_val, typ)
+                except Exception:
+                    # TODO print a warning maybe ?
+                    pass
         return list(port_rows.values())

@@ -215,14 +215,19 @@ class Api(snappi.Api):
         # Need to change the code style when the choice Enum grows big
         if request.choice == 'port':
             response = self.vport.results(request.port)
-            return self.metrics_response().port_metrics.\
-                deserialize(response)
+            metric_res = self.metrics_response()
+            metric_res.port_metrics.deserialize(response)
+            return metric_res
         if request.choice == 'flow':
             response = self.traffic_item.results(request.flow)
-            return self.metrics_response().flow_metrics.\
-                deserialize(response)
-        if request.choice == 'bgpv4':
-            return
+            metric_res = self.metrics_response()
+            metric_res.flow_metrics.deserialize(response)
+            return metric_res
+        if request.choice is not None:
+            msg = "{} is not a supported choice for metrics; \
+            the supported choices are \
+            ['port', 'flow']".format(request.choice)
+            raise Exception(msg)
 
     def add_error(self, error):
         """Add an error to the global errors
