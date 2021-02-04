@@ -47,7 +47,7 @@ def test_stats_filter(api, b2b_raw_config, utils):
     for port_name in port_names:
         req = api.metrics_request()
         req.port.port_names = [port_name]
-        port_results = api.get_metrics(req)
+        port_results = api.get_metrics(req).port_metrics
         # port_results = api.get_port_results(result.PortRequest(
         #                                     port_names=[port_name]))
         validate_port_stats_based_on_port_name(port_results, port_name)
@@ -57,7 +57,7 @@ def test_stats_filter(api, b2b_raw_config, utils):
     for column_name in column_names:
         req = api.metrics_request()
         req.port.column_names = ['name', column_name]
-        port_results = api.get_metrics(req)
+        port_results = api.get_metrics(req).port_metrics
 
         # port_results = api.get_port_results(result.PortRequest(
         #                                     column_names=['name',
@@ -75,7 +75,7 @@ def test_stats_filter(api, b2b_raw_config, utils):
         req = api.metrics_request()
         req.flow.flow_names = [flow_name]
         req.flow.column_names = ['name']
-        flow_results = api.get_metrics(req)
+        flow_results = api.get_metrics(req).flow_metrics
         # flow_results = api.get_flow_results(result.FlowRequest(
         #                                     flow_names=[flow_name],
         #                                     column_names=['name']))
@@ -86,7 +86,7 @@ def test_stats_filter(api, b2b_raw_config, utils):
     for column_name in column_names:
         req = api.metrics_request()
         req.flow.column_names = ['name', column_name]
-        flow_results = api.get_metrics(req)
+        flow_results = api.get_metrics(req).flow_metrics
         # flow_results = api.get_flow_results(result.FlowRequest(
         #                                     column_names=['name',
         #                                                   column_name]))

@@ -1,4 +1,5 @@
 import json
+import pdb
 import time
 from collections import namedtuple
 from ixnetwork_restpy import TestPlatform, SessionAssistant
@@ -210,12 +211,14 @@ class Api(snappi.Api):
         # Need to change the code style when the choice Enum grows big
         if request.choice == 'port':
             response = self.vport.results(request.port)
-            return self.metrics_response().port_metrics.\
-                deserialize(response)
+            metric_res = self.metrics_response()
+            metric_res.port_metrics.deserialize(response)
+            return metric_res
         if request.choice == 'flow':
             response = self.traffic_item.results(request.flow)
-            return self.metrics_response().flow_metrics.\
-                deserialize(response)
+            metric_res = self.metrics_response()
+            metric_res.flow_metrics.deserialize(response)
+            return metric_res
         if request.choice == 'bgpv4':
             return
 

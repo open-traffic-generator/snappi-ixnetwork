@@ -682,7 +682,7 @@ class Vport(object):
             raise Exception(msg)
 
         port_names = request._properties.get('port_names')
-        if port_names is None:
+        if port_names is None or len(port_names) == 0:
             port_names = [port.name for port in self._api._config.ports]
         elif not isinstance(port_names, list):
             msg = "Invalid format of port_names passed {},\

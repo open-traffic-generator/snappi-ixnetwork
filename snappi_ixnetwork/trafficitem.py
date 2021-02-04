@@ -610,7 +610,7 @@ class TrafficItem(CustomField):
         """Return flow results
         """
         # setup parameters
-        self._column_names =  request._properties.get('column_names')
+        self._column_names = request._properties.get('column_names')
         if self._column_names is None:
             self._column_names = []
         elif not isinstance(self._column_names, list):
@@ -619,7 +619,7 @@ class TrafficItem(CustomField):
             raise Exception(msg)
 
         flow_names = request._properties.get('flow_names')
-        if flow_names is None:
+        if flow_names is None or len(flow_names) == 0:
             flow_names = [flow.name for flow in self._api._config.flows]
         elif not isinstance(flow_names, list):
             msg = "Invalid format of flow_names passed {},\

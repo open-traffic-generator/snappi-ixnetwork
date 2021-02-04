@@ -193,7 +193,7 @@ def get_all_stats(api, print_output=True):
     port_results = api.get_metrics(request)
     # port_results_request = api.port_metrics_request()
     # port_results = api.get_port_metrics(port_results_request)
-    if port_results is None:
+    if port_results.port_metrics is None:
         port_results = []
 
     print('Fetching all flow stats ...')
@@ -203,13 +203,15 @@ def get_all_stats(api, print_output=True):
     flow_results = api.get_metrics(request)
     # flow_results_request = api.flow_metrics_request()
     # flow_results = api.get_flow_metrics(flow_results_request)
-    if flow_results is None:
+    if flow_results.flow_metrics is None:
         flow_results = []
 
     if print_output:
-        print_stats(port_stats=port_results, flow_stats=flow_results)
+        print_stats(
+            port_stats=port_results.port_metrics,
+            flow_stats=flow_results.flow_metrics)
 
-    return port_results, flow_results
+    return port_results.port_metrics, flow_results.flow_metrics
 
 
 def total_frames_ok(port_results, flow_results, expected):
@@ -364,7 +366,7 @@ def is_traffic_stopped(api, flow_names=[]):
     """
     fq = api.metrics_request()
     fq.flow.flow_names = flow_names
-    metrics = api.get_metrics(fq)
+    metrics = api.get_metrics(fq).flow_metrics
     return all([m.transmit == 'stopped' for m in metrics])
 
 
