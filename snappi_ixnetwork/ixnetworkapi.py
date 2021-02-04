@@ -1,5 +1,4 @@
 import json
-import pdb
 import time
 from collections import namedtuple
 from ixnetwork_restpy import TestPlatform, SessionAssistant
@@ -219,8 +218,11 @@ class Api(snappi.Api):
             metric_res = self.metrics_response()
             metric_res.flow_metrics.deserialize(response)
             return metric_res
-        if request.choice == 'bgpv4':
-            return
+        if request.choice is not None:
+            msg = "{} is currently not supported \
+                regret for the inconvenience \
+                please check for latest release".format(request.choice)
+            raise Exception(msg)
 
     def add_error(self, error):
         """Add an error to the global errors

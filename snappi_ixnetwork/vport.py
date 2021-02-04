@@ -698,8 +698,9 @@ class Vport(object):
             port_row = dict()
             self._set_result_value(port_row, 'name', vport.get('name'))
             location = vport.get('location')
-            if vport.get('connectionState').\
-                startswith('connectedLink') is True:
+            if vport.get(
+                'connectionState'
+            ).startswith('connectedLink') is True:
                 location += ';connected'
             elif len(location) > 0:
                 location += ';' + vport.get('connectionState')
