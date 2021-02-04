@@ -733,6 +733,10 @@ class Vport(object):
             if port_row is None:
                 continue
             for ext_name, int_name, typ in self._RESULT_COLUMNS:
-                row_val = row[int_name]
-                self._set_result_value(port_row, ext_name, row_val, typ)
+                try:
+                    row_val = row[int_name]
+                    self._set_result_value(port_row, ext_name, row_val, typ)
+                except Exception:
+                    # TODO print a warning maybe ?
+                    pass
         return list(port_rows.values())

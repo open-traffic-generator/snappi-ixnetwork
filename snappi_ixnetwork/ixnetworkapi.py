@@ -219,9 +219,9 @@ class Api(snappi.Api):
             metric_res.flow_metrics.deserialize(response)
             return metric_res
         if request.choice is not None:
-            msg = "{} is currently not supported \
-                regret for the inconvenience \
-                please check for latest release".format(request.choice)
+            msg = "{} is not a supported choice for metrics; \
+            the supported choices are \
+            ['port', 'flow']".format(request.choice)
             raise Exception(msg)
 
     def add_error(self, error):
