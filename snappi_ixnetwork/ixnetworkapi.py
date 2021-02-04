@@ -112,25 +112,26 @@ class Api(snappi.Api):
             o.__dict__[k] = self._dict_to_obj(v)
         return o
 
-    # def _request_detail(self):
-    #     request_detail = RequestDetail()
-    #     errors = self._errors
-    #     warnings = list()
-    #     app_errors = self._globals.AppErrors.find()
-    #     if len(app_errors) > 0:
-    #         current_errors = app_errors[0].Error.find()
-    #         if len(current_errors) > 0:
-    #             for error in current_errors:
-    #                 match = [o for o in self._ixn_errors if o.Name == error.Name
-    #                                                 and o.LastModified == error.LastModified]
-    #                 if len(match) == 0:
-    #                     if error.ErrorLevel == 'kWarning':
-    #                         warnings.append("IxNet - {0}".format(error.Description))
-    #                     if error.ErrorLevel == 'kError':
-    #                         errors.append("IxNet - {0}".format(error.Description))
-    #     request_detail.errors = errors
-    #     request_detail.warnings = warnings
-    #     return request_detail
+    def _request_detail(self):
+        request_detail = snappi.Details()
+        errors = self._errors
+        warnings = list()
+        app_errors = self._globals.AppErrors.find()
+        if len(app_errors) > 0:
+            current_errors = app_errors[0].Error.find()
+            if len(current_errors) > 0:
+                for error in current_errors:
+                    # Add loop as sequence are not sorted
+                    match = [o for o in self._ixn_errors if o.Name == error.Name
+                                                    and o.LastModified == error.LastModified]
+                    if len(match) == 0:
+                        if error.ErrorLevel == 'kWarning':
+                            warnings.append("IxNet - {0}".format(error.Description))
+                        if error.ErrorLevel == 'kError':
+                            errors.append("IxNet - {0}".format(error.Description))
+        request_detail.errors = errors
+        request_detail.warnings = warnings
+        return request_detail
     
     def set_config(self, config):
         """Set or update the configuration
@@ -141,7 +142,6 @@ class Api(snappi.Api):
         self._config_objects = {}
         self._device_encap = {}
         self._ixn_objects = {}
-        self._errors = []
         self._connect()
         with Timer(self, 'Config validation'):
             self.validation.validate_config()
@@ -154,6 +154,7 @@ class Api(snappi.Api):
             with Timer(self, 'Flows configuration'):
                 self.traffic_item.config()
         self._running_config = self._config
+        return self._request_detail()
 
     def set_transmit_state(self, flow_transmit_state):
         """Set the transmit state of flows
@@ -162,22 +163,26 @@ class Api(snappi.Api):
             flow_transmit_state = self.transmit_state().deserialize(
                                     flow_transmit_state)
         self._connect()
-        return self.traffic_item.transmit(flow_transmit_state)
+        self.traffic_item.transmit(flow_transmit_state)
+        return self._request_detail()
 
     def set_link_state(self, link_state):
+        self._connect()
         if link_state.port_names is not None:
             self.vport.set_link_state(link_state)
+        return self._request_detail()
     
     def set_capture_state(self, request):
         """Starts capture on all ports that have capture enabled.
         """
         self._connect()
         self.capture.set_capture_state(request)
+        return self._request_detail()
 
     def get_capture(self, request):
         """Gets capture file and returns it as a byte stream
         """
-        self._errors = []
+        self._connect()
         if isinstance(request, (type(self.capture_request()),
                                 str)) is False:
             raise TypeError(
@@ -199,7 +204,7 @@ class Api(snappi.Api):
           #/components/schemas/Result.MetricsRequest
           See the docs/openapi.yaml document for all model details
         """
-        self._errors = []
+        self._connect()
         metric_req = self.metrics_request()
         if isinstance(request, (type(metric_req),
                                 str)) is False:
@@ -230,6 +235,7 @@ class Api(snappi.Api):
     def _connect(self):
         """Connect to an IxNetwork API Server.
         """
+        self._errors = []
         if self._assistant is None:
             platform = TestPlatform(self._address, rest_port=self._port)
             platform.Authenticate(self._username, self._password)
