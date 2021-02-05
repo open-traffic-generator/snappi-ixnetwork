@@ -167,6 +167,8 @@ class Api(snappi.Api):
         return self._request_detail()
 
     def set_link_state(self, link_state):
+        if isinstance(link_state, str):
+            link_state = self.link_state().deserialize(link_state)
         self._connect()
         if link_state.port_names is not None:
             self.vport.set_link_state(link_state)
