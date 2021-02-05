@@ -445,7 +445,7 @@ class TrafficItem(CustomField):
             args['Type'] = "fixed"
             args['FixedSize'] = size.fixed
         elif size.choice == 'increment':
-            args['Type'] = "incrment"
+            args['Type'] = "increment"
             args['IncrementFrom'] = size.increment.start
             args['IncrementTo'] = size.increment.end
             args['IncrementStep'] = size.increment.step
