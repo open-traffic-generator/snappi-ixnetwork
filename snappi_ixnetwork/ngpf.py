@@ -16,6 +16,13 @@ class Ngpf(object):
         '9300': 'ethertype9300',
     }
 
+    # Select type of Traffic
+    _DEVICE_ENCAP_MAP = {
+        'ethernet' : 'ethernetVlan',
+        'ipv4' : 'ipv4',
+        'ipv6' : 'ipv6',
+        'bgpv4' : 'ipv4',
+    }
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
 
@@ -80,6 +87,11 @@ class Ngpf(object):
             stack_class = getattr(self, '_configure_{0}'
                                   .format(prop_name), None)
             if stack_class is not None:
+                if prop_name not in Ngpf._DEVICE_ENCAP_MAP:
+                    raise Exception("Mapping is missing for {0}".format(
+                            prop_name))
+                self._api._device_encap[ixn_dg.Name] = Ngpf._DEVICE_ENCAP_MAP[
+                            prop_name]
                 new_ixn_obj = stack_class(ixn_obj,
                                   snappi_obj._properties[prop_name],
                                   ixn_dg)
@@ -109,7 +121,6 @@ class Ngpf(object):
         """Transform Device.Ethernet to /topology/.../ethernet
         """
         ixn_ethernet = ixn_parent.Ethernet
-        self._api._device_encap[ixn_dg.Name] = 'ethernetVlan'
         self._api._remove(ixn_ethernet, [ethernet])
         args = {}
         ixn_ethernet.find(Name='^%s$' % ethernet.name)
@@ -147,7 +158,6 @@ class Ngpf(object):
         """Transform Device.Ipv4 to /topology/.../ipv4
         """
         ixn_ipv4 = ixn_parent.Ipv4
-        self._api._device_encap[ixn_dg.Name] = 'ipv4'
         self._api._remove(ixn_ipv4, [ipv4])
         args = {}
         ixn_ipv4.find(Name='^%s$' % ipv4.name)
@@ -165,7 +175,6 @@ class Ngpf(object):
     
     def _configure_ipv6(self, ixn_parent, ipv6, ixn_dg):
         ixn_ipv6 = ixn_parent.Ipv6
-        self._api._device_encap[ixn_dg.Name] = 'ipv6'
         self._api._remove(ixn_ipv6, [ipv6])
         args = {}
         ixn_ipv6.find(Name='^%s$' % ipv6.name)
@@ -216,6 +225,7 @@ class Ngpf(object):
         args = {
             'Name': route_range.name,
         }
+        self._api._remove(ixn_ng, [route_range])
         ixn_ng.find(Name='^%s$' % route_range.name)
         if len(ixn_ng) == 0:
             ixn_ng.add(**args)[-1]
@@ -225,6 +235,7 @@ class Ngpf(object):
             ixn_pool = ixn_ng.Ipv4PrefixPools.find()
         if route_range.name is not None:
             self._api.ixn_objects[route_range.name] = ixn_ng.href
+            self._api._device_encap[route_range.name] = 'ipv4'
         ixn_ng.Multiplier = route_range.range_count
         ixn_pool.NumberOfAddresses = route_range.address_count
         self._configure_pattern(ixn_pool.NetworkAddress, route_range.address)
@@ -236,4 +247,5 @@ class Ngpf(object):
         #     self._configure_pattern(bgp_property.BgpAsPathSegmentList.find().BgpAsNumberList.find().AsNumber,
         #                             route_range.as_path)
         self._configure_pattern(bgp_property.Ipv4NextHop, route_range.next_hop_address)
+        return ixn_ng
         
