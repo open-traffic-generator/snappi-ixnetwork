@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_counter_ip_dscp(api, b2b_raw_config, utils):
     """
     Configure a raw IPv4 flow with,
@@ -12,11 +8,8 @@ def test_counter_ip_dscp(api, b2b_raw_config, utils):
       against expected
     """
     f = b2b_raw_config.flows[0]
-    f.packet = [
-        flow.Header(flow.Ethernet()),
-        flow.Header(flow.Ipv4())
-    ]
-    utils.apply_config(api, b2b_raw_config)
+    f.packet.ethernet().ipv4()
+    ipv4 = f.packet[1]
     phb = ['PHB_DEFAULT'] + ['PHB_CS%d' % i for i in range(1, 8)] + \
           ['PHB_AF%d' % i for j in range(11, 51, 10) for i in range(j, j + 3)]
     phb = phb + ['PHB_EF46']
@@ -24,14 +17,10 @@ def test_counter_ip_dscp(api, b2b_raw_config, utils):
         '10', '12', '14', '18', '20', '22', '26',
         '28', '30', '34', '36', '38', '46'
     ]
-
     for i, p in enumerate(phb):
-        dscp = flow_ipv4.Dscp(
-            phb=flow.Pattern(getattr(flow_ipv4.Dscp, p))
-        )
-        prio = flow_ipv4.Priority(dscp)
-        f.packet[1].ipv4.priority = prio
-        utils.apply_config(api, b2b_raw_config)
+        ipv4.priority.choice = 'dscp'
+        ipv4.priority.dscp.phb.value = getattr(ipv4.priority.dscp, p)
+        api.set_config(b2b_raw_config)
         if i == 0:
             attrs = {'Default PHB': str(i)}
         elif i > 0 and i < 8:
@@ -43,7 +32,6 @@ def test_counter_ip_dscp(api, b2b_raw_config, utils):
         utils.validate_config(api, 'ipv4', **attrs)
 
 
-@pytest.mark.skip("skip until migrated to snappi")
 def test_ip_priority_tos(api, b2b_raw_config, utils):
     """
     Configure a raw IPv4 flow with,
@@ -55,11 +43,13 @@ def test_ip_priority_tos(api, b2b_raw_config, utils):
     """
 
     f = b2b_raw_config.flows[0]
-    f.packet = [
-        flow.Header(flow.Ethernet()),
-        flow.Header(flow.Ipv4())
-    ]
-    utils.apply_config(api, b2b_raw_config)
+    # import snappi
+    # b2b_raw_config = snappi.Api().config()
+    # f = b2b_raw_config.flows.flow()[-1]
+    # ipv4 = f.packet.ethernet().ipv4()[-1]
+    # ipv4 = ipv4.ipv4
+    ipv4 = f.packet.ethernet().ipv4()[-1]
+    api.set_config(b2b_raw_config)
     precedence = [
         "PRE_ROUTINE",
         "PRE_PRIORITY",
@@ -72,18 +62,15 @@ def test_ip_priority_tos(api, b2b_raw_config, utils):
     ]
     flag = 0
     for i, p in enumerate(precedence):
-        tos = flow_ipv4.Tos(
-            precedence=flow.Pattern(getattr(flow_ipv4.Tos, p)),
-            delay=flow.Pattern(str(flag)),
-            throughput=flow.Pattern(str(flag)),
-            reliability=flow.Pattern(str(flag)),
-            monetary=flow.Pattern(str(flag)),
-            unused=flow.Pattern(str(flag))
-        )
+        ipv4.priority.choice = 'tos'
+        ipv4.priority.tos.precedence.value = getattr(ipv4.priority.tos, p)
+        ipv4.priority.tos.delay.value = flag
+        ipv4.priority.tos.throughput.value = flag
+        ipv4.priority.tos.reliability.value = flag
+        ipv4.priority.tos.monetary.value = flag
+        ipv4.priority.tos.unused.value = flag
 
-        prio = flow_ipv4.Priority(tos)
-        f.packet[1].ipv4.priority = prio
-        utils.apply_config(api, b2b_raw_config)
+        api.set_config(b2b_raw_config)
         attrs = {
             'Precedence': str(i),
             'Delay': str(flag),

@@ -61,7 +61,7 @@ def test_stats_filter(api, b2b_raw_config, utils):
 
         # port_results = api.get_port_results(result.PortRequest(
         #                                     column_names=['name',
-                                                        #   column_name]))
+        #                                        column_name]))
         validate_port_stats_based_on_column_name(port_results,
                                                  column_name,
                                                  f1_packets,
