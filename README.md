@@ -10,7 +10,7 @@
 This extension allows executing test scripts written using [snappi](https://github.com/open-traffic-generator/snappi) against  
 IxNetwork, (one of) Keysight's implementation of [Open Traffic Generator](https://github.com/open-traffic-generator/models/releases).
 
-The snappi-ixnetwork extension in this repo is under active development.
+> The repository is under active development.
 
 To start contributing, please see [contributing.md](contributing.md).
 
@@ -43,24 +43,34 @@ tx, rx = (
     .port(name='tx', location='192.168.0.1;2;1')
     .port(name='rx', location='192.168.0.1;2;2')
 )
-# configure only one flow
-flw = config.flows.flow(name='flw')[-1]
-# configure rate, size, frame count and endpoints
+# configure layer 1 properties
+ly, = config.layer1.layer1(name='ly')
+ly.port_names = [tx.name, rx.name]
+ly.speed = ly.SPEED_10_GBPS
+ly.media = ly.FIBER
+# configure flow properties
+flw, = config.flows.flow(name='flw')
+# flow endpoints
+flw.tx_rx.port.tx_name = tx.name
+flw.tx_rx.port.rx_name = rx.name
+# configure rate, size, frame count
 flw.size.fixed = 128
 flw.rate.pps = 1000
 flw.duration.fixed_packets.packets = 10000
-flw.tx_rx.port.tx_name = tx.name
-flw.tx_rx.port.rx_name = rx.name
 # configure protocol headers with defaults fields
 flw.packet.ethernet().vlan().ipv4().tcp()
-# set configuration and start traffic
+# push configuration
 api.set_config(config)
+# start transmitting configured flows
 ts = api.transmit_state()
 ts.state = ts.START
 api.set_transmit_state(ts)
+# create a query for flow metrics
+req = api.metrics_request()
+req.flow.flow_names = [flw.name]
 # wait for flow metrics to be as expected
 while True:
-    metrics = api.get_flow_metrics(api.flow_metrics_request())
-    if all([m.frames_tx == 10000 == m.frames_rx for m in metrics]):
+    res = api.get_metrics(req)
+    if all([m.frames_tx == 10000 == m.frames_rx for m in res.flow_metrics]):
         break
 ```
