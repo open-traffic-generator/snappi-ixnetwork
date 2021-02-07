@@ -1,6 +1,5 @@
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.customfield import CustomField
-import snappi
 
 
 class TrafficItem(CustomField):
