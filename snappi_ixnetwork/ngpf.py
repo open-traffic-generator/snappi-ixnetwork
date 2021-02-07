@@ -48,6 +48,8 @@ class Ngpf(object):
         devices = devices._items
         for device in devices:
             topology = lambda: None
+            if device.container_name is None:
+                raise NameError("container_name should not None")
             topology.name = self._api._get_topology_name(device.container_name)
             topologies[topology.name] = topology
         self._api._remove(ixn_topology, topologies.values())
