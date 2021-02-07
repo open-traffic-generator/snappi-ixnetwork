@@ -16,6 +16,22 @@ class Ngpf(object):
         '9300': 'ethertype9300',
     }
 
+    _BGP_AS_MODE = {
+        'do_not_include_local_as' : 'dontincludelocalas',
+        'include_as_seq' : 'includelocalasasasseq',
+        'include_as_set' : 'includelocalasasasset',
+        'include_as_confed_seq' : 'includelocalasasasseqconfederation',
+        'include_as_confed_set' : 'includelocalasasassetconfederation',
+        'prepend_to_first_segment' : 'prependlocalastofirstsegment'
+    }
+    
+    _BGP_SEG_TYPE = {
+        'as_seq': 'asseq',
+        'as_set': 'asset',
+        'as_confed_seq': 'asseqconfederation',
+        'as_confed_set': 'assetconfederation'
+    }
+    
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
 
@@ -212,6 +228,12 @@ class Ngpf(object):
                 
         return ixn_bgpv4
 
+    def _ip_to_int(self, ip):
+        """Convert IPv4 address to Int"""
+        octet= map(int, ip.split('.'))
+        result = (16777216 * octet[0]) + (65536 * octet[1]) + (256 * octet[2]) + octet[3]
+        return result
+    
     def _configure_bgpv4_route(self, ixn_ng, route_range):
         args = {
             'Name': route_range.name,
@@ -229,11 +251,32 @@ class Ngpf(object):
         ixn_pool.NumberOfAddresses = route_range.address_count
         self._configure_pattern(ixn_pool.NetworkAddress, route_range.address)
         self._configure_pattern(ixn_pool.PrefixLength, route_range.prefix)
-        self._configure_pattern(ixn_pool.PrefixAddrStep, route_range.address_step)
-        bgp_property = ixn_pool.BgpIPRouteProperty.find()
-        # if route_range.as_path.choice is not None:
-        #     bgp_property.EnableAsPathSegments.Single(True)
-        #     self._configure_pattern(bgp_property.BgpAsPathSegmentList.find().BgpAsNumberList.find().AsNumber,
-        #                             route_range.as_path)
-        self._configure_pattern(bgp_property.Ipv4NextHop, route_range.next_hop_address)
+        # self._configure_pattern(ixn_pool.PrefixAddrStep, self._ip_to_int(
+        #         route_range.address_step))
+        ixn_bgp_property = ixn_pool.BgpIPRouteProperty.find()
+        self._configure_pattern(ixn_bgp_property.Ipv4NextHop, route_range.next_hop_address)
+        self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
+        
+    def _config_bgp_as_path(self, as_path, ixn_bgp_property):
+        if as_path.as_set_mode is not None or len(
+                as_path.as_path_segments) > 0:
+            ixn_bgp_property.EnableAsPathSegments.Single(True)
+            if as_path.as_set_mode is not None:
+                ixn_bgp_property.AsSetMode.Single(Ngpf._BGP_AS_MODE[
+                                                      as_path.as_set_mode])
+            if len(as_path.as_path_segments) > 0:
+                ixn_bgp_property.NoOfASPathSegmentsPerRouteRange = len(
+                        as_path.as_path_segments)
+                ixn_segments = ixn_bgp_property.BgpAsPathSegmentList.find()
+                for seg_index, segment in enumerate(as_path.as_path_segments):
+                    ixn_segment = ixn_segments[seg_index]
+                    ixn_segment.SegmentType.Single(Ngpf._BGP_SEG_TYPE[
+                                                       segment.segment_type])
+                    if segment.as_numbers is not None:
+                        ixn_segment.NumberOfAsNumberInSegment = len(segment.as_numbers)
+                        ixn_as_numbers = ixn_segment.BgpAsNumberList.find()
+                        for as_index, as_number in enumerate(segment.as_numbers):
+                            ixn_as_number = ixn_as_numbers[as_index]
+                            ixn_as_number.AsNumber.Single(as_number)
+        
         
