@@ -2,42 +2,34 @@ import pytest
 
 
 @pytest.mark.skip(reason="Not yet implemented")
-def test_get_ingress_results(serializer, options, tx_port, rx_port, api):
+def test_get_ingress_results(b2b_raw_config, options, tx_port, rx_port, api):
     """UDP Flow test traffic configuration
     """
-    udp_endpoint = PortTxRx(tx_port_name=tx_port.name,
-                            rx_port_name=rx_port.name)
-    udp_header = Udp(src_port=Pattern(Counter(start="12001",
-                                              step="2",
-                                              count=100),
-                                      ingress_result_name='UDP SRC PORT'),
-                     dst_port=Pattern("20"))
-    udp_flow = Flow(name='UDP Flow',
-                    tx_rx=TxRx(udp_endpoint),
-                    packet=[
-                        Header(Ethernet()),
-                        Header(Vlan()),
-                        Header(Ipv4()),
-                        Header(udp_header)
-                    ],
-                    size=Size(128),
-                    rate=Rate(unit='pps', value=1000),
-                    duration=Duration(FixedPackets(packets=10000)))
-    config = Config(ports=[tx_port, rx_port],
-                    flows=[udp_flow],
-                    options=options)
-    state = State(ConfigState(config=config, state='set'))
-    print(serializer.json(state))
-    api.set_state(state)
-    state = State(FlowTransmitState(state='start'))
-    api.set_state(state)
+    import snappi
+    b2b_raw_config = snappi.Api().config()
+    b2b_raw_config.flows.clear()
+    f = b2b_raw_config.flows.flow()[-1]
+    f.name = 'UDP Flow'
+    f.packet.ethernet().vlan().ipv4().udp()
+    f.tx_rx.port.tx_name = tx_port.name
+    f.tx_rx.port.rx_name = rx_port.name
+    f.size.fixed = 128
+    f.rate.pps = 1000
+    f.duration.fixed_packets.packets = 10000
+    udp = f.packet[-1]
+    udp.src_port.increment.start = 12001
+    udp.dst_port.value = 20
+    api.set_config(b2b_raw_config)
+    # udp.ingress_result_name = 'UDP SRC PORT'
+    transmit_state = api.transmit_state()
+    transmit_state.state = 'start'
+    api.set_transmit_state(transmit_state)
 
-    from pandas import DataFrame
-    request = FlowRequest(ingress_result_names=['UDP SRC PORT'])
+    request = api.metrics_request()
+    request.choice = request.FLOW
+    request.flow.ingress_result_names = ['UDP SRC PORT']
     while True:
-        results = api.get_flow_results(request)
-        df = DataFrame.from_dict(results)
-        print(df)
+        df = api.get_metrics(request).flow_metrics
         if df.frames_tx.sum() >= 10000 and df.frames_tx_rate.sum() == 0:
             break
 

@@ -1,27 +1,33 @@
 import pytest
-import time
 
 
 @pytest.mark.skip(reason="Fix -breaks build - needs investigation")
-def test_staggered_flow_start(serializer, api, options, tx_port, rx_port):
+def test_staggered_flow_start(api, utils):
     """Demonstrates how to individually start flows
     """
     # configure flows
-    tx_rx = PortTxRx(tx_port_name=tx_port.name, rx_port_name=rx_port.name)
-    config = Config(ports=[tx_port, rx_port], options=options)
-    for name in ['flow1', 'flow2', 'flow3']:
-        flow = Flow(name=name,
-                    tx_rx=TxRx(tx_rx),
-                    rate=Rate('pps', value=1000),
-                    duration=Duration(FixedPackets()))
-        config.flows.append(flow)
-    api.set_state(State(ConfigState(config=config, state='set')))
-
+    tx = utils.settings.ports[0]
+    rx = utils.settings.ports[1]
+    config = api.config()
+    ptx, prx = config.ports.port(
+        name='tx', location=tx
+    ).port(
+        name='rx', location=rx
+    )
+    flows = config.flows.flow().flow().flow()
+    for i, f in enumerate(flows):
+        f.name = 'flow{}'.format(i + 1)
+        f.tx_rx.port.tx_name = ptx.name
+        f.tx_rx.port.rx_name = prx.name
+        f.rate.pps = 1000
+        f.duration.fixed_packets.packets = 1000
+    api.set_config(config)
     # start flows
     for flow in config.flows:
-        api.set_state(
-            State(FlowTransmitState(flow_names=[flow.name], state='start')))
-
-
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
+        tr_state = api.transmit_state()
+        tr_state.flow_names = [flow.name]
+        tr_state.state = 'start'
+        api.set_transmit_state(tr_state)
+    utils.wait_for(
+        lambda: utils.is_traffic_stopped(api), 'traffic to stop'
+    )

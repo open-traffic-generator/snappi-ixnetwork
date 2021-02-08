@@ -1,8 +1,4 @@
-import pytest
-
-
-@pytest.mark.skip(reason="Fix - Do not use pandas")
-def test_short_duration_flow_results(serializer, api, b2b_ipv4_flows_config):
+def test_short_duration_flow_results(api, utils, b2b_raw_config):
     """Bug Fix Test - given a short duration flow the flow metrics
     are all 0 when flows are stopped
 
@@ -15,23 +11,11 @@ def test_short_duration_flow_results(serializer, api, b2b_ipv4_flows_config):
     Fixed when:
     - flow metric frames_tx is not zero
     """
-    duration = flow.Duration(flow.FixedSeconds(seconds=1))
-    for config_flow in b2b_ipv4_flows_config.flows:
-        config_flow.duration = duration
-    state = control.State(
-        control.ConfigState(config=b2b_ipv4_flows_config, state='set'))
-    api.set_state(state)
-    state = control.State(control.FlowTransmitState(state='start'))
-    api.set_state(state)
-
-    while True:
-        results = api.get_flow_results(result.FlowRequest())
-        df = pandas.DataFrame.from_dict(results)
-        if df.transmit.str.match('^stopped$').sum() == len(df):
-            break
-    print(df)
-    assert(df.frames_tx.sum() > 0)
-    
-
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
+    f = b2b_raw_config.flows[-1]
+    f.duration.fixed_seconds.seconds = 1
+    api.set_config(b2b_raw_config)
+    utils.start_traffic(api, b2b_raw_config)
+    utils.wait_for(
+        lambda: utils.is_traffic_stopped(api), 'traffic to stop'
+    )
+    utils.get_all_stats(api)

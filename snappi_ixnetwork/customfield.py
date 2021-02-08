@@ -65,8 +65,8 @@ class CustomField(object):
             return None
         if phb_pattern.choice == 'value':
             value = phb_pattern.value
-        elif phb_pattern.choice == 'value_list':
-            value = phb_pattern.value_list[0]
+        elif phb_pattern.choice == 'values':
+            value = phb_pattern.values[0]
         elif phb_pattern.choice == 'counter':
             value = phb_pattern.counter.start
         else:
