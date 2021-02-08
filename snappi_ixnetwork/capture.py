@@ -38,6 +38,13 @@ class Capture(object):
         'dst': '30',
     }
     
+    _VLAN_OFFSET_MAP = {
+        'priority': '34',
+        'cfi': '34',
+        'id': '34',
+        'protocol': '36',
+    }
+    
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         self._capture_request = None
@@ -116,6 +123,9 @@ class Capture(object):
         pallete_map = getattr(self, '_{0}_OFFSET_MAP'.format(
                                 cap_filter.parent.choice.upper()))
         for field_name in dir(cap_filter):
+            if field_name not in pallete_map:
+                raise Exception("Api not implimented for {0}".format(
+                            field_name))
             if field_name in pallete_map:
                 cap_field = getattr(cap_filter, field_name)
                 if cap_field.value is not None:

@@ -1,6 +1,5 @@
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.customfield import CustomField
-import snappi
 
 
 class TrafficItem(CustomField):
@@ -235,12 +234,7 @@ class TrafficItem(CustomField):
         else:
             encap = None
             for name in flow.tx_rx.device.tx_names:
-                device = self._api.get_config_object(name)
-                if device.__class__ \
-                        is snappi.DeviceBgpv4RouteRange:
-                    encap = 'ipv4'
-                else:
-                    encap = self._api.get_device_encap(name)
+                encap = self._api.get_device_encap(name)
         return encap
 
     def _configure_endpoint(self, ixn_endpoint_set, endpoint):
