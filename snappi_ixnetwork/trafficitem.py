@@ -473,11 +473,10 @@ class TrafficItem(CustomField):
             args['Type'] = 'framesPerSecond'
             value = rate.pps
         else:
-            # TODO: fix for other units
             args['Type'] = 'bitsPerSecond'
             args['BitRateUnitsType'] = TrafficItem._BIT_RATE_UNITS_TYPE[
-                rate.unit]
-            value = rate.bps
+                rate.choice]
+            value = getattr(rate, rate.choice)
         args['Rate'] = value
         self._update(ixn_frame_rate, **args)
 
