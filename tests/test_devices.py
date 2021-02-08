@@ -1,47 +1,44 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
-def test_device_ipv4_fixed(serializer, api):
+def test_device_ipv4_fixed(api, utils):
     """Test the creation of ipv4 fixed properties
     """
-    port = Port('port 1')
-    config = Config(ports=[port])
-    config.devices.append(
-        Device(name='device',
-               container_name=port.name,
-               device_count=15,
-               choice=Ipv4(name='ipv4',
-                           address=Pattern('1.1.1.1'),
-                           prefix=Pattern('24'),
-                           gateway=Pattern('1.1.2.1'),
-                           ethernet=Ethernet(name='eth',
-                                             mac=Pattern('00:00:fa:ce:fa:ce'),
-                                             mtu=Pattern('1200')))))
-    api.set_state(State(ConfigState(config=config, state='set')))
+    port = utils.settings.ports[0]
+    config = api.config()
+    port1 = config.ports.port()[-1]
+    port1.location = port
+    port1.name = 'port 1'
+    dev = config.devices.device()[-1]
+    dev.name = 'device'
+    dev.container_name = port1.name
+    dev.device_count = 15
+    eth = dev.ethernet
+    eth.name = 'eth'
+    eth.mac.value = '00:00:fa:ce:fa:ce'
+    eth.mtu.value = 1200
+    ipv4 = eth.ipv4
+    ipv4.address.value = '1.1.1.1'
+    ipv4.prefix.value = 24
+    ipv4.gateway.value = '1.1.2.1'
+    api.set_config(config)
 
 
-@pytest.mark.skip("skip until migrated to snappi")
-def test_device_ipv4value_list(serializer, api):
+def test_device_ipv4value_list(api, utils):
     """Test the creation of ipv4 value list properties
     """
-    port = Port('port 1')
-    config = Config(ports=[port])
-    config.devices.append(
-        Device(name='device',
-               container_name=port.name,
-               device_count=20,
-               choice=Ipv4(name='ipv4',
-                           address=Pattern(['1.1.1.1', '1.1.1.6', '1.1.1.7']),
-                           prefix=Pattern(['24', '32', '16']),
-                           gateway=Pattern(['1.1.2.1', '1.1.2.6', '1.1.2.7']),
-                           ethernet=Ethernet(
-                               name='eth',
-                               mac=Pattern(
-                                   ['00:00:aa:aa:aa:aa', '00:00:bb:bb:bb:bb']),
-                               mtu=Pattern(['1200', '1201', '1202'])))))
-    api.set_state(State(ConfigState(config=config, state='set')))
-
-
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
+    port = utils.settings.ports[0]
+    config = api.config()
+    port1 = config.ports.port()[-1]
+    port1.location = port
+    port1.name = 'port 1'
+    dev = config.devices.device()[-1]
+    dev.name = 'device'
+    dev.container_name = port1.name
+    dev.device_count = 15
+    eth = dev.ethernet
+    eth.name = 'eth'
+    eth.mac.values = ['00:00:aa:aa:aa:aa', '00:00:bb:bb:bb:bb']
+    eth.mtu.values = [1200, 1201, 1202]
+    ipv4 = eth.ipv4
+    ipv4.address.values = ['1.1.1.1', '1.1.1.6', '1.1.1.7']
+    ipv4.prefix.values = [24, 32, 16]
+    ipv4.gateway.values = ['1.1.2.1', '1.1.2.6', '1.1.2.7']
+    api.set_config(config)

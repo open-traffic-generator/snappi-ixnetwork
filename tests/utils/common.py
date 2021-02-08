@@ -188,30 +188,26 @@ def get_all_stats(api, print_output=True):
     """
     print('Fetching all port stats ...')
     request = api.metrics_request()
-    request.choice = 'port'
+    request.choice = request.PORT
     request.port
-    port_results = api.get_metrics(request)
-    # port_results_request = api.port_metrics_request()
-    # port_results = api.get_port_metrics(port_results_request)
-    if port_results.port_metrics is None:
+    port_results = api.get_metrics(request).port_metrics
+    if port_results is None:
         port_results = []
 
     print('Fetching all flow stats ...')
     request = api.metrics_request()
-    request.choice = 'flow'
+    request.choice = request.FLOW
     request.flow
-    flow_results = api.get_metrics(request)
-    # flow_results_request = api.flow_metrics_request()
-    # flow_results = api.get_flow_metrics(flow_results_request)
-    if flow_results.flow_metrics is None:
+    flow_results = api.get_metrics(request).flow_metrics
+    if flow_results is None:
         flow_results = []
 
     if print_output:
         print_stats(
-            port_stats=port_results.port_metrics,
-            flow_stats=flow_results.flow_metrics)
+            port_stats=port_results,
+            flow_stats=flow_results)
 
-    return port_results.port_metrics, flow_results.flow_metrics
+    return port_results, flow_results
 
 
 def total_frames_ok(port_results, flow_results, expected):

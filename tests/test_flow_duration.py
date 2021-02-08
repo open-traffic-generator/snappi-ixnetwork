@@ -1,8 +1,4 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
-def test_flow_duration(serializer, api, tx_port, rx_port, b2b_ipv4_devices):
+def test_flow_duration(api, utils):
     """
     This will test different transmit durations:
     [1] Fixed : A fixed number of packets will be transmitted after which the flow will stop
@@ -13,7 +9,7 @@ def test_flow_duration(serializer, api, tx_port, rx_port, b2b_ipv4_devices):
         - gap (int): The minimum gap between packets expressed as bytes
         - delay (int): The delay before starting transmission of packets
         - delay_unit (Union[bytes, nanoseconds]): The delay expressed as a number of this value
-    
+
     [2] Burst : A continuous burst of packets that will not automatically stop
         Args
         ----
@@ -22,59 +18,55 @@ def test_flow_duration(serializer, api, tx_port, rx_port, b2b_ipv4_devices):
         - inter_burst_gap (int): The gap between the transmission of each burst. A value of 0 means there is no gap between bursts
         - inter_burst_gap_unit (Union[bytes, nanoseconds]): The inter burst gap expressed as a number of this value
     """
-    data_endpoint = DeviceTxRx(tx_device_names=[b2b_ipv4_devices[0].name],
-                               rx_device_names=[b2b_ipv4_devices[1].name])
+
+    config = api.config()
+    # import snappi
+    # config = snappi.Api().config()
+    config.ports.port(name='tx').port(name='rx')
+    tx_port, rx_port = config.ports
+    tx_port.location = utils.settings.ports[0]
+    rx_port.location = utils.settings.ports[1]
+    l1, l2 = config.layer1.layer1().layer1()
+    l1.port_names, l2.port_names = [tx_port.name], [rx_port.name]
+    l1.media, l1.media = utils.settings.media, utils.settings.media
+    l1.speed, l2.speed = utils.settings.speed, utils.settings.speed
+    c, fp, fs, b = config.flows.flow().flow().flow().flow()
 
     # Test for Continuous Flow
-    test_continuous = Flow(
-        name='Continuous Duration',
-        tx_rx=TxRx(data_endpoint),
-        packet=[Header(Ethernet()),
-                Header(Vlan()),
-                Header(Ipv4())],
-        duration=Duration(Continuous()))
+    c.name = 'Continuous Duration'
+    c.packet.ethernet().vlan().ipv4()
+    c.duration.choice = c.duration.CONTINUOUS
+    c.tx_rx.port.tx_name = tx_port.name
+    c.tx_rx.port.rx_name = rx_port.name
 
     # Test for Fix packet with Gap and Delay
-    test_fixed_packet = Flow(
-        name='Fixed Packet Duration',
-        tx_rx=TxRx(data_endpoint),
-        packet=[Header(Ethernet()),
-                Header(Vlan()),
-                Header(Ipv4())],
-        duration=Duration(
-            FixedPackets(packets=125, gap=2, delay=8, delay_unit='bytes')))
+    fp.name = 'Fixed Packet Duration'
+    fp.tx_rx.port.tx_name = tx_port.name
+    fp.tx_rx.port.rx_name = rx_port.name
+    fp.packet.ethernet().vlan().ipv4()
+    fp.duration.fixed_packets.packets = 125
+    fp.duration.fixed_packets.gap = 2
+    fp.duration.fixed_packets.delay = 8
+    fp.duration.fixed_packets.delay_unit = fp.duration.fixed_packets.BYTES
 
     # Test for Fix second with Gap and Delay
-    test_fixed_second = Flow(
-        name='Fixed Second Duration',
-        tx_rx=TxRx(data_endpoint),
-        packet=[Header(Ethernet()),
-                Header(Vlan()),
-                Header(Ipv4())],
-        duration=Duration(
-            FixedSeconds(seconds=312, gap=2, delay=8, delay_unit='bytes')))
+    fs.name = 'Fixed Seconds Duration'
+    fs.tx_rx.port.tx_name = tx_port.name
+    fs.tx_rx.port.rx_name = rx_port.name
+    fs.packet.ethernet().vlan().ipv4()
+    fs.duration.fixed_seconds.seconds = 312
+    fs.duration.fixed_seconds.gap = 2
+    fs.duration.fixed_seconds.delay = 8
+    fs.duration.fixed_seconds.delay_unit = fp.duration.fixed_seconds.BYTES
 
     # Test for Burst Duration with Gap and inter burst gap
-    test_burst = Flow(
-        name='Burst Duration',
-        tx_rx=TxRx(data_endpoint),
-        packet=[Header(Ethernet()),
-                Header(Vlan()),
-                Header(Ipv4())],
-        duration=Duration(
-            Burst(packets=700,
-                  gap=8,
-                  inter_burst_gap=4,
-                  inter_burst_gap_unit='nanoseconds')))
+    b.name = 'Fixed Burst Duration'
+    b.tx_rx.port.tx_name = tx_port.name
+    b.tx_rx.port.rx_name = rx_port.name
+    b.packet.ethernet().vlan().ipv4()
+    b.duration.burst.packets = 700
+    b.duration.burst.gap = 8
+    b.duration.burst.inter_burst_gap = 4
+    b.duration.burst.inter_burst_gap_unit = fp.duration.burst.NANOSECONDS
 
-    config = Config(ports=[tx_port, rx_port],
-                    devices=b2b_ipv4_devices,
-                    flows=[
-                        test_continuous, test_fixed_packet, test_fixed_second,
-                        test_burst
-                    ])
-    api.set_state(State(ConfigState(config=config, state='set')))
-
-
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
+    api.set_config(config)
