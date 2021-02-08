@@ -323,7 +323,11 @@ class Api(snappi.Api):
         if glob_topo.ApplyOnTheFlyState == 'allowed':
             url = '%s/globals/topology/operations/applyonthefly' % self._ixnetwork.href
             payload = {'arg1': glob_topo.href}
-            self._request('POST', url, payload)
+            # todo: Sometime it redirect to some unknown loaction
+            try:
+                self._request('POST', url, payload)
+            except Exception:
+                pass
         
     def _request(self, method, url, payload=None):
         connection, url = self._assistant.Session._connection._normalize_url(
