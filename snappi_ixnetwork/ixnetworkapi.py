@@ -50,6 +50,11 @@ class Api(snappi.Api):
         self._ixn_errors = list()
         self._config_objects = {}
         self._device_encap = {}
+        self._config_type = self.config()
+        self._transmit_state = self.transmit_state()
+        self._link_state = self.link_state()
+        self._capture_state = self.capture_state()
+        self._capture_request = self.capture_request()
         self.validation = Validation(self)
         self.vport = Vport(self)
         self.ngpf = Ngpf(self)
@@ -74,16 +79,18 @@ class Api(snappi.Api):
         return self._config
 
     def get_config_object(self, name):
-        if self._config_objects.get(name):
-            raise NameError("{0} is not avialable any Device object"
+        try:
+            return self._config_objects[name]
+        except KeyError:
+            raise NameError("snappi object named {0} not found"
                             .format(name))
-        return self._config_objects[name]
 
     def get_device_encap(self, name):
-        if self._device_encap.get(name) is None:
-            raise NameError("{0} is not avialable any Device object"
+        try:
+            return self._device_encap[name]
+        except KeyError:
+            raise NameError("snappi object named {0} not found"
                             .format(name))
-        return self._device_encap[name]
 
     @property
     def ixn_objects(self):
@@ -142,13 +149,13 @@ class Api(snappi.Api):
     def set_config(self, config):
         """Set or update the configuration
         """
-        if isinstance(config, (type(self.config()),
+        if isinstance(config, (type(self._config_type),
                                 str)) is False:
             raise TypeError(
                 'The content must be of type Union[Config, str]')
         
         if isinstance(config, str) is True:
-            config = self.config().deserialize(config)
+            config = self._config_type.deserialize(config)
         self._config_objects = {}
         self._device_encap = {}
         self._ixn_objects = {}
@@ -172,24 +179,24 @@ class Api(snappi.Api):
     def set_transmit_state(self, payload):
         """Set the transmit state of flows
         """
-        if isinstance(payload, (type(self.transmit_state()),
+        if isinstance(payload, (type(self._transmit_state),
                                 str)) is False:
             raise TypeError(
                 'The content must be of type Union[TransmitState, str]')
         if isinstance(payload, str) is True:
-            payload = self.transmit_state().deserialize(
+            payload = self._transmit_state.deserialize(
                                     payload)
         self._connect()
         self.traffic_item.transmit(payload)
         return self._request_detail()
 
     def set_link_state(self, link_state):
-        if isinstance(link_state, (type(self.link_state()),
+        if isinstance(link_state, (type(self._link_state),
                                 str)) is False:
             raise TypeError(
                 'The content must be of type Union[LinkState, str]')
         if isinstance(link_state, str):
-            link_state = self.link_state().deserialize(link_state)
+            link_state = self._link_state.deserialize(link_state)
         self._connect()
         if link_state.port_names is not None:
             self.vport.set_link_state(link_state)
@@ -198,12 +205,12 @@ class Api(snappi.Api):
     def set_capture_state(self, payload):
         """Starts capture on all ports that have capture enabled.
         """
-        if isinstance(payload, (type(self.capture_state()),
+        if isinstance(payload, (type(self._capture_state),
                                 str)) is False:
             raise TypeError(
                 'The content must be of type Union[CaptureState, str]')
         if isinstance(payload, str) is True:
-            payload = self.capture_state().deserialize(
+            payload = self._capture_state.deserialize(
                                     payload)
         self._connect()
         self.capture.set_capture_state(payload)
@@ -212,14 +219,14 @@ class Api(snappi.Api):
     def get_capture(self, request):
         """Gets capture file and returns it as a byte stream
         """
-        self._connect()
-        if isinstance(request, (type(self.capture_request()),
+        if isinstance(request, (type(self._capture_request),
                                 str)) is False:
             raise TypeError(
                 'The content must be of type Union[CaptureRequest, str]')
         if isinstance(request, str) is True:
-            request = self.capture_request().deserialize(
+            request = self._capture_request.deserialize(
                 request)
+        self._connect()
         return self.capture.results(request)
     
     def get_metrics(self, request):
@@ -311,8 +318,8 @@ class Api(snappi.Api):
 
     def _validate_instance(self, config):
         if self._traffic.State == 'started':
-            msg = "set_config may encounter issue " \
-                  "as Traffic are already started"
+            msg = "Flows are in running state. " \
+                  "Please stop those using set_transmit_state"
             self.add_error(msg)
             self.warning(msg)
         return config
