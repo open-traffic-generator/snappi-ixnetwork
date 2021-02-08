@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.skip(reason="failing in CICD")
+@pytest.mark.skip(reason="failing in CICD build")
 def test_short_duration_flow_results(api, utils, b2b_raw_config):
     """Bug Fix Test - given a short duration flow the flow metrics
     are all 0 when flows are stopped
