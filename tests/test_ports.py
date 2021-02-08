@@ -8,10 +8,12 @@ def test_ports(api, utils):
     rx_port = utils.settings.ports[1]
     config = api.config()
     config.ports.port(
-        name='tx', location=tx_port
+        name='tx_port', location=tx_port
     ).port(
-        name='rx', location=rx_port
+        name='rx_port', location=rx_port
     ).port(
         name='port with no location'
     )
+    api.set_config(config)
+    config = api.config()
     api.set_config(config)
