@@ -1,9 +1,9 @@
 {
     "username": "common",
-    "api_server": "https://localhost:443",
+    "api_server": "https://10.39.70.173:11040",
     "ports": [
-        "localhost;1;1",
-        "localhost;1;2"
+        "10.39.65.230;5;1",
+        "10.39.65.230;5;2"
     ],
     "ext": "ixnetwork",
     "speed": "speed_1_gbps",
