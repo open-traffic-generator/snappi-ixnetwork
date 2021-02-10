@@ -1,4 +1,5 @@
 from snappi_ixnetwork.timer import Timer
+import time
 
 
 class ProtocolMetrics(object):
@@ -64,7 +65,6 @@ class ProtocolMetrics(object):
         return table
 
     def _check_if_page_ready(self, view):
-        import time
         count = 0
         while True:
             if view.Data.IsReady:
@@ -83,6 +83,7 @@ class ProtocolMetrics(object):
             try:
                 v.DrillDown.find().TargetRowIndex = row
                 v.DrillDown.find().DoDrillDown()
+                time.sleep(1)
                 drill = self._api.assistant.StatViewAssistant(
                     self._PROTO_NAME_MAP_[protocol]['drill_down'],
                     self.metric_timeout
