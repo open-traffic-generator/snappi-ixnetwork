@@ -1,5 +1,6 @@
 import pytest
 
+
 def test_devices(api, utils):
     """This is a BGPv4 demo test script with router ranges
     """

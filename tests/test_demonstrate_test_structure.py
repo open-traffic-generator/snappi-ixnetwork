@@ -14,7 +14,7 @@ def port_configs(api, utils):
         ).port(
             name='Port 2', location=utils.settings.ports[1]
         )
-
+        config.options.port_options.location_preemption = True
         config.layer1.layer1().layer1()
         devices = config.devices.device().device()
         for i, l1 in enumerate(config.layer1):
