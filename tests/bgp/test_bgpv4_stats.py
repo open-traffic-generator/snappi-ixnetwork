@@ -40,6 +40,7 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
         'tx_bgp': [10, 10, 0, 0, 0, 0],
         'rx_bgp': [10, 10, 0, 0, 0, 0]
     }
+
     assert len(results.bgpv4_metrics) == 2
     for bgp_res in results.bgpv4_metrics:
         for i, enum in enumerate(enums):

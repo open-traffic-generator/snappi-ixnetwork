@@ -10,10 +10,13 @@ class ProtocolMetrics(object):
         "bgpv4"
     ]
     _PROTO_NAME_MAP_ = {
-        # TODO This structure is not final and will modify in future
-        # as "bgpv4": {'per_port': '', 'drill_down': ''}
-        "bgpv4": 'BGP Peer Per Port',
-        "bgpv4_drill": 'BGP Peer Drill Down'
+        "bgpv4": {
+            'per_port': 'BGP Peer Per Port',
+            'drill_down': 'BGP Peer Drill Down',
+            'drill_down_options': [
+                'BGP Peer:Per Device Group', 'BGP Peer:Per Session'
+            ]
+        }
     }
 
     _RESULT_COLUMNS = {
@@ -32,7 +35,7 @@ class ProtocolMetrics(object):
         self._api = ixnetworkapi
         self.columns = []
         self.device_names = []
-        self.metric_timeout = 30
+        self.metric_timeout = 60
 
     def get_supported_protocols(self):
         """
@@ -48,20 +51,28 @@ class ProtocolMetrics(object):
             )
         try:
             table = self._api.assistant.StatViewAssistant(
-                protocol_name, self.metric_timeout
+                protocol_name['per_port'], self.metric_timeout
             )
         except Exception:
             msg = "Could not retrieve stats view for {}\
                 make sure the protocol is up and running".format(protocol)
             raise Exception(msg)
-        drill_option = [
-            opt for opt in table.DrillDownOptions()
-            if 'Device Group' in opt
-        ]
-        if len(drill_option) == 0:
-            raise LookupError("Could not fetch drill down option")
-        table._View.DrillDown.find().TargetDrillDownOption = drill_option[0]
+        self._check_if_page_ready(table._View)
+        drill_option = protocol_name['drill_down_options'][0]
+        table._View.DrillDown.find().TargetRowIndex = 0
+        table._View.DrillDown.find().TargetDrillDownOption = drill_option
         return table
+
+    def _check_if_page_ready(self, view):
+        import time
+        count = 0
+        while True:
+            if view.Data.IsReady:
+                break
+            if count >= self.metric_timeout:
+                raise Exception("View Page is not ready")
+            time.sleep(1)
+            count += 1
 
     def _get_per_device_group_stats(self, protocol):
         table = self._get_per_port_stat_view(protocol)
@@ -73,13 +84,15 @@ class ProtocolMetrics(object):
                 v.DrillDown.find().TargetRowIndex = row
                 v.DrillDown.find().DoDrillDown()
                 drill = self._api.assistant.StatViewAssistant(
-                    self._PROTO_NAME_MAP_.get(protocol + '_drill'),
+                    self._PROTO_NAME_MAP_[protocol]['drill_down'],
                     self.metric_timeout
                 )
             except Exception as e:
-                msg = 'Could not retrive drill down view at row index %s'\
-                    % (row)
-                raise Exception(msg + e)
+                msg = """"
+                Could not retrive drill down view at row index {} {}""".format(
+                    row, e
+                )
+                raise Exception(msg)
             for dev_row in drill.Rows:
                 dev_name = dev_row['Device Group']
                 if len(self.names) > 0 and dev_name not in self.names:
