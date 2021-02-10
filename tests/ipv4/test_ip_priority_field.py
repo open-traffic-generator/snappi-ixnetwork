@@ -18,7 +18,9 @@ def test_counter_ip_dscp(api, b2b_raw_config, utils):
         '28', '30', '34', '36', '38', '46'
     ]
     for i, p in enumerate(phb):
-        ipv4.priority.choice = 'dscp'
+        # https://github.com/open-traffic-generator/snappi/issues/25
+        # currently assigning the choice as work around
+        ipv4.priority.choice = ipv4.priority.DSCP
         ipv4.priority.dscp.phb.value = getattr(ipv4.priority.dscp, p)
         api.set_config(b2b_raw_config)
         if i == 0:
@@ -43,11 +45,6 @@ def test_ip_priority_tos(api, b2b_raw_config, utils):
     """
 
     f = b2b_raw_config.flows[0]
-    # import snappi
-    # b2b_raw_config = snappi.Api().config()
-    # f = b2b_raw_config.flows.flow()[-1]
-    # ipv4 = f.packet.ethernet().ipv4()[-1]
-    # ipv4 = ipv4.ipv4
     ipv4 = f.packet.ethernet().ipv4()[-1]
     api.set_config(b2b_raw_config)
     precedence = [
@@ -62,7 +59,9 @@ def test_ip_priority_tos(api, b2b_raw_config, utils):
     ]
     flag = 0
     for i, p in enumerate(precedence):
-        ipv4.priority.choice = 'tos'
+        # https://github.com/open-traffic-generator/snappi/issues/25
+        # currently assigning the choice as work around
+        ipv4.priority.choice = ipv4.priority.TOS
         ipv4.priority.tos.precedence.value = getattr(ipv4.priority.tos, p)
         ipv4.priority.tos.delay.value = flag
         ipv4.priority.tos.throughput.value = flag

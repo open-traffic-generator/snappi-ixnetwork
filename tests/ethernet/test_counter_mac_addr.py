@@ -15,8 +15,6 @@ def test_counter_mac_addrs(api, b2b_raw_config, utils):
     eth_type = '8100'
     eth_step = '2'
 
-    # import snappi
-    # flow = snappi.Api().config().flows.flow()[-1]
     flow.packet.ethernet()
     eth = flow.packet[-1]
     eth.src.increment.start = src
