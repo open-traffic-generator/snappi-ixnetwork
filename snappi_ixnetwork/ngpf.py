@@ -23,6 +23,32 @@ class Ngpf(object):
         'ipv6' : 'ipv6',
         'bgpv4' : 'ipv4',
     }
+
+    _BGP_AS_MODE = {
+        'do_not_include_local_as' : 'dontincludelocalas',
+        'include_as_seq' : 'includelocalasasasseq',
+        'include_as_set' : 'includelocalasasasset',
+        'include_as_confed_seq' : 'includelocalasasasseqconfederation',
+        'include_as_confed_set' : 'includelocalasasassetconfederation',
+        'prepend_to_first_segment' : 'prependlocalastofirstsegment'
+    }
+    
+    _BGP_SEG_TYPE = {
+        'as_seq': 'asseq',
+        'as_set': 'asset',
+        'as_confed_seq': 'asseqconfederation',
+        'as_confed_set': 'assetconfederation'
+    }
+    
+    _BGP_COMMUNITY_TYPE = {
+        'manual_as_number': 'manual',
+        'no_export': 'noexport',
+        'no_advertised': 'noadvertised',
+        'no_export_subconfed': 'noexport_subconfed',
+        'llgr_stale': 'llgr_stale',
+        'no_llgr': 'no_llgr'
+    }
+    
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
 
@@ -119,6 +145,34 @@ class Ngpf(object):
         elif pattern.choice == 'random':
             pass
 
+    def _casting_pattern_value(self, pattern, casting_type):
+        """"""
+        if pattern.choice is None:
+            return
+        custom_type = getattr(self, casting_type, None)
+        if custom_type is None:
+            raise Exception("Please defined this {0} method".format(
+                casting_type))
+        if pattern.choice == 'value':
+            pattern.value = custom_type(pattern.value)
+        elif pattern.choice == 'values':
+            pattern.values = [custom_type(
+                    val) for val in pattern.values]
+        elif pattern.choice == 'increment':
+            pattern.increment.start = custom_type(pattern.increment.start)
+            pattern.increment.step = custom_type(pattern.increment.step)
+        elif pattern.choice == 'decrement':
+            pattern.decrement.start = custom_type(pattern.decrement.start)
+            pattern.decrement.step = custom_type(pattern.decrement.step)
+        return pattern
+    
+    def _ip_to_int(self, ip):
+        """Convert IPv4 address to Int"""
+        octet= list(map(int, ip.split('.')))
+        result = (16777216 * octet[0]) + (65536 * octet[1]) \
+                 + (256 * octet[2]) + octet[3]
+        return result
+    
     def _configure_ethernet(self, ixn_parent, ethernet, ixn_dg):
         """Transform Device.Ethernet to /topology/.../ethernet
         """
@@ -222,7 +276,7 @@ class Ngpf(object):
                 self._configure_bgpv4_route(ixn_dg.NetworkGroup, route_range)
                 
         return ixn_bgpv4
-
+    
     def _configure_bgpv4_route(self, ixn_ng, route_range):
         args = {
             'Name': route_range.name,
@@ -242,12 +296,45 @@ class Ngpf(object):
         ixn_pool.NumberOfAddresses = route_range.address_count
         self._configure_pattern(ixn_pool.NetworkAddress, route_range.address)
         self._configure_pattern(ixn_pool.PrefixLength, route_range.prefix)
-        self._configure_pattern(ixn_pool.PrefixAddrStep, route_range.address_step)
-        bgp_property = ixn_pool.BgpIPRouteProperty.find()
-        # if route_range.as_path.choice is not None:
-        #     bgp_property.EnableAsPathSegments.Single(True)
-        #     self._configure_pattern(bgp_property.BgpAsPathSegmentList.find().BgpAsNumberList.find().AsNumber,
-        #                             route_range.as_path)
-        self._configure_pattern(bgp_property.Ipv4NextHop, route_range.next_hop_address)
-        return ixn_ng
-        
+        self._configure_pattern(ixn_pool.PrefixAddrStep, self._casting_pattern_value(
+                route_range.address_step, '_ip_to_int'))
+        ixn_bgp_property = ixn_pool.BgpIPRouteProperty.find()
+        self._configure_pattern(ixn_bgp_property.Ipv4NextHop, route_range.next_hop_address)
+        self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
+        self._config_bgp_community(route_range.community, ixn_bgp_property)
+
+    def _config_bgp_as_path(self, as_path, ixn_bgp_property):
+        if as_path.as_set_mode is not None or len(
+                as_path.as_path_segments) > 0:
+            ixn_bgp_property.EnableAsPathSegments.Single(True)
+            if as_path.as_set_mode is not None:
+                ixn_bgp_property.AsSetMode.Single(Ngpf._BGP_AS_MODE[
+                                                      as_path.as_set_mode])
+            if len(as_path.as_path_segments) > 0:
+                ixn_bgp_property.NoOfASPathSegmentsPerRouteRange = len(
+                        as_path.as_path_segments)
+                ixn_segments = ixn_bgp_property.BgpAsPathSegmentList.find()
+                for seg_index, segment in enumerate(as_path.as_path_segments):
+                    ixn_segment = ixn_segments[seg_index]
+                    ixn_segment.SegmentType.Single(Ngpf._BGP_SEG_TYPE[
+                                                       segment.segment_type])
+                    if segment.as_numbers is not None:
+                        ixn_segment.NumberOfAsNumberInSegment = len(segment.as_numbers)
+                        ixn_as_numbers = ixn_segment.BgpAsNumberList.find()
+                        for as_index, as_number in enumerate(segment.as_numbers):
+                            ixn_as_number = ixn_as_numbers[as_index]
+                            ixn_as_number.AsNumber.Single(as_number)
+
+    def _config_bgp_community(self, communities, ixn_bgp_property):
+        if len(communities) == 0:
+            return
+        ixn_bgp_property.EnableCommunity.Single(True)
+        ixn_bgp_property.NoOfCommunities = len(communities)
+        ixn_communities = ixn_bgp_property.BgpCommunitiesList.find()
+        for index, community in enumerate(communities):
+            ixn_community = ixn_communities[index]
+            if community.community_type is not None:
+                ixn_community.Type.Single(Ngpf._BGP_COMMUNITY_TYPE[
+                                              community.community_type])
+            self._configure_pattern(ixn_community.AsNumber, community.as_number)
+            self._configure_pattern(ixn_community.LastTwoOctets, community.as_custom)
