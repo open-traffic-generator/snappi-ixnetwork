@@ -27,7 +27,6 @@ class ProtocolMetrics(object):
     }
 
     def __init__(self, ixnetworkapi):
-        super().__init__()
         self._api = ixnetworkapi
         self.columns = []
         self.device_names = []
