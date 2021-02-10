@@ -111,20 +111,25 @@ class Ngpf(object):
     
     def _config_proto_stack(self, ixn_obj, snappi_obj, ixn_dg):
         self._api.ixn_objects[snappi_obj.name] = ixn_obj.href
-        for prop_name in snappi_obj._properties:
+        properties = snappi_obj._properties
+        for prop_name in properties:
             stack_class = getattr(self, '_configure_{0}'
                                   .format(prop_name), None)
             if stack_class is not None:
+                child = properties[prop_name]
                 if prop_name not in Ngpf._DEVICE_ENCAP_MAP:
                     raise Exception("Mapping is missing for {0}".format(
                             prop_name))
                 self._api._device_encap[ixn_dg.Name] = Ngpf._DEVICE_ENCAP_MAP[
                             prop_name]
+                if child.name is not None:
+                    self._api._device_encap[child.name] = Ngpf._DEVICE_ENCAP_MAP[
+                        prop_name]
                 new_ixn_obj = stack_class(ixn_obj,
-                                  snappi_obj._properties[prop_name],
+                                  child,
                                   ixn_dg)
                 self._config_proto_stack(new_ixn_obj,
-                                 snappi_obj._properties[prop_name],
+                                 child,
                                  ixn_dg)
             
     def _configure_pattern(self, ixn_obj, pattern, enum_map=None):
