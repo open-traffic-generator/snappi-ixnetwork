@@ -36,7 +36,7 @@ class ProtocolMetrics(object):
         self._api = ixnetworkapi
         self.columns = []
         self.device_names = []
-        self.metric_timeout = 60
+        self.metric_timeout = 90
 
     def get_supported_protocols(self):
         """
@@ -58,10 +58,6 @@ class ProtocolMetrics(object):
             msg = "Could not retrieve stats view for {}\
                 make sure the protocol is up and running".format(protocol)
             raise Exception(msg)
-        self._check_if_page_ready(table._View)
-        drill_option = protocol_name['drill_down_options'][0]
-        table._View.DrillDown.find().TargetRowIndex = 0
-        table._View.DrillDown.find().TargetDrillDownOption = drill_option
         return table
 
     def _check_if_page_ready(self, view):
@@ -71,22 +67,30 @@ class ProtocolMetrics(object):
                 break
             if count >= self.metric_timeout:
                 raise Exception("View Page is not ready")
-            time.sleep(1)
+            time.sleep(0.5)
             count += 1
 
     def _get_per_device_group_stats(self, protocol):
         table = self._get_per_port_stat_view(protocol)
+        table_len = len(table.Rows)
         v = table._View
+        self._check_if_page_ready(v)
+        drill_option = self._PROTO_NAME_MAP_[protocol]['drill_down_options'][0]
+        per_port = self._PROTO_NAME_MAP_[protocol]['per_port']
+        drill_name = self._PROTO_NAME_MAP_[protocol]['drill_down']
         column_names = self._RESULT_COLUMNS.get(protocol)
         row_lst = list()
-        for row in range(len(table.Rows)):
+        for row in range(table_len):
             try:
+                v = v.find(Caption=per_port)
                 v.DrillDown.find().TargetRowIndex = row
+                v.DrillDown.find().TargetDrillDownOption = drill_option
                 v.DrillDown.find().DoDrillDown()
-                time.sleep(1)
+                v.find(Caption=drill_name).Refresh()
+                v.find(Caption=drill_name).Refresh()
+                time.sleep(0.5)
                 drill = self._api.assistant.StatViewAssistant(
-                    self._PROTO_NAME_MAP_[protocol]['drill_down'],
-                    self.metric_timeout
+                    drill_name, self.metric_timeout
                 )
             except Exception as e:
                 msg = """"
