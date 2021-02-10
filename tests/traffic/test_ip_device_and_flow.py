@@ -1,8 +1,9 @@
+
 import pytest
 
 
-@pytest.mark.skip("skip until migrated to snappi")
-@pytest.mark.e2e
+@pytest.mark.skip(reason="skip until #261 gets fixed")
+# TODO : Remove skip after fix is provided
 def test_ip_device_and_flow(api, b2b_raw_config, utils):
     """
     Configure the devices on Tx and Rx Port.
@@ -14,142 +15,67 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
 
     size = 128
     packets = 100000
+    tx_dev, rx_dev = b2b_raw_config.devices.device().device()
+    tx_dev.name = 'tx_dev'
+    rx_dev.name = 'rx_dev'
+    tx_dev.container_name = b2b_raw_config.ports[0].name
+    rx_dev.container_name = b2b_raw_config.ports[1].name
+    tx_eth = tx_dev.ethernet
+    rx_eth = rx_dev.ethernet
+    tx_eth.name = "tx_eth"
+    tx_eth.mac.increment.start = '00:10:10:20:20:10'
+    tx_eth.mac.increment.step = '00:00:00:00:00:01'
+    tx_ipv4 = tx_eth.ipv4
+    tx_ipv4.name = "tx_ipv4"
+    tx_ipv4.address.increment.start = '10.1.1.1'
+    tx_ipv4.address.increment.step = '0.0.1.0'
+    tx_ipv4.gateway.increment.start = '10.1.1.2'
+    tx_ipv4.gateway.increment.step = '0.0.1.0'
+    tx_ipv4.prefix.value = "24"
 
-    tx_eth = device.Ethernet(
-        name="TxMac",
-        mac=device.Pattern(
-            choice=device.Counter(
-                start="00:10:10:20:20:10",
-                step="00:00:00:00:00:01"
-            )
-        )
-    )
+    rx_eth.name = "rx_eth"
+    rx_eth.mac.increment.start = '00:10:10:20:20:20'
+    rx_eth.mac.increment.step = '00:00:00:00:00:01'
+    rx_ipv4 = rx_eth.ipv4
+    rx_ipv4.name = "rx_ipv4"
+    rx_ipv4.address.increment.start = '10.1.1.2'
+    rx_ipv4.address.increment.step = '0.0.1.0'
+    rx_ipv4.gateway.increment.start = '10.1.1.1'
+    rx_ipv4.gateway.increment.step = '0.0.1.0'
+    rx_ipv4.prefix.value = "24"
 
-    tx_ip = device.Ipv4(
-        name="TxIP",
-        address=device.Pattern(
-            choice=device.Counter(
-                start="10.1.1.1",
-                step="0.0.1.0"
-            )
-        ),
-        gateway=device.Pattern(
-            choice=device.Counter(
-                start="10.1.1.2",
-                step="0.0.1.0"
-            )
-        ),
-        prefix=device.Pattern("24"),
-        ethernet=tx_eth
-    )
+    f1, f2 = b2b_raw_config.flows.flow(name='TxFlow-2')
+    f1.name = 'TxFlow-1'
+    f1.tx_rx.device.tx_names = [tx_dev.name]
+    f1.tx_rx.device.rx_names = [rx_dev.name]
+    f1.size.fixed = size
+    f1.duration.fixed_packets.packets = packets
+    f1.rate.percentage = "10"
 
-    rx_eth = device.Ethernet(
-        name="RxMac",
-        mac=device.Pattern(
-            choice=device.Counter(
-                start="00:10:10:20:20:20",
-                step="00:00:00:00:00:01",
-                up=False
-            )
-        )
-    )
-
-    rx_ip = device.Ipv4(
-        name="RxIP",
-        address=device.Pattern(
-            choice=device.Counter(
-                start="10.1.1.2",
-                step="0.0.1.0"
-            )
-        ),
-        gateway=device.Pattern(
-            choice=device.Counter(
-                start="10.1.1.1",
-                step="0.0.1.0"
-            )
-        ),
-        prefix=device.Pattern("24"),
-        ethernet=rx_eth
-    )
-
-    tx_device = device.Device(
-        name="TxDevice",
-        container_name=b2b_raw_config.ports[0].name,
-        device_count=10,
-        choice=tx_ip
-    )
-
-    rx_device = device.Device(
-        name="RxDevice",
-        container_name=b2b_raw_config.ports[1].name,
-        device_count=10,
-        choice=rx_ip
-    )
-    b2b_raw_config.devices = [tx_device, rx_device]
-
-    ep = flow.TxRx(
-        choice=flow.DeviceTxRx(
-            tx_device_names=["TxDevice"],
-            rx_device_names=["RxDevice"]
-        )
-    )
-
-    b2b_raw_config.flows = [flow.Flow(
-        name="TxFlow-1",
-        tx_rx=ep,
-        duration=flow.Duration(
-            flow.FixedPackets(
-                packets=packets
-            )
-        ),
-        size=flow.Size(size),
-        rate=flow.Rate(value=10, unit='line')
-    )]
-
-    b2b_raw_config.flows.append(
-        flow.Flow(
-            name="TxFlow-2",
-            tx_rx=ep,
-            duration=flow.Duration(
-                flow.FixedPackets(
-                    packets=packets
-                )
-            ),
-            packet=[
-                flow.Header(flow.Ethernet()),
-                flow.Header(flow.Ipv4()),
-                flow.Header(
-                    flow.Tcp(
-                        src_port=flow.Pattern(
-                            flow.Counter(
-                                start="5000",
-                                step="1",
-                                count=10
-                            )
-                        ),
-                        dst_port=flow.Pattern(
-                            flow.Counter(
-                                start="2000",
-                                step="1",
-                                count=10
-                            )
-                        )
-                    )
-                )
-            ],
-            size=flow.Size(size * 2),
-            rate=flow.Rate(value=10, unit='line')
-        )
-    )
-
-    utils.apply_config(api, b2b_raw_config)
+    f2.tx_rx.device.tx_names = [tx_dev.name]
+    f2.tx_rx.device.rx_names = [rx_dev.name]
+    f2.packet.ethernet().ipv4().tcp()
+    tcp = f2.packet[-1]
+    tcp.src_port.increment.start = "5000"
+    tcp.src_port.increment.step = "1"
+    tcp.src_port.increment.count = "10"
+    tcp.dst_port.increment.start = "2000"
+    tcp.dst_port.increment.step = "1"
+    tcp.dst_port.increment.count = "10"
+    f2.size.fixed = size * 2
+    f2.duration.fixed_packets.packets = packets
+    f2.rate.percentage = "10"
+    response = api.set_config(b2b_raw_config)
+    assert(len(response.errors)) == 0
     utils.start_traffic(api, b2b_raw_config)
+
     utils.wait_for(
         lambda: results_ok(api, utils, size, size * 2, packets),
         'stats to be as expected', timeout_seconds=10
     )
-    api.set_state(control.State(control.FlowTransmitState(state='stop')))
-    captures_ok(api, b2b_raw_config, utils, packets * 2)
+    utils.stop_traffic(api, b2b_raw_config)
+    # TODO : update captures once concrete implementation is done 
+    # captures_ok(api, b2b_raw_config, utils, packets * 2)
 
 
 def results_ok(api, utils, size1, size2, packets):

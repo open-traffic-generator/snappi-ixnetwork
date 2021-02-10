@@ -1,60 +1,56 @@
 import pytest
 
 
-@pytest.mark.skip("skip until migrated to snappi")
-def test_flow_rates(serializer, api, tx_port, rx_port):
+def test_flow_rates(api, settings):
     """
     This will test supported Flow Rate
         - unit (Union[pps, bps, kbps, mbps, gbps, line]): The value is a unit of this
         - value (Union[float, int]): The actual rate
-        - gap (Union[float, int]): The minimum gap in bytes between packets
     """
-    port_endpoint = PortTxRx(tx_port_name=tx_port.name,
-                             rx_port_name=rx_port.name)
-    pause = Header(
-        PfcPause(dst=Pattern('01:80:C2:00:00:01'),
-                 class_enable_vector=Pattern('1'),
-                 pause_class_0=Pattern('1')))
+    config = api.config()
 
-    rate_line = Flow(name='Line Rate',
-                     tx_rx=TxRx(port_endpoint),
-                     packet=[pause],
-                     size=Size(44),
-                     rate=Rate('line', value=100),
-                     duration=Duration(FixedPackets(packets=0)))
+    tx, rx = (
+        config.ports
+        .port(name='tx', location=settings.ports[0])
+        .port(name='rx', location=settings.ports[1])
+    )
 
-    rate_pps = Flow(name='pps Rate',
-                    tx_rx=TxRx(port_endpoint),
-                    packet=[pause],
-                    size=Size(44),
-                    rate=Rate('pps', value=2000),
-                    duration=Duration(FixedPackets(packets=0)))
+    l1 = config.layer1.layer1()[0]
+    l1.name = 'l1'
+    l1.port_names = [rx.name, tx.name]
+    l1.media = settings.media
 
-    rate_bps = Flow(name='bps Rate',
-                    tx_rx=TxRx(port_endpoint),
-                    packet=[pause],
-                    size=Size(44),
-                    rate=Rate('bps', value=700),
-                    duration=Duration(FixedPackets(packets=0)))
+    rate_line, rate_pps, rate_bps, rate_kbps, rate_gbps = (
+        config.flows
+        .flow(name='rate_line')
+        .flow(name='rate_pps')
+        .flow(name='rate_bps')
+        .flow(name='rate_kbps')
+        .flow(name='rate_gbps')
+    )
 
-    rate_kbps = Flow(name='kbps Rate',
-                     tx_rx=TxRx(port_endpoint),
-                     packet=[pause],
-                     size=Size(44),
-                     rate=Rate('kbps', value=800),
-                     duration=Duration(FixedPackets(packets=0)))
+    rate_line.tx_rx.port.tx_name = tx.name
+    rate_line.tx_rx.port.rx_name = rx.name
+    rate_line.rate.percentage = 100
 
-    rate_gbps = Flow(name='gbps Rate',
-                     tx_rx=TxRx(port_endpoint),
-                     packet=[pause],
-                     size=Size(44),
-                     rate=Rate('gbps', value=800),
-                     duration=Duration(FixedPackets(packets=0)))
+    rate_pps.tx_rx.port.tx_name = tx.name
+    rate_pps.tx_rx.port.rx_name = rx.name
+    rate_pps.rate.pps = 2000
 
-    config = Config(
-        ports=[tx_port, rx_port],
-        flows=[rate_line, rate_pps, rate_bps, rate_kbps, rate_gbps])
-    api.set_state(State(ConfigState(config=config, state='set')))
+    rate_bps.tx_rx.port.tx_name = tx.name
+    rate_bps.tx_rx.port.rx_name = rx.name
+    rate_bps.rate.bps = 700
+
+    rate_kbps.tx_rx.port.tx_name = tx.name
+    rate_kbps.tx_rx.port.rx_name = rx.name
+    rate_kbps.rate.kbps = 800
+
+    rate_gbps.tx_rx.port.tx_name = tx.name
+    rate_gbps.tx_rx.port.rx_name = rx.name
+    rate_gbps.rate.gbps = 10
+
+    response = api.set_config(config)
+    assert(len(response.errors)) == 0
 
 
 if __name__ == '__main__':
