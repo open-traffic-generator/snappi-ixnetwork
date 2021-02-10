@@ -317,11 +317,23 @@ class Api(snappi.Api):
             self._ixn_errors = app_errors[0].Error.find()
 
     def _validate_instance(self, config):
-        if self._traffic.State == 'started':
-            msg = "Flows are in running state. " \
-                  "Please stop those using set_transmit_state"
-            self.add_error(msg)
-            self.warning(msg)
+        """Validate current IxNetwork instance:
+        1. Stop everything if local config is None
+        2. Otherwise add warning message """
+        traffic_state = self._traffic.State
+        if self.snappi_config is None:
+            if traffic_state == 'started':
+                self._traffic_item.find()
+                if len(self._traffic_item) > 0:
+                    self._traffic_item.StopStatelessTrafficBlocking()
+            if self._globals.Topology.Status  == 'started':
+                self._ixnetwork.StopAllProtocols('sync')
+        else:
+            if traffic_state == 'started':
+                msg = "Flows are in running state. " \
+                      "Please stop those using set_transmit_state"
+                self.add_error(msg)
+                self.warning(msg)
         return config
 
     def _apply_change(self):
