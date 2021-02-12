@@ -36,6 +36,8 @@ class Vport(object):
 
     """
     _SPEED_MAP = {
+        'speed_400_gbps': 'speed400g',
+        'speed_200_gbps': 'speed200g',
         'speed_100_gbps': 'speed100g',
         'speed_50_gbps': 'speed50g',
         'speed_40_gbps': 'speed40g',
