@@ -60,6 +60,10 @@ def b2b_raw_config(api):
     # this will allow us to take over ports that may already be in use
     config.options.port_options.location_preemption = True
 
+    cap = config.captures.capture(name='c1')[-1]
+    cap.port_names = [rx.name]
+    cap.format = cap.PCAP
+
     return config
 
 
