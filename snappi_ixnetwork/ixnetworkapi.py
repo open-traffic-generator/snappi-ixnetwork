@@ -9,6 +9,7 @@ from snappi_ixnetwork.ngpf import Ngpf
 from snappi_ixnetwork.trafficitem import TrafficItem
 from snappi_ixnetwork.capture import Capture
 from snappi_ixnetwork.timer import Timer
+from snappi_ixnetwork.protocolmetrics import ProtocolMetrics
 
 
 class Api(snappi.Api):
@@ -60,6 +61,7 @@ class Api(snappi.Api):
         self.ngpf = Ngpf(self)
         self.traffic_item = TrafficItem(self)
         self.capture = Capture(self)
+        self.protocol_metrics = ProtocolMetrics(self)
 
     def _get_addr_port(self, host):
         items = host.split('/')
@@ -259,6 +261,13 @@ class Api(snappi.Api):
             response = self.traffic_item.results(request.flow)
             metric_res = self.metrics_response()
             metric_res.flow_metrics.deserialize(response)
+            return metric_res
+        if request.choice in self.protocol_metrics.get_supported_protocols():
+            response = self.protocol_metrics.results(request)
+            metric_res = self.metrics_response()
+            getattr(
+                metric_res, request.choice + '_metrics'
+            ).deserialize(response)
             return metric_res
         if request.choice is not None:
             msg = "{} is not a supported choice for metrics; \

@@ -20,8 +20,6 @@ def test_flow_duration(api, utils):
     """
 
     config = api.config()
-    # import snappi
-    # config = snappi.Api().config()
     config.ports.port(name='tx').port(name='rx')
     tx_port, rx_port = config.ports
     tx_port.location = utils.settings.ports[0]

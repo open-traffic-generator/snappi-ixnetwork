@@ -133,7 +133,7 @@ class Ngpf(object):
                                  ixn_dg)
             
     def _configure_pattern(self, ixn_obj, pattern, enum_map=None):
-        if pattern.choice is None:
+        if pattern is None or pattern.choice is None:
             return
         elif enum_map is not None and pattern.choice == 'value':
             ixn_obj.Single(enum_map[pattern.value])
@@ -152,7 +152,7 @@ class Ngpf(object):
 
     def _casting_pattern_value(self, pattern, casting_type):
         """"""
-        if pattern.choice is None:
+        if pattern is None or pattern.choice is None:
             return
         custom_type = getattr(self, casting_type, None)
         if custom_type is None:

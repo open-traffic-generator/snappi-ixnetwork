@@ -1,5 +1,6 @@
 import json
 import time
+import io
 from snappi_ixnetwork.timer import Timer
 
 class Capture(object):
@@ -193,7 +194,7 @@ class Capture(object):
     
     def _start_capture(self):
         if self._capture_request is not None:
-            with Timer(self, 'Captures start'):
+            with Timer(self._api, 'Captures start'):
                 payload = {'arg1': []}
                 for vport in self._api.select_vports().values():
                     payload['arg1'].append(vport['href'])
@@ -203,7 +204,7 @@ class Capture(object):
                 self._api._ixnetwork.StartCapture()
 
     def _stop_capture(self):
-        with Timer(self, 'Captures stop'):
+        with Timer(self._api, 'Captures stop'):
             if self._capture_request.port_names:
                 payload = {'arg1': []}
                 for vport_name, vport in self._api.select_vports().items():
@@ -218,7 +219,7 @@ class Capture(object):
     def results(self, request):
         """Gets capture file and returns it as a byte stream
         """
-        with Timer(self, 'Captures stop'):
+        with Timer(self._api, 'Captures stop'):
             capture = self._api._vport.find(Name=request.port_name).Capture
             capture.Stop('allTraffic')
 
@@ -259,7 +260,7 @@ class Capture(object):
         url = '%s/files?absolute=%s&filename=%s.cap' % (self._api._ixnetwork.href,
                                                         path, file_name)
         pcap_file_bytes = self._api._request('GET', url)
-        return pcap_file_bytes
+        return io.BytesIO(pcap_file_bytes)
         
 class GetPattern(object):
     """ This is validating captureFilterPattern and return expected patterns

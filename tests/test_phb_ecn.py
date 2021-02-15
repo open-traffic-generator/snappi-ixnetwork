@@ -1,23 +1,19 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
-def test_phb_ecn(serializer, api, tx_port, rx_port):
+def test_phb_ecn(api, tx_port, rx_port, b2b_raw_config):
     """
     This will test that phb and ecn are set on an ipv4 header
     """
-    port_endpoint = PortTxRx(tx_port_name=tx_port.name,
-                             rx_port_name=rx_port.name)
-    dscp = Dscp(phb=Pattern([Dscp.PHB_CS2, Dscp.PHB_CS1, Dscp.PHB_CS5]),
-                ecn=Pattern(Dscp.ECN_CAPABLE_TRANSPORT_1))
-    priority = Priority(dscp)
-    ipv4 = Ipv4(priority=priority)
-    flow = Flow(name='Ipv4 with Phb and Ecn',
-                tx_rx=TxRx(port_endpoint),
-                packet=[Header(Ethernet()), Header(ipv4)])
-    config = Config(ports=[tx_port, rx_port], flows=[flow])
-    api.set_state(State(ConfigState(config=config, state='set')))
-
-
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
+    b2b_raw_config.flows.clear()
+    f = b2b_raw_config.flows.flow()[-1]
+    f.name = 'Ipv4 with Phb and Ecn'
+    f.tx_rx.port.tx_name = tx_port.name
+    f.tx_rx.port.rx_name = rx_port.name
+    f.packet.ethernet().ipv4()
+    ip = f.packet[-1]
+    ip.priority.choice = ip.priority.DSCP
+    ip.priority.dscp.phb.values = [
+        ip.priority.dscp.PHB_CS2,
+        ip.priority.dscp.PHB_CS1,
+        ip.priority.dscp.PHB_CS5
+    ]
+    ip.priority.dscp.ecn.value = ip.priority.dscp.ECN_CAPABLE_TRANSPORT_1
+    api.set_config(b2b_raw_config)
