@@ -33,15 +33,15 @@ class ResourceGroup(object):
             url = '%s/availableHardware/operations/getChassisWithDetailedResouceGroupsInfo' \
                   % self._api._ixnetwork.href
             response = self._api._request('POST', url, payload)
-        except:
+        except Exception:
             raise Exception("Not able to fetch chassis details. Unable to execute L1 setting")
         
-        chassis_list = self._process_property()
+        self._process_property()
         try:
             chassis_id = 1
             result = response['result'][0]
             self._process_groups(result['cards'], chassis_id)
-        except:
+        except Exception:
             raise Exception("Problem to parse chassis details")
         
         final_arg2 = []
@@ -73,7 +73,7 @@ class ResourceGroup(object):
                 "arg4": True
             }
             try:
-                response = self._api._request('POST', url, payload)
+                self._api._request('POST', url, payload)
             except:
                 # todo: redirect to unknown page. Probable IxNetwork issue
                 pass
