@@ -63,7 +63,7 @@ class Api(snappi.Api):
         self.traffic_item = TrafficItem(self)
         self.capture = Capture(self)
         self.protocol_metrics = ProtocolMetrics(self)
-        self.resourec_group = ResourceGroup(self)
+        self.resource_group = ResourceGroup(self)
 
     def _get_addr_port(self, host):
         items = host.split('/')
