@@ -122,6 +122,7 @@ class Vport(object):
 
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
+        self._layer1_check = []
 
     def config(self):
         """Transform config.ports into Ixnetwork.Vport
@@ -198,8 +199,12 @@ class Vport(object):
         check_addresses = []
         for port in self._api.snappi_config.ports:
             location = getattr(port, 'location', None)
-            if location is not None and ';' in location:
-                chassis_address = location.split(';')[0]
+            if location is not None and re.search(
+                    "/|;", location) is not None:
+                if ';' in location:
+                    chassis_address = location.split(';')[0]
+                else:
+                    chassis_address = location.split('/')[0]
                 chassis.find(Hostname='^%s$' % chassis_address)
                 if len(chassis) == 0:
                     add_addresses.append(chassis_address)
@@ -238,17 +243,16 @@ class Vport(object):
     def _set_aggregation(self, port, imports):
         """ If the card has multiple resource group to control speed within port
         set it according to the speed"""
-
-        resource_group = None
-        location = port.location
-        if location is None:
-            return
-        
-        (hostname, cardid, portid) = location.split(';')
         layer1 = self._get_layer1(port)
         if layer1 is None:
             return
-        
+        location = port.location
+        if location is None:
+            return
+        if ';' not in location:
+            return
+        (hostname, cardid, portid) = location.split(';')
+        resource_group = None
         speed_mode_map = Vport._SPEED_MODE_MAP
         self._api.info("Checking port %s to set Layer1 speed %s" %
                        (port.name, layer1.speed))
@@ -308,15 +312,26 @@ class Vport(object):
         # calling little bit costly operation? Otherwise we can't handle same port config for
         # multiple run (_set_card_resource_mode reset to card level). Also some ports are
         # handling multiple speed ('novusFourByTwentyFiveGigNonFanOut' and 'novusFourByTenGigNonFanOut')
-        imports = []
+
+        # todo: restructure old module to getChassisWithDetailedResouceGroupsInfo
+        is_uhd = False
+        for port in self._api.snappi_config.ports:
+            location = port.location
+            if '/' in location:
+                is_uhd = True
         with Timer(self._api,
                    'Aggregation mode speed change'):
-            for port in self._api.snappi_config.ports:
-                self._set_aggregation(port, imports)
-            if self._import(imports) is False:
-                self._api.info('Retrying card resource mode change')
-                self._import(imports)
-                
+            if is_uhd is True:
+                layer1_check = self._api.resourec_group.set_group()
+                self._layer1_check.extend(layer1_check)
+            else:
+                imports = []
+                for port in self._api.snappi_config.ports:
+                    self._set_aggregation(port, imports)
+                if self._import(imports) is False:
+                    self._api.info('Retrying card resource mode change')
+                    self._import(imports)
+            
         vports = self._api.select_vports()
         locations = []
         imports = []
