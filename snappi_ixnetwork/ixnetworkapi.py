@@ -10,6 +10,7 @@ from snappi_ixnetwork.trafficitem import TrafficItem
 from snappi_ixnetwork.capture import Capture
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.protocolmetrics import ProtocolMetrics
+from snappi_ixnetwork.resourcegroup import ResourceGroup
 
 
 class Api(snappi.Api):
@@ -62,6 +63,7 @@ class Api(snappi.Api):
         self.traffic_item = TrafficItem(self)
         self.capture = Capture(self)
         self.protocol_metrics = ProtocolMetrics(self)
+        self.resource_group = ResourceGroup(self)
 
     def _get_addr_port(self, host):
         items = host.split('/')
