@@ -1,13 +1,9 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
-def test_capture_filter_settings(api, tx_port, options):
+def test_capture_filter_settings(api, settings):
     """Demonstrates how to configure basic capture settings
 
     Validation: Validate the capture filter settings against Restpy
     """
-    config = Config(ports=[tx_port], options=options)
+
     attrs = {
         'DA1': '0000faceface',
         'DAMask1': '00000000000b',
@@ -18,26 +14,35 @@ def test_capture_filter_settings(api, tx_port, options):
         'PatternOffset1': 50
     }
 
-    src = MacAddressFilter(mac='source',
-                           filter=attrs['SA1'],
-                           mask=attrs['SAMask1'])
-    dst = MacAddressFilter(mac='destination',
-                           filter=attrs['DA1'],
-                           mask=attrs['DAMask1'])
-    custom = CustomFilter(filter=attrs['Pattern1'],
-                          mask=attrs['PatternMask1'],
-                          offset=attrs['PatternOffset1'])
+    config = api.config()
 
-    config.captures.append(
-        Capture(name='capture',
-                port_names=[tx_port.name],
-                choice=[
-                    BasicFilter(src, and_operator=False, not_operator=True),
-                    BasicFilter(dst, and_operator=False, not_operator=True),
-                    BasicFilter(custom, and_operator=False, not_operator=True)
-                ]))
+    tx, = (
+        config.ports
+        .port(name='tx', location=settings.ports[0])
+    )
 
-    api.set_state(State(ConfigState(config=config, state='set')))
+    cap = config.captures.capture(name='capture1')[-1]
+    cap.port_names = [tx.name]
+    filter1, filter2, filter3 = cap.filters.filter().filter().filter()
+
+    # https://github.com/open-traffic-generator/snappi/issues/25
+    # currently assigning the choice as work around
+    filter1.choice = filter1.ETHERNET
+    filter1.ethernet.src.value = attrs['SA1']
+    filter1.ethernet.src.mask = attrs['SAMask1']
+    filter1.ethernet.src.negate = True
+
+    filter2.choice = filter2.ETHERNET
+    filter2.ethernet.dst.value = attrs['DA1']
+    filter2.ethernet.dst.mask = attrs['DAMask1']
+    filter2.ethernet.dst.negate = True
+
+    filter3.custom.value = attrs['Pattern1']
+    filter3.custom.offset = attrs['PatternOffset1']
+    filter3.custom.mask = attrs['PatternMask1']
+    filter3.custom.negate = True
+
+    api.set_config(config)
 
     validate_capture_filter_settings(api, attrs)
 

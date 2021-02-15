@@ -4,6 +4,7 @@ import sys
 import time
 from datetime import datetime
 import csv
+import dpkt
 
 
 if sys.version_info[0] >= 3:
@@ -115,24 +116,35 @@ def start_traffic(api, cfg, start_capture=True):
     Applies configuration, and starts flows.
     """
     print('Setting config ...')
-    api.set_config(cfg)
-    # TODO: Add capture start
+    response = api.set_config(cfg)
+    assert(len(response.errors)) == 0
+
+    capture_names = get_capture_port_names(cfg)
+    if capture_names and start_capture:
+        print('Starting capture on ports %s ...' % str(capture_names))
+        cs = api.capture_state()
+        cs.state = cs.START
+        api.set_capture_state(cs)
     print('Starting transmit on all flows ...')
-    transmit_state = api.transmit_state()
-    transmit_state.state = 'start'
-    api.set_transmit_state(transmit_state)
+    ts = api.transmit_state()
+    ts.state = ts.START
+    api.set_transmit_state(ts)
 
 
-def stop_traffic(api, stop_capture=True):
+def stop_traffic(api, cfg, stop_capture=True):
     """
     Stops flows
     """
-
     print('Stopping transmit on all flows ...')
-    transmit_state = api.transmit_state()
-    transmit_state.state = 'stop'
-    api.set_transmit_state(transmit_state)
-    # TODO: Add capture stop
+    ts = api.transmit_state()
+    ts.state = ts.STOP
+    api.set_transmit_state(ts)
+    capture_names = get_capture_port_names(cfg)
+    if capture_names and stop_capture:
+        print('Stopping capture on ports %s ...' % str(capture_names))
+        cs = api.capture_state()
+        cs.state = cs.STOP
+        api.set_capture_state(cs)
 
 
 def seconds_elapsed(start_seconds):
@@ -443,3 +455,40 @@ def is_stats_accumulated(api, packets):
     port_results, flow_results = get_all_stats(api)
     frames_ok = total_frames_ok(port_results, flow_results, packets)
     return frames_ok
+
+
+def get_capture_port_names(cfg):
+    """
+    Returns name of ports for which capture is enabled.
+    """
+    names = []
+    if cfg.captures:
+        for cap in cfg.captures:
+            if cap.port_names:
+                for name in cap.port_names:
+                    if name not in names:
+                        names.append(name)
+
+    return names
+
+
+def get_all_captures(api, cfg):
+    """
+    Returns a dictionary where port name is the key and value is a list of
+    frames where each frame is represented as a list of bytes.
+    """
+    cap_dict = {}
+    for name in get_capture_port_names(cfg):
+        print('Fetching captures from port %s' % name)
+        request = api.capture_request()
+        request.port_name = name
+        pcap_bytes = api.get_capture(request)
+
+        cap_dict[name] = []
+        for ts, pkt in dpkt.pcap.Reader(pcap_bytes):
+            if sys.version_info[0] == 2:
+                cap_dict[name].append([ord(b) for b in pkt])
+            else:
+                cap_dict[name].append(list(pkt))
+
+    return cap_dict

@@ -66,4 +66,4 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     assert results.bgpv4_metrics[0].sessions_up == 10
     assert results.bgpv4_metrics[1].sessions_total == 10
     assert results.bgpv4_metrics[1].sessions_up == 10
-    utils.stop_traffic(api)
+    utils.stop_traffic(api, b2b_raw_config)

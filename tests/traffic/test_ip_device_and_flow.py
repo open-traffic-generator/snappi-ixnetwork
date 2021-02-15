@@ -2,8 +2,7 @@
 import pytest
 
 
-@pytest.mark.skip(reason="skip until #261 gets fixed")
-# TODO : Remove skip after fix is provided
+@pytest.mark.e2e
 def test_ip_device_and_flow(api, b2b_raw_config, utils):
     """
     Configure the devices on Tx and Rx Port.
@@ -20,6 +19,8 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     rx_dev.name = 'rx_dev'
     tx_dev.container_name = b2b_raw_config.ports[0].name
     rx_dev.container_name = b2b_raw_config.ports[1].name
+    tx_dev.device_count = 10
+    rx_dev.device_count = 10
     tx_eth = tx_dev.ethernet
     rx_eth = rx_dev.ethernet
     tx_eth.name = "tx_eth"
@@ -34,8 +35,8 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     tx_ipv4.prefix.value = "24"
 
     rx_eth.name = "rx_eth"
-    rx_eth.mac.increment.start = '00:10:10:20:20:20'
-    rx_eth.mac.increment.step = '00:00:00:00:00:01'
+    rx_eth.mac.decrement.start = '00:10:10:20:20:20'
+    rx_eth.mac.decrement.step = '00:00:00:00:00:01'
     rx_ipv4 = rx_eth.ipv4
     rx_ipv4.name = "rx_ipv4"
     rx_ipv4.address.increment.start = '10.1.1.2'
@@ -65,8 +66,7 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     f2.size.fixed = size * 2
     f2.duration.fixed_packets.packets = packets
     f2.rate.percentage = "10"
-    response = api.set_config(b2b_raw_config)
-    assert(len(response.errors)) == 0
+
     utils.start_traffic(api, b2b_raw_config)
 
     utils.wait_for(
@@ -74,8 +74,7 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
         'stats to be as expected', timeout_seconds=10
     )
     utils.stop_traffic(api, b2b_raw_config)
-    # TODO : update captures once concrete implementation is done 
-    # captures_ok(api, b2b_raw_config, utils, packets * 2)
+    captures_ok(api, b2b_raw_config, utils, packets * 2)
 
 
 def results_ok(api, utils, size1, size2, packets):

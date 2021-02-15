@@ -1,18 +1,17 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
-def test_capture_overwrite(api, tx_port, options):
+def test_capture_overwrite(api, settings):
     """Demonstrates how to configure basic capture settings
     """
-    config = Config(ports=[tx_port], options=options)
-    config.captures.append(
-        Capture(name='capture1',
-                port_names=[tx_port.name],
-                choice=[],
-                overwrite=True))
+    config = api.config()
 
-    api.set_state(State(ConfigState(config=config, state='set')))
+    tx, = (
+        config.ports
+        .port(name='tx', location=settings.ports[0])
+    )
+
+    cap = config.captures.capture(name='capture1')[-1]
+    cap.port_names = [tx.name]
+    cap.overwrite = True
+    api.set_config(config)
     validate_capture_overwrite(api)
 
 

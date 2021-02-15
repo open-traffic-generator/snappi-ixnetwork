@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_tcp_flow_capture(api, b2b_raw_config, utils):
     """
     Configure a raw TCP flow with,
@@ -12,45 +8,34 @@ def test_tcp_flow_capture(api, b2b_raw_config, utils):
     - tx/rx frame count and bytes are as expected
     - all captured frames have expected src and dst ports
     """
-    f = b2b_raw_config.flows[0]
     size = 1518
     packets = 100
 
-    f.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=flow.Pattern('00:CD:DC:CD:DC:CD'),
-                dst=flow.Pattern('00:AB:BC:AB:BC:AB')
-            )
-        ),
-        flow.Header(
-            flow.Ipv4(
-                src=flow.Pattern('1.1.1.2'),
-                dst=flow.Pattern('1.1.1.1')
-            )
-        ),
-        flow.Header(
-            flow.Tcp(
-                src_port=flow.Pattern(
-                    ['5000', '5050', '5015', '5040', '5032', '5021']
-                ),
-                dst_port=flow.Pattern(['6000', '6015', '6050']),
-            )
-        )
-    ]
-    f.duration = flow.Duration(flow.FixedPackets(packets=packets))
-    f.size = flow.Size(size)
-    f.rate = flow.Rate(value=10, unit='line')
+    flow = b2b_raw_config.flows[0]
+    eth, ip, tcp = flow.packet.ethernet().ipv4().tcp()
+
+    eth.src.value = '00:CD:DC:CD:DC:CD'
+    eth.dst.value = '00:AB:BC:AB:BC:AB'
+
+    ip.src.value = '1.1.1.2'
+    ip.dst.value = '1.1.1.1'
+
+    tcp.src_port.values = ['5000', '5050', '5015', '5040', '5032', '5021']
+    tcp.dst_port.values = ['6000', '6015', '6050']
+
+    flow.duration.fixed_packets.packets = packets
+    flow.size.fixed = size
+    flow.rate.percentage = 10
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: results_ok(api, b2b_raw_config, utils, size, packets),
+        lambda: results_ok(api, utils, size, packets),
         'stats to be as expected', timeout_seconds=10
     )
-    captures_ok(api, b2b_raw_config, utils, size, packets)
+    captures_ok(api, b2b_raw_config, utils, size)
 
 
-def results_ok(api, cfg, utils, size, packets):
+def results_ok(api, utils, size, packets):
     """
     Returns true if stats are as expected, false otherwise.
     """
@@ -60,7 +45,7 @@ def results_ok(api, cfg, utils, size, packets):
     return frames_ok and bytes_ok
 
 
-def captures_ok(api, cfg, utils, size, packets):
+def captures_ok(api, cfg, utils, size):
     """
     Returns normally if patterns in captured packets are as expected.
     """
