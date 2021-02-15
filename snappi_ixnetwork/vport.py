@@ -317,7 +317,7 @@ class Vport(object):
         is_uhd = False
         for port in self._api.snappi_config.ports:
             location = port.location
-            if '/' in location:
+            if location is not None and '/' in location:
                 is_uhd = True
         with Timer(self._api,
                    'Aggregation mode speed change'):
