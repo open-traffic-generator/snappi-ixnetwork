@@ -22,6 +22,7 @@ class ResourceGroup(object):
         
     def set_group(self):
         self.layer1_check = []
+        self._store_properties = []
         self._layer1_conf = self._api.snappi_config.layer1
         if self._layer1_conf  is None or len(
                 self._layer1_conf ) == 0:
