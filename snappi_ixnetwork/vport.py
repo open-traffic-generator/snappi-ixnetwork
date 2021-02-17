@@ -324,7 +324,7 @@ class Vport(object):
         with Timer(self._api,
                    'Aggregation mode speed change'):
             if is_uhd is True:
-                layer1_check = self._api.resourec_group.set_group()
+                layer1_check = self._api.resource_group.set_group()
                 self._layer1_check.extend(layer1_check)
             else:
                 imports = []
