@@ -275,10 +275,14 @@ class Ngpf(object):
         self._configure_pattern(ixn_bgpv4.KeepaliveTimer, bgpv4.keep_alive_interval)
         self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_ipv4_address)
         # self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_as_number)
-        
-        if len(bgpv4.bgpv4_route_ranges) > 0:
-            for route_range in bgpv4.bgpv4_route_ranges:
-                self._configure_bgpv4_route(ixn_dg.NetworkGroup, route_range)
+
+        bgpv4_route_ranges = bgpv4.bgpv4_route_ranges
+        if len(bgpv4_route_ranges) > 0:
+            ixn_ng = ixn_dg.NetworkGroup
+            route_ranges = [route for route in bgpv4_route_ranges]
+            self._api._remove(ixn_ng, route_ranges)
+            for route_range in bgpv4_route_ranges:
+                self._configure_bgpv4_route(ixn_ng, route_range)
                 
         return ixn_bgpv4
     
@@ -286,7 +290,6 @@ class Ngpf(object):
         args = {
             'Name': route_range.name,
         }
-        self._api._remove(ixn_ng, [route_range])
         ixn_ng.find(Name='^%s$' % route_range.name)
         if len(ixn_ng) == 0:
             ixn_ng.add(**args)[-1]
