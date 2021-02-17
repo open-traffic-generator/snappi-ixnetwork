@@ -1,3 +1,7 @@
+import pytest
+
+
+@pytest.mark.e2e
 def test_tcp_flow_capture(api, b2b_raw_config, utils):
     """
     Configure a raw TCP flow with,

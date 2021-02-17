@@ -26,7 +26,7 @@ class ResourceGroup(object):
         self._layer1_conf = self._api.snappi_config.layer1
         if self._layer1_conf  is None or len(
                 self._layer1_conf ) == 0:
-            return
+            return list()
         
         response = None
         try:
