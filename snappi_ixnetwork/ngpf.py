@@ -279,8 +279,7 @@ class Ngpf(object):
         bgpv4_route_ranges = bgpv4.bgpv4_route_ranges
         if len(bgpv4_route_ranges) > 0:
             ixn_ng = ixn_dg.NetworkGroup
-            route_ranges = [route for route in bgpv4_route_ranges]
-            self._api._remove(ixn_ng, route_ranges)
+            self._api._remove(ixn_ng, bgpv4_route_ranges)
             for route_range in bgpv4_route_ranges:
                 self._configure_bgpv4_route(ixn_ng, route_range)
                 
