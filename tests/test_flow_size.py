@@ -10,6 +10,7 @@ def test_flow_sizes(api, settings):
             'SizeRandom': 'random',
     """
     config = api.config()
+    api.set_config(config)
 
     tx, rx = (
         config.ports
@@ -21,6 +22,7 @@ def test_flow_sizes(api, settings):
     l1.name = 'l1'
     l1.port_names = [rx.name, tx.name]
     l1.media = settings.media
+    l1.speed = settings.speed
 
     fixed_size, increment_size, random_size = (
         config.flows
