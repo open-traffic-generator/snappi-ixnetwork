@@ -52,6 +52,7 @@ def b2b_raw_config(api):
     l1.name = 'l1'
     l1.port_names = [rx.name, tx.name]
     l1.media = utl.settings.media
+    l1.speed = utl.settings.speed
 
     flow = config.flows.flow(name='f1')[-1]
     flow.tx_rx.port.tx_name = tx.name

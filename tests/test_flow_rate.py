@@ -19,6 +19,7 @@ def test_flow_rates(api, settings):
     l1.name = 'l1'
     l1.port_names = [rx.name, tx.name]
     l1.media = settings.media
+    l1.speed = settings.speed
 
     rate_line, rate_pps, rate_bps, rate_kbps, rate_gbps = (
         config.flows
