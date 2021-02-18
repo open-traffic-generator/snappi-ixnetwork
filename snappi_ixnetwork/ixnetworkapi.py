@@ -1,5 +1,5 @@
 import json
-import time
+import time, re
 from collections import namedtuple
 from ixnetwork_restpy import TestPlatform, SessionAssistant
 import snappi
@@ -285,6 +285,29 @@ class Api(snappi.Api):
         else:
             self._errors.append(error)
 
+    def parse_location_info(self, location):
+        """It will return (chassis,card,port)
+        set card as 0 where that is not applicable"""
+        if re.search("/|;", location) is None:
+            raise Exception("Please specify location with supported connection status")
+        LocationInfo = namedtuple("LocationInfo", ["chassis_info",
+                                                   "card_info",
+                                                   "port_info"])
+        if ';' in location:
+            try:
+                (chassis_info, card_info, port_info) = location.split(';')
+            except Exception:
+                raise Exception("Please specify physical <chassis>;<card>;<port>")
+        else:
+            try:
+                card_info = 0
+                (chassis_info, port_info) = location.split('/')
+            except Exception:
+                raise Exception("Please specify physical <chassis>/<port>")
+        return LocationInfo(chassis_info,
+                        card_info,
+                        port_info)
+    
     def _connect(self):
         """Connect to an IxNetwork API Server.
         """
