@@ -289,7 +289,8 @@ class Api(snappi.Api):
         """It will return (chassis,card,port)
         set card as 0 where that is not applicable"""
         if re.search("/|;", location) is None:
-            raise Exception("Please specify location with supported connection status")
+            raise Exception("Invalid port location format, expected ["
+                    "chassis_ip;card_id;port_id or chassis_ip/port_id]")
         LocationInfo = namedtuple("LocationInfo", ["chassis_info",
                                                    "card_info",
                                                    "port_info"])
@@ -297,13 +298,13 @@ class Api(snappi.Api):
             try:
                 (chassis_info, card_info, port_info) = location.split(';')
             except Exception:
-                raise Exception("Please specify physical <chassis>;<card>;<port>")
+                raise Exception("Please specify <chassis>;<card>;<port>")
         else:
             try:
                 card_info = 0
                 (chassis_info, port_info) = location.split('/')
             except Exception:
-                raise Exception("Please specify physical <chassis>/<port>")
+                raise Exception("Please specify <chassis>/<port>")
         return LocationInfo(chassis_info,
                         card_info,
                         port_info)

@@ -147,11 +147,11 @@ class ResourceGroup(object):
                 group_id = supported_group['id']
                 current_mode = supported_group['currentSetting'][
                         'resourceGroupMode']
-                for avialable_setting in supported_group[
+                for available_setting in supported_group[
                         'availableSettings']:
-                    group_mode = avialable_setting[
+                    group_mode = available_setting[
                             'resourceGroupMode']
-                    for panel_info in avialable_setting[
+                    for panel_info in available_setting[
                             'panelInfo']:
                         for display_name in panel_info[
                                 'activePortsDisplayNames']:
@@ -235,7 +235,7 @@ class StoreProperty(object):
                 map_speed = Vport._SPEED_MODE_MAP[
                         self._speed]
             except Exception:
-                raise Exception("Speed %s not avialable within internal map" %
+                raise Exception("Speed %s not available within internal map" %
                                 self._speed)
         return map_speed
     
