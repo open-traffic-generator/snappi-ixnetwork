@@ -259,23 +259,30 @@ class Ngpf(object):
         self._configure_pattern(ixn_bgpv4.KeepaliveTimer, bgpv4.keep_alive_interval)
         self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_ipv4_address)
         # self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_as_number)
-
-        bgpv4_route_ranges = bgpv4.bgpv4_route_ranges
-        if len(bgpv4_route_ranges) > 0:
-            ixn_ng = ixn_dg.NetworkGroup
-            self._api._remove(ixn_ng, bgpv4_route_ranges)
-            for route_range in bgpv4_route_ranges:
-                self._configure_bgpv4_route(ixn_ng, route_range)
-                
-        bgpv6_route_ranges = bgpv4.bgpv6_route_ranges
-        if len(bgpv6_route_ranges) > 0:
-            ixn_ng = ixn_dg.NetworkGroup
-            self._api._remove(ixn_ng, bgpv6_route_ranges)
-            for route_range in bgpv6_route_ranges:
-                self._configure_bgpv6_route(ixn_ng, route_range)
+        self._bgp_route_builder(ixn_dg, bgpv4)
         return ixn_bgpv4
     
-    def _configure_bgpv4_route(self, ixn_ng, route_range):
+    def _bgp_route_builder(self, ixn_dg, bgp):
+        ixn_ng = ixn_dg.NetworkGroup
+        bgpv4_route_ranges = bgp.bgpv4_route_ranges
+        bgpv6_route_ranges = bgp.bgpv6_route_ranges
+        route_ranges = []
+        route_ranges.extend(bgpv4_route_ranges)
+        route_ranges.extend(bgpv6_route_ranges)
+        if len(route_ranges) > 0:
+            self._api._remove(ixn_ng, route_ranges)
+        if len(bgpv4_route_ranges) > 0:
+            for route_range in bgpv4_route_ranges:
+                self._configure_bgpv4_route(ixn_ng,
+                                            route_range,
+                                            ixn_dg)
+        if len(bgpv6_route_ranges) > 0:
+            for route_range in bgpv6_route_ranges:
+                self._configure_bgpv6_route(ixn_ng,
+                                            route_range,
+                                            ixn_dg)
+    
+    def _configure_bgpv4_route(self, ixn_ng, route_range, ixn_dg):
         args = {
             'Name': route_range.name,
         }
@@ -295,7 +302,10 @@ class Ngpf(object):
         self._configure_pattern(ixn_pool.PrefixLength, route_range.prefix)
         self._configure_pattern(ixn_pool.PrefixAddrStep, self._casting_pattern_value(
                 route_range.address_step, '_ip_to_int'))
-        ixn_bgp_property = ixn_pool.BgpIPRouteProperty.find()
+        if self._api.get_device_encap(ixn_dg.Name) == 'ipv4':
+            ixn_bgp_property = ixn_pool.BgpIPRouteProperty.find()
+        else:
+            ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
         self._configure_pattern(ixn_bgp_property.Ipv4NextHop, route_range.next_hop_address)
         self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
         self._config_bgp_community(route_range.community, ixn_bgp_property)
@@ -341,24 +351,10 @@ class Ngpf(object):
         self._configure_pattern(ixn_bgpv6.KeepaliveTimer, bgpv6.keep_alive_interval)
         self._configure_pattern(ixn_bgpv6.DutIp, bgpv6.dut_ipv6_address)
         # self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_as_number)
-    
-        bgpv4_route_ranges = bgpv6.bgpv4_route_ranges
-        if len(bgpv4_route_ranges) > 0:
-            ixn_ng = ixn_dg.NetworkGroup
-            self._api._remove(ixn_ng, bgpv4_route_ranges)
-            for route_range in bgpv4_route_ranges:
-                self._configure_bgpv4_route(ixn_ng, route_range)
-                
-        bgpv6_route_ranges = bgpv6.bgpv6_route_ranges
-        if len(bgpv6_route_ranges) > 0:
-            ixn_ng = ixn_dg.NetworkGroup
-            self._api._remove(ixn_ng, bgpv6_route_ranges)
-            for route_range in bgpv6_route_ranges:
-                self._configure_bgpv6_route(ixn_ng, route_range)
-    
+        self._bgp_route_builder(ixn_dg, bgpv6)
         return ixn_bgpv6
 
-    def _configure_bgpv6_route(self, ixn_ng, route_range):
+    def _configure_bgpv6_route(self, ixn_ng, route_range, ixn_dg):
         args = {
             'Name': route_range.name,
         }
@@ -377,7 +373,10 @@ class Ngpf(object):
         self._configure_pattern(ixn_pool.NetworkAddress, route_range.address)
         self._configure_pattern(ixn_pool.PrefixLength, route_range.prefix)
         self._configure_pattern(ixn_pool.PrefixAddrStep, route_range.address_step)
-        ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
+        if self._api.get_device_encap(ixn_dg.Name) == 'ipv4':
+            ixn_bgp_property = ixn_pool.BgpIPRouteProperty.find()
+        else:
+            ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
         self._configure_pattern(ixn_bgp_property.Ipv6NextHop, route_range.next_hop_address)
         self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
         self._config_bgp_community(route_range.community, ixn_bgp_property)
