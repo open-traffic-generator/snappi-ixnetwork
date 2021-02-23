@@ -234,7 +234,7 @@ class Ngpf(object):
         self._configure_pattern(ixn_ipv4.GatewayIp, ipv4.gateway)
         self._configure_pattern(ixn_ipv4.Prefix, ipv4.prefix)
         return ixn_ipv4
-    
+
     def _configure_bgpv4(self, ixn_parent, bgpv4, ixn_dg):
         ixn_bgpv4 = ixn_parent.BgpIpv4Peer
         self._api._remove(ixn_bgpv4, [bgpv4])
