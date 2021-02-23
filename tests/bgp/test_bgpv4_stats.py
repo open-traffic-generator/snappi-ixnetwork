@@ -1,4 +1,8 @@
 def test_bgpv4_stats(api, b2b_raw_config, utils):
+    """
+    Test for the bgpv4 metrics
+    """
+    api.set_config(api.config())
     b2b_raw_config.flows.clear()
 
     p1, p2 = b2b_raw_config.ports
