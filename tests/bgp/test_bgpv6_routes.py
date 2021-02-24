@@ -57,6 +57,48 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
 
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
 
+    req = api.metrics_request()
+    req.choice = 'bgpv6'
+    req.bgpv6.device_names = []
+    results = api.get_metrics(req)
+    enums = [
+        'sessions_total', 'sessions_up',
+        'sessions_down', 'sessions_not_started',
+        'routes_advertised', 'routes_withdrawn'
+    ]
+    expected_results = {
+        'tx_bgp': [10, 10, 0, 0, 0, 0],
+        'rx_bgp': [10, 10, 0, 0, 0, 0]
+    }
+
+    assert len(results.bgpv6_metrics) == 2
+    for bgp_res in results.bgpv6_metrics:
+        for i, enum in enumerate(enums):
+            val = expected_results[bgp_res.name][i]
+            assert getattr(bgp_res, enum) == val
+
+    req = api.metrics_request()
+    req.choice = 'bgpv6'
+    req.bgpv6.device_names = ['rx_bgp']
+    results = api.get_metrics(req)
+
+    assert len(results.bgpv6_metrics) == 1
+    assert results.bgpv6_metrics[0].name == 'rx_bgp'
+    for bgp_res in results.bgpv6_metrics:
+        for i, enum in enumerate(enums):
+            val = expected_results[bgp_res.name][i]
+            assert getattr(bgp_res, enum) == val
+
+    req = api.metrics_request()
+    req.choice = 'bgpv6'
+    req.bgpv6.column_names = ['sessions_total', 'sessions_up']
+    results = api.get_metrics(req)
+    assert len(results.bgpv6_metrics) == 2
+    assert results.bgpv6_metrics[0].sessions_total == 10
+    assert results.bgpv6_metrics[0].sessions_up == 10
+    assert results.bgpv6_metrics[1].sessions_total == 10
+    assert results.bgpv6_metrics[1].sessions_up == 10
+
     utils.wait_for(
         lambda: results_ok(api, ['flow_bgp'], packets),
         'stats to be as expected', timeout_seconds=10
