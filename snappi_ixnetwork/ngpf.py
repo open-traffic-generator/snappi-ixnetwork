@@ -242,7 +242,7 @@ class Ngpf(object):
         if len(ixn_ipv6) == 0:
             ixn_ipv6.add(**args)[-1]
         else:
-            self.update(ixn_ipv6, **args)
+            self._update(ixn_ipv6, **args)
         if ipv6.name is not None:
             ixn_ipv6.Name = ipv6.name
             self._api.ixn_objects[ipv6.name] = ixn_ipv6.href
