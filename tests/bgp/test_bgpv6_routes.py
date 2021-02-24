@@ -1,6 +1,6 @@
 def test_bgpv6_routes(api, b2b_raw_config, utils):
     """
-    Test for the bgpv4 metrics
+    Test for the bgpv6 routes
     """
     size = 1500
     packets = 1000
