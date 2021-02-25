@@ -11,9 +11,9 @@ def test_phb_ecn(api, tx_port, rx_port, b2b_raw_config):
     ip = f.packet[-1]
     ip.priority.choice = ip.priority.DSCP
     ip.priority.dscp.phb.values = [
-        ip.priority.dscp.PHB_CS2,
-        ip.priority.dscp.PHB_CS1,
-        ip.priority.dscp.PHB_CS5
+        ip.priority.dscp.phb.CS2,
+        ip.priority.dscp.phb.CS1,
+        ip.priority.dscp.phb.CS5
     ]
-    ip.priority.dscp.ecn.value = ip.priority.dscp.ECN_CAPABLE_TRANSPORT_1
+    ip.priority.dscp.ecn.value = ip.priority.dscp.ecn.CAPABLE_TRANSPORT_1
     api.set_config(b2b_raw_config)

@@ -30,9 +30,6 @@ def test_list_ip_fields(api, b2b_raw_config, utils):
     fragment_offset = [str(r.randint(0, 8191)) for i in range(10)]
     time_to_live = [str(r.randint(0, 255)) for i in range(10)]
     protocol = [str(r.randint(0, 255)) for i in range(10)]
-    header_checksum = [
-        str('{:02x}'.format(r.randint(0, 65535))) for i in range(10)
-    ]
     f.packet.ethernet().ipv4()
     eth = f.packet[0]
     ipv4 = f.packet[1]
@@ -49,7 +46,6 @@ def test_list_ip_fields(api, b2b_raw_config, utils):
     ipv4.fragment_offset.values = fragment_offset
     ipv4.time_to_live.values = time_to_live
     ipv4.protocol.values = protocol
-    ipv4.header_checksum.values = header_checksum
 
     api.set_config(b2b_raw_config)
     attrs = {
@@ -62,6 +58,5 @@ def test_list_ip_fields(api, b2b_raw_config, utils):
         'Fragment offset': fragment_offset,
         'TTL (Time to live)': time_to_live,
         'Protocol': protocol,
-        'Header checksum': header_checksum
     }
     utils.validate_config(api, 'ipv4', **attrs)

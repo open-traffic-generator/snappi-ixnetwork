@@ -12,7 +12,6 @@ def test_udp_header_with_fixed(api, b2b_raw_config, utils):
     src_port = 3000
     dst_port = 4000
     length = 38
-    checksum = 5
     packets = 1000
     size = 74
     flow = b2b_raw_config.flows[0]
@@ -32,7 +31,6 @@ def test_udp_header_with_fixed(api, b2b_raw_config, utils):
     udp.src_port.value = src_port
     udp.dst_port.value = dst_port
     udp.length.value = length
-    udp.checksum.value = checksum
 
     api.set_config(b2b_raw_config)
 
@@ -40,6 +38,5 @@ def test_udp_header_with_fixed(api, b2b_raw_config, utils):
         'UDP-Source-Port': str(src_port),
         'UDP-Dest-Port': str(dst_port),
         'UDP-Length': str(length),
-        'UDP-Checksum': str(checksum)
     }
     utils.validate_config(api, 'udp', **attrs)
