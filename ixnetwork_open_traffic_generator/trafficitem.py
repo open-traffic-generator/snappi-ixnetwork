@@ -1,3 +1,4 @@
+from time import time
 from ixnetwork_open_traffic_generator.timer import Timer
 from ixnetwork_open_traffic_generator.customfield import CustomField
 
@@ -520,15 +521,13 @@ class TrafficItem(CustomField):
         if request.state == 'start':
             all_flow_names = ' '.join(
                 [flow.name for flow in self._api.config.flows])
-            self._api._traffic_item.find(State='^unapplied$')
             if len(self._api._topology.find()) > 0:
                 with Timer(self._api, 'Devices start'):
                     self._api._ixnetwork.StartAllProtocols('sync')
                     self._api.check_protocol_statistics()
             if len(self._api._traffic_item) > 0:
                 with Timer(self._api, 'Flows generate/apply'):
-                    self._api._traffic_item.Generate()
-                    self._api._traffic.Apply()
+                    self._generate_flows_and_apply()
             self._api._traffic_item.find(State='^started$')
             if len(self._api._traffic_item) == 0:
                 with Timer(self._api, 'Flows clear statistics'):
@@ -560,6 +559,19 @@ class TrafficItem(CustomField):
             if len(self._api._topology.find()) > 0:
                 with Timer(self._api, 'Devices stop'):
                     self._api._ixnetwork.StopAllProtocols('sync')
+
+    def _generate_flows_and_apply(self):
+        import time
+        timeout = 0
+        while True:
+            trs = self._api._traffic_item.find(State='^unapplied$')
+            if timeout >= 60:
+                raise Exception("traffic is not getting applied")
+            if len(trs) == 0:
+                break
+            self._api._traffic_item.Generate()
+            self._api._traffic.Apply()
+            time.sleep(1)
 
     def _set_result_value(self,
                           row,
