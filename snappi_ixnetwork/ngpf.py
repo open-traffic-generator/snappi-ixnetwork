@@ -107,7 +107,10 @@ class Ngpf(object):
         if len(ixn_device_group) == 0:
             ixn_device_group.add(**args)[-1]
         else:
+            ixn_ng = ixn_device_group.NetworkGroup
+            self._api._remove(ixn_ng, [])
             self._update(ixn_device_group, **args)
+        
         self._config_proto_stack(ixn_device_group, device, ixn_device_group)
     
     def _config_proto_stack(self, ixn_obj, snappi_obj, ixn_dg):
@@ -266,11 +269,6 @@ class Ngpf(object):
         ixn_ng = ixn_dg.NetworkGroup
         bgpv4_route_ranges = bgp.bgpv4_route_ranges
         bgpv6_route_ranges = bgp.bgpv6_route_ranges
-        route_ranges = []
-        route_ranges.extend(bgpv4_route_ranges)
-        route_ranges.extend(bgpv6_route_ranges)
-        if len(route_ranges) > 0:
-            self._api._remove(ixn_ng, route_ranges)
         if len(bgpv4_route_ranges) > 0:
             for route_range in bgpv4_route_ranges:
                 self._configure_bgpv4_route(ixn_ng,
@@ -281,7 +279,7 @@ class Ngpf(object):
                 self._configure_bgpv6_route(ixn_ng,
                                             route_range,
                                             ixn_dg)
-    
+
     def _configure_bgpv4_route(self, ixn_ng, route_range, ixn_dg):
         args = {
             'Name': route_range.name,
@@ -293,6 +291,7 @@ class Ngpf(object):
         else:
             self._update(ixn_ng, **args)
             ixn_pool = ixn_ng.Ipv4PrefixPools.find()
+        ixn_pool.Connector.find().ConnectedTo = ixn_dg.Ethernet.find().Ipv4.find().BgpIpv4Peer.find()
         if route_range.name is not None:
             self._api.ixn_objects[route_range.name] = ixn_ng.href
             self._api._device_encap[route_range.name] = 'ipv4'
@@ -365,6 +364,7 @@ class Ngpf(object):
         else:
             self._update(ixn_ng, **args)
             ixn_pool = ixn_ng.Ipv6PrefixPools.find()
+        ixn_pool.Connector.find().ConnectedTo = ixn_dg.Ethernet.find().Ipv6.find().BgpIpv6Peer.find()
         if route_range.name is not None:
             self._api.ixn_objects[route_range.name] = ixn_ng.href
             self._api._device_encap[route_range.name] = 'ipv6'
