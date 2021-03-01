@@ -68,7 +68,7 @@ setup(
     ],
     extras_require={
         'dev': [
-            'snappi== 0.1.44',
+            'snappi== 0.1.45',
             'pytest',
             'flake8==3.8.4',
             'dpkt==1.9.4',
