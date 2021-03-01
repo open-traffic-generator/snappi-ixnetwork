@@ -15,7 +15,7 @@ def test_counter_ip_fields(api, b2b_raw_config, utils):
     fields = [
         "header_length", "total_length", "identification",
         "reserved", "dont_fragment", "more_fragments", "fragment_offset",
-        "time_to_live", "protocol", "header_checksum"
+        "time_to_live", "protocol"
     ]
     start = [
         5, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -53,7 +53,6 @@ def test_counter_ip_fields(api, b2b_raw_config, utils):
         'Fragment offset',
         'TTL (Time to live)',
         'Protocol',
-        'Header checksum',
     ]
     attrs = dict()
     for i, k in enumerate(keys):

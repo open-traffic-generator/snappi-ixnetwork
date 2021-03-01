@@ -34,7 +34,6 @@ def test_fixed_ip_fields(api, b2b_raw_config, utils):
     ipv4.fragment_offset.value = 0
     ipv4.time_to_live.value = 50
     ipv4.protocol.value = 200
-    ipv4.header_checksum.value = 1234
 
     api.set_config(b2b_raw_config)
     attrs = {
@@ -47,6 +46,5 @@ def test_fixed_ip_fields(api, b2b_raw_config, utils):
         'Fragment offset': '0',
         'TTL (Time to live)': '50',
         'Protocol': '200',
-        'Header checksum': '1234'
     }
     utils.validate_config(api, 'ipv4', **attrs)
