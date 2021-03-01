@@ -291,7 +291,6 @@ class Ngpf(object):
         else:
             self._update(ixn_ng, **args)
             ixn_pool = ixn_ng.Ipv4PrefixPools.find()
-        ixn_pool.Connector.find().ConnectedTo = ixn_dg.Ethernet.find().Ipv4.find().BgpIpv4Peer.find()
         if route_range.name is not None:
             self._api.ixn_objects[route_range.name] = ixn_ng.href
             self._api._device_encap[route_range.name] = 'ipv4'
@@ -364,7 +363,6 @@ class Ngpf(object):
         else:
             self._update(ixn_ng, **args)
             ixn_pool = ixn_ng.Ipv6PrefixPools.find()
-        ixn_pool.Connector.find().ConnectedTo = ixn_dg.Ethernet.find().Ipv6.find().BgpIpv6Peer.find()
         if route_range.name is not None:
             self._api.ixn_objects[route_range.name] = ixn_ng.href
             self._api._device_encap[route_range.name] = 'ipv6'
