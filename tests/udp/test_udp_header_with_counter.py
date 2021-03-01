@@ -14,7 +14,6 @@ def test_udp_header_with_counter(api, b2b_raw_config, utils):
     src_port = (5000, 2, 10)
     dst_port = (6000, 2, 10)
     length = (35, 1, 2)
-    checksum = (6, 1, 2)
     packets = 100
     size = 74
 
@@ -42,16 +41,11 @@ def test_udp_header_with_counter(api, b2b_raw_config, utils):
     udp.length.increment.step = length[1]
     udp.length.increment.count = length[2]
 
-    udp.checksum.increment.start = checksum[0]
-    udp.checksum.increment.step = checksum[1]
-    udp.checksum.increment.count = checksum[2]
-
     api.set_config(b2b_raw_config)
 
     attrs = {
         'UDP-Source-Port': tuple(map(str, src_port)),
         'UDP-Dest-Port': tuple(map(str, dst_port)),
         'UDP-Length': tuple(map(str, length)),
-        'UDP-Checksum': tuple(map(str, checksum)),
     }
     utils.validate_config(api, 'udp', **attrs)

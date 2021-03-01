@@ -8,7 +8,7 @@ class ProtocolMetrics(object):
     # more than one page.
 
     _SUPPORTED_PROTOCOLS_ = [
-        "bgpv4"
+        "bgpv4", "bgpv6"
     ]
     _PROTO_NAME_MAP_ = {
         "bgpv4": {
@@ -16,6 +16,13 @@ class ProtocolMetrics(object):
             'drill_down': 'BGP Peer Drill Down',
             'drill_down_options': [
                 'BGP Peer:Per Device Group', 'BGP Peer:Per Session'
+            ]
+        },
+        "bgpv6": {
+            'per_port': 'BGP\+ Peer Per Port',
+            'drill_down': 'BGP\+ Peer Drill Down',
+            'drill_down_options': [
+                'BGP+ Peer:Per Device Group', 'BGP+ Peer:Per Session'
             ]
         }
     }
@@ -29,14 +36,60 @@ class ProtocolMetrics(object):
             ("sessions_not_started", "Sessions Not Started", int),
             ("routes_advertised", "Routes Advertised", int),
             ("routes_withdrawn", "Routes Withdrawn", int),
+        ],
+        "bgpv6": [
+            ("name", "Device Group", str),
+            ("sessions_total", "Sessions Total", int),
+            ("sessions_up", "Sessions Up", int),
+            ("sessions_down", "Sessions Down", int),
+            ("sessions_not_started", "Sessions Not Started", int),
+            ("routes_advertised", "Routes Advertised", int),
+            ("routes_withdrawn", "Routes Withdrawn", int),
         ]
     }
 
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
+        self.ixn = None
         self.columns = []
         self.device_names = []
         self.metric_timeout = 90
+        self.interval = 1
+
+    def _get_search_payload(self, parent, child, properties, filters):
+        payload = {
+            'selects': [{
+                'from': parent,
+                'properties': [],
+                'children': [{
+                    'child': child,
+                    'properties': properties,
+                    'filters': filters
+                }],
+                'inlines': []
+            }]
+        }
+        url = '{}/operations/select?xpath=true'.format(
+            self.ixn.href
+        )
+        return (url, payload)
+
+    def _select_view(self, view_filters=[]):
+        url, payload = self._get_search_payload(
+            '/statistics', 'view', ['caption'], view_filters
+        )
+        result = self.ixn._connection._execute(url, payload)[0]
+        return result.get('view')
+
+    def _wait_for(self, func, exp_msg, interval, timeout):
+        end_time = round(time.time()) + timeout
+        while True:
+            res = func()
+            if round(time.time()) >= end_time:
+                raise Exception(exp_msg)
+            if res is not None:
+                return res
+            time.sleep(interval)
 
     def get_supported_protocols(self):
         """
@@ -44,25 +97,55 @@ class ProtocolMetrics(object):
         """
         return self._SUPPORTED_PROTOCOLS_
 
-    def _get_per_port_stat_view(self, protocol):
+    def _port_list_in_per_port(self, protocol):
+        self.ixn = self._api.assistant._ixnetwork
         protocol_name = self._PROTO_NAME_MAP_.get(protocol)
         if protocol_name is None:
             raise NotImplementedError(
                 "{} is Not Implemented".format(protocol)
             )
-        try:
-            table = self._api.assistant.StatViewAssistant(
-                protocol_name['per_port'], self.metric_timeout
-            )
-        except Exception:
-            msg = "Could not retrieve stats view for {}\
-                make sure the protocol is up and running".format(protocol)
-            raise Exception(msg)
-        return table
+        filter = [{
+            'property': 'caption',
+            'regex': '^%s$' % protocol_name['per_port']
+        }]
+        view = self._wait_for(
+            lambda: self._select_view(filter),
+            "could not retrieve the view for %s" % protocol,
+            self.interval,
+            self.metric_timeout
+        )
+        res = self._get_column_values(view[0]['href'], 'Port')
+        if res is None or len(res) == 0:
+            raise Exception("Could not retrieve the Port column")
+        return (res, view[0])
+
+    def _get_column_values(self, href, value):
+        payload = {
+            'arg1': href,
+            'arg2': value
+        }
+        url = '{}/statistics/view/operations/getcolumnvalues'.format(
+            self.ixn.href
+        )
+        res = self._api._request('POST', url, payload)
+        return res.get('result')
+
+    def _get_value(self, href, row_label, column_label):
+        payload = {
+            'arg1': href,
+            'arg2': row_label,
+            'arg3': column_label
+        }
+        url = '{}/statistics/view/operations/getvalue'.format(
+            self.ixn.href
+        )
+        res = self._api._request('POST', url, payload)
+        return res.get('result')
 
     def _check_if_page_ready(self, view):
         count = 0
         while True:
+            view.Refresh()
             if view.Data.IsReady:
                 break
             if count >= self.metric_timeout:
@@ -70,42 +153,88 @@ class ProtocolMetrics(object):
             time.sleep(0.5)
             count += 1
 
+    def _port_names_from_devices(self):
+        config = self._api.snappi_config
+        snappi_port_list = [p.name for p in config.ports]
+        if len(self.device_names) == 0:
+            return snappi_port_list
+        port_list = [
+            d.container_name
+            for d in config.devices if d.name in self.device_names
+        ]
+        return port_list
+
+    def _do_drill_down(self, view, per_port, row_index, drill_option):
+        url, payload = self._get_search_payload(
+            view['href'], 'drillDown', [
+                'targetDrillDownOption', 'targetRowIndex'
+            ], []
+        )
+        result = self.ixn._connection._execute(url, payload)[0]
+        if result.get('drillDown') is None:
+            raise Exception('Could not fetch drill down node')
+
+        payload = {
+            'targetDrillDownOption': drill_option,
+            'targetRowIndex': row_index,
+        }
+        url = result['drillDown']['href']
+        count = 0
+        while count < 5:
+            # retrying as the linux api server throws error for first 2
+            # consecutive executions
+            try:
+                self._api._request('PATCH', url, payload)
+                break
+            except Exception:
+                self._check_if_page_ready(
+                    self.ixn.Statistics.View.find(Caption=per_port)
+                )
+                time.sleep(0.3)
+                count += 1
+
+        url = '{}/statistics/view/drillDown/operations/dodrilldown'.format(
+            self.ixn.href
+        )
+        payload = {
+            'arg1': result['drillDown']['href']
+        }
+        self._api._request('POST', url, payload)
+        return
+
     def _get_per_device_group_stats(self, protocol):
-        table = self._get_per_port_stat_view(protocol)
-        table_len = len(table.Rows)
-        v = table._View
-        self._check_if_page_ready(v)
+        ports, v = self._port_list_in_per_port(protocol)
+        config_ports = self._port_names_from_devices()
+        indices = [
+            ports.index(p) for p in config_ports if p in ports
+        ]
         drill_option = self._PROTO_NAME_MAP_[protocol]['drill_down_options'][0]
-        per_port = self._PROTO_NAME_MAP_[protocol]['per_port']
         drill_name = self._PROTO_NAME_MAP_[protocol]['drill_down']
+        per_port = self._PROTO_NAME_MAP_[protocol]['per_port']
         column_names = self._RESULT_COLUMNS.get(protocol)
         row_lst = list()
-        for row in range(table_len):
+        for i in indices:
             try:
-                v = v.find(Caption=per_port)
-                v.DrillDown.find().TargetRowIndex = row
-                v.DrillDown.find().TargetDrillDownOption = drill_option
-                v.DrillDown.find().DoDrillDown()
-                v.find(Caption=drill_name).Refresh()
-                v.find(Caption=drill_name).Refresh()
-                time.sleep(0.5)
-                drill = self._api.assistant.StatViewAssistant(
-                    drill_name, self.metric_timeout
-                )
+                drill = self.ixn.Statistics.View.find(Caption=drill_name)
+                self._do_drill_down(v, per_port, i, drill_option)
+                self._check_if_page_ready(drill)
             except Exception as e:
-                msg = """"
-                Could not retrive drill down view at row index {} {}""".format(
-                    row, e
-                )
+                msg = """
+                Could not retrive drill down view \
+                at row index {} {}""".format(i, e)
                 raise Exception(msg)
-            for dev_row in drill.Rows:
-                dev_name = dev_row['Device Group']
+            dev_names = self._get_column_values(
+                drill.href, 'Device Group'
+            )
+            for index, dev_name in enumerate(dev_names):
                 if len(self.names) > 0 and dev_name not in self.names:
                     continue
                 row_dt = dict()
                 for sn, ixn, typ in column_names:
                     try:
-                        value = dev_row[ixn]
+                        value = self._get_value(
+                            drill.href, dev_name, ixn
+                        )
                     except Exception:
                         value = 'NA'
                     self._set_result_value(

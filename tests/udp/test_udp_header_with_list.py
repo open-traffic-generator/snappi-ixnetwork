@@ -13,7 +13,6 @@ def test_udp_header_with_list(api, b2b_raw_config, utils):
     src_port = [3000, 3001]
     dst_port = [4000, 4001]
     length = [35, 36]
-    checksum = [5, 6]
     size = 74
     packets = 100
 
@@ -32,7 +31,6 @@ def test_udp_header_with_list(api, b2b_raw_config, utils):
     udp.src_port.values = src_port
     udp.dst_port.values = dst_port
     udp.length.values = length
-    udp.checksum.values = checksum
 
     api.set_config(b2b_raw_config)
 
@@ -40,6 +38,5 @@ def test_udp_header_with_list(api, b2b_raw_config, utils):
         'UDP-Source-Port': [str(src) for src in src_port],
         'UDP-Dest-Port': [str(dst) for dst in dst_port],
         'UDP-Length': [str(len) for len in length],
-        'UDP-Checksum': [str(chksum) for chksum in checksum]
     }
     utils.validate_config(api, 'udp', **attrs)
