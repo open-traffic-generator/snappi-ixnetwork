@@ -503,6 +503,18 @@ class TrafficItem(CustomField):
             args['InterBurstGapUnits'] = duration.burst.inter_burst_gap_unit
         self._update(ixn_tx_control, **args)
 
+    def _convert_string_to_regex(self, names):
+        ret_list = []
+        for n in names:
+            ret_list.append(
+                n.replace('(', '\\(').replace(')', '\\)')
+                    .replace('[', '\\[').replace(']', '\\]')
+                    .replace('.', '\\.').replace('*', '\\*')
+                    .replace('+', '\\+').replace('?', '\\?')
+                    .replace('{', '\\{').replace('}', '\\}')
+            )
+        return ret_list
+
     def transmit(self, request):
         """Set flow transmit
         1) If start then start any device protocols that are traffic dependent
@@ -516,7 +528,9 @@ class TrafficItem(CustomField):
         if len(flow_names) == 1:
             regex = '^%s$' % flow_names[0]
         elif len(flow_names) > 1:
-            regex = '^(%s)$' % '|'.join(flow_names)
+            regex = '^(%s)$' % '|'.join(
+                self._convert_string_to_regex(flow_names)
+            )
 
         if request.state == 'start':
             all_flow_names = ' '.join(
@@ -540,7 +554,7 @@ class TrafficItem(CustomField):
                 self._api._traffic_item.find(Name=regex, State='^stopped$')
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows start'):
-                        self._api._traffic.StartStatelessTrafficBlocking()
+                        self._api._traffic_item.StartStatelessTrafficBlocking()
                 self._api._traffic_item.find(Name=regex, State='^started$')
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows resume'):
@@ -549,7 +563,7 @@ class TrafficItem(CustomField):
                 self._api._traffic_item.find(Name=regex, State='^started$')
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows stop'):
-                        self._api._traffic.StopStatelessTrafficBlocking()
+                        self._api._traffic_item.StopStatelessTrafficBlocking()
             elif request.state == 'pause':
                 self._api._traffic_item.find(Name=regex, State='^started$')
                 if len(self._api._traffic_item) > 0:
