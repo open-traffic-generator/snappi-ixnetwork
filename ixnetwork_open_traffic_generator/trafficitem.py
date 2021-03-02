@@ -537,10 +537,11 @@ class TrafficItem(CustomField):
         self._api._traffic_item.find(Name=regex)
         if len(self._api._traffic_item) > 0:
             if request.state == 'start':
+                import pdb; pdb.set_trace()
                 self._api._traffic_item.find(Name=regex, State='^stopped$')
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows start'):
-                        self._api._traffic_item.StartStatelessTrafficBlocking()
+                        self._api._traffic.StartStatelessTrafficBlocking()
                 self._api._traffic_item.find(Name=regex, State='^started$')
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows resume'):
@@ -549,7 +550,7 @@ class TrafficItem(CustomField):
                 self._api._traffic_item.find(Name=regex, State='^started$')
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows stop'):
-                        self._api._traffic_item.StopStatelessTrafficBlocking()
+                        self._api._traffic.StopStatelessTrafficBlocking()
             elif request.state == 'pause':
                 self._api._traffic_item.find(Name=regex, State='^started$')
                 if len(self._api._traffic_item) > 0:
