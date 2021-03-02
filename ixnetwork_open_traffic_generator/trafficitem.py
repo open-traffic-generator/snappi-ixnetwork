@@ -537,7 +537,6 @@ class TrafficItem(CustomField):
         self._api._traffic_item.find(Name=regex)
         if len(self._api._traffic_item) > 0:
             if request.state == 'start':
-                import pdb; pdb.set_trace()
                 self._api._traffic_item.find(Name=regex, State='^stopped$')
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows start'):
