@@ -526,7 +526,7 @@ class TrafficItem(CustomField):
         if request and request.flow_names:
             flow_names = request.flow_names
         if len(flow_names) == 1:
-            regex = '^%s$' % flow_names[0]
+            regex = '^%s$' % self._convert_string_to_regex(flow_names)[0]
         elif len(flow_names) > 1:
             regex = '^(%s)$' % '|'.join(
                 self._convert_string_to_regex(flow_names)
@@ -637,9 +637,12 @@ class TrafficItem(CustomField):
                 request.flow_names) > 0:
             flow_names = request.flow_names
         if len(flow_names) == 1:
-            filter['regex'] = '^%s$' % flow_names[0]
+            filter['regex'] = '^%s$' % \
+                self._convert_string_to_regex(flow_names)[0]
         elif len(flow_names) > 1:
-            filter['regex'] = '^(%s)$' % '|'.join(flow_names)
+            filter['regex'] = '^(%s)$' % '|'.join(
+                self._convert_string_to_regex(flow_names)
+            )
 
         # initialize result values
         flow_rows = {}
