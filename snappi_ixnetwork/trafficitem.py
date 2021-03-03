@@ -508,6 +508,18 @@ class TrafficItem(CustomField):
             args['InterBurstGapUnits'] = duration.burst.inter_burst_gap_unit
         self._update(ixn_tx_control, **args)
 
+    def _convert_string_to_regex(self, names):
+        ret_list = []
+        for n in names:
+            ret_list.append(
+                n.replace('(', '\\(').replace(')', '\\)')
+                    .replace('[', '\\[').replace(']', '\\]')
+                    .replace('.', '\\.').replace('*', '\\*')
+                    .replace('+', '\\+').replace('?', '\\?')
+                    .replace('{', '\\{').replace('}', '\\}')
+            )
+        return ret_list
+
     def transmit(self, request):
         """Set flow transmit
         1) If start then start any device protocols that are traffic dependent
@@ -519,18 +531,20 @@ class TrafficItem(CustomField):
         if request and request.flow_names:
             flow_names = request.flow_names
         if len(flow_names) == 1:
-            regex = '^%s$' % flow_names[0]
+            regex = '^%s$' % self._convert_string_to_regex(flow_names)[0]
         elif len(flow_names) > 1:
-            regex = '^(%s)$' % '|'.join(flow_names)
+            regex = '^(%s)$' % '|'.join(
+                self._convert_string_to_regex(flow_names)
+            )
 
         if request.state == 'start':
-            all_flow_names = ' '.join(
-                [flow.name for flow in self._api.snappi_config.flows])
-            self._api._traffic_item.find(State='^unapplied$')
             if len(self._api._topology.find()) > 0:
                 with Timer(self._api, 'Devices start'):
                     self._api._ixnetwork.StartAllProtocols('sync')
                     self._api.check_protocol_statistics()
+            if len(self._api._traffic_item.find()) == 0:
+                return
+            self._api._traffic_item.find(State='^unapplied$')
             if len(self._api._traffic_item) > 0:
                 with Timer(self._api, 'Flows generate/apply'):
                     self._api._traffic_item.Generate()
@@ -544,14 +558,14 @@ class TrafficItem(CustomField):
         self._api._traffic_item.find(Name=regex)
         if len(self._api._traffic_item) > 0:
             if request.state == 'start':
-                self._api._traffic_item.find(Name=regex, State='^stopped$')
-                if len(self._api._traffic_item) > 0:
-                    with Timer(self._api, 'Flows start'):
-                        self._api._traffic_item.StartStatelessTrafficBlocking()
                 self._api._traffic_item.find(Name=regex, State='^started$')
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows resume'):
                         self._api._traffic_item.PauseStatelessTraffic(False)
+                self._api._traffic_item.find(Name=regex, State='^stopped$')
+                if len(self._api._traffic_item) > 0:
+                    with Timer(self._api, 'Flows start'):
+                        self._api._traffic_item.StartStatelessTrafficBlocking()
             elif request.state == 'stop':
                 self._api._traffic_item.find(Name=regex, State='^started$')
                 if len(self._api._traffic_item) > 0:
@@ -620,7 +634,9 @@ class TrafficItem(CustomField):
             raise Exception(msg)
 
         filter = {'property': 'name', 'regex': '.*'}
-        filter['regex'] = '^(%s)$' % '|'.join(flow_names)
+        filter['regex'] = '^(%s)$' % '|'.join(
+            self._convert_string_to_regex(flow_names)
+        )
 
         # initialize result values
         flow_rows = {}
