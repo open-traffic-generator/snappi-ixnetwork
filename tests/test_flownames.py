@@ -1,14 +1,11 @@
-import pytest
 import json
-from abstract_open_traffic_generator.config import Config
-from abstract_open_traffic_generator.control import *
-from abstract_open_traffic_generator import (
-    config, port, layer1, flow, control, result, capture
-)
+import os
+from abstract_open_traffic_generator import control
 
 
-def test_flownames(serializer, api, utils):
-    fd = open('C:/Users/rangabar.KEYSIGHT/Downloads/test/test.json', 'r')
+def test_flownames(api, utils):
+    path = os.path.join(utils.get_root_dir(), 'config_files/test.json')
+    fd = open(path, 'r')
     config = fd.read()
     config = json.loads(config)
     api.set_state(
