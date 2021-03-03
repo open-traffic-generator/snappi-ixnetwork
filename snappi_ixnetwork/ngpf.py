@@ -102,7 +102,7 @@ class Ngpf(object):
         """Transform /components/schemas/Device into /topology/deviceGroup
         One /topology/deviceGroup for every device in port.devices 
         """
-        args = {'Name': device.name, 'Multiplier': device.device_count}
+        args = {'Name': device.name, 'Multiplier': 1}
         ixn_device_group.find(Name='^%s$' % device.name)
         if len(ixn_device_group) == 0:
             ixn_device_group.add(**args)[-1]
@@ -137,43 +137,60 @@ class Ngpf(object):
                                  ixn_dg)
             
     def _configure_pattern(self, ixn_obj, pattern, enum_map=None):
-        if pattern is None or pattern.choice is None:
+        if pattern is None:
             return
-        elif enum_map is not None and pattern.choice == 'value':
-            ixn_obj.Single(enum_map[pattern.value])
-        elif pattern.choice == 'value':
-            ixn_obj.Single(pattern.value)
-        elif pattern.choice == 'values':
-            ixn_obj.ValueList(pattern.values)
-        elif pattern.choice == 'increment':
-            ixn_obj.Increment(pattern.increment.start,
-                              pattern.increment.step)
-        elif pattern.choice == 'decrement':
-            ixn_obj.Decrement(pattern.decrement.start,
-                              pattern.decrement.step)
-        elif pattern.choice == 'random':
-            pass
+        # Asymmetric support- without pattern
+        if getattr(pattern, 'choice', None) is None:
+            if enum_map is not None:
+                ixn_obj.Single(enum_map[pattern])
+            else:
+                ixn_obj.Single(pattern)
+        # Symmetric support with pattern
+        else:
+            if pattern.choice is None:
+                return
+            elif enum_map is not None and pattern.choice == 'value':
+                ixn_obj.Single(enum_map[pattern.value])
+            elif pattern.choice == 'value':
+                ixn_obj.Single(pattern.value)
+            elif pattern.choice == 'values':
+                ixn_obj.ValueList(pattern.values)
+            elif pattern.choice == 'increment':
+                ixn_obj.Increment(pattern.increment.start,
+                                  pattern.increment.step)
+            elif pattern.choice == 'decrement':
+                ixn_obj.Decrement(pattern.decrement.start,
+                                  pattern.decrement.step)
+            elif pattern.choice == 'random':
+                pass
 
     def _casting_pattern_value(self, pattern, casting_type):
         """"""
-        if pattern is None or pattern.choice is None:
+        if pattern is None:
             return
         custom_type = getattr(self, casting_type, None)
         if custom_type is None:
             raise Exception("Please defined this {0} method".format(
                 casting_type))
-        if pattern.choice == 'value':
-            pattern.value = custom_type(pattern.value)
-        elif pattern.choice == 'values':
-            pattern.values = [custom_type(
-                    val) for val in pattern.values]
-        elif pattern.choice == 'increment':
-            pattern.increment.start = custom_type(pattern.increment.start)
-            pattern.increment.step = custom_type(pattern.increment.step)
-        elif pattern.choice == 'decrement':
-            pattern.decrement.start = custom_type(pattern.decrement.start)
-            pattern.decrement.step = custom_type(pattern.decrement.step)
-        return pattern
+        # Asymmetric support- without pattern
+        if getattr(pattern, 'choice', None) is None:
+            return custom_type(pattern)
+        # Symmetric support with pattern
+        else:
+            if pattern.choice is None:
+                return
+            if pattern.choice == 'value':
+                pattern.value = custom_type(pattern.value)
+            elif pattern.choice == 'values':
+                pattern.values = [custom_type(
+                        val) for val in pattern.values]
+            elif pattern.choice == 'increment':
+                pattern.increment.start = custom_type(pattern.increment.start)
+                pattern.increment.step = custom_type(pattern.increment.step)
+            elif pattern.choice == 'decrement':
+                pattern.decrement.start = custom_type(pattern.decrement.start)
+                pattern.decrement.step = custom_type(pattern.decrement.step)
+            return pattern
     
     def _ip_to_int(self, ip):
         """Convert IPv4 address to Int"""
