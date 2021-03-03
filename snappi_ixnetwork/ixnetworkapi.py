@@ -338,14 +338,26 @@ class Api(snappi.Api):
                 self._ixnetwork.Globals.Licensing \
                     .LicensingServers = self._license_servers
             try:
-                version = pkg_resources.get_distribution(
-                    "snappi_ixnetwork").version
-            except Exception:
-                version = "snappi_ixnetwork not installed " \
-                    "using pip, unable to determine version"
-            self.info(version)
+                import pkg_resources
+                snappi_ver = "snappi-" +\
+                    pkg_resources.get_distribution("snappi").version
+                self.info(snappi_ver)
+                snappi_ixn = "snappi_ixnetwork-" +\
+                    pkg_resources.get_distribution("snappi_ixnetwork").version
+                self.info(snappi_ixn)
+                restpy = "ixnetwork_restpy-" + pkg_resources.get_distribution(
+                    "ixnetwork_restpy"
+                ).version
+                self.info(restpy)
+            except pkg_resources.DistributionNotFound as e:
+                version = "Could not determine version for pkg {}".format(
+                    e.req.project_name
+                )
+                self.info(version)
+            except Exception as e:
+                self.warning('{}'.format(e))
         self._backup_errors()
-    
+
     def _backup_errors(self):
         app_errors = self._globals.AppErrors.find()
         if len(app_errors) > 0:
