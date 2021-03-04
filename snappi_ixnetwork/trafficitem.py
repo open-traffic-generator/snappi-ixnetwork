@@ -187,7 +187,7 @@ class TrafficItem(CustomField):
                     'Name': flow.name,
                     'TrafficItemType': 'l2L3',
                     'TrafficType': self._get_traffic_type(flow),
-                    'SrcDestMesh': 'oneToOne' if flow.tx_rx.choice == 'port' else 'manyToMany'
+                    'SrcDestMesh': 'oneToOne'
                 }
                 ixn_traffic_item.find(Name='^%s$' % flow.name,
                                       TrafficType=args['TrafficType'])
@@ -214,7 +214,7 @@ class TrafficItem(CustomField):
             tracking_options.append('sourceDestPortPair0')
         if set(tracking_options) != set(ixn_tracking.TrackBy):
             ixn_tracking.update(TrackBy=tracking_options)
-        
+
     def _configure_options(self):
         enable_min_frame_size = False
         for flow in self._api.snappi_config.flows:
