@@ -248,25 +248,25 @@ class Ngpf(object):
         self._configure_pattern(ixn_bgpv4.HoldTimer, advanced.hold_time_interval)
         self._configure_pattern(ixn_bgpv4.KeepaliveTimer, advanced.keep_alive_interval)
         # todo: Add support md5_key, time_to_live, update_interval
-        self._bgp_route_builder(ixn_dg, bgpv4)
+        self._bgp_route_builder(ixn_dg, ixn_bgpv4, bgpv4)
         return ixn_bgpv4
     
-    def _bgp_route_builder(self, ixn_dg, bgp):
-        ixn_ng = ixn_dg.NetworkGroup
+    def _bgp_route_builder(self, ixn_dg, ixn_bgp, bgp):
         bgpv4_routes = bgp.bgpv4_routes
         bgpv6_routes = bgp.bgpv6_routes
         if len(bgpv4_routes) > 0:
             for route_range in bgpv4_routes:
-                self._configure_bgpv4_route(ixn_ng,
-                                            route_range,
-                                            ixn_dg)
+                self._configure_bgpv4_route(ixn_dg,
+                                            ixn_bgp,
+                                            route_range)
         if len(bgpv6_routes) > 0:
             for route_range in bgpv6_routes:
-                self._configure_bgpv6_route(ixn_ng,
-                                            route_range,
-                                            ixn_dg)
+                self._configure_bgpv6_route(ixn_dg,
+                                            ixn_bgp,
+                                            route_range)
 
-    def _configure_bgpv4_route(self, ixn_ng, route_range, ixn_dg):
+    def _configure_bgpv4_route(self, ixn_dg, ixn_bgp, route_range):
+        ixn_ng = ixn_dg.NetworkGroup
         args = {
             'Name': route_range.name,
         }
@@ -277,6 +277,7 @@ class Ngpf(object):
         else:
             self._update(ixn_ng, **args)
             ixn_pool = ixn_ng.Ipv4PrefixPools.find()
+        ixn_pool.Connector.find().ConnectedTo = ixn_bgp.href
         if route_range.name is not None:
             self._api.ixn_objects[route_range.name] = ixn_ng.href
             self._api._device_encap[route_range.name] = 'ipv4'
@@ -346,10 +347,11 @@ class Ngpf(object):
         self._configure_pattern(ixn_bgpv6.HoldTimer, advanced.hold_time_interval)
         self._configure_pattern(ixn_bgpv6.KeepaliveTimer, advanced.keep_alive_interval)
         # todo: Add support md5_key, time_to_live, update_interval
-        self._bgp_route_builder(ixn_dg, bgpv6)
+        self._bgp_route_builder(ixn_dg, ixn_bgpv6, bgpv6)
         return ixn_bgpv6
 
-    def _configure_bgpv6_route(self, ixn_ng, route_range, ixn_dg):
+    def _configure_bgpv6_route(self, ixn_dg, ixn_bgp, route_range):
+        ixn_ng = ixn_dg.NetworkGroup
         args = {
             'Name': route_range.name,
         }
@@ -360,6 +362,7 @@ class Ngpf(object):
         else:
             self._update(ixn_ng, **args)
             ixn_pool = ixn_ng.Ipv6PrefixPools.find()
+        ixn_pool.Connector.find().ConnectedTo = ixn_bgp.href
         if route_range.name is not None:
             self._api.ixn_objects[route_range.name] = ixn_ng.href
             self._api._device_encap[route_range.name] = 'ipv6'
@@ -384,7 +387,7 @@ class Ngpf(object):
         advanced = route_range.advanced
         # todo : multi_exit_discriminator, origin
         self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
-        self._config_bgp_community(route_range.community, ixn_bgp_property)
+        self._config_bgp_community(route_range.communities, ixn_bgp_property)
     
     def _config_bgp_as_path(self, as_path, ixn_bgp_property):
         as_path_segments = as_path.as_path_segments
