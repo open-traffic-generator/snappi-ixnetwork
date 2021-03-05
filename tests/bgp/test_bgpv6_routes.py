@@ -1,3 +1,7 @@
+import pytest
+
+
+@pytest.skip("will update in a while")
 def test_bgpv6_routes(api, b2b_raw_config, utils):
     """
     Test for the bgpv6 routes
