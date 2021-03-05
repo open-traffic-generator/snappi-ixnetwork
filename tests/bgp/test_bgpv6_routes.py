@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("will update in a while")
 def test_bgpv6_routes(api, b2b_raw_config, utils):
     """
     Test for the bgpv6 routes
@@ -14,41 +10,29 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     p1, p2 = b2b_raw_config.ports
     d1, d2 = b2b_raw_config.devices.device(name='tx_bgp').device(name='rx_bgp')
     d1.container_name, d2.container_name = p1.name, p2.name
-    d1.device_count, d2.device_count = 10, 10
     eth1, eth2 = d1.ethernet, d2.ethernet
     ip1, ip2 = eth1.ipv6, eth2.ipv6
     bgp1, bgp2 = ip1.bgpv6, ip2.bgpv6
 
-    ip1.address.increment.start = '2000::1'
-    ip1.address.increment.step = '::1'
-    ip1.gateway.increment.start = '3000::1'
-    ip1.gateway.increment.step = '::1'
-    ip1.prefix.value = 64
+    ip1.address = '2000::1'
+    ip1.gateway = '3000::1'
+    ip1.prefix = 64
 
-    ip2.address.increment.start = '3000::1'
-    ip2.address.increment.step = '::1'
-    ip2.gateway.increment.start = '2000::1'
-    ip2.gateway.increment.step = '::1'
-    ip2.prefix.value = 64
+    ip2.address = '3000::1'
+    ip2.gateway = '2000::1'
+    ip2.prefix = 64
 
-    bgp1.dut_ipv6_address.increment.start = '3000::1'
-    bgp1.dut_ipv6_address.increment.step = '::1'
+    bgp1.dut_address = '3000::1'
+    bgp2.dut_address = '2000::1'
 
-    bgp2.dut_ipv6_address.increment.start = '2000::1'
-    bgp2.dut_ipv6_address.increment.step = '::1'
+    bgp1_rr = bgp1.bgpv6_routes.bgpv6route(name="bgp1_rr")[-1]
+    bgp2_rr = bgp2.bgpv6_routes.bgpv6route(name="bgp2_rr")[-1]
 
-    bgp1_rr = bgp1.bgpv6_route_ranges.bgpv6routerange(name="bgp1_rr")[-1]
-    bgp2_rr = bgp2.bgpv6_route_ranges.bgpv6routerange(name="bgp2_rr")[-1]
+    bgp1_rr.addresses.bgpv6routeaddress(address="4000::1",
+                                        prefix=64)
 
-    bgp1_rr.name = "bgp1_rr"
-    bgp1_rr.address.increment.start = "4000::1"
-    bgp1_rr.address.increment.step = "::1"
-    bgp1_rr.prefix.value = 64
-
-    bgp2_rr.name = "bgp2_rr"
-    bgp2_rr.address.increment.start = "6000::1"
-    bgp2_rr.address.increment.step = "::1"
-    bgp2_rr.prefix.value = 64
+    bgp2_rr.addresses.bgpv6routeaddress(address="4000::1",
+                                        prefix=64)
 
     flow_bgp = b2b_raw_config.flows.flow(name='flow_bgp')[-1]
 
@@ -71,8 +55,8 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
         'routes_advertised', 'routes_withdrawn'
     ]
     expected_results = {
-        'tx_bgp': [10, 10, 0, 0, 0, 0],
-        'rx_bgp': [10, 10, 0, 0, 0, 0]
+        'tx_bgp': [1, 1, 0, 0, 0, 0],
+        'rx_bgp': [1, 1, 0, 0, 0, 0]
     }
 
     assert len(results.bgpv6_metrics) == 2
@@ -98,10 +82,10 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     req.bgpv6.column_names = ['sessions_total', 'sessions_up']
     results = api.get_metrics(req)
     assert len(results.bgpv6_metrics) == 2
-    assert results.bgpv6_metrics[0].sessions_total == 10
-    assert results.bgpv6_metrics[0].sessions_up == 10
-    assert results.bgpv6_metrics[1].sessions_total == 10
-    assert results.bgpv6_metrics[1].sessions_up == 10
+    assert results.bgpv6_metrics[0].sessions_total == 1
+    assert results.bgpv6_metrics[0].sessions_up == 1
+    assert results.bgpv6_metrics[1].sessions_total == 1
+    assert results.bgpv6_metrics[1].sessions_up == 1
 
     utils.wait_for(
         lambda: results_ok(api, ['flow_bgp'], packets),
