@@ -1,3 +1,7 @@
+import pytest
+
+
+@pytest.skip("ipv4 device tests are available")
 def test_device_ipv4_fixed(api, utils):
     """Test the creation of ipv4 fixed properties
     """
@@ -21,6 +25,7 @@ def test_device_ipv4_fixed(api, utils):
     api.set_config(config)
 
 
+@pytest.skip("ipv4 device tests are available")
 def test_device_ipv4value_list(api, utils):
     """Test the creation of ipv4 value list properties
     """
