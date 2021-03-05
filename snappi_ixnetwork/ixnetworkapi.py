@@ -149,7 +149,7 @@ class Api(snappi.Api):
         request_detail.errors = errors
         request_detail.warnings = warnings
         return request_detail
-    
+
     def set_config(self, config):
         """Set or update the configuration
         """
@@ -157,7 +157,7 @@ class Api(snappi.Api):
                                 str)) is False:
             raise TypeError(
                 'The content must be of type Union[Config, str]')
-        
+
         if isinstance(config, str) is True:
             config = self._config_type.deserialize(config)
         self._config_objects = {}
@@ -171,9 +171,10 @@ class Api(snappi.Api):
         if len(self._config._properties) == 0:
             self._ixnetwork.NewConfig()
         else:
-            self.vport.config()
-            with Timer(self, 'Devices configuration'):
-                self.ngpf.config()
+            from snappi_ixnetwork.configcreation import CreateConfig
+            c = CreateConfig(self)
+            c.config(self._config)
+            self.stateful_config = c.stateful_config
             with Timer(self, 'Flows configuration'):
                 self.traffic_item.config()
         self._running_config = self._config
@@ -205,7 +206,7 @@ class Api(snappi.Api):
         if link_state.port_names is not None:
             self.vport.set_link_state(link_state)
         return self._request_detail()
-    
+
     def set_capture_state(self, payload):
         """Starts capture on all ports that have capture enabled.
         """
