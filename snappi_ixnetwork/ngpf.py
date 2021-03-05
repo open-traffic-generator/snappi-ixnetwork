@@ -25,6 +25,15 @@ class Ngpf(object):
         'bgpv6': 'ipv6',
     }
 
+    _BGP_AS_SET_MODE = {
+        'do_not_include_as': 'dontincludelocalas',
+        'include_as_seq': 'includelocalasasasseq',
+        'include_as_set': 'includelocalasasasset',
+        'include_as_seq_confed': 'includelocalasasasseqconfederation',
+        'include_as_set_confed': 'includelocalasasassetconfederation',
+        'prepend_as_to_first_segment': 'prependlocalastofirstsegment'
+    }
+    
     _BGP_AS_MODE = {
         'do_not_include_local_as' : 'dontincludelocalas',
         'include_as_seq' : 'includelocalasasasseq',
@@ -239,15 +248,24 @@ class Ngpf(object):
                     == 'ebgp':
             as_type = 'external'
         ixn_bgpv4.Type.Single(as_type)
-        ixn_bgpv4.Enable4ByteAs.Single(True)
-        self._configure_pattern(ixn_bgpv4.LocalAs4Bytes, bgpv4.as_number)
+        as_bytes = bgpv4.as_number_width
+        if as_bytes is None or as_bytes == 'two':
+            self._configure_pattern(ixn_bgpv4.LocalAs2Bytes, bgpv4.as_number)
+        elif as_bytes == 'four':
+            ixn_bgpv4.Enable4ByteAs.Single(True)
+            self._configure_pattern(ixn_bgpv4.LocalAs4Bytes, bgpv4.as_number)
+        else:
+            raise Exception("Please configure supported [two, four] as_number_width")
         self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_address)
-        # todo : Add support for as_number_set_mode, as_number_width
+        self._configure_pattern(ixn_bgpv4.AsSetMode, bgpv4.as_number_set_mode, enum_map=
+                                Ngpf._BGP_AS_SET_MODE)
         # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
         advanced = bgpv4.advanced
         self._configure_pattern(ixn_bgpv4.HoldTimer, advanced.hold_time_interval)
         self._configure_pattern(ixn_bgpv4.KeepaliveTimer, advanced.keep_alive_interval)
-        # todo: Add support md5_key, time_to_live, update_interval
+        self._configure_pattern(ixn_bgpv4.Md5Key, advanced.md5_key)
+        self._configure_pattern(ixn_bgpv4.UpdateInterval, advanced.update_interval)
+        self._configure_pattern(ixn_bgpv4.Ttl, advanced.time_to_live)
         self._bgp_route_builder(ixn_dg, ixn_bgpv4, bgpv4)
         return ixn_bgpv4
     
@@ -300,7 +318,11 @@ class Ngpf(object):
             ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
         self._configure_pattern(ixn_bgp_property.Ipv4NextHop, route_range.next_hop_address)
         advanced = route_range.advanced
-        #todo : multi_exit_discriminator, origin
+        if advanced.multi_exit_discriminator is not None:
+            ixn_bgp_property.EnableMultiExitDiscriminator.Single(True)
+            self._configure_pattern(ixn_bgp_property.MultiExitDiscriminator,
+                                    route_range.multi_exit_discriminator)
+        self._configure_pattern(ixn_bgp_property.RouteOrigin, advanced.origin)
         self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
         self._config_bgp_community(route_range.communities, ixn_bgp_property)
 
@@ -338,15 +360,24 @@ class Ngpf(object):
                 == 'ebgp':
             as_type = 'external'
         ixn_bgpv6.Type.Single(as_type)
-        ixn_bgpv6.Enable4ByteAs.Single(True)
-        self._configure_pattern(ixn_bgpv6.LocalAs4Bytes, bgpv6.as_number)
+        as_bytes = bgpv6.as_number_width
+        if as_bytes is None or as_bytes == 'two':
+            self._configure_pattern(ixn_bgpv6.LocalAs2Bytes, bgpv6.as_number)
+        elif as_bytes == 'four':
+            ixn_bgpv6.Enable4ByteAs.Single(True)
+            self._configure_pattern(ixn_bgpv6.LocalAs4Bytes, bgpv6.as_number)
+        else:
+            raise Exception("Please configure supported [two, four] as_number_width")
         self._configure_pattern(ixn_bgpv6.DutIp, bgpv6.dut_address)
-        # todo : Add support for as_number_set_mode, as_number_width
+        self._configure_pattern(ixn_bgpv6.AsSetMode, bgpv6.as_number_set_mode, enum_map=
+                                Ngpf._BGP_AS_SET_MODE)
         # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
         advanced = bgpv6.advanced
         self._configure_pattern(ixn_bgpv6.HoldTimer, advanced.hold_time_interval)
         self._configure_pattern(ixn_bgpv6.KeepaliveTimer, advanced.keep_alive_interval)
-        # todo: Add support md5_key, time_to_live, update_interval
+        self._configure_pattern(ixn_bgpv6.Md5Key, advanced.md5_key)
+        self._configure_pattern(ixn_bgpv6.UpdateInterval, advanced.update_interval)
+        self._configure_pattern(ixn_bgpv6.Ttl, advanced.time_to_live)
         self._bgp_route_builder(ixn_dg, ixn_bgpv6, bgpv6)
         return ixn_bgpv6
 
@@ -385,7 +416,11 @@ class Ngpf(object):
             ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
         self._configure_pattern(ixn_bgp_property.Ipv6NextHop, route_range.next_hop_address)
         advanced = route_range.advanced
-        # todo : multi_exit_discriminator, origin
+        if advanced.multi_exit_discriminator is not None:
+            ixn_bgp_property.EnableMultiExitDiscriminator.Single(True)
+            self._configure_pattern(ixn_bgp_property.MultiExitDiscriminator,
+                                    route_range.multi_exit_discriminator)
+        self._configure_pattern(ixn_bgp_property.RouteOrigin, advanced.origin)
         self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
         self._config_bgp_community(route_range.communities, ixn_bgp_property)
     
