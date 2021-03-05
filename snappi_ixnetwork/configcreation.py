@@ -343,16 +343,30 @@ class CreateConfig(object):
                 tr_type = 'raw'
                 ep = getattr(f.tx_rx, 'port')
                 node = 'ports'
-                tx_objs = [self._get_obj_by_name(ep.tx_name, node)]
-                rx_objs = [self._get_obj_by_name(ep.rx_name, node)]
+                tx_objs = [
+                    '%s/protocols' % self._get_obj_by_name(
+                        ep.tx_name, node
+                    )._properties['xpath']
+                ]
+                rx_objs = [
+                    '%s/protocols' % self._get_obj_by_name(
+                        ep.rx_name, node
+                    )._properties['xpath']
+                ]
             else:
                 ep = getattr(f.tx_rx, 'device')
                 node = 'devices'
                 tr_type = self._get_obj_by_name(
                     ep.tx_names[0], node
                 )._properties['type']
-                tx_objs = [self._get_obj_by_name(n, node) for n in ep.tx_names]
-                rx_objs = [self._get_obj_by_name(n, node) for n in ep.rx_names]
+                tx_objs = [
+                    self._get_obj_by_name(n, node)._properties['xpath']
+                    for n in ep.tx_names
+                ]
+                rx_objs = [
+                    self._get_obj_by_name(n, node)._properties['xpath']
+                    for n in ep.rx_names
+                ]
             tr_xpath = '/traffic/trafficItem[%d]' % self.traffic_index
             tr['trafficItem'].append(
                 {
@@ -365,10 +379,10 @@ class CreateConfig(object):
                 'xpath': tr['trafficItem'][-1]['xpath'] + '/endpointSet[1]'
             }]
             tr['trafficItem'][-1]['endpointSet'][0]['sources'] = [
-                '%s/protocols' % o._properties['xpath'] for o in tx_objs
+                o for o in tx_objs
             ]
             tr['trafficItem'][-1]['endpointSet'][0]['destinations'] = [
-                '%s/protocols' % o._properties['xpath'] for o in rx_objs
+                o for o in rx_objs
             ]
             tr['trafficItem'][-1]['trafficType'] = tr_type
             if tr_type == 'raw':
