@@ -1,6 +1,7 @@
 import pytest
 
 
+@pytest.mark.skip("Already bgpv4 and bgpv6 testcases are available")
 def test_devices(api, utils):
     """This is a BGPv4 demo test script with router ranges
     """
