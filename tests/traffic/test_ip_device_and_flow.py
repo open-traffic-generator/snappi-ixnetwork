@@ -14,55 +14,70 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
 
     size = 128
     packets = 100000
-    tx_dev, rx_dev = b2b_raw_config.devices.device().device()
-    tx_dev.name = 'tx_dev'
-    rx_dev.name = 'rx_dev'
-    tx_dev.container_name = b2b_raw_config.ports[0].name
-    rx_dev.container_name = b2b_raw_config.ports[1].name
-    tx_dev.device_count = 10
-    rx_dev.device_count = 10
-    tx_eth = tx_dev.ethernet
-    rx_eth = rx_dev.ethernet
-    tx_eth.name = "tx_eth"
-    tx_eth.mac.increment.start = '00:10:10:20:20:10'
-    tx_eth.mac.increment.step = '00:00:00:00:00:01'
-    tx_ipv4 = tx_eth.ipv4
-    tx_ipv4.name = "tx_ipv4"
-    tx_ipv4.address.increment.start = '10.1.1.1'
-    tx_ipv4.address.increment.step = '0.0.1.0'
-    tx_ipv4.gateway.increment.start = '10.1.1.2'
-    tx_ipv4.gateway.increment.step = '0.0.1.0'
-    tx_ipv4.prefix.value = "24"
+    count = 2
+    mac_tx = utils.mac_or_ip_addr_from_counter_pattern(
+        '00:10:10:20:20:10', '00:00:00:00:00:01', count, True
+    )
+    mac_rx = utils.mac_or_ip_addr_from_counter_pattern(
+        '00:10:10:20:20:20', '00:00:00:00:00:01', count, False
+    )
+    ip_tx = utils.mac_or_ip_addr_from_counter_pattern(
+        '10.1.1.1', '0.0.1.0', count, True, False
+    )
 
-    rx_eth.name = "rx_eth"
-    rx_eth.mac.decrement.start = '00:10:10:20:20:20'
-    rx_eth.mac.decrement.step = '00:00:00:00:00:01'
-    rx_ipv4 = rx_eth.ipv4
-    rx_ipv4.name = "rx_ipv4"
-    rx_ipv4.address.increment.start = '10.1.1.2'
-    rx_ipv4.address.increment.step = '0.0.1.0'
-    rx_ipv4.gateway.increment.start = '10.1.1.1'
-    rx_ipv4.gateway.increment.step = '0.0.1.0'
-    rx_ipv4.prefix.value = "24"
+    ip_rx = utils.mac_or_ip_addr_from_counter_pattern(
+        '10.1.1.2', '0.0.1.0', count, True, False
+    )
 
+    addrs = {
+        'mac_tx': mac_tx, 'mac_rx': mac_rx, 'ip_tx': ip_tx, 'ip_rx': ip_rx
+    }
+
+    for i in range(count * 2):
+        port = int(i / count)
+        node = 'tx' if port == 0 else 'rx'
+        if i >= count:
+            i = i - count
+        dev = b2b_raw_config.devices.device()[-1]
+
+        dev.name = '%s_dev_%d' % (node, i + 1)
+        dev.container_name = b2b_raw_config.ports[port].name
+
+        dev.ethernet.name = '%s_eth_%d' % (node, i + 1)
+        dev.ethernet.mac = addrs['mac_%s' % node][i]
+
+        dev.ethernet.ipv4.name = '%s_ipv4_%d' % (node, i + 1)
+        dev.ethernet.ipv4.address = addrs['ip_%s' % node][i]
+        dev.ethernet.ipv4.gateway = addrs[
+            'ip_%s' % ('rx' if node == 'tx' else 'tx')
+        ][i]
+        dev.ethernet.ipv4.prefix = 24
     f1, f2 = b2b_raw_config.flows.flow(name='TxFlow-2')
     f1.name = 'TxFlow-1'
-    f1.tx_rx.device.tx_names = [tx_dev.name]
-    f1.tx_rx.device.rx_names = [rx_dev.name]
+    f1.tx_rx.device.tx_names = [
+        b2b_raw_config.devices[i].name for i in range(count)
+    ]
+    f1.tx_rx.device.rx_names = [
+        b2b_raw_config.devices[i].name for i in range(count, count * 2)
+    ]
     f1.size.fixed = size
     f1.duration.fixed_packets.packets = packets
     f1.rate.percentage = "10"
 
-    f2.tx_rx.device.tx_names = [tx_dev.name]
-    f2.tx_rx.device.rx_names = [rx_dev.name]
+    f2.tx_rx.device.tx_names = [
+        b2b_raw_config.devices[i].name for i in range(count)
+    ]
+    f2.tx_rx.device.rx_names = [
+        b2b_raw_config.devices[i].name for i in range(count, count * 2)
+    ]
     f2.packet.ethernet().ipv4().tcp()
     tcp = f2.packet[-1]
     tcp.src_port.increment.start = "5000"
     tcp.src_port.increment.step = "1"
-    tcp.src_port.increment.count = "10"
+    tcp.src_port.increment.count = "%d" % count
     tcp.dst_port.increment.start = "2000"
     tcp.dst_port.increment.step = "1"
-    tcp.dst_port.increment.count = "10"
+    tcp.dst_port.increment.count = "%d" % count
     f2.size.fixed = size * 2
     f2.duration.fixed_packets.packets = packets
     f2.rate.percentage = "10"
@@ -71,7 +86,7 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
 
     utils.wait_for(
         lambda: results_ok(api, utils, size, size * 2, packets),
-        'stats to be as expected', timeout_seconds=10
+        'stats to be as expected', timeout_seconds=20
     )
     utils.stop_traffic(api, b2b_raw_config)
     captures_ok(api, b2b_raw_config, utils, packets * 2)
@@ -89,37 +104,25 @@ def results_ok(api, utils, size1, size2, packets):
     return frames_ok and bytes_ok
 
 
-def captures_ok(api, cfg, utils, packets):
+def captures_ok(api, cfg, utils, count, packets):
     """
     Returns normally if patterns in captured packets are as expected.
     """
-    src_mac = [[0x00, 0x10, 0x10, 0x20, 0x20, 0x10 + i] for i in range(10)]
-    dst_mac = [[0x00, 0x10, 0x10, 0x20, 0x20, 0x20 - i] for i in range(10)]
+    src_mac = [[0x00, 0x10, 0x10, 0x20, 0x20, 0x10 + i] for i in range(count)]
+    dst_mac = [[0x00, 0x10, 0x10, 0x20, 0x20, 0x20 - i] for i in range(count)]
 
-    src_ip = [
-        [0x0a, 0x01, 0x01, 0x01], [0x0a, 0x01, 0x02, 0x01],
-        [0x0a, 0x01, 0x03, 0x01], [0x0a, 0x01, 0x04, 0x01],
-        [0x0a, 0x01, 0x05, 0x01], [0x0a, 0x01, 0x06, 0x01],
-        [0x0a, 0x01, 0x07, 0x01], [0x0a, 0x01, 0x08, 0x01],
-        [0x0a, 0x01, 0x09, 0x01], [0x0a, 0x01, 0x0a, 0x01]
-    ]
-    dst_ip = [
-        [0x0a, 0x01, 0x01, 0x02], [0x0a, 0x01, 0x02, 0x02],
-        [0x0a, 0x01, 0x03, 0x02], [0x0a, 0x01, 0x04, 0x02],
-        [0x0a, 0x01, 0x05, 0x02], [0x0a, 0x01, 0x06, 0x02],
-        [0x0a, 0x01, 0x07, 0x02], [0x0a, 0x01, 0x08, 0x02],
-        [0x0a, 0x01, 0x09, 0x02], [0x0a, 0x01, 0x0a, 0x02]
-    ]
+    src_ip = [[0x0a, 0x01, 0x01 + i, 0x01] for i in range(count)]
+    dst_ip = [[0x0a, 0x01, 0x01 + i, 0x02] for i in range(count)]
 
-    src_port = [[0x13, 0x88 + i] for i in range(10)]
-    dst_port = [[0x07, 0xd0 + i] for i in range(10)]
+    src_port = [[0x13, 0x88 + i] for i in range(count)]
+    dst_port = [[0x07, 0xd0 + i] for i in range(count)]
 
     cap_dict = utils.get_all_captures(api, cfg)
     assert len(cap_dict) == 1
     sizes = [128, 256]
     size_dt = {
-        128: [0 for i in range(10)],
-        256: [0 for i in range(10)]
+        128: [0 for i in range(count)],
+        256: [0 for i in range(count)]
     }
 
     for b in cap_dict[list(cap_dict.keys())[0]]:

@@ -25,6 +25,15 @@ class Ngpf(object):
         'bgpv6': 'ipv6',
     }
 
+    _BGP_AS_SET_MODE = {
+        'do_not_include_as': 'dontincludelocalas',
+        'include_as_seq': 'includelocalasasasseq',
+        'include_as_set': 'includelocalasasasset',
+        'include_as_seq_confed': 'includelocalasasasseqconfederation',
+        'include_as_set_confed': 'includelocalasasassetconfederation',
+        'prepend_as_to_first_segment': 'prependlocalastofirstsegment'
+    }
+    
     _BGP_AS_MODE = {
         'do_not_include_local_as' : 'dontincludelocalas',
         'include_as_seq' : 'includelocalasasasseq',
@@ -102,7 +111,7 @@ class Ngpf(object):
         """Transform /components/schemas/Device into /topology/deviceGroup
         One /topology/deviceGroup for every device in port.devices 
         """
-        args = {'Name': device.name, 'Multiplier': device.device_count}
+        args = {'Name': device.name, 'Multiplier': 1}
         ixn_device_group.find(Name='^%s$' % device.name)
         if len(ixn_device_group) == 0:
             ixn_device_group.add(**args)[-1]
@@ -137,50 +146,34 @@ class Ngpf(object):
                                  ixn_dg)
             
     def _configure_pattern(self, ixn_obj, pattern, enum_map=None):
-        if pattern is None or pattern.choice is None:
+        if pattern is None:
             return
-        elif enum_map is not None and pattern.choice == 'value':
-            ixn_obj.Single(enum_map[pattern.value])
-        elif pattern.choice == 'value':
-            ixn_obj.Single(pattern.value)
-        elif pattern.choice == 'values':
-            ixn_obj.ValueList(pattern.values)
-        elif pattern.choice == 'increment':
-            ixn_obj.Increment(pattern.increment.start,
-                              pattern.increment.step)
-        elif pattern.choice == 'decrement':
-            ixn_obj.Decrement(pattern.decrement.start,
-                              pattern.decrement.step)
-        elif pattern.choice == 'random':
-            pass
-
-    def _casting_pattern_value(self, pattern, casting_type):
-        """"""
-        if pattern is None or pattern.choice is None:
-            return
-        custom_type = getattr(self, casting_type, None)
-        if custom_type is None:
-            raise Exception("Please defined this {0} method".format(
-                casting_type))
-        if pattern.choice == 'value':
-            pattern.value = custom_type(pattern.value)
-        elif pattern.choice == 'values':
-            pattern.values = [custom_type(
-                    val) for val in pattern.values]
-        elif pattern.choice == 'increment':
-            pattern.increment.start = custom_type(pattern.increment.start)
-            pattern.increment.step = custom_type(pattern.increment.step)
-        elif pattern.choice == 'decrement':
-            pattern.decrement.start = custom_type(pattern.decrement.start)
-            pattern.decrement.step = custom_type(pattern.decrement.step)
-        return pattern
-    
-    def _ip_to_int(self, ip):
-        """Convert IPv4 address to Int"""
-        octet= list(map(int, ip.split('.')))
-        result = (16777216 * octet[0]) + (65536 * octet[1]) \
-                 + (256 * octet[2]) + octet[3]
-        return result
+        # Asymmetric support- without pattern
+        if getattr(pattern, 'choice', None) is None:
+            if enum_map is not None:
+                ixn_obj.Single(enum_map[pattern])
+            elif isinstance(pattern, list):
+                ixn_obj.ValueList(pattern)
+            else:
+                ixn_obj.Single(pattern)
+        # Symmetric support with pattern
+        else:
+            if pattern.choice is None:
+                return
+            elif enum_map is not None and pattern.choice == 'value':
+                ixn_obj.Single(enum_map[pattern.value])
+            elif pattern.choice == 'value':
+                ixn_obj.Single(pattern.value)
+            elif pattern.choice == 'values':
+                ixn_obj.ValueList(pattern.values)
+            elif pattern.choice == 'increment':
+                ixn_obj.Increment(pattern.increment.start,
+                                  pattern.increment.step)
+            elif pattern.choice == 'decrement':
+                ixn_obj.Decrement(pattern.decrement.start,
+                                  pattern.decrement.step)
+            elif pattern.choice == 'random':
+                pass
     
     def _configure_ethernet(self, ixn_parent, ethernet, ixn_dg):
         """Transform Device.Ethernet to /topology/.../ethernet
@@ -250,37 +243,48 @@ class Ngpf(object):
         else:
             self._update(ixn_bgpv4, **args)
         self._api.ixn_objects[bgpv4.name] = ixn_bgpv4.href
-        # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
         as_type = 'internal'
         if bgpv4.as_type is not None and bgpv4.as_type \
                     == 'ebgp':
             as_type = 'external'
         ixn_bgpv4.Type.Single(as_type)
-        ixn_bgpv4.Enable4ByteAs.Single(True)
-        self._configure_pattern(ixn_bgpv4.LocalAs4Bytes, bgpv4.as_number)
-        self._configure_pattern(ixn_bgpv4.HoldTimer, bgpv4.hold_time_interval)
-        self._configure_pattern(ixn_bgpv4.KeepaliveTimer, bgpv4.keep_alive_interval)
-        self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_ipv4_address)
-        # self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_as_number)
-        self._bgp_route_builder(ixn_dg, bgpv4)
+        as_bytes = bgpv4.as_number_width
+        if as_bytes is None or as_bytes == 'two':
+            self._configure_pattern(ixn_bgpv4.LocalAs2Bytes, bgpv4.as_number)
+        elif as_bytes == 'four':
+            ixn_bgpv4.Enable4ByteAs.Single(True)
+            self._configure_pattern(ixn_bgpv4.LocalAs4Bytes, bgpv4.as_number)
+        else:
+            raise Exception("Please configure supported [two, four] as_number_width")
+        self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_address)
+        self._configure_pattern(ixn_bgpv4.AsSetMode, bgpv4.as_number_set_mode, enum_map=
+                                Ngpf._BGP_AS_SET_MODE)
+        # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
+        advanced = bgpv4.advanced
+        self._configure_pattern(ixn_bgpv4.HoldTimer, advanced.hold_time_interval)
+        self._configure_pattern(ixn_bgpv4.KeepaliveTimer, advanced.keep_alive_interval)
+        self._configure_pattern(ixn_bgpv4.Md5Key, advanced.md5_key)
+        self._configure_pattern(ixn_bgpv4.UpdateInterval, advanced.update_interval)
+        self._configure_pattern(ixn_bgpv4.Ttl, advanced.time_to_live)
+        self._bgp_route_builder(ixn_dg, ixn_bgpv4, bgpv4)
         return ixn_bgpv4
     
-    def _bgp_route_builder(self, ixn_dg, bgp):
-        ixn_ng = ixn_dg.NetworkGroup
-        bgpv4_route_ranges = bgp.bgpv4_route_ranges
-        bgpv6_route_ranges = bgp.bgpv6_route_ranges
-        if len(bgpv4_route_ranges) > 0:
-            for route_range in bgpv4_route_ranges:
-                self._configure_bgpv4_route(ixn_ng,
-                                            route_range,
-                                            ixn_dg)
-        if len(bgpv6_route_ranges) > 0:
-            for route_range in bgpv6_route_ranges:
-                self._configure_bgpv6_route(ixn_ng,
-                                            route_range,
-                                            ixn_dg)
+    def _bgp_route_builder(self, ixn_dg, ixn_bgp, bgp):
+        bgpv4_routes = bgp.bgpv4_routes
+        bgpv6_routes = bgp.bgpv6_routes
+        if len(bgpv4_routes) > 0:
+            for route_range in bgpv4_routes:
+                self._configure_bgpv4_route(ixn_dg,
+                                            ixn_bgp,
+                                            route_range)
+        if len(bgpv6_routes) > 0:
+            for route_range in bgpv6_routes:
+                self._configure_bgpv6_route(ixn_dg,
+                                            ixn_bgp,
+                                            route_range)
 
-    def _configure_bgpv4_route(self, ixn_ng, route_range, ixn_dg):
+    def _configure_bgpv4_route(self, ixn_dg, ixn_bgp, route_range):
+        ixn_ng = ixn_dg.NetworkGroup
         args = {
             'Name': route_range.name,
         }
@@ -291,22 +295,36 @@ class Ngpf(object):
         else:
             self._update(ixn_ng, **args)
             ixn_pool = ixn_ng.Ipv4PrefixPools.find()
+        ixn_pool.Connector.find().ConnectedTo = ixn_bgp.href
         if route_range.name is not None:
             self._api.ixn_objects[route_range.name] = ixn_ng.href
             self._api._device_encap[route_range.name] = 'ipv4'
-        ixn_ng.Multiplier = route_range.range_count
-        ixn_pool.NumberOfAddresses = route_range.address_count
-        self._configure_pattern(ixn_pool.NetworkAddress, route_range.address)
-        self._configure_pattern(ixn_pool.PrefixLength, route_range.prefix)
-        self._configure_pattern(ixn_pool.PrefixAddrStep, self._casting_pattern_value(
-                route_range.address_step, '_ip_to_int'))
+        addresses = route_range.addresses
+        if len(addresses) > 0:
+            ixn_ng.Multiplier = len(addresses)
+            route_addresses = RouteAddresses()
+            for address in addresses:
+                route_addresses.address = address.address
+                route_addresses.step = address.step
+                route_addresses.prefix = address.prefix
+                route_addresses.count = address.count
+            self._configure_pattern(ixn_pool.NetworkAddress, route_addresses.address)
+            self._configure_pattern(ixn_pool.PrefixAddrStep, route_addresses.step)
+            self._configure_pattern(ixn_pool.PrefixLength, route_addresses.prefix)
+            self._configure_pattern(ixn_pool.NumberOfAddressesAsy, route_addresses.count)
         if self._api.get_device_encap(ixn_dg.Name) == 'ipv4':
             ixn_bgp_property = ixn_pool.BgpIPRouteProperty.find()
         else:
             ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
         self._configure_pattern(ixn_bgp_property.Ipv4NextHop, route_range.next_hop_address)
+        advanced = route_range.advanced
+        if advanced.multi_exit_discriminator is not None:
+            ixn_bgp_property.EnableMultiExitDiscriminator.Single(True)
+            self._configure_pattern(ixn_bgp_property.MultiExitDiscriminator,
+                                    route_range.multi_exit_discriminator)
+        self._configure_pattern(ixn_bgp_property.RouteOrigin, advanced.origin)
         self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
-        self._config_bgp_community(route_range.community, ixn_bgp_property)
+        self._config_bgp_community(route_range.communities, ixn_bgp_property)
 
     def _configure_ipv6(self, ixn_parent, ipv6, ixn_dg):
         ixn_ipv6 = ixn_parent.Ipv6
@@ -337,22 +355,34 @@ class Ngpf(object):
         else:
             self._update(ixn_bgpv6, **args)
         self._api.ixn_objects[bgpv6.name] = ixn_bgpv6.href
-        # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
         as_type = 'internal'
         if bgpv6.as_type is not None and bgpv6.as_type \
                 == 'ebgp':
             as_type = 'external'
         ixn_bgpv6.Type.Single(as_type)
-        ixn_bgpv6.Enable4ByteAs.Single(True)
-        self._configure_pattern(ixn_bgpv6.LocalAs4Bytes, bgpv6.as_number)
-        self._configure_pattern(ixn_bgpv6.HoldTimer, bgpv6.hold_time_interval)
-        self._configure_pattern(ixn_bgpv6.KeepaliveTimer, bgpv6.keep_alive_interval)
-        self._configure_pattern(ixn_bgpv6.DutIp, bgpv6.dut_ipv6_address)
-        # self._configure_pattern(ixn_bgpv4.DutIp, bgpv4.dut_as_number)
-        self._bgp_route_builder(ixn_dg, bgpv6)
+        as_bytes = bgpv6.as_number_width
+        if as_bytes is None or as_bytes == 'two':
+            self._configure_pattern(ixn_bgpv6.LocalAs2Bytes, bgpv6.as_number)
+        elif as_bytes == 'four':
+            ixn_bgpv6.Enable4ByteAs.Single(True)
+            self._configure_pattern(ixn_bgpv6.LocalAs4Bytes, bgpv6.as_number)
+        else:
+            raise Exception("Please configure supported [two, four] as_number_width")
+        self._configure_pattern(ixn_bgpv6.DutIp, bgpv6.dut_address)
+        self._configure_pattern(ixn_bgpv6.AsSetMode, bgpv6.as_number_set_mode, enum_map=
+                                Ngpf._BGP_AS_SET_MODE)
+        # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
+        advanced = bgpv6.advanced
+        self._configure_pattern(ixn_bgpv6.HoldTimer, advanced.hold_time_interval)
+        self._configure_pattern(ixn_bgpv6.KeepaliveTimer, advanced.keep_alive_interval)
+        self._configure_pattern(ixn_bgpv6.Md5Key, advanced.md5_key)
+        self._configure_pattern(ixn_bgpv6.UpdateInterval, advanced.update_interval)
+        self._configure_pattern(ixn_bgpv6.Ttl, advanced.time_to_live)
+        self._bgp_route_builder(ixn_dg, ixn_bgpv6, bgpv6)
         return ixn_bgpv6
 
-    def _configure_bgpv6_route(self, ixn_ng, route_range, ixn_dg):
+    def _configure_bgpv6_route(self, ixn_dg, ixn_bgp, route_range):
+        ixn_ng = ixn_dg.NetworkGroup
         args = {
             'Name': route_range.name,
         }
@@ -363,41 +393,59 @@ class Ngpf(object):
         else:
             self._update(ixn_ng, **args)
             ixn_pool = ixn_ng.Ipv6PrefixPools.find()
+        ixn_pool.Connector.find().ConnectedTo = ixn_bgp.href
         if route_range.name is not None:
             self._api.ixn_objects[route_range.name] = ixn_ng.href
             self._api._device_encap[route_range.name] = 'ipv6'
-        ixn_ng.Multiplier = route_range.range_count
-        ixn_pool.NumberOfAddresses = route_range.address_count
-        self._configure_pattern(ixn_pool.NetworkAddress, route_range.address)
-        self._configure_pattern(ixn_pool.PrefixLength, route_range.prefix)
-        self._configure_pattern(ixn_pool.PrefixAddrStep, route_range.address_step)
+        addresses = route_range.addresses
+        if len(addresses) > 0:
+            ixn_ng.Multiplier = len(addresses)
+            route_addresses = RouteAddresses()
+            for address in addresses:
+                route_addresses.address = address.address
+                route_addresses.step = address.step
+                route_addresses.prefix = address.prefix
+                route_addresses.count = address.count
+            self._configure_pattern(ixn_pool.NetworkAddress, route_addresses.address)
+            self._configure_pattern(ixn_pool.PrefixAddrStep, route_addresses.step)
+            self._configure_pattern(ixn_pool.PrefixLength, route_addresses.prefix)
+            self._configure_pattern(ixn_pool.NumberOfAddressesAsy, route_addresses.count)
         if self._api.get_device_encap(ixn_dg.Name) == 'ipv4':
             ixn_bgp_property = ixn_pool.BgpIPRouteProperty.find()
         else:
             ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
         self._configure_pattern(ixn_bgp_property.Ipv6NextHop, route_range.next_hop_address)
+        advanced = route_range.advanced
+        if advanced.multi_exit_discriminator is not None:
+            ixn_bgp_property.EnableMultiExitDiscriminator.Single(True)
+            self._configure_pattern(ixn_bgp_property.MultiExitDiscriminator,
+                                    route_range.multi_exit_discriminator)
+        self._configure_pattern(ixn_bgp_property.RouteOrigin, advanced.origin)
         self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
-        self._config_bgp_community(route_range.community, ixn_bgp_property)
+        self._config_bgp_community(route_range.communities, ixn_bgp_property)
     
     def _config_bgp_as_path(self, as_path, ixn_bgp_property):
+        as_path_segments = as_path.as_path_segments
         if as_path.as_set_mode is not None or len(
-                as_path.as_path_segments) > 0:
+                as_path_segments) > 0:
             ixn_bgp_property.EnableAsPathSegments.Single(True)
-            if as_path.as_set_mode is not None:
-                ixn_bgp_property.AsSetMode.Single(Ngpf._BGP_AS_MODE[
-                                                      as_path.as_set_mode])
-            if len(as_path.as_path_segments) > 0:
+            self._configure_pattern(ixn_bgp_property.AsSetMode,
+                                    as_path.as_set_mode, Ngpf._BGP_AS_MODE)
+            self._configure_pattern(ixn_bgp_property.OverridePeerAsSetMode,
+                                    as_path.override_peer_as_set_mode)
+            if len(as_path_segments) > 0:
                 ixn_bgp_property.NoOfASPathSegmentsPerRouteRange = len(
-                        as_path.as_path_segments)
+                        as_path_segments)
                 ixn_segments = ixn_bgp_property.BgpAsPathSegmentList.find()
-                for seg_index, segment in enumerate(as_path.as_path_segments):
+                for seg_index, segment in enumerate(as_path_segments):
                     ixn_segment = ixn_segments[seg_index]
                     ixn_segment.SegmentType.Single(Ngpf._BGP_SEG_TYPE[
                                                        segment.segment_type])
-                    if segment.as_numbers is not None:
-                        ixn_segment.NumberOfAsNumberInSegment = len(segment.as_numbers)
+                    as_numbers = segment.as_numbers
+                    if as_numbers is not None:
+                        ixn_segment.NumberOfAsNumberInSegment = len(as_numbers)
                         ixn_as_numbers = ixn_segment.BgpAsNumberList.find()
-                        for as_index, as_number in enumerate(segment.as_numbers):
+                        for as_index, as_number in enumerate(as_numbers):
                             ixn_as_number = ixn_as_numbers[as_index]
                             ixn_as_number.AsNumber.Single(as_number)
 
@@ -414,3 +462,43 @@ class Ngpf(object):
                                               community.community_type])
             self._configure_pattern(ixn_community.AsNumber, community.as_number)
             self._configure_pattern(ixn_community.LastTwoOctets, community.as_custom)
+
+
+class RouteAddresses(object):
+    def __init__(self):
+        self._address = []
+        self._count = []
+        self._prefix = []
+        self._step = []
+    
+    @property
+    def address(self):
+        return self._address
+    
+    @address.setter
+    def address(self, value):
+        self._address.append(value)
+    
+    @property
+    def count(self):
+        return self._count
+    
+    @count.setter
+    def count(self, value):
+        self._count.append(value)
+    
+    @property
+    def prefix(self):
+        return self._prefix
+    
+    @prefix.setter
+    def prefix(self, value):
+        self._prefix.append(value)
+    
+    @property
+    def step(self):
+        return self._step
+    
+    @step.setter
+    def step(self, value):
+        self._step.append(value)
