@@ -76,6 +76,12 @@ class TrafficItem(CustomField):
         'pause_class_5': 'pfcPause.header.macControl.pauseQuanta.pfcQueue5',
         'pause_class_6': 'pfcPause.header.macControl.pauseQuanta.pfcQueue6',
         'pause_class_7': 'pfcPause.header.macControl.pauseQuanta.pfcQueue7',
+        'order': [
+            'dst', 'src', 'ether_type', 'control_op_code',
+            'class_enable_vector', 'pause_class_0', 'pause_class_1',
+            'pause_class_2', 'pause_class_3', 'pause_class_4',
+            'pause_class_5', 'pause_class_6', 'pause_class_7'
+        ]
     }
 
     _ETHERNET = {
@@ -145,7 +151,11 @@ class TrafficItem(CustomField):
         "ctl_rst": "tcp.header.controlBits.rstBit",
         "ctl_syn": "tcp.header.controlBits.synBit",
         "ctl_fin": "tcp.header.controlBits.finBit",
-        "order": ["src_port", "dst_port"]
+        "order": [
+            "src_port", "dst_port", "ecn_ns", "ecn_cwr",
+            "ecn_echo", "ctl_urg", "ctl_ack", "ctl_psh",
+            "ctl_rst", "ctl_syn", "ctl_fin",
+        ]
     }
 
     _UDP = {
@@ -153,7 +163,7 @@ class TrafficItem(CustomField):
         "dst_port": "udp.header.dstPort",
         "length": "udp.header.length",
         "checksum": "udp.header.checksum",
-        "order": ["src_port", "dst_port"]
+        "order": ["src_port", "dst_port", "length", "checksum"]
     }
     
     _GTPV1 = {
@@ -173,7 +183,7 @@ class TrafficItem(CustomField):
         "n_pdu_number" : "gTPuOptionalFields.header.npduNumber",
         "next_extension_header_type" : "gTPuOptionalFields.header.nextExtHdrField"
     }
-    
+
     _CUSTOM = '_custom_headers'
 
     def __init__(self, ixnetworkapi):
@@ -215,49 +225,55 @@ class TrafficItem(CustomField):
         - CREATE TrafficItem for any config.flows[*].name that does not exist
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
+        if len(self._api.stateful_config.flows) == 0:
+            return
+
         with Timer(self._api, "traffic config export"):
             ixn_traffic_item = self._export_config()
         if ixn_traffic_item.get('traffic') is None:
             return
-        ixn_traffic_item = ixn_traffic_item['traffic'].get('trafficItem')
-        if ixn_traffic_item is None:
-            return
-        tr_json = {
-            'traffic': {
-                'xpath': '/traffic',
-                'trafficItem': []
+        with Timer(self._api, 'Flows configuration'):
+            ixn_traffic_item = ixn_traffic_item['traffic'].get('trafficItem')
+            if ixn_traffic_item is None:
+                return
+            tr_json = {
+                'traffic': {
+                    'xpath': '/traffic',
+                    'trafficItem': []
+                }
             }
-        }
 
-        for i, flow in enumerate(self._api.stateful_config.flows):
-            with Timer(self._api, "json processing for traffic"):
-                tr_item = {'xpath': ixn_traffic_item[i]['xpath']}
-                tr_item.update(
-                    self._configure_tracking(ixn_traffic_item[i])
-                )
-                ce_xpaths = [
-                    {'xpath': ce['xpath']}
-                    for ce in ixn_traffic_item[i]['configElement']
-                ]
-                tr_item['configElement'] = ce_xpaths
-                self._configure_size(tr_item['configElement'], flow.size)
-                self._configure_rate(tr_item['configElement'], flow.rate)
-                hl_stream_count = len(ixn_traffic_item[i]['highLevelStream'])
-                self._configure_tx_control(
-                    tr_item['configElement'], hl_stream_count, flow.duration
-                )
-                tr_type = ixn_traffic_item[i]['trafficType']
-                for i, ce in enumerate(ixn_traffic_item[i]['configElement']):
-                    stack = self._configure_packet(
-                        tr_type, ce['stack'], flow.packet
+            for i, flow in enumerate(self._api.stateful_config.flows):
+                with Timer(self._api, "json processing for traffic"):
+                    tr_item = {'xpath': ixn_traffic_item[i]['xpath']}
+                    tr_item.update(
+                        self._configure_tracking(ixn_traffic_item[i])
                     )
-                    tr_item['configElement'][i]['stack'] = stack
+                    ce_xpaths = [
+                        {'xpath': ce['xpath']}
+                        for ce in ixn_traffic_item[i]['configElement']
+                    ]
+                    tr_item['configElement'] = ce_xpaths
+                    self._configure_size(tr_item['configElement'], flow.size)
+                    self._configure_rate(tr_item['configElement'], flow.rate)
+                    hl_stream_count = len(
+                        ixn_traffic_item[i]['highLevelStream']
+                    )
+                    self._configure_tx_control(
+                        tr_item['configElement'], hl_stream_count, flow.duration
+                    )
+                    tr_type = ixn_traffic_item[i]['trafficType']
+                    for i, ce in enumerate(ixn_traffic_item[i]['configElement']):
+                        stack = self._configure_packet(
+                            tr_type, ce['stack'], flow.packet
+                        )
+                        tr_item['configElement'][i]['stack'] = stack
 
-                tr_json['traffic']['trafficItem'].append(tr_item)
-        with Timer(self._api, "Apply traffic json"):
-            self._importconfig(tr_json)
+                    tr_json['traffic']['trafficItem'].append(tr_item)
+            with Timer(self._api, "Apply traffic json"):
+                self._importconfig(tr_json)
 
-        self._configure_options()
+            self._configure_options()
 
     def _configure_tracking(self, tr_item_json):
         """Set tracking options"""
@@ -290,27 +306,25 @@ class TrafficItem(CustomField):
             s['xpath'].split(' = ')[-1].strip("']").split("-")[0]
             for s in ixn_stack
         ]
-        tr_types_block = ['ethernetVlan', 'ipv4', 'ipv6', 'raw']
-        if tr_type in tr_types_block:
-            for i, header in enumerate(snappi_packet):
-                if header._choice not in stack_names:
-                    ce_path = stacks[0]['xpath'].split(' = ')[0]
-                    index =\
-                        stacks[-1]['xpath'].split(' = ')[
-                            -1].strip("']").split("-")[-1]
-                    index = '%s-%s' % (header._choice, index)
-                    xpath = '%s = \'%s\']' % (ce_path, index)
-                    self._append_header(header, xpath, stacks)
-                    continue
-                ind = stack_names.index(header._choice)
-                ixn_fields = ixn_stack[ind]['field']
-                fields = self._configure_stack_fields(ixn_fields, header)
-                stacks[ind]['field'] = fields
+        for i, header in enumerate(snappi_packet):
+            if header._choice not in stack_names:
+                ce_path = stacks[0]['xpath'].split(' = ')[0]
+                index =\
+                    stacks[-1]['xpath'].split(' = ')[
+                        -1].strip("']").split("-")[-1]
+                index = '%s-%s' % (header._choice, index)
+                xpath = '%s = \'%s\']' % (ce_path, index)
+                self._append_header(header, xpath, stacks)
+                continue
+            ind = stack_names.index(header._choice)
+            ixn_fields = ixn_stack[ind]['field']
+            fields = self._configure_stack_fields(ixn_fields, header)
+            stacks[ind]['field'] = fields
         return stacks
 
     def _append_header(self, snappi_header, xpath, stacks, add_trailer=True):
         field_map = getattr(self, '_%s' % snappi_header._choice.upper())
-        stack_name = self._TYPE_TO_HEADER.get(snappi_header._choice)
+        stack_name = self._HEADER_TO_TYPE.get(snappi_header._choice)
         if stack_name is None:
             raise NotImplementedError(
                 "%s stack is not implemented" % snappi_header._choice
@@ -384,7 +398,7 @@ class TrafficItem(CustomField):
         """We are setting all the field to default. Otherwise test is keeping the same value from previous run."""
         if ixn_field.ReadOnly:
             return
-        
+
         if ixn_field.SupportsAuto:
             if ixn_field.Auto is not True:
                 ixn_field.Auto = True

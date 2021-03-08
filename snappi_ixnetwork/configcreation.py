@@ -1,4 +1,3 @@
-from inspect import stack
 import json
 import copy
 import time
@@ -84,7 +83,8 @@ class CreateConfig(object):
             self._importconfig(imports)
 
     def config(self, config):
-        self._validate_and_config(config)
+        with Timer(self._api, "Config Creation"):
+            self._validate_and_config(config)
 
     def remove_traffic_and_topo(self):
         if len(self._api._ixnetwork.Traffic.TrafficItem.find()) > 0:
@@ -125,15 +125,16 @@ class CreateConfig(object):
         imports = {'topology': []}
         for i, p in enumerate(config.ports):
             p._properties['xpath'] = vports[i]['xpath']
-            t_xpath = '/topology[%d]' % self.topo_index
-            p._properties['topo_xpath'] = t_xpath
-            imports['topology'].append({
-                'name': '%s' % p.name,
-                'xpath': t_xpath,
-                'ports': [vports[i]['xpath']]
-            })
+            if len(config.devices) > 0:
+                t_xpath = '/topology[%d]' % self.topo_index
+                p._properties['topo_xpath'] = t_xpath
+                imports['topology'].append({
+                    'name': '%s' % p.name,
+                    'xpath': t_xpath,
+                    'ports': [vports[i]['xpath']]
+                })
+                self.topo_index += 1
             self._append_unique_names(p.name, 'ports', p)
-            self.topo_index += 1
         return imports
 
     def create_vports(self, config):
@@ -211,8 +212,15 @@ class CreateConfig(object):
             raise Exception("name shall not be None for ethernet")
         eth['name'] = ethernet.name
         self._append_unique_names(ethernet.name, 'devices', ethernet)
+        vlans = self.create_vlans(ethernet)
         ipv4 = self.create_ipv4(ethernet)
         ipv6 = self.create_ipv6(ethernet)
+        if len(vlans) > 0:
+            eth['vlanCount'] = len(vlans)
+            eth['enableVlans'] = self._config_pattern(
+                'value', eth['xpath'], 'enableVlans', True
+            )
+            eth['vlan'] = vlans
         if len(ipv4) > 0:
             eth['ipv4'] = ipv4
             ethernet._parent._properties['type'] = 'ipv4'
@@ -229,10 +237,36 @@ class CreateConfig(object):
         eth_list.append(eth)
         return eth_list
 
+    def create_vlans(self, ethernet):
+        vlan_list = list()
+        if ethernet._properties.get('vlans') is None:
+            return vlan_list
+        vlans = ethernet.vlans
+        for i, vlan in enumerate(vlans):
+            vlan_dt = dict()
+            vlan_dt['xpath'] = '%s/vlan[%d]' % (
+                ethernet._properties['xpath'], i + 1
+            )
+            if vlan._properties.get('name') is None:
+                raise Exception("name shall not be None for vlan")
+            vlan_dt['name'] = vlan.name
+            self._append_unique_names(vlan.name, 'devices', vlan)
+            vlan._properties['ixn_params'] = {
+                'id': 'vlanId',
+                'priority': 'priority',
+                'tpid': 'tpid'
+            }
+            vlan._properties['type'] = 'ethernetVlan'
+            params = self.config_dev_pattern(vlan)
+            if len(params) > 0:
+                vlan_dt.update(params)
+            vlan_list.append(vlan_dt)
+        return vlan_list
+
     def create_ipv4(self, ethernet):
         ip_list = list()
         if ethernet._properties.get('ipv4') is None:
-            return list()
+            return ip_list
         ipv4 = ethernet.ipv4
         ip = dict()
         ip['xpath'] = '%s/ipv4[1]' % ethernet._properties['xpath']
@@ -280,6 +314,31 @@ class CreateConfig(object):
         ip_list.append(ip)
         return ip_list
 
+    def create_bgp(self, ip, ip_type='v4'):
+        bgp_list = []
+        stack = 'bgpv4' if ip_type == 'v4' else 'bgpv6'
+        ixn_stack = 'bgpIpv4Peer' if ip_type == 'v4' else 'bgpIpv6Peer'
+        if ip._properties.get(stack) is None:
+            return bgp_list
+        bgp = getattr(ip, stack)
+        bgp_dt = dict()
+        bgp_dt['xpath'] = '%s/%s[1]' % (ip._properties['xpath'], ixn_stack)
+        bgp._properties['xpath'] = bgp_dt['xpath']
+        if bgp._properties.get('name') is None:
+            raise Exception("name shall not be None for")
+        bgp_dt['name'] = bgp.name
+        self._append_unique_names(bgp.name, 'devices', bgp)
+        bgp._properties['type'] = ip_type
+        bgp._properties['ixn_params'] = {
+            'router_id': '', 'as_type': '', 'as_number': '',
+            'as_number_width': '', 'as_number_set_mode': ''
+        }
+        params = self.config_dev_pattern(bgp)
+        if len(params) > 0:
+            bgp_dt.update(params)
+        bgp_list.append(bgp_dt)
+        return bgp_list
+
     def config_dev_pattern(self, obj):
         param_dt = dict()
         param_list = obj._properties.get('ixn_params')
@@ -294,34 +353,38 @@ class CreateConfig(object):
             except TypeError:
                 raise Exception("please provide the valid, for %s" % param)
             choice = patterns[ind]
-
-            mv = dict()
-            mv['xpath'] = "/multivalue[@source = '{} {}']".format(
-                obj._properties['xpath'], param_list[param]
+            obj_xpath = obj._properties['xpath']
+            param_dt[param] = self._config_pattern(
+                choice, obj_xpath, param_list[param], param_obj
             )
-            mv['clearOverlays'] = False
-            pattern = dict()
-            if choice == 'value':
-                pattern['xpath'] = '%s/singleValue' % mv['xpath']
-                pattern["value"] = param_obj
-                mv['singleValue'] = pattern
-            if choice == 'values':
-                pattern['xpath'] = '%s/valueList' % mv['xpath']
-                pattern["values"] = param_obj
-                mv['valueList'] = pattern
-            if choice == 'increment' or choice == 'decrement':
-                pattern['xpath'] = '%s/counter' % mv['xpath']
-                if param_obj.get('start') is not None:
-                    pattern['start'] = param_obj.start
-                if param_obj.get('step') is not None:
-                    pattern['step'] = param_obj.step
-                pattern['direction'] = (
-                    'increment' if param_obj.get('direction') is None else
-                    param_obj.get('direction')
-                )
-                mv['counter'] = pattern
-            param_dt[param] = mv
         return param_dt
+
+    def _config_pattern(self, choice, obj_xpath, param_name, param_obj):
+        xpath = "/multivalue[@source = '{} {}']".format(obj_xpath, param_name)
+        mv = dict()
+        mv['xpath'] = xpath
+        mv['clearOverlays'] = False
+        pattern = dict()
+        if choice == 'value':
+            pattern['xpath'] = '%s/singleValue' % mv['xpath']
+            pattern["value"] = param_obj
+            mv['singleValue'] = pattern
+        if choice == 'values':
+            pattern['xpath'] = '%s/valueList' % mv['xpath']
+            pattern["values"] = param_obj
+            mv['valueList'] = pattern
+        if choice == 'increment' or choice == 'decrement':
+            pattern['xpath'] = '%s/counter' % mv['xpath']
+            if param_obj.get('start') is not None:
+                pattern['start'] = param_obj['start']
+            if param_obj.get('step') is not None:
+                pattern['step'] = param_obj['step']
+            pattern['direction'] = (
+                'increment' if param_obj.get('direction') is None else
+                param_obj.get('direction')
+            )
+            mv['counter'] = pattern
+        return mv
 
     def create_traffic(self, config):
         flows = config.flows
@@ -398,7 +461,7 @@ class CreateConfig(object):
             'stack': []
         }
         for i, header in enumerate(packet):
-            stack_name = self._api.traffic_item._TYPE_TO_HEADER.get(
+            stack_name = self._api.traffic_item._HEADER_TO_TYPE.get(
                 header._choice
             )
             header_xpath = '%s/stack[@alias = \'%s-%d\']' % (

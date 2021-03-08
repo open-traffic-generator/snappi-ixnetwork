@@ -175,8 +175,7 @@ class Api(snappi.Api):
             c = CreateConfig(self)
             c.config(self._config)
             self.stateful_config = c.stateful_config
-            with Timer(self, 'Flows configuration'):
-                self.traffic_item.config()
+            self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
         return self._request_detail()
