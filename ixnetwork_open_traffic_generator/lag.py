@@ -31,11 +31,11 @@ class Lag(object):
     }
     
     _VLAN = {
-        'tpid' : {
-            'ixn_attr' : 'tpid',
-            'default' : 'ethertype8100',
-            'enum_map' : _VLAN_TPID
-        },
+        # 'tpid' : {
+        #     'ixn_attr' : 'tpid',
+        #     'default' : 'ethertype8100',
+        #     'enum_map' : _VLAN_TPID
+        # },
         'priority' : {
             'ixn_attr' : 'priority',
             'default' : '0'
@@ -333,10 +333,7 @@ class Lag(object):
                     attr_values.config_value = enum_map[
                             str(config_value)]
             elif default_obj is None:
-                if enum_map is None:
-                    attr_values.config_value = default_value
-                else:
-                    attr_values.config_value = enum_map[default_value]
+                attr_values.config_value = default_value
             else:
                 attr_values.config_value = default_obj()
         return attr_values
