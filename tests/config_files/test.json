@@ -1,0 +1,706 @@
+{
+  "layer1": [
+    {
+      "auto_negotiation": {
+        "advertise_1000_mbps": true, 
+        "advertise_100_hd_mbps": true, 
+        "link_training": true, 
+        "rs_fec": true, 
+        "advertise_100_fd_mbps": true, 
+        "advertise_10_hd_mbps": true, 
+        "advertise_10_fd_mbps": true
+      }, 
+      "name": "L1 config", 
+      "media": "fiber", 
+      "promiscuous": false, 
+      "port_names": [
+        "Port 0", 
+        "Port 1"
+      ], 
+      "mtu": 1500, 
+      "auto_negotiate": false, 
+      "flow_control": {
+        "directed_address": "0180C2000001", 
+        "ieee_802_1qbb": {
+          "pfc_class_2": 2, 
+          "pfc_class_3": 3, 
+          "pfc_class_0": 0, 
+          "pfc_class_1": 1, 
+          "pfc_class_6": 6, 
+          "pfc_class_7": 7, 
+          "pfc_class_4": 4, 
+          "pfc_class_5": 5, 
+          "pfc_delay": 0
+        }, 
+        "choice": "ieee_802_1qbb"
+      }, 
+      "ieee_media_defaults": false, 
+      "speed": "speed_100_gbps"
+    }
+  ], 
+  "captures": [], 
+  "flows": [
+    {
+      "name": "Pause Storm", 
+      "packet": [
+        {
+          "pfcpause": {
+            "src": {
+              "ingress_result_name": null, 
+              "fixed": "00:00:fa:ce:fa:ce", 
+              "choice": "fixed"
+            }, 
+            "class_enable_vector": {
+              "ingress_result_name": null, 
+              "fixed": "10", 
+              "choice": "fixed"
+            }, 
+            "ether_type": null, 
+            "dst": {
+              "ingress_result_name": null, 
+              "fixed": "01:80:C2:00:00:01", 
+              "choice": "fixed"
+            }, 
+            "pause_class_2": {
+              "ingress_result_name": null, 
+              "fixed": "0000", 
+              "choice": "fixed"
+            }, 
+            "pause_class_7": {
+              "ingress_result_name": null, 
+              "fixed": "0000", 
+              "choice": "fixed"
+            }, 
+            "pause_class_6": {
+              "ingress_result_name": null, 
+              "fixed": "0000", 
+              "choice": "fixed"
+            }, 
+            "pause_class_5": {
+              "ingress_result_name": null, 
+              "fixed": "0000", 
+              "choice": "fixed"
+            }, 
+            "pause_class_4": {
+              "ingress_result_name": null, 
+              "fixed": "ffff", 
+              "choice": "fixed"
+            }, 
+            "pause_class_3": {
+              "ingress_result_name": null, 
+              "fixed": "0000", 
+              "choice": "fixed"
+            }, 
+            "control_op_code": null, 
+            "pause_class_1": {
+              "ingress_result_name": null, 
+              "fixed": "0000", 
+              "choice": "fixed"
+            }, 
+            "pause_class_0": {
+              "ingress_result_name": null, 
+              "fixed": "0000", 
+              "choice": "fixed"
+            }
+          }, 
+          "choice": "pfcpause"
+        }
+      ], 
+      "rate": {
+        "value": 5960, 
+        "unit": "pps"
+      }, 
+      "duration": {
+        "packets": {
+          "delay": 0, 
+          "delay_unit": "bytes", 
+          "packets": 2384.0, 
+          "gap": 12
+        }, 
+        "choice": "packets"
+      }, 
+      "tx_rx": {
+        "port": {
+          "tx_port_name": "Port 0", 
+          "rx_port_name": "Port 1"
+        }, 
+        "choice": "port"
+      }, 
+      "size": {
+        "fixed": 64, 
+        "choice": "fixed"
+      }
+    }, 
+    {
+      "name": "Test Flow 0 -> 1 (prio 4)", 
+      "packet": [
+        {
+          "ethernet": {
+            "pfc_queue": {
+              "ingress_result_name": null, 
+              "list": [
+                4
+              ], 
+              "choice": "list"
+            }, 
+            "src": null, 
+            "dst": null, 
+            "ether_type": null
+          }, 
+          "choice": "ethernet"
+        }, 
+        {
+          "ipv4": {
+            "dont_fragment": null, 
+            "header_length": null, 
+            "reserved": null, 
+            "src": null, 
+            "header_checksum": null, 
+            "dst": null, 
+            "time_to_live": null, 
+            "protocol": null, 
+            "priority": {
+              "dscp": {
+                "phb": {
+                  "ingress_result_name": null, 
+                  "list": [
+                    4
+                  ], 
+                  "choice": "list"
+                }, 
+                "ecn": {
+                  "ingress_result_name": null, 
+                  "fixed": "2", 
+                  "choice": "fixed"
+                }
+              }, 
+              "choice": "dscp"
+            }, 
+            "fragment_offset": null, 
+            "version": null, 
+            "identification": null, 
+            "more_fragments": null, 
+            "total_length": null
+          }, 
+          "choice": "ipv4"
+        }
+      ], 
+      "rate": {
+        "value": 22, 
+        "unit": "line"
+      }, 
+      "duration": {
+        "seconds": {
+          "seconds": 2.0, 
+          "delay": 0, 
+          "delay_unit": "bytes", 
+          "gap": 12
+        }, 
+        "choice": "seconds"
+      }, 
+      "tx_rx": {
+        "device": {
+          "rx_device_names": [
+            "Device 1"
+          ], 
+          "tx_device_names": [
+            "Device 0"
+          ]
+        }, 
+        "choice": "device"
+      }, 
+      "size": {
+        "fixed": 1024, 
+        "choice": "fixed"
+      }
+    }, 
+    {
+      "name": "Test Flow 0 -> 2 (prio 4)", 
+      "packet": [
+        {
+          "ethernet": {
+            "pfc_queue": {
+              "ingress_result_name": null, 
+              "list": [
+                4
+              ], 
+              "choice": "list"
+            }, 
+            "src": null, 
+            "dst": null, 
+            "ether_type": null
+          }, 
+          "choice": "ethernet"
+        }, 
+        {
+          "ipv4": {
+            "dont_fragment": null, 
+            "header_length": null, 
+            "reserved": null, 
+            "src": null, 
+            "header_checksum": null, 
+            "dst": null, 
+            "time_to_live": null, 
+            "protocol": null, 
+            "priority": {
+              "dscp": {
+                "phb": {
+                  "ingress_result_name": null, 
+                  "list": [
+                    4
+                  ], 
+                  "choice": "list"
+                }, 
+                "ecn": {
+                  "ingress_result_name": null, 
+                  "fixed": "2", 
+                  "choice": "fixed"
+                }
+              }, 
+              "choice": "dscp"
+            }, 
+            "fragment_offset": null, 
+            "version": null, 
+            "identification": null, 
+            "more_fragments": null, 
+            "total_length": null
+          }, 
+          "choice": "ipv4"
+        }
+      ], 
+      "rate": {
+        "value": 22, 
+        "unit": "line"
+      }, 
+      "duration": {
+        "seconds": {
+          "seconds": 2.0, 
+          "delay": 0, 
+          "delay_unit": "bytes", 
+          "gap": 12
+        }, 
+        "choice": "seconds"
+      }, 
+      "tx_rx": {
+        "device": {
+          "rx_device_names": [
+            "Device 2"
+          ], 
+          "tx_device_names": [
+            "Device 0"
+          ]
+        }, 
+        "choice": "device"
+      }, 
+      "size": {
+        "fixed": 1024, 
+        "choice": "fixed"
+      }
+    }, 
+    {
+      "name": "Background Flow 0 -> 1 (prio 0)", 
+      "packet": [
+        {
+          "ethernet": {
+            "pfc_queue": {
+              "ingress_result_name": null, 
+              "list": [
+                0
+              ], 
+              "choice": "list"
+            }, 
+            "src": null, 
+            "dst": null, 
+            "ether_type": null
+          }, 
+          "choice": "ethernet"
+        }, 
+        {
+          "ipv4": {
+            "dont_fragment": null, 
+            "header_length": null, 
+            "reserved": null, 
+            "src": null, 
+            "header_checksum": null, 
+            "dst": null, 
+            "time_to_live": null, 
+            "protocol": null, 
+            "priority": {
+              "dscp": {
+                "phb": {
+                  "ingress_result_name": null, 
+                  "list": [
+                    8
+                  ], 
+                  "choice": "list"
+                }, 
+                "ecn": {
+                  "ingress_result_name": null, 
+                  "fixed": "2", 
+                  "choice": "fixed"
+                }
+              }, 
+              "choice": "dscp"
+            }, 
+            "fragment_offset": null, 
+            "version": null, 
+            "identification": null, 
+            "more_fragments": null, 
+            "total_length": null
+          }, 
+          "choice": "ipv4"
+        }
+      ], 
+      "rate": {
+        "value": 4, 
+        "unit": "line"
+      }, 
+      "duration": {
+        "seconds": {
+          "seconds": 2.0, 
+          "delay": 0, 
+          "delay_unit": "bytes", 
+          "gap": 12
+        }, 
+        "choice": "seconds"
+      }, 
+      "tx_rx": {
+        "device": {
+          "rx_device_names": [
+            "Device 1"
+          ], 
+          "tx_device_names": [
+            "Device 0"
+          ]
+        }, 
+        "choice": "device"
+      }, 
+      "size": {
+        "fixed": 1024, 
+        "choice": "fixed"
+      }
+    }, 
+    {
+      "name": "Background Flow 0 -> 1 (prio 1)", 
+      "packet": [
+        {
+          "ethernet": {
+            "pfc_queue": {
+              "ingress_result_name": null, 
+              "list": [
+                1
+              ], 
+              "choice": "list"
+            }, 
+            "src": null, 
+            "dst": null, 
+            "ether_type": null
+          }, 
+          "choice": "ethernet"
+        }, 
+        {
+          "ipv4": {
+            "dont_fragment": null, 
+            "header_length": null, 
+            "reserved": null, 
+            "src": null, 
+            "header_checksum": null, 
+            "dst": null, 
+            "time_to_live": null, 
+            "protocol": null, 
+            "priority": {
+              "dscp": {
+                "phb": {
+                  "ingress_result_name": null, 
+                  "list": [
+                    60, 
+                    61, 
+                    62, 
+                    63, 
+                    24, 
+                    25, 
+                    26, 
+                    27, 
+                    20, 
+                    21, 
+                    22, 
+                    23, 
+                    28, 
+                    29, 
+                    0, 
+                    2, 
+                    6, 
+                    59, 
+                    58, 
+                    11, 
+                    10, 
+                    13, 
+                    12, 
+                    15, 
+                    14, 
+                    17, 
+                    16, 
+                    19, 
+                    18, 
+                    57, 
+                    56, 
+                    51, 
+                    50, 
+                    53, 
+                    52, 
+                    55, 
+                    54, 
+                    49, 
+                    47, 
+                    44, 
+                    45, 
+                    42, 
+                    43, 
+                    40, 
+                    41, 
+                    1, 
+                    7, 
+                    9, 
+                    39, 
+                    38, 
+                    33, 
+                    32, 
+                    31, 
+                    30, 
+                    37, 
+                    36, 
+                    35, 
+                    34
+                  ], 
+                  "choice": "list"
+                }, 
+                "ecn": {
+                  "ingress_result_name": null, 
+                  "fixed": "2", 
+                  "choice": "fixed"
+                }
+              }, 
+              "choice": "dscp"
+            }, 
+            "fragment_offset": null, 
+            "version": null, 
+            "identification": null, 
+            "more_fragments": null, 
+            "total_length": null
+          }, 
+          "choice": "ipv4"
+        }
+      ], 
+      "rate": {
+        "value": 4, 
+        "unit": "line"
+      }, 
+      "duration": {
+        "seconds": {
+          "seconds": 2.0, 
+          "delay": 0, 
+          "delay_unit": "bytes", 
+          "gap": 12
+        }, 
+        "choice": "seconds"
+      }, 
+      "tx_rx": {
+        "device": {
+          "rx_device_names": [
+            "Device 1"
+          ], 
+          "tx_device_names": [
+            "Device 0"
+          ]
+        }, 
+        "choice": "device"
+      }, 
+      "size": {
+        "fixed": 1024, 
+        "choice": "fixed"
+      }
+    }, 
+    {
+      "name": "Background Flow 2 -> 0 (prio 6)", 
+      "packet": [
+        {
+          "ethernet": {
+            "pfc_queue": {
+              "ingress_result_name": null, 
+              "list": [
+                6
+              ], 
+              "choice": "list"
+            }, 
+            "src": null, 
+            "dst": null, 
+            "ether_type": null
+          }, 
+          "choice": "ethernet"
+        }, 
+        {
+          "ipv4": {
+            "dont_fragment": null, 
+            "header_length": null, 
+            "reserved": null, 
+            "src": null, 
+            "header_checksum": null, 
+            "dst": null, 
+            "time_to_live": null, 
+            "protocol": null, 
+            "priority": {
+              "dscp": {
+                "phb": {
+                  "ingress_result_name": null, 
+                  "list": [
+                    48
+                  ], 
+                  "choice": "list"
+                }, 
+                "ecn": {
+                  "ingress_result_name": null, 
+                  "fixed": "2", 
+                  "choice": "fixed"
+                }
+              }, 
+              "choice": "dscp"
+            }, 
+            "fragment_offset": null, 
+            "version": null, 
+            "identification": null, 
+            "more_fragments": null, 
+            "total_length": null
+          }, 
+          "choice": "ipv4"
+        }
+      ], 
+      "rate": {
+        "value": 4, 
+        "unit": "line"
+      }, 
+      "duration": {
+        "seconds": {
+          "seconds": 2.0, 
+          "delay": 0, 
+          "delay_unit": "bytes", 
+          "gap": 12
+        }, 
+        "choice": "seconds"
+      }, 
+      "tx_rx": {
+        "device": {
+          "rx_device_names": [
+            "Device 0"
+          ], 
+          "tx_device_names": [
+            "Device 2"
+          ]
+        }, 
+        "choice": "device"
+      }, 
+      "size": {
+        "fixed": 1024, 
+        "choice": "fixed"
+      }
+    }
+  ], 
+  "lags": [], 
+  "options": {
+    "port_options": {
+      "location_preemption": true
+    }
+  }, 
+  "devices": [
+    {
+      "device_count": 1, 
+      "container_name": "Port 0", 
+      "ipv4": {
+        "ethernet": {
+          "mac": null, 
+          "vlans": [], 
+          "name": "Ethernet 0", 
+          "mtu": null
+        }, 
+        "prefix": {
+          "fixed": "24", 
+          "choice": "fixed"
+        }, 
+        "gateway": {
+          "fixed": "192.168.1.2", 
+          "choice": "fixed"
+        }, 
+        "name": "Ipv4 0", 
+        "address": {
+          "fixed": "192.168.1.1", 
+          "choice": "fixed"
+        }
+      }, 
+      "name": "Device 0", 
+      "choice": "ipv4"
+    }, 
+    {
+      "device_count": 1, 
+      "container_name": "Port 1", 
+      "ipv4": {
+        "ethernet": {
+          "mac": null, 
+          "vlans": [], 
+          "name": "Ethernet 1", 
+          "mtu": null
+        }, 
+        "prefix": {
+          "fixed": "24", 
+          "choice": "fixed"
+        }, 
+        "gateway": {
+          "fixed": "192.168.1.1", 
+          "choice": "fixed"
+        }, 
+        "name": "Ipv4 1", 
+        "address": {
+          "fixed": "192.168.1.2", 
+          "choice": "fixed"
+        }
+      }, 
+      "name": "Device 1", 
+      "choice": "ipv4"
+    }, 
+    {
+      "device_count": 1, 
+      "container_name": "Port 1", 
+      "ipv4": {
+        "ethernet": {
+          "mac": null, 
+          "vlans": [], 
+          "name": "Ethernet 2", 
+          "mtu": null
+        }, 
+        "prefix": {
+          "fixed": "24", 
+          "choice": "fixed"
+        }, 
+        "gateway": {
+          "fixed": "192.168.1.1", 
+          "choice": "fixed"
+        }, 
+        "name": "Ipv4 2", 
+        "address": {
+          "fixed": "192.168.1.3", 
+          "choice": "fixed"
+        }
+      }, 
+      "name": "Device 2", 
+      "choice": "ipv4"
+    }
+  ], 
+  "ports": [
+    {
+      "name": "Port 0", 
+      "location": "10.39.65.230;5;1"
+    }, 
+    {
+      "name": "Port 1", 
+      "location": "10.39.65.230;5;2"
+    }
+  ]
+}

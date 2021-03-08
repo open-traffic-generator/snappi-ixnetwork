@@ -1,3 +1,4 @@
+from time import time
 from ixnetwork_open_traffic_generator.timer import Timer
 from ixnetwork_open_traffic_generator.customfield import CustomField
 
@@ -502,6 +503,18 @@ class TrafficItem(CustomField):
             args['InterBurstGapUnits'] = duration.burst.inter_burst_gap_unit
         self._update(ixn_tx_control, **args)
 
+    def _convert_string_to_regex(self, names):
+        ret_list = []
+        for n in names:
+            ret_list.append(
+                n.replace('(', '\\(').replace(')', '\\)')
+                    .replace('[', '\\[').replace(']', '\\]')
+                    .replace('.', '\\.').replace('*', '\\*')
+                    .replace('+', '\\+').replace('?', '\\?')
+                    .replace('{', '\\{').replace('}', '\\}')
+            )
+        return ret_list
+
     def transmit(self, request):
         """Set flow transmit
         1) If start then start any device protocols that are traffic dependent
@@ -513,22 +526,22 @@ class TrafficItem(CustomField):
         if request and request.flow_names:
             flow_names = request.flow_names
         if len(flow_names) == 1:
-            regex = '^%s$' % flow_names[0]
+            regex = '^%s$' % self._convert_string_to_regex(flow_names)[0]
         elif len(flow_names) > 1:
-            regex = '^(%s)$' % '|'.join(flow_names)
+            regex = '^(%s)$' % '|'.join(
+                self._convert_string_to_regex(flow_names)
+            )
 
         if request.state == 'start':
             all_flow_names = ' '.join(
                 [flow.name for flow in self._api.config.flows])
-            self._api._traffic_item.find(State='^unapplied$')
             if len(self._api._topology.find()) > 0:
                 with Timer(self._api, 'Devices start'):
                     self._api._ixnetwork.StartAllProtocols('sync')
                     self._api.check_protocol_statistics()
             if len(self._api._traffic_item) > 0:
                 with Timer(self._api, 'Flows generate/apply'):
-                    self._api._traffic_item.Generate()
-                    self._api._traffic.Apply()
+                    self._generate_flows_and_apply()
             self._api._traffic_item.find(State='^started$')
             if len(self._api._traffic_item) == 0:
                 with Timer(self._api, 'Flows clear statistics'):
@@ -560,6 +573,23 @@ class TrafficItem(CustomField):
             if len(self._api._topology.find()) > 0:
                 with Timer(self._api, 'Devices stop'):
                     self._api._ixnetwork.StopAllProtocols('sync')
+
+    def _generate_flows_and_apply(self):
+        url = '%s/traffic/trafficItem' % self._api._ixnetwork.href
+        res = self._api._request('GET', url)
+        hrefs = [
+            j['links'][-1]['href']
+            for j in res if j.get('links') is not None and len(j['links']) > 0
+        ]
+        url = '{}/traffic/trafficItem/operations/generate'.format(
+            self._api._ixnetwork.href
+        )
+        payload = {
+            'arg1': hrefs
+        }
+        self._api._request('POST', url=url, payload=payload)
+        self._api._traffic.Apply()
+        return
 
     def _set_result_value(self,
                           row,
@@ -607,9 +637,12 @@ class TrafficItem(CustomField):
                 request.flow_names) > 0:
             flow_names = request.flow_names
         if len(flow_names) == 1:
-            filter['regex'] = '^%s$' % flow_names[0]
+            filter['regex'] = '^%s$' % \
+                self._convert_string_to_regex(flow_names)[0]
         elif len(flow_names) > 1:
-            filter['regex'] = '^(%s)$' % '|'.join(flow_names)
+            filter['regex'] = '^(%s)$' % '|'.join(
+                self._convert_string_to_regex(flow_names)
+            )
 
         # initialize result values
         flow_rows = {}
