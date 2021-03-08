@@ -8,6 +8,7 @@ from abstract_open_traffic_generator.control import *
 from abstract_open_traffic_generator.result import RequestDetail
 from ixnetwork_open_traffic_generator.validation import Validation
 from ixnetwork_open_traffic_generator.vport import Vport
+from ixnetwork_open_traffic_generator.lag import Lag
 from ixnetwork_open_traffic_generator.ngpf import Ngpf
 from ixnetwork_open_traffic_generator.trafficitem import TrafficItem
 from ixnetwork_open_traffic_generator.timer import Timer
@@ -52,6 +53,7 @@ class IxNetworkApi(Api):
         self._ixn_errors = list()
         self.validation = Validation(self)
         self.vport = Vport(self)
+        self.lag = Lag(self)
         self.ngpf = Ngpf(self)
         self.traffic_item = TrafficItem(self)
 
@@ -149,6 +151,7 @@ class IxNetworkApi(Api):
             self._ixnetwork.NewConfig()
         else:
             self.vport.config()
+            self.lag.config()
             with Timer(self, 'Devices configuration'):
                 self.ngpf.config()
             with Timer(self, 'Flows configuration'):
@@ -300,6 +303,7 @@ class IxNetworkApi(Api):
                                                LogLevel=self._log_level)
             self._ixnetwork = self._assistant.Session.Ixnetwork
             self._vport = self._ixnetwork.Vport
+            self._lag = self._ixnetwork.Lag
             self._topology = self._ixnetwork.Topology
             self._traffic = self._ixnetwork.Traffic
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
