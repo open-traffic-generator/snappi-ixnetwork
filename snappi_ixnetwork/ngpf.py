@@ -321,8 +321,8 @@ class Ngpf(object):
         if advanced.multi_exit_discriminator is not None:
             ixn_bgp_property.EnableMultiExitDiscriminator.Single(True)
             self._configure_pattern(ixn_bgp_property.MultiExitDiscriminator,
-                                    route_range.multi_exit_discriminator)
-        self._configure_pattern(ixn_bgp_property.RouteOrigin, advanced.origin)
+                                    advanced.multi_exit_discriminator)
+        self._configure_pattern(ixn_bgp_property.Origin, advanced.origin)
         self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
         self._config_bgp_community(route_range.communities, ixn_bgp_property)
 
@@ -419,8 +419,8 @@ class Ngpf(object):
         if advanced.multi_exit_discriminator is not None:
             ixn_bgp_property.EnableMultiExitDiscriminator.Single(True)
             self._configure_pattern(ixn_bgp_property.MultiExitDiscriminator,
-                                    route_range.multi_exit_discriminator)
-        self._configure_pattern(ixn_bgp_property.RouteOrigin, advanced.origin)
+                                    advanced.multi_exit_discriminator)
+        self._configure_pattern(ixn_bgp_property.Origin, advanced.origin)
         self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
         self._config_bgp_community(route_range.communities, ixn_bgp_property)
     
