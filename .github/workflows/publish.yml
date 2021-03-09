@@ -47,7 +47,7 @@ jobs:
 
     - name: Run tests
       run: |
-        ${{steps.path.outputs.pythonv}} -m pytest --api_server="10.39.71.97:443" --ports="10.39.65.230;6;1 10.39.65.230;6;2" --media="fiber" tests -m "not e2e and not l1_manual"
+        ${{steps.path.outputs.pythonv}} -m pytest --api_server="10.39.71.97:443" --ports="10.39.65.230;6;1 10.39.65.230;6;2 10.39.65.230;6;3 10.39.65.230;6;4" --media="fiber" tests -m "not e2e and not l1_manual"
 
   create_release_and_deploy:
     needs: build_and_test
