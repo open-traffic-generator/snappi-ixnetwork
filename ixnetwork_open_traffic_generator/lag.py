@@ -1,5 +1,5 @@
 import json
-from snappi_ixnetwork.timer import Timer
+from ixnetwork_open_traffic_generator.timer import Timer
 
 
 class Lag(object):
@@ -376,7 +376,7 @@ class Lag(object):
                 row[column_name] = 0
             else:
                 row[column_type] = column_value
-    
+
     def results(self, request):
         """Return port results
         """
