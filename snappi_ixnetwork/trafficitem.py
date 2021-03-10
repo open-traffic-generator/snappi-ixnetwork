@@ -211,7 +211,9 @@ class TrafficItem(CustomField):
         payload = {
             'arg1': href,
             'arg2': json.dumps(imports),
-            'arg3': False
+            'arg3': False,
+            'arg4': 'suppressErrorsWarnings',
+            'arg5': False
         }
         res = self._api._request('POST', url=url, payload=payload)
         return res

@@ -174,8 +174,6 @@ class Api(snappi.Api):
             from snappi_ixnetwork.configcreation import CreateConfig
             c = CreateConfig(self)
             c.config(self._config)
-            self.stateful_config = c.stateful_config
-            self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
         return self._request_detail()

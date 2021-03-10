@@ -42,7 +42,9 @@ class CreateConfig(object):
         payload = {
             'arg1': href,
             'arg2': json.dumps(imports),
-            'arg3': False
+            'arg3': False,
+            # 'arg4': 'suppressErrorsWarnings',
+            # 'arg5': False
         }
         res = self._api._request('POST', url=url, payload=payload)
         return res
@@ -65,7 +67,10 @@ class CreateConfig(object):
         imports = dict()
         self.stateful_config = copy.deepcopy(config)
         with Timer(self._api, "port config"):
-            self._api.vport.config()
+            from snappi_ixnetwork.vport_new import Vport
+            vport = Vport(self._api)
+            vport.config(self.stateful_config)
+            # self._api.vport.config()
         with Timer(self._api, "Export config"):
             conf = self._export_config()
         with Timer(self._api, "Remove Traffic and Topology"):
@@ -83,8 +88,10 @@ class CreateConfig(object):
             self._importconfig(imports)
 
     def config(self, config):
-        with Timer(self._api, "Config Creation"):
+        with Timer(self._api, "Config creation (ports, devices, traffic)"):
             self._validate_and_config(config)
+            self._api.stateful_config = self.stateful_config
+            self._api.traffic_item.config()
 
     def remove_traffic_and_topo(self):
         if len(self._api._ixnetwork.Traffic.TrafficItem.find()) > 0:
