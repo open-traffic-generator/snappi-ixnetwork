@@ -126,8 +126,7 @@ class Lag(object):
     def _delete_lags(self):
         """Delete any Lags from the api server that do not exist in the new config
         """
-        # todo : Not able to change lacp > static
-        self._api._remove(self._ixn_lag, [])
+        self._api._remove(self._ixn_lag, self._lags_config)
     
     def _select_lags(self):
         payload = {
@@ -265,6 +264,10 @@ class Lag(object):
         imports = []
         ixn_lags = self._select_lags()
         for name, ports in self._lag_ports.items():
+            ixn_lag = self._ixn_lag.find(Name='^%s$' % name)
+            ixn_eth = ixn_lag.ProtocolStack.find().Ethernet.find()
+            ixn_lacp = ixn_eth.Lagportlacp.find()
+            ixn_static = ixn_eth.Lagportstaticlag.find()
             choice = None
             protocols = []
             for port in ports:
@@ -278,6 +281,8 @@ class Lag(object):
                     protocol.lacp.actor_system_id = protocol.lacp.actor_system_id.replace(':', ' ')
                 protocols.append(protocol)
             if choice == 'lacp':
+                if len(ixn_static) > 0:
+                    ixn_static.remove()
                 lacp_xpath = "{0}/protocolStack/ethernet[1]/lagportlacp[1]".format(
                             ixn_lags[name]['xpath'])
                 imports.append(self._set_multivalue(lacp_xpath, 'active', True))
@@ -287,6 +292,8 @@ class Lag(object):
                     imports.append(self._set_multivalue(lacp_xpath, attr_values.ixn_attribute,
                                                         attr_values.config_value))
             else:
+                if len(ixn_lacp) > 0:
+                    ixn_lacp.remove()
                 static_xpath = "{0}/protocolStack/ethernet[1]/lagportstaticlag[1]".format(
                     ixn_lags[name]['xpath'])
                 imports.append(self._set_multivalue(static_xpath, 'active', True))
