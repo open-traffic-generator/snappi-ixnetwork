@@ -4,6 +4,7 @@ import abstract_open_traffic_generator.layer1 as layer1
 import abstract_open_traffic_generator.lag as lag
 import abstract_open_traffic_generator.config as config
 import abstract_open_traffic_generator.control as control
+import abstract_open_traffic_generator.flow as flow
 
 
 def test_static_lag(serializer, api, options, utils):
@@ -70,13 +71,60 @@ def test_static_lag(serializer, api, options, utils):
         lag.Port(port_name=ports[3].name, protocol=proto4, ethernet=eth4)
     lag1 = lag.Lag(name='lag1', ports=[lag_port1, lag_port2])
     lag2 = lag.Lag(name='lag2', ports=[lag_port3, lag_port4])
-    configuration = config.Config(
-        ports=ports, options=options, lags=[lag1, lag2], layer1=l1
+
+    packets = 2000
+    f1_size = 74
+    f2_size = 1500
+
+    flow1 = flow.Flow(
+        name='f1',
+        tx_rx=flow.TxRx(
+            flow.PortTxRx(
+                tx_port_name=ports[0].name,
+                rx_port_name=ports[1].name
+            )
+        )
     )
-    state = control.State(control.ConfigState(
-        config=configuration, state='set'
-    ))
-    api.set_state(state)
+
+    flow2 = flow.Flow(
+        name='f2',
+        tx_rx=flow.TxRx(
+            flow.PortTxRx(
+                tx_port_name=ports[2].name,
+                rx_port_name=ports[3].name
+            )
+        )
+    )
+
+    flow1.duration = flow.Duration(flow.FixedPackets(packets=packets))
+    flow1.size = flow.Size(f1_size)
+    flow1.rate = flow.Rate(value=10, unit='line')
+
+    flow2.duration = flow.Duration(flow.FixedPackets(packets=packets))
+    flow2.size = flow.Size(f2_size)
+    flow2.rate = flow.Rate(value=10, unit='line')
+
+    configuration = config.Config(
+        ports=ports, options=options, lags=[lag1, lag2], layer1=l1,
+        flows=[flow1, flow2]
+    )
+
+    utils.start_traffic(api, configuration, start_capture=False)
+    utils.wait_for(
+        lambda: utils.is_traffic_stopped(api), 'traffic to stop'
+    )
+
+    utils.wait_for(
+        lambda: utils.is_stats_accumulated(api, packets * 2),
+        'stats to be accumulated'
+    )
+
+    utils.wait_for(
+        lambda: results_ok(
+            api, utils, f1_size, f2_size, packets
+        ),
+        'stats to be as expected', timeout_seconds=10
+    )
 
 
 def test_lacp_lag(serializer, api, options, utils):
@@ -150,10 +198,69 @@ def test_lacp_lag(serializer, api, options, utils):
         lag.Port(port_name=ports[3].name, protocol=proto4, ethernet=eth4)
     lag1 = lag.Lag(name='lag1', ports=[lag_port1, lag_port2])
     lag2 = lag.Lag(name='lag2', ports=[lag_port3, lag_port4])
-    configuration = config.Config(
-        ports=ports, options=options, lags=[lag1, lag2], layer1=l1
+    
+    packets = 2000
+    f1_size = 74
+    f2_size = 1500
+
+    flow1 = flow.Flow(
+        name='f1',
+        tx_rx=flow.TxRx(
+            flow.PortTxRx(
+                tx_port_name=ports[0].name,
+                rx_port_name=ports[1].name
+            )
+        )
     )
-    state = control.State(control.ConfigState(
-        config=configuration, state='set'
-    ))
-    api.set_state(state)
+
+    flow2 = flow.Flow(
+        name='f2',
+        tx_rx=flow.TxRx(
+            flow.PortTxRx(
+                tx_port_name=ports[2].name,
+                rx_port_name=ports[3].name
+            )
+        )
+    )
+
+    flow1.duration = flow.Duration(flow.FixedPackets(packets=packets))
+    flow1.size = flow.Size(f1_size)
+    flow1.rate = flow.Rate(value=10, unit='line')
+
+    flow2.duration = flow.Duration(flow.FixedPackets(packets=packets))
+    flow2.size = flow.Size(f2_size)
+    flow2.rate = flow.Rate(value=10, unit='line')
+
+    configuration = config.Config(
+        ports=ports, options=options, lags=[lag1, lag2], layer1=l1,
+        flows=[flow1, flow2]
+    )
+
+    utils.start_traffic(api, configuration, start_capture=False)
+    utils.wait_for(
+        lambda: utils.is_traffic_stopped(api), 'traffic to stop'
+    )
+
+    utils.wait_for(
+        lambda: utils.is_stats_accumulated(api, packets * 2),
+        'stats to be accumulated'
+    )
+
+    utils.wait_for(
+        lambda: results_ok(
+            api, utils, f1_size, f2_size, packets
+        ),
+        'stats to be as expected', timeout_seconds=10
+    )
+
+
+def results_ok(api, utils, size1, size2, packets):
+    """
+    Returns true if stats are as expected, false otherwise.
+    """
+    port_results, flow_results = utils.get_all_stats(api)
+    frames_ok = utils.total_frames_ok(port_results, flow_results, packets * 2)
+    bytes_ok = utils.total_bytes_ok(
+        port_results, flow_results, packets * size1 + packets * size2
+    )
+    return frames_ok and bytes_ok

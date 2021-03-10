@@ -533,8 +533,8 @@ class TrafficItem(CustomField):
             )
 
         if request.state == 'start':
-            all_flow_names = ' '.join(
-                [flow.name for flow in self._api.config.flows])
+            if len(self._api.config.lags) > 0:
+                self._api._ixnetwork.Lag.find().Start()
             if len(self._api._topology.find()) > 0:
                 with Timer(self._api, 'Devices start'):
                     self._api._ixnetwork.StartAllProtocols('sync')
