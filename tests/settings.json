@@ -3,7 +3,9 @@
     "api_server": "localhost:11009",
     "ports": [
         "localhost;1;1",
-        "localhost;1;2"
+        "localhost;1;2",
+        "localhost;1;3",
+        "localhost;1;4"
     ],
     "speed": "speed_1_gbps",
     "media": null,
