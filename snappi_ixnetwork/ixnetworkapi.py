@@ -373,7 +373,8 @@ class Api(snappi.Api):
                 self._traffic_item.find()
                 if len(self._traffic_item) > 0:
                     self._traffic_item.StopStatelessTrafficBlocking()
-            if self._globals.Topology.Status  == 'started':
+            glob_topo = self._globals.Topology.refresh()
+            if glob_topo.Status  == 'started':
                 self._ixnetwork.StopAllProtocols('sync')
         else:
             if traffic_state == 'started':
@@ -385,7 +386,7 @@ class Api(snappi.Api):
 
     def _apply_change(self):
         """Apply on the fly only applicable for Device object"""
-        glob_topo = self._globals.Topology
+        glob_topo = self._globals.Topology.refresh()
         if glob_topo.ApplyOnTheFlyState == 'allowed':
             url = '%s/globals/topology/operations/applyonthefly' % self._ixnetwork.href
             payload = {'arg1': glob_topo.href}
