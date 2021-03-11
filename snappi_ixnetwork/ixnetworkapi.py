@@ -5,6 +5,7 @@ from ixnetwork_restpy import TestPlatform, SessionAssistant
 import snappi
 from snappi_ixnetwork.validation import Validation
 from snappi_ixnetwork.vport import Vport
+from snappi_ixnetwork.lag import Lag
 from snappi_ixnetwork.ngpf import Ngpf
 from snappi_ixnetwork.trafficitem import TrafficItem
 from snappi_ixnetwork.capture import Capture
@@ -59,6 +60,7 @@ class Api(snappi.Api):
         self._capture_request = self.capture_request()
         self.validation = Validation(self)
         self.vport = Vport(self)
+        self.lag = Lag(self)
         self.ngpf = Ngpf(self)
         self.traffic_item = TrafficItem(self)
         self.capture = Capture(self)
@@ -172,6 +174,7 @@ class Api(snappi.Api):
             self._ixnetwork.NewConfig()
         else:
             self.vport.config()
+            self.lag.config()
             with Timer(self, 'Devices configuration'):
                 self.ngpf.config()
             with Timer(self, 'Flows configuration'):
@@ -330,6 +333,7 @@ class Api(snappi.Api):
                                                LogLevel=self._log_level)
             self._ixnetwork = self._assistant.Session.Ixnetwork
             self._vport = self._ixnetwork.Vport
+            self._lag = self._ixnetwork.Lag
             self._topology = self._ixnetwork.Topology
             self._traffic = self._ixnetwork.Traffic
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
