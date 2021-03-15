@@ -189,18 +189,22 @@ class Capture(object):
         """Starts capture on all ports that have capture enabled.
         """
         self._capture_request = request
-        if request.state == 'stop':
+        if request.state == 'start':
+            self._start_capture()
+        elif request.state == 'stop':
             self._stop_capture()
     
     def _start_capture(self):
-        if self._capture_request is not None:
-            with Timer(self._api, 'Captures start'):
+        with Timer(self._api, 'Captures start'):
+            if self._capture_request.port_names is not None:
                 payload = {'arg1': []}
-                for vport in self._api.select_vports().values():
-                    payload['arg1'].append(vport['href'])
+                for vport_name, vport in self._api.select_vports().items():
+                    if vport_name in self._capture_request.port_names:
+                        payload['arg1'].append(vport['href'])
                 url = '%s/vport/operations/clearCaptureInfos' % \
-                        self._api._ixnetwork.href
+                      self._api._ixnetwork.href
                 self._api._request('POST', url, payload)
+            else:
                 self._api._ixnetwork.StartCapture()
 
     def _stop_capture(self):
