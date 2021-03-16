@@ -196,22 +196,44 @@ class Capture(object):
     
     def _start_capture(self):
         with Timer(self._api, 'Captures start'):
-            if self._capture_request.port_names is not None:
+            ixn_vports = self._api.select_vports()
+            if len(ixn_vports) == 0:
+                raise Exception("Please configure port before start capture")
+            # start global capture
+            if self._capture_request is None or \
+                    self._capture_request.port_names is None or \
+                    len(set(ixn_vports.keys() ^ set(self._capture_request.port_names))) == 0:
                 payload = {'arg1': []}
-                for vport_name, vport in self._api.select_vports().items():
-                    if vport_name in self._capture_request.port_names:
-                        payload['arg1'].append(vport['href'])
+                for vport in ixn_vports.values():
+                    payload['arg1'].append(vport['href'])
                 url = '%s/vport/operations/clearCaptureInfos' % \
                       self._api._ixnetwork.href
                 self._api._request('POST', url, payload)
-            else:
                 self._api._ixnetwork.StartCapture()
+            else:
+                url = '%s/vport/capture/operations/start' % \
+                      self._api._ixnetwork.href
+                for vport_name, vport in ixn_vports.items():
+                    if vport_name in self._capture_request.port_names:
+                        if vport['capture']['hardwareEnabled'] is False:
+                            raise Exception("Please enable capture in %s before start capture"
+                                            %vport_name)
+                        payload = {
+                            'arg1': '{0}/capture'.format(vport['href'])
+                        }
+                        try:
+                            self._api._request('POST', url, payload)
+                        except Exception:
+                            pass
 
     def _stop_capture(self):
         with Timer(self._api, 'Captures stop'):
+            ixn_vports = self._api.select_vports()
+            if len(ixn_vports) == 0:
+                raise Exception("Please configure port before stop capture")
             if self._capture_request.port_names:
                 payload = {'arg1': []}
-                for vport_name, vport in self._api.select_vports().items():
+                for vport_name, vport in ixn_vports.items():
                     if vport_name in self._capture_request.port_names:
                         payload['arg1'].append(vport['href'])
                 url = '%s/vport/operations/clearCaptureInfos' % \
@@ -219,6 +241,7 @@ class Capture(object):
                 self._api._request('POST', url, payload)
             else:
                 self._api._ixnetwork.StopCapture()
+                
 
     def results(self, request):
         """Gets capture file and returns it as a byte stream
