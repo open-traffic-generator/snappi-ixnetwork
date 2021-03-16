@@ -116,10 +116,7 @@ class Ngpf(object):
         if len(ixn_device_group) == 0:
             ixn_device_group.add(**args)[-1]
         else:
-            ixn_ng = ixn_device_group.NetworkGroup
-            self._api._remove(ixn_ng, [])
             self._update(ixn_device_group, **args)
-        
         self._config_proto_stack(ixn_device_group, device, ixn_device_group)
     
     def _config_proto_stack(self, ixn_obj, snappi_obj, ixn_dg):
@@ -272,6 +269,11 @@ class Ngpf(object):
     def _bgp_route_builder(self, ixn_dg, ixn_bgp, bgp):
         bgpv4_routes = bgp.bgpv4_routes
         bgpv6_routes = bgp.bgpv6_routes
+        route_ranges = []
+        route_ranges.extend(bgpv4_routes)
+        route_ranges.extend(bgpv6_routes)
+        if len(route_ranges) > 0:
+            self._api._remove(ixn_dg.NetworkGroup, route_ranges)
         if len(bgpv4_routes) > 0:
             for route_range in bgpv4_routes:
                 self._configure_bgpv4_route(ixn_dg,
@@ -290,6 +292,7 @@ class Ngpf(object):
         }
         ixn_ng.find(Name='^%s$' % route_range.name)
         if len(ixn_ng) == 0:
+            self.stop_topology()
             ixn_ng.add(**args)[-1]
             ixn_pool = ixn_ng.Ipv4PrefixPools.add()
         else:
@@ -388,6 +391,7 @@ class Ngpf(object):
         }
         ixn_ng.find(Name='^%s$' % route_range.name)
         if len(ixn_ng) == 0:
+            self.stop_topology()
             ixn_ng.add(**args)[-1]
             ixn_pool = ixn_ng.Ipv6PrefixPools.add()
         else:
@@ -426,8 +430,10 @@ class Ngpf(object):
     
     def _config_bgp_as_path(self, as_path, ixn_bgp_property):
         as_path_segments = as_path.as_path_segments
-        if as_path.as_set_mode is not None or len(
-                as_path_segments) > 0:
+        if as_path.as_set_mode is None or len(
+                as_path_segments) == 0:
+            ixn_bgp_property.EnableAsPathSegments.Single(False)
+        else:
             ixn_bgp_property.EnableAsPathSegments.Single(True)
             self._configure_pattern(ixn_bgp_property.AsSetMode,
                                     as_path.as_set_mode, Ngpf._BGP_AS_MODE)
@@ -451,6 +457,7 @@ class Ngpf(object):
 
     def _config_bgp_community(self, communities, ixn_bgp_property):
         if len(communities) == 0:
+            ixn_bgp_property.EnableCommunity.Single(False)
             return
         ixn_bgp_property.EnableCommunity.Single(True)
         ixn_bgp_property.NoOfCommunities = len(communities)
@@ -463,6 +470,10 @@ class Ngpf(object):
             self._configure_pattern(ixn_community.AsNumber, community.as_number)
             self._configure_pattern(ixn_community.LastTwoOctets, community.as_custom)
 
+    def stop_topology(self):
+        glob_topo = self._api._globals.Topology.refresh()
+        if glob_topo.Status == 'started':
+            self._api._ixnetwork.StopAllProtocols('sync')
 
 class RouteAddresses(object):
     def __init__(self):
