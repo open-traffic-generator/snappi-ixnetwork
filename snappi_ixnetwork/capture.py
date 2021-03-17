@@ -196,12 +196,13 @@ class Capture(object):
     
     def _start_capture(self):
         with Timer(self._api, 'Captures start'):
+            if self._capture_request is None:
+                return
             ixn_vports = self._api.select_vports()
             if len(ixn_vports) == 0:
                 raise Exception("Please configure port before start capture")
             # start global capture
-            if self._capture_request is None or \
-                    self._capture_request.port_names is None or \
+            if self._capture_request.port_names is None or \
                     len(set(ixn_vports.keys() ^ set(self._capture_request.port_names))) == 0:
                 payload = {'arg1': []}
                 for vport in ixn_vports.values():
