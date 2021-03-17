@@ -201,9 +201,11 @@ class Capture(object):
             ixn_vports = self._api.select_vports()
             if len(ixn_vports) == 0:
                 raise Exception("Please configure port before start capture")
-            # start global capture
-            if self._capture_request.port_names is None or \
-                    len(set(ixn_vports.keys() ^ set(self._capture_request.port_names))) == 0:
+            ixn_cap_ports = [name for name, vport in ixn_vports.items()
+                            if vport['capture']['hardwareEnabled'] is True]
+            port_names = self._capture_request.port_names
+            if port_names is None or \
+                    len(set(ixn_cap_ports) ^ set(port_names)) == 0:
                 payload = {'arg1': []}
                 for vport in ixn_vports.values():
                     payload['arg1'].append(vport['href'])
@@ -215,7 +217,7 @@ class Capture(object):
                 url = '%s/vport/capture/operations/start' % \
                       self._api._ixnetwork.href
                 for vport_name, vport in ixn_vports.items():
-                    if vport_name in self._capture_request.port_names:
+                    if vport_name in port_names:
                         if vport['capture']['hardwareEnabled'] is False:
                             raise Exception("Please enable capture in %s before start capture"
                                             %vport_name)
