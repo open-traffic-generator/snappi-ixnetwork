@@ -4,4 +4,5 @@
     "python.linting.flake8Enabled": true,
     "python.linting.enabled": true,
     "python.venvPath": "${workspaceFolder}"
+    "python.pythonPath": "c:\\Users\\rangabar.KEYSIGHT\\Desktop\\snappi_env\\current\\Scripts\\python.exe"
 }
