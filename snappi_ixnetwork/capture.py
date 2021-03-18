@@ -99,12 +99,12 @@ class Capture(object):
                     trigger['captureTriggerEnable'] = True
                     filter['captureFilterEnable'] = True
                     for cap_filter in capture_item.filters:
-                        if cap_filter.parent.choice is 'ethernet':
+                        if cap_filter.parent.choice == 'ethernet':
                             self._config_ethernet_pallette(cap_filter,
                                                            pallette,
                                                            trigger,
                                                            filter)
-                        elif cap_filter.parent.choice is 'custom':
+                        elif cap_filter.parent.choice == 'custom':
                             self._config_custom_pallete(cap_filter,
                                                         pallette,
                                                         trigger,
@@ -288,7 +288,7 @@ class GetPattern(object):
     
     @property
     def filter_pattern(self):
-        if self._new_count is 1:
+        if self._new_count == 1:
             return 'pattern{0}'.format(self._new_count)
         else:
             return '{0}AndPattern{1}'.format(self.cap_filter_pattern,
