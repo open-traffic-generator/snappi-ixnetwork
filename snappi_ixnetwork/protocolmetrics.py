@@ -145,12 +145,12 @@ class ProtocolMetrics(object):
     def _check_if_page_ready(self, view):
         count = 0
         while True:
-            view.Refresh()
             if view.Data.IsReady:
                 break
             if count >= self.metric_timeout:
                 raise Exception("View Page is not ready")
             time.sleep(0.5)
+            view.Refresh()
             count += 1
 
     def _port_names_from_devices(self):
@@ -227,7 +227,8 @@ class ProtocolMetrics(object):
                 drill.href, 'Device Group'
             )
             for index, dev_name in enumerate(dev_names):
-                if len(self.names) > 0 and dev_name not in self.names:
+                if len(self.device_names) > 0 and\
+                        dev_name not in self.device_names:
                     continue
                 row_dt = dict()
                 for sn, ixn, typ in column_names:
@@ -262,9 +263,9 @@ class ProtocolMetrics(object):
         """
         protocol = request.choice
         request = getattr(request, protocol)
-        self.names = request._properties.get('device_names')
-        if self.names is None:
-            self.names = []
+        self.device_names = request._properties.get('device_names')
+        if self.device_names is None:
+            self.device_names = []
         self.columns = request._properties.get('column_names')
         if self.columns is None:
             self.columns = []
