@@ -5,6 +5,7 @@ import abstract_open_traffic_generator.lag as lag
 import abstract_open_traffic_generator.config as config
 import abstract_open_traffic_generator.control as control
 import abstract_open_traffic_generator.flow as flow
+import abstract_open_traffic_generator.device as device
 
 
 def test_static_lag(serializer, api, options, utils):
@@ -25,8 +26,8 @@ def test_static_lag(serializer, api, options, utils):
     )
     ports = [
         port.Port(name='txp1', location=utils.settings.ports[0]),
-        port.Port(name='txp2', location=utils.settings.ports[1]),
-        port.Port(name='rxp1', location=utils.settings.ports[2]),
+        port.Port(name='txp2', location=utils.settings.ports[2]),
+        port.Port(name='rxp1', location=utils.settings.ports[1]),
         port.Port(name='rxp2', location=utils.settings.ports[3])
     ]
     l1 = [
@@ -71,6 +72,36 @@ def test_static_lag(serializer, api, options, utils):
         lag.Port(port_name=ports[3].name, protocol=proto4, ethernet=eth4)
     lag1 = lag.Lag(name='lag1', ports=[lag_port1, lag_port2])
     lag2 = lag.Lag(name='lag2', ports=[lag_port3, lag_port4])
+    
+    devices = []
+    devices.append(
+        device.Device(
+            name='device1',
+            container_name=lag1.name,
+            device_count=15,
+            choice=device.Ipv4(
+                name='ipv41',
+                address=device.Pattern('1.1.1.1'),
+                prefix=device.Pattern('24'),
+                gateway=device.Pattern('1.1.1.2'),
+                ethernet=device.Ethernet(
+                    name='eth1',
+                    mac=device.Pattern('00:00:fa:ce:fa:ce'),
+                    mtu=device.Pattern('1200')))))
+    devices.append(
+        device.Device(
+            name='device2',
+            container_name=lag2.name,
+            device_count=15,
+            choice=device.Ipv4(
+                name='ipv42',
+                address=device.Pattern('1.1.1.2'),
+                prefix=device.Pattern('24'),
+                gateway=device.Pattern('1.1.1.1'),
+                ethernet=device.Ethernet(
+                    name='eth2',
+                    mac=device.Pattern('00:00:fa:ce:fa:aa'),
+                    mtu=device.Pattern('1200')))))
 
     packets = 2000
     f1_size = 74
@@ -81,7 +112,7 @@ def test_static_lag(serializer, api, options, utils):
         tx_rx=flow.TxRx(
             flow.PortTxRx(
                 tx_port_name=ports[0].name,
-                rx_port_name=ports[1].name
+                rx_port_name=ports[2].name
             )
         )
     )
@@ -90,7 +121,7 @@ def test_static_lag(serializer, api, options, utils):
         name='f2',
         tx_rx=flow.TxRx(
             flow.PortTxRx(
-                tx_port_name=ports[2].name,
+                tx_port_name=ports[1].name,
                 rx_port_name=ports[3].name
             )
         )
@@ -145,8 +176,8 @@ def test_lacp_lag(serializer, api, options, utils):
     )
     ports = [
         port.Port(name='txp1', location=utils.settings.ports[0]),
-        port.Port(name='txp2', location=utils.settings.ports[1]),
-        port.Port(name='rxp1', location=utils.settings.ports[2]),
+        port.Port(name='txp2', location=utils.settings.ports[2]),
+        port.Port(name='rxp1', location=utils.settings.ports[1]),
         port.Port(name='rxp2', location=utils.settings.ports[3])
     ]
     l1 = [
@@ -198,7 +229,37 @@ def test_lacp_lag(serializer, api, options, utils):
         lag.Port(port_name=ports[3].name, protocol=proto4, ethernet=eth4)
     lag1 = lag.Lag(name='lag1', ports=[lag_port1, lag_port2])
     lag2 = lag.Lag(name='lag2', ports=[lag_port3, lag_port4])
-    
+
+    devices = []
+    devices.append(
+        device.Device(
+            name='device1',
+            container_name=lag1.name,
+            device_count=15,
+            choice=device.Ipv4(
+                name='ipv41',
+                address=device.Pattern('1.1.1.1'),
+                prefix=device.Pattern('24'),
+                gateway=device.Pattern('1.1.1.2'),
+                ethernet=device.Ethernet(
+                    name='ether1',
+                    mac=device.Pattern('00:00:fa:ce:fa:ce'),
+                    mtu=device.Pattern('1200')))))
+    devices.append(
+        device.Device(
+            name='device2',
+            container_name=lag2.name,
+            device_count=15,
+            choice=device.Ipv4(
+                name='ipv42',
+                address=device.Pattern('1.1.1.2'),
+                prefix=device.Pattern('24'),
+                gateway=device.Pattern('1.1.1.1'),
+                ethernet=device.Ethernet(
+                    name='ether2',
+                    mac=device.Pattern('00:00:fa:ce:fa:aa'),
+                    mtu=device.Pattern('1200')))))
+
     packets = 2000
     f1_size = 74
     f2_size = 1500
@@ -208,7 +269,7 @@ def test_lacp_lag(serializer, api, options, utils):
         tx_rx=flow.TxRx(
             flow.PortTxRx(
                 tx_port_name=ports[0].name,
-                rx_port_name=ports[1].name
+                rx_port_name=ports[2].name
             )
         )
     )
@@ -217,7 +278,7 @@ def test_lacp_lag(serializer, api, options, utils):
         name='f2',
         tx_rx=flow.TxRx(
             flow.PortTxRx(
-                tx_port_name=ports[2].name,
+                tx_port_name=ports[1].name,
                 rx_port_name=ports[3].name
             )
         )
@@ -233,7 +294,7 @@ def test_lacp_lag(serializer, api, options, utils):
 
     configuration = config.Config(
         ports=ports, options=options, lags=[lag1, lag2], layer1=l1,
-        flows=[flow1, flow2]
+        flows=[flow1, flow2], devices=devices
     )
 
     utils.start_traffic(api, configuration, start_capture=False)
