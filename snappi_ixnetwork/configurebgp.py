@@ -1,0 +1,678 @@
+import re
+from collections import namedtuple
+
+class ConfigureBgp(object):
+    _BGP_AS_SET_MODE = {
+        'do_not_include_as': 'dontincludelocalas',
+        'include_as_seq': 'includelocalasasasseq',
+        'include_as_set': 'includelocalasasasset',
+        'include_as_seq_confed': 'includelocalasasasseqconfederation',
+        'include_as_set_confed': 'includelocalasasassetconfederation',
+        'prepend_as_to_first_segment': 'prependlocalastofirstsegment'
+    }
+    
+    _BGP_AS_MODE = {
+        'do_not_include_local_as': 'dontincludelocalas',
+        'include_as_seq': 'includelocalasasasseq',
+        'include_as_set': 'includelocalasasasset',
+        'include_as_confed_seq': 'includelocalasasasseqconfederation',
+        'include_as_confed_set': 'includelocalasasassetconfederation',
+        'prepend_to_first_segment': 'prependlocalastofirstsegment'
+    }
+    
+    _BGP_SEG_TYPE = {
+        'as_seq': 'asseq',
+        'as_set': 'asset',
+        'as_confed_seq': 'asseqconfederation',
+        'as_confed_set': 'assetconfederation'
+    }
+    
+    _BGP_COMMUNITY_TYPE = {
+        'manual_as_number': 'manual',
+        'no_export': 'noexport',
+        'no_advertised': 'noadvertised',
+        'no_export_subconfed': 'noexport_subconfed',
+        'llgr_stale': 'llgr_stale',
+        'no_llgr': 'no_llgr'
+    }
+    
+    _BGP_SR_TR = {
+        'policy_type' : {
+            'ixn_attr' : 'policyType',
+            'default' : 'ipv4'
+        },
+        'distinguisher' : {
+            'ixn_attr' : 'distinguisher',
+            'default' : '1'
+        },
+        'color' : {
+            'ixn_attr' : 'policyColor',
+            'default' : '101'
+        },
+        'ipv4_endpoint' : {
+            'ixn_attr' : 'endPointV4',
+            'default' : '0.0.0.0'
+        },
+        'ipv6_endpoint' : {
+            'ixn_attr' : 'endPointV6',
+            'default' : '0:0:0:0:0:0:0:0'
+        }
+    }
+
+    _SRTR_NEXT_HOP = {
+        'next_hop_mode' : {
+            'ixn_attr': 'setNextHop',
+            'default': 'sameaslocalip',
+            'enum_map': {
+                'local_ip' : 'sameaslocalip',
+                'manual' : 'manually'
+            }
+        },
+        'next_hop_address_type' : {
+            'ixn_attr' : 'setNextHopIpType',
+            'default' : 'ipv4'
+        },
+        'ipv4_address' : {
+            'ixn_attr' : 'ipv4NextHop',
+            'default' : '0.0.0.0'
+        },
+        'ipv6_address' : {
+            'ixn_attr' : 'ipv6NextHop',
+            'default' : '::'
+        }
+    }
+    
+    _SRTE_ADDPATH = {
+        'path_id' : {
+            'ixn_attr' : 'addPathId',
+            'default' : '1'
+        }
+    }
+
+    _REMOTE_ENDPOINT_SUB_TLV = {
+        'as_number' : {
+            'ixn_attr' : 'as4Number',
+            'default' : '0'
+        },
+        'address_family' : {
+            'ixn_attr' : 'addressFamily',
+            'default': 'ipv4'
+        },
+        'ipv4_address' : {
+            'ixn_attr' : 'remoteEndpointIPv4',
+            'default': '0.0.0.0'
+        },
+        'ipv6_address': {
+            'ixn_attr': 'remoteEndpointIPv6',
+            'default': '::'
+        }
+    }
+    
+    _PREFERENCE_SUB_TLV = {
+        'preference' : {
+            'ixn_attr' : 'prefValue',
+            'default': '0'
+        }
+    }
+    
+    _BINDING_SUB_TLV = {
+        'binding_sid_type' : {
+            'ixn_attr' : 'bindingSIDType',
+            'default' : 'nobinding',
+            'enum_map' : {
+                'no_binding' : 'nobinding',
+                'four_octet_sid' : 'sid4',
+                'ipv6_sid' : 'ipv6sid'
+            }
+        },
+        'four_octet_sid' : {
+            'ixn_attr' : 'SID4Octet',
+            'default': '0'
+        },
+        'bsid_as_mpls_label' : {
+            'ixn_attr' : 'useAsMPLSLabel',
+            'default': False
+        },
+        'ipv6_sid' : {
+            'ixn_attr' : 'IPv6SID',
+            'default': '::'
+        },
+        # 's_flag' : {
+        #     'ixn_attr' : '',
+        # },
+        # 'i_flag' : {
+        #     'ixn_attr': '',
+        # },
+        # 'remaining_flag_bits' : {
+        #     'ixn_attr': '',
+        # }
+    }
+    
+    _EXPLICIT_NULL_LABEL_POLICY_SUB_TLV = {
+    
+    }
+
+    _POLICIES_SEGMENT_LIST = {
+        'segment_weight' : {
+            'ixn_attr' : 'weight',
+            'default' : '200'
+        }
+    }
+
+    _SEGMENTS = {
+        'segment_type' : {
+            'ixn_attr' : 'segmentType',
+            'default' : 'mplssid',
+            'enum_map' : {
+                'mpls_sid' : 'mplssid',
+                'ipv6_sid' : 'ipv6sid'
+            }
+        },
+        'mpls_label' : {
+            'ixn_attr' : 'label',
+            'default' : '16'
+        },
+        'mpls_tc' : {
+            'ixn_attr' : 'trafficClass',
+            'default' : '0'
+        },
+        'mpls_ttl' : {
+            'ixn_attr' : 'timeToLive',
+            'default' : '255'
+        },
+        # 'v_flag' : {
+        #     'ixn_attr' : '',
+        # }
+        'ipv6_sid' : {
+            'ixn_attr' : 'ipv6SID',
+            'default' : '::'
+        }
+    }
+
+    def __init__(self, ngpf):
+        self._ngpf = ngpf
+        self._api = ngpf._api
+        self.update = ngpf.update
+        self.configure_value = ngpf.configure_value
+        self.get_xpath = ngpf.get_xpath
+        self.select_node = ngpf.select_node
+        self.select_child_node = ngpf.select_child_node
+
+    def configure_bgpv4(self, ixn_parent, bgpv4, ixn_dg):
+        ixn_bgpv4 = ixn_parent.BgpIpv4Peer
+        self._api._remove(ixn_bgpv4, [bgpv4])
+        args = {
+            'Name': bgpv4.name,
+        }
+        ixn_bgpv4.find(Name='^%s$' % bgpv4.name)
+        if len(ixn_bgpv4) == 0:
+            ixn_bgpv4.add(**args)[-1]
+        else:
+            self.update(ixn_bgpv4, **args)
+        self._api.ixn_objects[bgpv4.name] = ixn_bgpv4.href
+        as_type = 'internal'
+        if bgpv4.as_type is not None and bgpv4.as_type \
+                    == 'ebgp':
+            as_type = 'external'
+        bgp_xpath = self.get_xpath(ixn_bgpv4.href)
+        self.configure_value(bgp_xpath, 'type', as_type)
+        as_bytes = bgpv4.as_number_width
+        if as_bytes is None or as_bytes == 'two':
+            self.configure_value(bgp_xpath, 'localAs2Bytes', bgpv4.as_number)
+        elif as_bytes == 'four':
+            self.configure_value(bgp_xpath, 'enable4ByteAs', True)
+            self.configure_value(bgp_xpath, 'localAs4Bytes', bgpv4.as_number)
+        else:
+            raise Exception("Please configure supported [two, four] as_number_width")
+        self.configure_value(bgp_xpath, 'dutIp', bgpv4.dut_address)
+        self.configure_value(bgp_xpath, 'asSetMode',
+                           bgpv4.as_number_set_mode,
+                           enum_map=ConfigureBgp._BGP_AS_SET_MODE)
+        # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
+        advanced = bgpv4.advanced
+        self.configure_value(bgp_xpath, 'holdTimer', advanced.hold_time_interval)
+        self.configure_value(bgp_xpath, 'keepaliveTimer', advanced.keep_alive_interval)
+        self.configure_value(bgp_xpath, 'md5Key', advanced.md5_key)
+        self.configure_value(bgp_xpath, 'updateInterval', advanced.update_interval)
+        self.configure_value(bgp_xpath, 'ttl', advanced.time_to_live)
+        self._configure_sr_te(ixn_bgpv4, bgpv4)
+        self._bgp_route_builder(ixn_dg, ixn_bgpv4, bgpv4)
+        return ixn_bgpv4
+    
+    def _bgp_route_builder(self, ixn_dg, ixn_bgp, bgp):
+        bgpv4_routes = bgp.bgpv4_routes
+        bgpv6_routes = bgp.bgpv6_routes
+        if len(bgpv4_routes) > 0:
+            for route_range in bgpv4_routes:
+                self._configure_bgpv4_route(ixn_dg,
+                                            ixn_bgp,
+                                            route_range)
+        if len(bgpv6_routes) > 0:
+            for route_range in bgpv6_routes:
+                self._configure_bgpv6_route(ixn_dg,
+                                            ixn_bgp,
+                                            route_range)
+
+    def _configure_bgpv4_route(self, ixn_dg, ixn_bgp, route_range):
+        ixn_ng = ixn_dg.NetworkGroup
+        args = {
+            'Name': route_range.name,
+        }
+        ixn_ng.find(Name='^%s$' % route_range.name)
+        if len(ixn_ng) == 0:
+            self.stop_topology()
+            ixn_ng.add(**args)[-1]
+            ixn_pool = ixn_ng.Ipv4PrefixPools.add()
+        else:
+            self.update(ixn_ng, **args)
+            ixn_pool = ixn_ng.Ipv4PrefixPools.find()
+        ixn_pool.Connector.find().ConnectedTo = ixn_bgp.href
+        if route_range.name is not None:
+            self._api.ixn_objects[route_range.name] = ixn_ng.href
+            self._api._device_encap[route_range.name] = 'ipv4'
+        pool_infos = self.select_node(ixn_pool.href,
+                   children = ['bgpIPRouteProperty', 'bgpV6IPRouteProperty'])
+        pool_xpath = pool_infos['xpath']
+        addresses = route_range.addresses
+        if len(addresses) > 0:
+            ixn_ng.Multiplier = len(addresses)
+            route_addresses = RouteAddresses()
+            for address in addresses:
+                route_addresses.address = address.address
+                route_addresses.step = address.step
+                route_addresses.prefix = address.prefix
+                route_addresses.count = address.count
+            self.configure_value(pool_xpath, 'networkAddress',
+                                  route_addresses.address)
+            self.configure_value(pool_xpath, 'prefixAddrStep',
+                                  route_addresses.step)
+            self.configure_value(pool_xpath, 'prefixLength',
+                                  route_addresses.prefix)
+            self.configure_value(pool_xpath, 'numberOfAddressesAsy',
+                                  route_addresses.count)
+        if 'bgpIPRouteProperty' in pool_infos:
+            ixn_bgp_property = ixn_pool.BgpIPRouteProperty.find()
+            property_xpath = pool_infos['bgpIPRouteProperty'][0]['xpath']
+        else:
+            ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
+            property_xpath = pool_infos['bgpV6IPRouteProperty'][0]['xpath']
+        self.configure_value(property_xpath, 'ipv4NextHop',
+                              route_range.next_hop_address)
+        advanced = route_range.advanced
+        if advanced.multi_exit_discriminator is not None:
+            self.configure_value(property_xpath, 'enableMultiExitDiscriminator', True)
+            self.configure_value(property_xpath, 'multiExitDiscriminator',
+                                  advanced.multi_exit_discriminator)
+        self.configure_value(property_xpath, 'origin', advanced.origin)
+        self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
+        self._config_bgp_community(route_range.communities, ixn_bgp_property)
+
+    def configure_bgpv6(self, ixn_parent, bgpv6, ixn_dg):
+        ixn_bgpv6 = ixn_parent.BgpIpv6Peer
+        self._api._remove(ixn_bgpv6, [bgpv6])
+        args = {
+            'Name': bgpv6.name,
+        }
+        ixn_bgpv6.find(Name='^%s$' % bgpv6.name)
+        if len(ixn_bgpv6) == 0:
+            ixn_bgpv6.add(**args)[-1]
+        else:
+            self.update(ixn_bgpv6, **args)
+        self._api.ixn_objects[bgpv6.name] = ixn_bgpv6.href
+        as_type = 'internal'
+        if bgpv6.as_type is not None and bgpv6.as_type \
+            == 'ebgp':
+            as_type = 'external'
+        bgp_xpath = self.get_xpath(ixn_bgpv6.href)
+        self.configure_value(bgp_xpath, 'type', as_type)
+        as_bytes = bgpv6.as_number_width
+        if as_bytes is None or as_bytes == 'two':
+            self.configure_value(bgp_xpath, 'localAs2Bytes', bgpv6.as_number)
+        elif as_bytes == 'four':
+            self.configure_value(bgp_xpath, 'enable4ByteAs', True)
+            self.configure_value(bgp_xpath, 'localAs4Bytes', bgpv6.as_number)
+        else:
+            raise Exception("Please configure supported [two, four] as_number_width")
+        self.configure_value(bgp_xpath, 'dutIp', bgpv6.dut_address)
+        self.configure_value(bgp_xpath, 'asSetMode',
+                             bgpv6.as_number_set_mode,
+                             enum_map=ConfigureBgp._BGP_AS_SET_MODE)
+        # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
+        advanced = bgpv6.advanced
+        self.configure_value(bgp_xpath, 'holdTimer', advanced.hold_time_interval)
+        self.configure_value(bgp_xpath, 'keepaliveTimer', advanced.keep_alive_interval)
+        self.configure_value(bgp_xpath, 'md5Key', advanced.md5_key)
+        self.configure_value(bgp_xpath, 'updateInterval', advanced.update_interval)
+        self.configure_value(bgp_xpath, 'ttl', advanced.time_to_live)
+
+        self._configure_sr_te(ixn_bgpv6, bgpv6.sr_te_policies)
+        self._bgp_route_builder(ixn_dg, ixn_bgpv6, bgpv6)
+        return ixn_bgpv6
+
+    def _configure_bgpv6_route(self, ixn_dg, ixn_bgp, route_range):
+        ixn_ng = ixn_dg.NetworkGroup
+        args = {
+            'Name': route_range.name,
+        }
+        ixn_ng.find(Name='^%s$' % route_range.name)
+        if len(ixn_ng) == 0:
+            self.stop_topology()
+            ixn_ng.add(**args)[-1]
+            ixn_pool = ixn_ng.Ipv6PrefixPools.add()
+        else:
+            self.update(ixn_ng, **args)
+            ixn_pool = ixn_ng.Ipv6PrefixPools.find()
+        ixn_pool.Connector.find().ConnectedTo = ixn_bgp.href
+        if route_range.name is not None:
+            self._api.ixn_objects[route_range.name] = ixn_ng.href
+            self._api._device_encap[route_range.name] = 'ipv6'
+        pool_infos = self.select_node(ixn_pool.href,
+                                      children=['bgpIPRouteProperty', 'bgpV6IPRouteProperty'])
+        pool_xpath = pool_infos['xpath']
+        addresses = route_range.addresses
+        if len(addresses) > 0:
+            ixn_ng.Multiplier = len(addresses)
+            route_addresses = RouteAddresses()
+            for address in addresses:
+                route_addresses.address = address.address
+                route_addresses.step = address.step
+                route_addresses.prefix = address.prefix
+                route_addresses.count = address.count
+            self.configure_value(pool_xpath, 'networkAddress',
+                                 route_addresses.address)
+            self.configure_value(pool_xpath, 'prefixAddrStep',
+                                 route_addresses.step)
+            self.configure_value(pool_xpath, 'prefixLength',
+                                 route_addresses.prefix)
+            self.configure_value(pool_xpath, 'numberOfAddressesAsy',
+                                 route_addresses.count)
+        if self._api.get_device_encap(ixn_dg.Name) == 'ipv4':
+            ixn_bgp_property = ixn_pool.BgpIPRouteProperty.find()
+            property_xpath = pool_infos['bgpIPRouteProperty'][0]['xpath']
+        else:
+            ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
+            property_xpath = pool_infos['bgpV6IPRouteProperty'][0]['xpath']
+        self.configure_value(property_xpath, 'ipv6NextHop',
+                             route_range.next_hop_address)
+        advanced = route_range.advanced
+        if advanced.multi_exit_discriminator is not None:
+            self.configure_value(property_xpath, 'enableMultiExitDiscriminator', True)
+            self.configure_value(property_xpath, 'multiExitDiscriminator',
+                                 advanced.multi_exit_discriminator)
+        self.configure_value(property_xpath, 'origin', advanced.origin)
+        self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
+        self._config_bgp_community(route_range.communities, ixn_bgp_property)
+
+    def _config_bgp_as_path(self, as_path, ixn_bgp_property):
+        as_path_segments = as_path.as_path_segments
+        property_xpath = self.get_xpath(ixn_bgp_property.href)
+        if as_path.as_set_mode is not None or len(
+            as_path_segments) > 0:
+            self.configure_value(property_xpath, 'enableAsPathSegments', True)
+            self.configure_value(property_xpath, 'asSetMode', as_path.as_set_mode,
+                                 enum_map=ConfigureBgp._BGP_AS_MODE)
+            self.configure_value(property_xpath, 'OverridePeerAsSetMode',
+                                 as_path.override_peer_as_set_mode)
+            if len(as_path_segments) > 0:
+                ixn_bgp_property.NoOfASPathSegmentsPerRouteRange = len(
+                    as_path_segments)
+                ixn_segments = ixn_bgp_property.BgpAsPathSegmentList.find()
+                for seg_index, segment in enumerate(as_path_segments):
+                    ixn_segment = ixn_segments[seg_index]
+                    ixn_segment.SegmentType.Single(ConfigureBgp._BGP_SEG_TYPE[
+                                                       segment.segment_type])
+                    as_numbers = segment.as_numbers
+                    if as_numbers is not None:
+                        ixn_segment.NumberOfAsNumberInSegment = len(as_numbers)
+                        as_numbers_info = self.select_child_node(ixn_segment.href,
+                                                                 'bgpAsNumberList')
+                        for as_index, as_number in enumerate(as_numbers):
+                            as_num_xpath = as_numbers_info[as_index]['xpath']
+                            self.configure_value(as_num_xpath, 'asNumber', as_number)
+
+    def _config_bgp_community(self, communities, ixn_bgp_property):
+        if len(communities) == 0:
+            ixn_bgp_property.EnableCommunity.Single(False)
+            return
+        ixn_bgp_property.EnableCommunity.Single(True)
+        ixn_bgp_property.NoOfCommunities = len(communities)
+        communities_info = self.select_child_node(ixn_bgp_property.href,
+                                                  'bgpCommunitiesList')
+        for index, community in enumerate(communities):
+            community_xpath = communities_info[index]['xpath']
+            if community.community_type is not None:
+                self.configure_value(community_xpath, 'type', community.community_type,
+                                     enum_map=ConfigureBgp._BGP_COMMUNITY_TYPE)
+            self.configure_value(community_xpath, 'asNumber', community.as_number)
+            self.configure_value(community_xpath, 'lastTwoOctets', community.as_custom)
+
+    def _configure_sr_te(self, ixn_bgp, sr_te_list):
+        if sr_te_list is None or len(sr_te_list) == 0:
+            return
+        ixn_bgp.NumberSRTEPolicies = len(sr_te_list)
+        if re.search(ixn_bgp.href, 'bgpIpv4Peer') is not None:
+            ixn_sr_te = ixn_bgp.bgpSRTEPoliciesListV4
+        else:
+            ixn_sr_te = ixn_bgp.BgpSRTEPoliciesListV6
+        sr_te_xpath = self.get_xpath(ixn_sr_te.href)
+        self._configure_attributes(ConfigureBgp._BGP_SR_TR,
+                                   sr_te_list,
+                                   sr_te_xpath)
+        next_hops = []
+        add_paths = []
+        as_paths = []
+        communities = []
+        for sr_te in sr_te_list:
+            next_hops.append(sr_te.next_hop)
+            add_paths.append(sr_te.add_path)
+            as_paths.append(sr_te.as_path)
+            communities.append(sr_te.communities)
+        active_list = self._process_nodes(next_hops)
+        self.configure_value(sr_te_xpath, 'enableNextHop', active_list)
+        if any(active_list):
+            self._configure_attributes(ConfigureBgp._SRTR_NEXT_HOP,
+                                       next_hops,
+                                       sr_te_xpath)
+        active_list = self._process_nodes(add_paths)
+        self.configure_value(sr_te_xpath, 'enableAddPath', active_list)
+        if any(active_list):
+            self._configure_attributes(ConfigureBgp._SRTE_ADDPATH,
+                                       next_hops,
+                                       sr_te_xpath)
+        self._configure_tlvs(ixn_sr_te, sr_te_list)
+
+    def _get_symmetric_nodes(self, parent_list, node_name):
+        NodesInfo = namedtuple("NodesInfo", ["max_len",
+                                             "active_list",
+                                             "symmetric_nodes"])
+        nodes_list = []
+        max_len = 0
+        for parent in parent_list:
+            nodes = getattr(parent, node_name)
+            node_len = len(nodes)
+            if node_len > max_len:
+                max_len = node_len
+            nodes_list.append(nodes)
+        symmetric_nodes = []
+        active_list = []
+        for nodes in nodes_list:
+            if len(nodes) == max_len:
+                for node in nodes:
+                    active_list.append(node.active)
+                    symmetric_nodes.append(node)
+            else:
+                for index in range(0, max_len):
+                    node = nodes[0]
+                    if index < len(nodes):
+                        node = nodes[index]
+                        active_list.append(node.active)
+                        symmetric_nodes.append(node)
+                    else:
+                        active_list.append(False)
+                        symmetric_nodes.append(node)
+        return NodesInfo(max_len,
+                         active_list,
+                         symmetric_nodes)
+    
+    def _configure_tlvs(self, ixn_sr_te, sr_te_list):
+        nodes_info = self._get_symmetric_nodes(sr_te_list, 'tunnel_tlvs')
+        if int(nodes_info.max_len) > 2:
+            raise Exception("Value {0} for SR TE Policy Number of Tunnel TLVs is "
+                            "greater than maximal value 2".format(nodes_info.max_len))
+        if re.search(ixn_sr_te.href, 'bgpSRTEPoliciesListV4') is not None:
+            ixn_sr_te.NumberOfTunnelsV4 = nodes_info.max_len
+            ixn_tunnel = ixn_sr_te.BgpSRTEPoliciesTunnelEncapsulationListV4
+        else:
+            ixn_sr_te.NumberOfTunnelsV6 = nodes_info.max_len
+            ixn_tunnel = ixn_sr_te.BgpSRTEPoliciesTunnelEncapsulationListV6
+        tunnel_xpath = self.get_xpath(ixn_tunnel.href)
+        self.configure_value(tunnel_xpath, 'active', nodes_info.active_list)
+        tunnel_tlvs = nodes_info.symmetric_nodes
+        
+        remote_endpoint_sub_tlv = []
+        preference_sub_tlv = []
+        binding_sub_tlv = []
+        explicit_null_label_policy_sub_tlv = []
+        for tunnel_tlv in tunnel_tlvs:
+            remote_endpoint_sub_tlv.append(tunnel_tlv.remote_endpoint_sub_tlv)
+            preference_sub_tlv.append(tunnel_tlv.preference_sub_tlv)
+            binding_sub_tlv.append(tunnel_tlv.binding_sub_tlv)
+            explicit_null_label_policy_sub_tlv.append(tunnel_tlv.explicit_null_label_policy_sub_tlv)
+        active_list = self._process_nodes(remote_endpoint_sub_tlv)
+        self.configure_value(tunnel_xpath, 'enRemoteEndPointTLV', active_list)
+        if any(active_list):
+            self._configure_attributes(ConfigureBgp._REMOTE_ENDPOINT_SUB_TLV,
+                                       remote_endpoint_sub_tlv,
+                                       tunnel_xpath)
+        active_list = self._process_nodes(preference_sub_tlv)
+        self.configure_value(tunnel_xpath, 'enPrefTLV', active_list)
+        if any(active_list):
+            self._configure_attributes(ConfigureBgp._PREFERENCE_SUB_TLV,
+                                       preference_sub_tlv,
+                                       tunnel_xpath)
+        active_list = self._process_nodes(binding_sub_tlv)
+        self.configure_value(tunnel_xpath, 'enBindingTLV', active_list)
+        if any(active_list):
+            self._configure_attributes(ConfigureBgp._BINDING_SUB_TLV,
+                                       binding_sub_tlv,
+                                       tunnel_xpath)
+        self._configure_tlv_segment(ixn_tunnel, tunnel_tlvs)
+
+    def _configure_tlv_segment(self, ixn_tunnel, tunnel_tlvs):
+        nodes_info = self._get_symmetric_nodes(tunnel_tlvs, 'segment_lists')
+        if re.search(ixn_tunnel.href, 'bgpSRTEPoliciesTunnelEncapsulationListV6') is not None:
+            ixn_tunnel.NumberOfSegmentListV4 = nodes_info.max_len
+            ixn_segment_list = ixn_tunnel.BgpSRTEPoliciesSegmentListV4
+        else:
+            ixn_tunnel.NumberOfSegmentListV6 = nodes_info.max_len
+            ixn_segment_list = ixn_tunnel.BgpSRTEPoliciesSegmentListV6
+        segment_list_xpath = self.get_xpath(ixn_segment_list.href)
+        self.configure_value(segment_list_xpath, 'active', nodes_info.active_list)
+        segment_list = nodes_info.symmetric_nodes
+        if any(nodes_info.active_list):
+            self._configure_attributes(ConfigureBgp._POLICIES_SEGMENT_LIST,
+                                       segment_list,
+                                       segment_list_xpath)
+        
+        nodes_info = self._get_symmetric_nodes(segment_list, 'segments')
+        if re.search(ixn_tunnel.href, 'bgpSRTEPoliciesSegmentListV4') is not None:
+            ixn_segment_list.NumberOfSegmentsV4 = nodes_info.max_len
+            ixn_segments = ixn_segment_list.BgpSRTEPoliciesSegmentsCollectionV4
+        else:
+            ixn_segment_list.NumberOfSegmentsV6 = nodes_info.max_len
+            ixn_segments = ixn_segment_list.BgpSRTEPoliciesSegmentsCollectionV6
+        segments_xpath = self.get_xpath(ixn_segments.href)
+        self.configure_value(segments_xpath, 'active', nodes_info.active_list)
+        segments = nodes_info.symmetric_nodes
+        if any(nodes_info.active_list):
+            self._configure_attributes(ConfigureBgp._SEGMENTS,
+                                       segments,
+                                       segments_xpath)
+    
+    def _process_nodes(self, nodes):
+        active_list = []
+        for index, node in enumerate(nodes):
+            active = False
+            if node is None:
+                if index == 0:
+                    nodes[0] = next(v for v in nodes if v is not None)
+                else:
+                    nodes[index] = nodes[index - 1]
+            else:
+                is_config = False
+                for name, value in node._properties.items():
+                    if value is not None:
+                        is_config = True
+                        break
+                if is_config is True:
+                    active = True
+            active_list.append(active)
+        return active_list
+    
+    def _configure_attributes(self, mapper, parent_list, xpath):
+        for attribute in mapper:
+            attr_mapper = mapper[attribute]
+            ixn_attribute = attr_mapper['ixn_attr']
+            default_value = attr_mapper['default']
+            enum_map = attr_mapper.get('enum_map')
+            default_obj = getattr(self, str(default_value), None)
+            config_values = []
+            for parent in parent_list:
+                # if obj_name is not None:
+                #     parent = getattr(parent, obj_name, None)
+                config_value = getattr(parent, attribute, None)
+                if config_value is not None:
+                    if enum_map is None:
+                        config_values.append(str(config_value))
+                    else:
+                        config_values.append(enum_map[
+                            str(config_value)])
+                elif default_obj is not None:
+                    config_values.append(default_obj())
+                else:
+                    config_values.append(default_value)
+            self.configure_value(xpath, ixn_attribute, config_values)
+    
+    def stop_topology(self):
+        glob_topo = self._api._globals.Topology.refresh()
+        if glob_topo.Status == 'started':
+            self._api._ixnetwork.StopAllProtocols('sync')
+
+class RouteAddresses(object):
+    def __init__(self):
+        self._address = []
+        self._count = []
+        self._prefix = []
+        self._step = []
+    
+    @property
+    def address(self):
+        return self._address
+    
+    @address.setter
+    def address(self, value):
+        self._address.append(value)
+    
+    @property
+    def count(self):
+        return self._count
+    
+    @count.setter
+    def count(self, value):
+        self._count.append(value)
+    
+    @property
+    def prefix(self):
+        return self._prefix
+    
+    @prefix.setter
+    def prefix(self, value):
+        self._prefix.append(value)
+    
+    @property
+    def step(self):
+        return self._step
+    
+    @step.setter
+    def step(self, value):
+        self._step.append(value)
