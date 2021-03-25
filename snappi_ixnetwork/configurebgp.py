@@ -235,7 +235,7 @@ class ConfigureBgp(object):
         self.configure_value(bgp_xpath, 'md5Key', advanced.md5_key)
         self.configure_value(bgp_xpath, 'updateInterval', advanced.update_interval)
         self.configure_value(bgp_xpath, 'ttl', advanced.time_to_live)
-        self._configure_sr_te(ixn_bgpv4, bgpv4)
+        self._configure_sr_te(ixn_bgpv4, bgpv4.sr_te_policies)
         self._bgp_route_builder(ixn_dg, ixn_bgpv4, bgpv4)
         return ixn_bgpv4
     
