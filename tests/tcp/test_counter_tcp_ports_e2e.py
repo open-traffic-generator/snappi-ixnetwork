@@ -1,9 +1,8 @@
 import pytest
 
 
-@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.e2e
-def test_counter_tcp_ports_e2e(api, settings, b2b_raw_config):
+def test_counter_tcp_ports_e2e(api, utils, b2b_raw_config):
     """
     Configure a raw TCP flow with,
     - src port incrementing from 5000 to 5018 with step value 2
@@ -14,47 +13,34 @@ def test_counter_tcp_ports_e2e(api, settings, b2b_raw_config):
     - tx/rx frame count and bytes are as expected
     - all captured frames have expected src and dst ports
     """
+    api.set_config(api.config())
     f = b2b_raw_config.flows[0]
     size = 1518
     packets = 100
-
-    f.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=flow.Pattern('00:CD:DC:CD:DC:CD'),
-                dst=flow.Pattern('00:AB:BC:AB:BC:AB')
-            )
-        ),
-        flow.Header(
-            flow.Ipv4(
-                src=flow.Pattern('1.1.1.2'),
-                dst=flow.Pattern('1.1.1.1')
-            )
-        ),
-        flow.Header(
-            flow.Tcp(
-                src_port=flow.Pattern(
-                    flow.Counter(start='5000', step='2', count=10)
-                ),
-                dst_port=flow.Pattern(
-                    flow.Counter(start='6000', step='2', count=10, up=False)
-                ),
-            )
-        )
-    ]
-    f.duration = flow.Duration(flow.FixedPackets(packets=packets))
-    f.size = flow.Size(size)
-    f.rate = flow.Rate(value=10, unit='line')
-
+    f.packet.ethernet().ipv4().tcp()
+    eth, ip, tcp = f.packet[0], f.packet[1], f.packet[2]
+    eth.src.value = '00:CD:DC:CD:DC:CD'
+    eth.dst.value = '00:AB:BC:AB:BC:AB'
+    ip.src.value = '1.1.1.2'
+    ip.dst.value = '1.1.1.1'
+    tcp.src_port.increment.start = 5000
+    tcp.src_port.increment.step = 2
+    tcp.src_port.increment.count = 10
+    tcp.dst_port.decrement.start = 6000
+    tcp.dst_port.decrement.step = 2
+    tcp.dst_port.decrement.count = 10
+    f.duration.fixed_packets.packets = packets
+    f.size.fixed = size
+    f.rate.percentage = 10
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: results_ok(api, b2b_raw_config, size, packets),
+        lambda: results_ok(api, utils, size, packets),
         'stats to be as expected', timeout_seconds=10
     )
-    captures_ok(api, b2b_raw_config, size, packets)
+    captures_ok(api, b2b_raw_config, size, utils)
 
 
-def results_ok(api, cfg, size, packets):
+def results_ok(api, utils, size, packets):
     """
     Returns true if stats are as expected, false otherwise.
     """
@@ -64,7 +50,7 @@ def results_ok(api, cfg, size, packets):
     return frames_ok and bytes_ok
 
 
-def captures_ok(api, cfg, size, packets):
+def captures_ok(api, cfg, size, utils):
     """
     Returns normally if patterns in captured packets are as expected.
     """
