@@ -14,7 +14,7 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
 
     size = 128
     packets = 100000
-    count = 2
+    count = 10
     mac_tx = utils.mac_or_ip_addr_from_counter_pattern(
         '00:10:10:20:20:10', '00:00:00:00:00:01', count, True
     )
@@ -89,7 +89,7 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
         'stats to be as expected', timeout_seconds=20
     )
     utils.stop_traffic(api, b2b_raw_config)
-    captures_ok(api, b2b_raw_config, utils, packets * 2)
+    captures_ok(api, b2b_raw_config, utils, count, packets * 2)
 
 
 def results_ok(api, utils, size1, size2, packets):
