@@ -1,9 +1,8 @@
 import pytest
 
 
-@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.e2e
-def test_udp_header_with_counter_e2e(api, b2b_raw_config):
+def test_udp_header_with_counter_e2e(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,
     - Non-default Counter Pattern values of src and
@@ -15,53 +14,40 @@ def test_udp_header_with_counter_e2e(api, b2b_raw_config):
     - tx/rx frame count is as expected
     - all captured frames have expected src and dst Port address
     """
+    api.set_config(api.config())
     flow = b2b_raw_config.flows[0]
     packets = 100
     size = 74
-
-    flow.packet = [
-        Flow.Header(
-            Flow.Ethernet(
-                src=Flow.Pattern('00:0c:29:1d:10:67'),
-                dst=Flow.Pattern('00:0c:29:1d:10:71')
-            )
-        ),
-        Flow.Header(
-            Flow.Ipv4(
-                src=Flow.Pattern("10.10.10.1"),
-                dst=Flow.Pattern("10.10.10.2")
-            )
-        ),
-        Flow.Header(
-            Flow.Udp(
-                src_port=Flow.Pattern(
-                    Flow.Counter(start='5000', step='2', count=10)
-                ),
-                dst_port=Flow.Pattern(
-                    Flow.Counter(start='6000', step='2', count=10, up=False)
-                ),
-                length=Flow.Pattern(
-                    Flow.Counter(start="35", step="1", count=2)
-                ),
-                checksum=Flow.Pattern(
-                    Flow.Counter(start="6", step="1", count=2)
-                )
-            )
-        ),
-    ]
-    flow.duration = Flow.Duration(Flow.FixedPackets(packets=packets))
-    flow.size = Flow.Size(size)
-    flow.rate = Flow.Rate(value=10, unit='line')
+    flow.packet.ethernet().ipv4().udp()
+    eth, ip, udp = flow.packet[0], flow.packet[1], flow.packet[2]
+    eth.src.value = '00:0c:29:1d:10:67'
+    eth.dst.value = '00:0c:29:1d:10:71'
+    ip.src.value = '10.10.10.1'
+    ip.dst.value = '10.10.10.2'
+    udp.src_port.increment.start = 5000
+    udp.src_port.increment.step = 2
+    udp.src_port.increment.count = 10
+    udp.dst_port.decrement.start = 6000
+    udp.dst_port.decrement.step = 2
+    udp.dst_port.decrement.count = 10
+    udp.length.increment.start = 35
+    udp.length.increment.step = 1
+    udp.length.increment.count = 2
+    udp.checksum.GOOD
+    flow.duration.fixed_packets.packets = packets
+    flow.size.fixed = size
+    flow.rate.percentage = 10
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: results_ok(api, size, packets), 'stats to be as expected'
+        lambda: results_ok(api, size, packets, utils),
+        'stats to be as expected'
     )
 
-    captures_ok(api, b2b_raw_config, size)
+    captures_ok(api, b2b_raw_config, size, utils)
 
 
-def results_ok(api, size, packets):
+def results_ok(api, size, packets, utils):
     """
     Returns true if stats are as expected, false otherwise.
     """
@@ -71,14 +57,13 @@ def results_ok(api, size, packets):
     return frames_ok and bytes_ok
 
 
-def captures_ok(api, cfg, size):
+def captures_ok(api, cfg, size, utils):
     """
     Returns normally if patterns in captured packets are as expected.
     """
     src = [src_port for src_port in range(5000, 5020, 2)]
     dst = [dst_port for dst_port in range(6000, 5980, -2)]
     length = [35, 36]
-    checksum = [6, 7]
     cap_dict = utils.get_all_captures(api, cfg)
     assert len(cap_dict) == 1
 
@@ -89,7 +74,6 @@ def captures_ok(api, cfg, size):
             assert utils.to_hex(packet[34:36]) == hex(src[i])
             assert utils.to_hex(packet[36:38]) == hex(dst[i])
             assert utils.to_hex(packet[38:40]) == hex(length[j])
-            assert utils.to_hex(packet[40:42]) == hex(checksum[j])
             assert len(packet) == size
             i = (i + 1) % 10
             j = (j + 1) % 2

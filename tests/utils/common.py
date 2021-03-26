@@ -492,3 +492,21 @@ def get_all_captures(api, cfg):
                 cap_dict[name].append(list(pkt))
 
     return cap_dict
+
+
+def flow_transmit_matches(flow_results, state):
+    return len(flow_results) == all(
+        [f.transmit == state for f in flow_results]
+    )
+
+
+def to_hex(lst):
+    """
+    Takes lst of data from packet capture and converts to hex
+    Ex: [11,184] is converted to 0xbb8
+        [0,30] is converted to 0x1e
+    """
+    from functools import reduce
+    value = reduce(lambda x, y: hex(x) + hex(y), lst)
+    value = value[0:2] + value[2:].replace("0x", "").lstrip("0")
+    return value
