@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_list_vlan_fields(api, b2b_raw_config, utils):
     """
     Configure a raw vlan header fields with,
@@ -18,35 +14,27 @@ def test_list_vlan_fields(api, b2b_raw_config, utils):
     ether_type = '8100'
 
     # Vlan fields config
-    priority = [str(i) for i in range(7)]
-    cfi = ['0', '1']
-    vlan_id = [str(i) for i in range(4094)]
-    protocol = ['8100', '9100', '8200']
+    priority = [i for i in range(7)]
+    cfi = [0, 1]
+    vlan_id = [i for i in range(4094)]
 
-    f.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=flow.Pattern(source),
-                dst=flow.Pattern(destination),
-                ether_type=flow.Pattern(ether_type)
-            )
-        ),
-        flow.Header(
-            flow.Vlan(
-                priority=flow.Pattern(priority),
-                cfi=flow.Pattern(cfi),
-                id=flow.Pattern(vlan_id),
-                protocol=flow.Pattern(protocol)
-            )
-        )
-    ]
+    f.packet.ethernet().vlan()
+    eth, vlan = f.packet[0], f.packet[1]
+    eth.src.value = source
+    eth.dst.value = destination
+    eth.ether_type.value = ether_type
 
-    utils.apply_config(api, b2b_raw_config)
+    vlan.priority.values = priority
+
+    vlan.cfi.values = cfi
+
+    vlan.id.values = vlan_id
+
+    api.set_config(b2b_raw_config)
 
     attrs = {
-        'VLAN Priority': priority,
-        'Canonical Format Indicator': cfi,
-        'VLAN-ID': vlan_id,
-        'Protocol-ID': protocol
+        'VLAN Priority': [str(p) for p in priority],
+        'Canonical Format Indicator': [str(c) for c in cfi],
+        'VLAN-ID': [str(v) for v in vlan_id],
     }
     utils.validate_config(api, 'vlan', **attrs)
