@@ -1,15 +1,13 @@
 {
     "username": "common",
-    "api_server": "https://10.39.70.173:11040",
+    "api_server": "https://localhost:443",
     "ports": [
-        "10.39.65.230;5;3",
-        "10.39.65.230;5;4",
-        "10.39.65.230;5;5",
-        "10.39.65.230;5;6"
+        "localhost;1;1",
+        "localhost;1;2"
     ],
     "ext": "ixnetwork",
     "speed": "speed_1_gbps",
-    "media": "fiber",
+    "media": null,
     "timeout_seconds": 30,
     "interval_seconds": 0.5,
     "log_level": "info",
