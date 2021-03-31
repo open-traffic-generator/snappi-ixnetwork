@@ -234,12 +234,12 @@ class TrafficItem(CustomField):
             device = flow.tx_rx.device
             if not isinstance(device.tx_names, list) or \
                     not isinstance(device.rx_names, list):
-                raise ValueError("device tx_names and rx_names should list "
+                raise ValueError("device tx_names and rx_names must be a list "
                                  "in %s flow" % flow.name)
             if len(device.tx_names) != len(set(device.tx_names)) or \
                     len(device.rx_names) != len(set(device.rx_names)):
-                raise ValueError("Configure unique device tx_names or rx_names "
-                                 "in %s flow" % flow.name)
+                raise ValueError("All names in device tx_names or rx_names "
+                                 "must be unique for flow %s" % flow.name)
     
     def _get_mesh_type(self, flow):
         if flow.tx_rx.choice == 'port':
@@ -253,7 +253,7 @@ class TrafficItem(CustomField):
                 mesh_type = 'oneToOne'
                 if len(device.tx_names) != len(device.rx_names):
                     raise ValueError("Length of device tx_names and rx_names "
-                                "should same for flow %s" % flow.name)
+                             "must be same for device mode ONE_TO_ONE in flow %s" % flow.name)
         return mesh_type
     
     def _get_traffic_type(self, flow):
@@ -273,8 +273,8 @@ class TrafficItem(CustomField):
             if len(set(encap_list)) == 1:
                 encap = encap_list[0]
             else:
-                raise Exception("Please assign same type of device within %s flow" %
-                                flow.name)
+                raise Exception("All devices identified in tx_names and rx_names "
+                                "must of same type in flow %s" %flow.name)
         return encap
 
     def _configure_endpoint(self, ixn_endpoint_set, endpoint):
