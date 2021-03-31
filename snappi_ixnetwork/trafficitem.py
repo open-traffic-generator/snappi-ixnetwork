@@ -183,11 +183,12 @@ class TrafficItem(CustomField):
         self._api._remove(ixn_traffic_item, self._api.snappi_config.flows)
         if len(self._api.snappi_config.flows) > 0:
             for flow in self._api.snappi_config.flows:
+                self._endpoint_validation(flow)
                 args = {
                     'Name': flow.name,
                     'TrafficItemType': 'l2L3',
                     'TrafficType': self._get_traffic_type(flow),
-                    'SrcDestMesh': 'oneToOne'
+                    'SrcDestMesh': self._get_mesh_type(flow)
                 }
                 ixn_traffic_item.find(Name='^%s$' % flow.name,
                                       TrafficType=args['TrafficType'])
@@ -225,16 +226,55 @@ class TrafficItem(CustomField):
         if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:
             self._api._traffic.EnableMinFrameSize = enable_min_frame_size
 
-    def _get_traffic_type(self, flow):
+    def _endpoint_validation(self, flow):
         if flow.tx_rx.choice is None:
             raise ValueError('%s Flow.tx_rx property cannot be None' %
                              flow.name)
-        elif flow.tx_rx.choice == 'port':
+        if flow.tx_rx.choice == 'device':
+            device = flow.tx_rx.device
+            if not isinstance(device.tx_names, list) or \
+                    not isinstance(device.rx_names, list):
+                raise ValueError("device tx_names and rx_names should list "
+                                 "in %s flow" % flow.name)
+            if len(device.tx_names) != len(set(device.tx_names)) or \
+                    len(device.rx_names) != len(set(device.rx_names)):
+                raise ValueError("Configure unique device tx_names or rx_names "
+                                 "in %s flow" % flow.name)
+    
+    def _get_mesh_type(self, flow):
+        if flow.tx_rx.choice == 'port':
+            mesh_type = 'oneToOne'
+        else:
+            device = flow.tx_rx.device
+            if device.mode == 'mesh' or \
+                    device.mode is None:
+                mesh_type = 'manyToMany'
+            else:
+                mesh_type = 'oneToOne'
+                if len(device.tx_names) != len(device.rx_names):
+                    raise ValueError("Length of device tx_names and rx_names "
+                                "should same for flow %s" % flow.name)
+        return mesh_type
+    
+    def _get_traffic_type(self, flow):
+        if flow.tx_rx.choice == 'port':
             encap = 'raw'
         else:
-            encap = None
-            for name in flow.tx_rx.device.tx_names:
-                encap = self._api.get_device_encap(name)
+            encap_list = []
+            device = flow.tx_rx.device
+            if device.tx_names is not None:
+                for tx_name in device.tx_names:
+                    encap_list.append(self._api.get_device_encap(
+                            tx_name))
+            if device.rx_names is not None:
+                for rx_name in device.rx_names:
+                    encap_list.append(self._api.get_device_encap(
+                            rx_name))
+            if len(set(encap_list)) == 1:
+                encap = encap_list[0]
+            else:
+                raise Exception("Please assign same type of device within %s flow" %
+                                flow.name)
         return encap
 
     def _configure_endpoint(self, ixn_endpoint_set, endpoint):
