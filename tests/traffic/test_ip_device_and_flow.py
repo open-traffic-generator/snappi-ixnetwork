@@ -60,6 +60,7 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     f1.tx_rx.device.rx_names = [
         b2b_raw_config.devices[i].name for i in range(count, count * 2)
     ]
+    f1.tx_rx.device.mode = f2.tx_rx.device.ONE_TO_ONE
     f1.size.fixed = size
     f1.duration.fixed_packets.packets = packets
     f1.rate.percentage = "10"
@@ -70,6 +71,7 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     f2.tx_rx.device.rx_names = [
         b2b_raw_config.devices[i].name for i in range(count, count * 2)
     ]
+    f2.tx_rx.device.mode = f2.tx_rx.device.ONE_TO_ONE
     f2.packet.ethernet().ipv4().tcp()
     tcp = f2.packet[-1]
     tcp.src_port.increment.start = "5000"
