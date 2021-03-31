@@ -235,10 +235,12 @@ class TrafficItem(CustomField):
             if not isinstance(device.tx_names, list) or \
                     not isinstance(device.rx_names, list):
                 raise ValueError("device tx_names and rx_names must be a list "
-                                 "in %s flow" % flow.name)
-            if len(device.tx_names) != len(set(device.tx_names)) or \
-                    len(device.rx_names) != len(set(device.rx_names)):
-                raise ValueError("All names in device tx_names or rx_names "
+                                 "in flow %s" % flow.name)
+            if len(device.tx_names) != len(set(device.tx_names)):
+                raise ValueError("All names in device tx_names "
+                                 "must be unique for flow %s" % flow.name)
+            if len(device.rx_names) != len(set(device.rx_names)):
+                raise ValueError("All names in device rx_names "
                                  "must be unique for flow %s" % flow.name)
     
     def _get_mesh_type(self, flow):
@@ -274,7 +276,7 @@ class TrafficItem(CustomField):
                 encap = encap_list[0]
             else:
                 raise Exception("All devices identified in tx_names and rx_names "
-                                "must of same type in flow %s" %flow.name)
+                                "must be of same type in flow %s" %flow.name)
         return encap
 
     def _configure_endpoint(self, ixn_endpoint_set, endpoint):
