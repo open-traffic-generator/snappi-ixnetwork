@@ -145,12 +145,12 @@ class ProtocolMetrics(object):
     def _check_if_page_ready(self, view):
         count = 0
         while True:
+            view.Refresh()
             if view.Data.IsReady:
                 break
             if count >= self.metric_timeout:
                 raise Exception("View Page is not ready")
             time.sleep(0.5)
-            view.Refresh()
             count += 1
 
     def _port_names_from_devices(self):
@@ -206,7 +206,7 @@ class ProtocolMetrics(object):
         ports, v = self._port_list_in_per_port(protocol)
         config_ports = self._port_names_from_devices()
         indices = [
-            ports.index(p) for p in config_ports if p in ports
+            ports.index(p) for p in list(set(config_ports)) if p in ports
         ]
         drill_option = self._PROTO_NAME_MAP_[protocol]['drill_down_options'][0]
         drill_name = self._PROTO_NAME_MAP_[protocol]['drill_down']
