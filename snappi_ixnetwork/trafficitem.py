@@ -680,6 +680,11 @@ class TrafficItem(CustomField):
             self._convert_string_to_regex(flow_names)
         )
 
+        flow_count = len(flow_names)
+        ixn_page = self._api._ixnetwork.Statistics.View.find(Caption="Flow Statistics").Page
+        if ixn_page.PageSize < flow_count:
+            ixn_page.PageSize = flow_count
+
         # initialize result values
         flow_rows = {}
         for traffic_item in self._api.select_traffic_items(
