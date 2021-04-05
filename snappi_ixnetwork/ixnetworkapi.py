@@ -338,6 +338,8 @@ class Api(snappi.Api):
             self._traffic = self._ixnetwork.Traffic
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
             self._globals = self._ixnetwork.Globals
+            if not self._ixn_version_check():
+                raise Exception("IxNetwork 9.10 or newer is required for snappi[ixnetwork]")
             if len(self._license_servers) > 0:
                 self._ixnetwork.Globals.Licensing \
                     .LicensingServers = self._license_servers
@@ -362,6 +364,14 @@ class Api(snappi.Api):
                 self.warning('{}'.format(e))
         self._backup_errors()
 
+    def _ixn_version_check(self):
+        major, minor = self._globals.BuildNumber.split('.')[0:2]
+        if int(major) < 9:
+            return False
+        if int(major) >= 9 and int(minor) < 10:
+            return False
+        return True
+    
     def _backup_errors(self):
         app_errors = self._globals.AppErrors.find()
         if len(app_errors) > 0:
