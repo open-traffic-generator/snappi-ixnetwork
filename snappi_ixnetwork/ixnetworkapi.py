@@ -368,7 +368,7 @@ class Api(snappi.Api):
         major, minor = self._globals.BuildNumber.split('.')[0:2]
         if int(major) < 9:
             return False
-        if int(major) >= 9 and int(minor) < 10:
+        if int(major) == 9 and int(minor) < 10:
             return False
         return True
     
