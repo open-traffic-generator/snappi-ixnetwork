@@ -190,7 +190,7 @@ class TrafficItem(CustomField):
                     'TrafficType': self._get_traffic_type(flow),
                     'SrcDestMesh': self._get_mesh_type(flow)
                 }
-                ixn_traffic_item.find(Name='^%s$' % flow.name,
+                ixn_traffic_item.find(Name='^%s$' % self._api.special_char(flow.name),
                                       TrafficType=args['TrafficType'])
                 if len(ixn_traffic_item) == 0:
                     ixn_traffic_item.add(**args)
@@ -550,18 +550,6 @@ class TrafficItem(CustomField):
             args['InterBurstGapUnits'] = duration.burst.inter_burst_gap_unit
         self._update(ixn_tx_control, **args)
 
-    def _convert_string_to_regex(self, names):
-        ret_list = []
-        for n in names:
-            ret_list.append(
-                n.replace('(', '\\(').replace(')', '\\)')
-                    .replace('[', '\\[').replace(']', '\\]')
-                    .replace('.', '\\.').replace('*', '\\*')
-                    .replace('+', '\\+').replace('?', '\\?')
-                    .replace('{', '\\{').replace('}', '\\}')
-            )
-        return ret_list
-
     def transmit(self, request):
         """Set flow transmit
         1) If start then start any device protocols that are traffic dependent
@@ -573,10 +561,10 @@ class TrafficItem(CustomField):
         if request and request.flow_names:
             flow_names = request.flow_names
         if len(flow_names) == 1:
-            regex = '^%s$' % self._convert_string_to_regex(flow_names)[0]
+            regex = '^%s$' % self._api.special_char(flow_names)[0]
         elif len(flow_names) > 1:
             regex = '^(%s)$' % '|'.join(
-                self._convert_string_to_regex(flow_names)
+                self._api.special_char(flow_names)
             )
 
         if request.state == 'start':
@@ -677,8 +665,7 @@ class TrafficItem(CustomField):
 
         filter = {'property': 'name', 'regex': '.*'}
         filter['regex'] = '^(%s)$' % '|'.join(
-            self._convert_string_to_regex(flow_names)
-        )
+                        self._api.special_char(flow_names))
 
         flow_count = len(flow_names)
         ixn_page = self._api._ixnetwork.Statistics.View.find(Caption="Flow Statistics").Page
