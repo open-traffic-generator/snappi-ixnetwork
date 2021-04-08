@@ -120,6 +120,9 @@ class Capture(object):
                 imports.append(trigger)
         self._import(imports)
 
+    def reset_capture_request(self):
+        self._capture_request = None
+    
     def _config_missing_pallete(self, cap_filter, pallette, trigger, filter):
         pallete_map = getattr(self, '_{0}_OFFSET_MAP'.format(
                                 cap_filter.parent.choice.upper()))
