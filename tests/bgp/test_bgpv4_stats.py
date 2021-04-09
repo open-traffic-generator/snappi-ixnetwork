@@ -1,6 +1,6 @@
 import pytest
 
-@pytest.mark.skip(reason="in progress")
+@pytest.mark.skip(reason="Intermittent failure. Issue #338")
 def test_bgpv4_stats(api, b2b_raw_config, utils):
     """
     Test for the bgpv4 metrics
