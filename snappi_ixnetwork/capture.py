@@ -250,7 +250,8 @@ class Capture(object):
         """Gets capture file and returns it as a byte stream
         """
         with Timer(self._api, 'Captures stop'):
-            capture = self._api._vport.find(Name=request.port_name).Capture
+            capture = self._api._vport.find(Name=self._api.special_char(
+                            request.port_name)).Capture
             capture.Stop('allTraffic')
 
             #   Internally setting max time_out to 90sec with 3sec polling interval.
@@ -260,7 +261,8 @@ class Capture(object):
             for x in range(retry_count):
                 port_ready = True
                 time.sleep(3)
-                capture = self._api._vport.find(Name=request.port_name).Capture
+                capture = self._api._vport.find(Name=self._api.special_char(
+                                request.port_name)).Capture
                 if capture.HardwareEnabled and capture.DataCaptureState == 'notReady':
                     port_ready = False
                     continue
