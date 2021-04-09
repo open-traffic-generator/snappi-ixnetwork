@@ -166,6 +166,7 @@ class Api(snappi.Api):
         self._device_encap = {}
         self._ixn_objects = {}
         self._connect()
+        self.capture.reset_capture_request()
         self._config = self._validate_instance(
                             config)
         with Timer(self, 'Config validation'):
