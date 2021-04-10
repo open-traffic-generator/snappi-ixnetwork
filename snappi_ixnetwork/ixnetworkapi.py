@@ -313,6 +313,29 @@ class Api(snappi.Api):
                         card_info,
                         port_info)
     
+    def special_char(self, names):
+        is_names = True
+        if not isinstance(names, list):
+            is_names = False
+            names = [names]
+        
+        ret_list = []
+        for name in names:
+            if name is None:
+                ret_list.append(name)
+            else:
+                ret_list.append(
+                    name.replace('(', '\\(').replace(')', '\\)')
+                        .replace('[', '\\[').replace(']', '\\]')
+                        .replace('.', '\\.').replace('*', '\\*')
+                        .replace('+', '\\+').replace('?', '\\?')
+                        .replace('{', '\\{').replace('}', '\\}')
+                )
+        if is_names is True:
+            return ret_list
+        else:
+            return ret_list[0]
+    
     def _connect(self):
         """Connect to an IxNetwork API Server.
         """
@@ -453,7 +476,7 @@ class Api(snappi.Api):
                     'stoppedWaitingForStats'
                 ]
                 for item in ixn_obj.find(Name='^(%s)$' %
-                                         '|'.join(invalid_names)):
+                                         '|'.join(self.special_char(invalid_names))):
                     if item.State in start_states:
                         item.StopStatelessTraffic()
                 if len(ixn_obj) > 0:
@@ -465,7 +488,7 @@ class Api(snappi.Api):
                                     'error', 'stopped', 'unapplied'
                             ]:
                                 poll = True
-            ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names))
+            ixn_obj.find(Name='^(%s)$' % '|'.join(self.special_char(invalid_names)))
             if len(ixn_obj) > 0:
                 ixn_obj.remove()
 

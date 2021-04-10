@@ -90,8 +90,9 @@ class Ngpf(object):
             topologies[topology.name] = topology
         self._api._remove(ixn_topology, topologies.values())
         for device in devices:
+            name = self._api._get_topology_name(device.container_name)
             ixn_topology.find(
-                Name='^%s$' % self._api._get_topology_name(device.container_name))
+                Name='^%s$' % self._api.special_char(name))
             if len(ixn_topology) > 0:
                 self._api._remove(ixn_topology.DeviceGroup, [device])
         for device in devices:
@@ -99,7 +100,8 @@ class Ngpf(object):
                 'Name': self._api._get_topology_name(device.container_name),
                 'Ports': [self._api.ixn_objects[device.container_name]]
             }
-            ixn_topology.find(Name='^%s$' % args['Name'])
+            ixn_topology.find(Name='^%s$' % self._api.special_char(
+                                        args['Name']))
             if len(ixn_topology) == 0:
                 ixn_topology.add(**args)
             else:
@@ -112,7 +114,8 @@ class Ngpf(object):
         One /topology/deviceGroup for every device in port.devices 
         """
         args = {'Name': device.name, 'Multiplier': 1}
-        ixn_device_group.find(Name='^%s$' % device.name)
+        ixn_device_group.find(Name='^%s$' % self._api.special_char(
+                                        device.name))
         if len(ixn_device_group) == 0:
             ixn_device_group.add(**args)[-1]
         else:
@@ -180,7 +183,8 @@ class Ngpf(object):
         ixn_ethernet = ixn_parent.Ethernet
         self._api._remove(ixn_ethernet, [ethernet])
         args = {}
-        ixn_ethernet.find(Name='^%s$' % ethernet.name)
+        ixn_ethernet.find(Name='^%s$' % self._api.special_char(
+                                ethernet.name))
         if len(ixn_ethernet) == 0:
             ixn_ethernet.add(**args)
         else:
@@ -217,7 +221,7 @@ class Ngpf(object):
         ixn_ipv4 = ixn_parent.Ipv4
         self._api._remove(ixn_ipv4, [ipv4])
         args = {}
-        ixn_ipv4.find(Name='^%s$' % ipv4.name)
+        ixn_ipv4.find(Name='^%s$' % self._api.special_char(ipv4.name))
         if len(ixn_ipv4) == 0:
             ixn_ipv4.add(**args)[-1]
         else:
@@ -236,7 +240,7 @@ class Ngpf(object):
         args = {
             'Name': bgpv4.name,
         }
-        ixn_bgpv4.find(Name='^%s$' % bgpv4.name)
+        ixn_bgpv4.find(Name='^%s$' % self._api.special_char(bgpv4.name))
         if len(ixn_bgpv4) == 0:
             ixn_bgpv4.add(**args)[-1]
         else:
@@ -287,7 +291,7 @@ class Ngpf(object):
         args = {
             'Name': route_range.name,
         }
-        ixn_ng.find(Name='^%s$' % route_range.name)
+        ixn_ng.find(Name='^%s$' % self._api.special_char(route_range.name))
         if len(ixn_ng) == 0:
             self.stop_topology()
             ixn_ng.add(**args)[-1]
@@ -330,7 +334,7 @@ class Ngpf(object):
         ixn_ipv6 = ixn_parent.Ipv6
         self._api._remove(ixn_ipv6, [ipv6])
         args = {}
-        ixn_ipv6.find(Name='^%s$' % ipv6.name)
+        ixn_ipv6.find(Name='^%s$' % self._api.special_char(ipv6.name))
         if len(ixn_ipv6) == 0:
             ixn_ipv6.add(**args)[-1]
         else:
@@ -349,7 +353,7 @@ class Ngpf(object):
         args = {
             'Name': bgpv6.name,
         }
-        ixn_bgpv6.find(Name='^%s$' % bgpv6.name)
+        ixn_bgpv6.find(Name='^%s$' % self._api.special_char(bgpv6.name))
         if len(ixn_bgpv6) == 0:
             ixn_bgpv6.add(**args)[-1]
         else:
@@ -386,7 +390,8 @@ class Ngpf(object):
         args = {
             'Name': route_range.name,
         }
-        ixn_ng.find(Name='^%s$' % route_range.name)
+        ixn_ng.find(Name='^%s$' % self._api.special_char(
+                                route_range.name))
         if len(ixn_ng) == 0:
             self.stop_topology()
             ixn_ng.add(**args)[-1]

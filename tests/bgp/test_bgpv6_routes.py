@@ -1,3 +1,5 @@
+import pytest
+@pytest.mark.skip(reason="Intermittent failure. Issue #338")
 def test_bgpv6_routes(api, b2b_raw_config, utils):
     """
     Test for the bgpv6 routes

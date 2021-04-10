@@ -229,7 +229,8 @@ class Lag(object):
         for name, ports in self._lag_ports.items():
             ether_xpath = "{0}/protocolStack/ethernet[1]".format(
                 ixn_lags[name]['xpath'])
-            ixn_lag = self._ixn_lag.find(Name='^%s$' % name)
+            ixn_lag = self._ixn_lag.find(Name='^%s$' % self._api.special_char(
+                                            name))
             ixn_proto_stack = ixn_lag.ProtocolStack.find()
             if len(ixn_proto_stack) == 0:
                 ixn_proto_stack = ixn_lag.ProtocolStack.add()[0]
@@ -262,7 +263,8 @@ class Lag(object):
         imports = []
         ixn_lags = self._select_lags()
         for name, ports in self._lag_ports.items():
-            ixn_lag = self._ixn_lag.find(Name='^%s$' % name)
+            ixn_lag = self._ixn_lag.find(Name='^%s$' % self._api.special_char(
+                name))
             ixn_eth = ixn_lag.ProtocolStack.find().Ethernet.find()
             ixn_lacp = ixn_eth.Lagportlacp.find()
             ixn_static = ixn_eth.Lagportstaticlag.find()
