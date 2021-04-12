@@ -18,9 +18,11 @@ class TrafficItem(CustomField):
         ('bytes_tx', 'Tx Bytes', int),
         ('bytes_rx', 'Rx Bytes', int),
         ('loss', 'Loss %', float),
-        # TODO: these are not defined in API spec
         ('bytes_tx_rate', 'Tx Rate (Bps)', float),
         ('bytes_rx_rate', 'Rx Rate (Bps)', float),
+        ('min_latency_ns', 'Store-Forward Min Latency (ns)', int),
+        ('max_latency_ns', 'Store-Forward Max Latency (ns)', int),
+        ('avg_latency_ns', 'Store-Forward Avg Latency (ns)', int)
     ]
 
     _STACK_IGNORE = ['ethernet.fcs', 'pfcPause.fcs']
