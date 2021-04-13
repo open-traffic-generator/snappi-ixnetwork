@@ -1,5 +1,6 @@
 import re
 from snappi_ixnetwork.vport import Vport
+from collections import namedtuple
 
 class ResourceGroup(object):
     """"""
@@ -17,8 +18,8 @@ class ResourceGroup(object):
         if self._layer1_conf is None or len(
                 self._layer1_conf ) == 0 or self._is_redundant is True:
             return self.layer1_check
-
-        chassis_list = self._process_property()
+        
+        self._cache_properties()
         response = None
         try:
             payload = {"arg1": "/availableHardware", "arg2" : []}
@@ -27,14 +28,7 @@ class ResourceGroup(object):
             response = self._api._request('POST', url, payload)
         except Exception:
             raise Exception("Not able to fetch chassis details. Unable to execute L1 setting")
-        chassis_id = 1
-        for result in response['result']:
-            chassis_dns = result["dns"]
-            if chassis_dns in chassis_list:
-                    self._process_groups(result['cards'],
-                                     chassis_dns,
-                                     chassis_id)
-            chassis_id += 1
+        self._process_properties(response)
         
         final_arg2 = []
         error_ports = []
@@ -102,8 +96,7 @@ class ResourceGroup(object):
         self._layer1_backup = self._layer1_conf
         return is_redundant
         
-    def _process_property(self):
-        chassis_list = []
+    def _cache_properties(self):
         port_list = []
         ports = self._api.snappi_config.ports
         for layer1 in self._layer1_conf:
@@ -119,8 +112,6 @@ class ResourceGroup(object):
                         raise Exception("Please configure location to change speed")
                     location_info = self._api.parse_location_info(location)
                     chassis_info = location_info.chassis_info
-                    if chassis_info not in chassis_list:
-                        chassis_list.append(chassis_info)
                     property = StoreProperty(chassis_info,
                                         location_info.card_info,
                                         location_info.port_info,
@@ -128,21 +119,39 @@ class ResourceGroup(object):
                                         layer1)
                     self._store_properties.append(
                             property)
-        return chassis_list
-                    
-    def _get_property(self, display_name):
-        for property in self._store_properties:
-            if property.port == display_name:
-                return property
-        return None
     
-    def _process_groups(self, cards, chassis_dns, chassis_id):
-        for card in cards:
+    def get_chassis_card(self, property, response):
+        ChassisCardInfo = namedtuple("ChassisCardInfo", ["chassis_id",
+                                                         "card_info"])
+        chassis_id = 1
+        for result in response['result']:
+            chassis_dns = result["dns"]
+            card_info = None
+            if property.chassis_dns == chassis_dns:
+                for card in result['cards']:
+                    if int(property.card) == 0:
+                        card_info = card
+                    elif int(property.card) == int(card['cardId']):
+                        card_info = card
+                    if card_info is not None:
+                        return ChassisCardInfo(chassis_id,
+                                        card_info)
+            chassis_id += 1
+    
+    def _process_properties(self, response):
+        for property in self._store_properties:
+            info = self.get_chassis_card(property, response)
+            if info is None:
+                raise Exception("Chassis or card not available for %s"
+                                % property.port_name)
+            chassis_id = info.chassis_id
+            card = info.card_info
             if card['cardAggregationMode'] == 'notSupported':
                 continue
-            if self._set_aggregate(chassis_dns, card[
-                    'cardId']) is False:
-                continue
+            property.aggregate = True
+            self._set_group_mode(property, card, chassis_id)
+
+    def _set_group_mode(self, property, card, chassis_id):
             for supported_group in card['supportedGroups']:
                 group_id = supported_group['id']
                 current_mode = supported_group['currentSetting'][
@@ -155,34 +164,22 @@ class ResourceGroup(object):
                             'panelInfo']:
                         for display_name in panel_info[
                                 'activePortsDisplayNames']:
-                            property = self._get_property(display_name)
-                            if property is not None:
+                            if int(property.port) == int(display_name):
                                 l1_name = property.set_property(chassis_id,
                                                       card,
                                                       group_id,
                                                       current_mode,
                                                       group_mode)
-                                if l1_name is not None \
-                                        and l1_name not in self.layer1_check:
-                                    self.layer1_check.append(l1_name)
-    
-    def _set_aggregate(self, chassis_dns, card_id):
-        fellow_card = False
-        for property in self._store_properties:
-            if property.chassis_dns == chassis_dns:
-                if int(property.card) == 0:
-                    fellow_card = True
-                    property.aggregate = True
-                elif int(property.card) == int(card_id):
-                    fellow_card = True
-                    property.aggregate = True
-        return fellow_card
+                                if l1_name is not None:
+                                    if l1_name not in self.layer1_check:
+                                        self.layer1_check.append(l1_name)
+                                    return
             
 class StoreProperty(object):
     def __init__(self, chassis, card, port, port_name, layer1):
         self._chassis = chassis
-        self._card = card
-        self._port = port
+        self._card = int(card)
+        self._port = int(port)
         self._port_name = port_name
         self._speed = layer1.speed
         self._l1name = layer1.name
