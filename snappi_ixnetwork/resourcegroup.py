@@ -128,14 +128,15 @@ class ResourceGroup(object):
             chassis_dns = result["dns"]
             card_info = None
             if property.chassis_dns == chassis_dns:
-                for card in result['cards']:
-                    if int(property.card) == 0:
-                        card_info = card
-                    elif int(property.card) == int(card['cardId']):
-                        card_info = card
-                    if card_info is not None:
-                        return ChassisCardInfo(chassis_id,
-                                        card_info)
+                if int(property.card) == 0:
+                    card_info = result['cards']
+                else:
+                    for card in result['cards']:
+                        if int(property.card) == int(card['cardId']):
+                            card_info = [card]
+                if card_info is not None:
+                    return ChassisCardInfo(chassis_id,
+                                    card_info)
             chassis_id += 1
     
     def _process_properties(self, response):
@@ -145,11 +146,14 @@ class ResourceGroup(object):
                 raise Exception("Chassis or card not available for %s"
                                 % property.port_name)
             chassis_id = info.chassis_id
-            card = info.card_info
-            if card['cardAggregationMode'] == 'notSupported':
-                continue
-            property.aggregate = True
-            self._set_group_mode(property, card, chassis_id)
+            card_info = info.card_info
+            for card in card_info:
+                if card['cardAggregationMode'] == 'notSupported':
+                    continue
+                property.aggregate = True
+                if self._set_group_mode(property, card,
+                        chassis_id) is True:
+                    break
 
     def _set_group_mode(self, property, card, chassis_id):
             for supported_group in card['supportedGroups']:
@@ -164,7 +168,7 @@ class ResourceGroup(object):
                             'panelInfo']:
                         for display_name in panel_info[
                                 'activePortsDisplayNames']:
-                            if int(property.port) == int(display_name):
+                            if property.port == display_name:
                                 l1_name = property.set_property(chassis_id,
                                                       card,
                                                       group_id,
@@ -173,13 +177,14 @@ class ResourceGroup(object):
                                 if l1_name is not None:
                                     if l1_name not in self.layer1_check:
                                         self.layer1_check.append(l1_name)
-                                    return
+                                    return True
+            return False
             
 class StoreProperty(object):
     def __init__(self, chassis, card, port, port_name, layer1):
         self._chassis = chassis
-        self._card = int(card)
-        self._port = int(port)
+        self._card = card
+        self._port = port.lstrip('0')
         self._port_name = port_name
         self._speed = layer1.speed
         self._l1name = layer1.name
