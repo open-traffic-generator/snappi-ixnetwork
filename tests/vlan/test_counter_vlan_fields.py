@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
 def test_counter_vlan_fields(api, b2b_raw_config, utils):
     """
     Configure a raw vlan header fields with,
@@ -17,63 +13,41 @@ def test_counter_vlan_fields(api, b2b_raw_config, utils):
     destination = '00:0C:29:E3:53:F4'
     ether_type = '8100'
 
-    # Vlan fields config
-    priority = flow.Counter(
-        start='0',
-        step='1',
-        count=8
-    )
+    f.packet.ethernet().vlan()
+    eth, vlan = f.packet[0], f.packet[1]
+    eth.src.value = source
+    eth.dst.value = destination
+    eth.ether_type.value = ether_type
 
-    cfi = flow.Counter(
-        start='0',
-        step='1',
-        count=2
-    )
+    vlan.priority.increment.start = 0
+    vlan.priority.increment.step = 1
+    vlan.priority.increment.count = 8
 
-    vlan_id = flow.Counter(
-        start='1',
-        step='1',
-        count=4094,
-    )
+    vlan.cfi.increment.start = 0
+    vlan.cfi.increment.step = 1
+    vlan.cfi.increment.count = 2
 
-    protocol = flow.Counter(
-        start='8100',
-        step='1',
-        count=10
-    )
-
-    f.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=flow.Pattern(source),
-                dst=flow.Pattern(destination),
-                ether_type=flow.Pattern(ether_type)
-            )
-        ),
-        flow.Header(
-            flow.Vlan(
-                priority=flow.Pattern(priority),
-                cfi=flow.Pattern(cfi),
-                id=flow.Pattern(vlan_id),
-                protocol=flow.Pattern(protocol)
-            )
-        )
-    ]
-
-    utils.apply_config(api, b2b_raw_config)
+    vlan.id.increment.start = 1
+    vlan.id.increment.step = 1
+    vlan.id.increment.count = 4094
 
     attrs = {
         'VLAN Priority': (
-            priority.start, priority.step, str(priority.count)
+            str(vlan.priority.increment.start),
+            str(vlan.priority.increment.step),
+            str(vlan.priority.increment.count)
         ),
         'Canonical Format Indicator': (
-            cfi.start, cfi.step, str(cfi.count)
+            str(vlan.cfi.increment.start),
+            str(vlan.cfi.increment.step),
+            str(vlan.cfi.increment.count)
         ),
         'VLAN-ID': (
-            vlan_id.start, vlan_id.step, str(vlan_id.count)
-        ),
-        'Protocol-ID': (
-            protocol.start, protocol.step, str(protocol.count)
+            str(vlan.id.increment.start),
+            str(vlan.id.increment.step),
+            str(vlan.id.increment.count)
         )
     }
+
+    api.set_config(b2b_raw_config)
     utils.validate_config(api, 'vlan', **attrs)

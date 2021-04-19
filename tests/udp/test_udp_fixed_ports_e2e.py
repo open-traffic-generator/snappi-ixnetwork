@@ -1,9 +1,8 @@
 import pytest
 
 
-@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.e2e
-def test_udp_fixed_ports_e2e(api, b2b_raw_config):
+def test_udp_fixed_ports_e2e(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,
     - fixed src and dst Port address
@@ -14,43 +13,32 @@ def test_udp_fixed_ports_e2e(api, b2b_raw_config):
     - tx/rx frame count is as expected
     - all captured frames have expected src and dst Port address
     """
+    api.set_config(api.config())
     f = b2b_raw_config.flows[0]
     packets = 1
     size = 74
+    f.packet.ethernet().ipv4().udp()
+    eth, ip, udp = f.packet[0], f.packet[1], f.packet[2]
+    eth.src.value = '00:0c:29:1d:10:67'
+    eth.dst.value = '00:0c:29:1d:10:71'
+    ip.src.value = '10.10.10.1'
+    ip.dst.value = '10.10.10.2'
+    udp.src_port.value = 3000
+    udp.dst_port.value = 4000
 
-    f.packet = [
-        flow.Header(
-            flow.Ethernet(
-                src=flow.Pattern('00:0c:29:1d:10:67'),
-                dst=flow.Pattern('00:0c:29:1d:10:71')
-            )
-        ),
-        flow.Header(
-            flow.Ipv4(
-                src=flow.Pattern("10.10.10.1"),
-                dst=flow.Pattern("10.10.10.2")
-            )
-        ),
-        flow.Header(
-            flow.Udp(
-                src_port=flow.Pattern("3000"),
-                dst_port=flow.Pattern("4000")
-            )
-        ),
-    ]
-    f.duration = flow.Duration(flow.FixedPackets(packets=packets))
-    f.size = flow.Size(size)
-    f.rate = flow.Rate(value=10, unit='line')
+    f.duration.fixed_packets.packets = packets
+    f.size.fixed = size
+    f.rate.percentage = 10
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: stats_ok(api, size, packets), 'stats to be as expected'
+        lambda: stats_ok(api, size, packets, utils), 'stats to be as expected'
     )
 
-    captures_ok(api, b2b_raw_config, size)
+    captures_ok(api, b2b_raw_config, size, utils)
 
 
-def stats_ok(api, size, packets):
+def stats_ok(api, size, packets, utils):
     """
     Returns true if stats are as expected, false otherwise.
     """
@@ -66,7 +54,7 @@ def stats_ok(api, size, packets):
     return ok
 
 
-def captures_ok(api, cfg, size):
+def captures_ok(api, cfg, size, utils):
     """
     Returns normally if patterns in captured packets are as expected.
     """

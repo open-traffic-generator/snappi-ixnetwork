@@ -206,7 +206,7 @@ class ProtocolMetrics(object):
         ports, v = self._port_list_in_per_port(protocol)
         config_ports = self._port_names_from_devices()
         indices = [
-            ports.index(p) for p in config_ports if p in ports
+            ports.index(p) for p in list(set(config_ports)) if p in ports
         ]
         drill_option = self._PROTO_NAME_MAP_[protocol]['drill_down_options'][0]
         drill_name = self._PROTO_NAME_MAP_[protocol]['drill_down']
@@ -227,7 +227,8 @@ class ProtocolMetrics(object):
                 drill.href, 'Device Group'
             )
             for index, dev_name in enumerate(dev_names):
-                if len(self.names) > 0 and dev_name not in self.names:
+                if len(self.device_names) > 0 and\
+                        dev_name not in self.device_names:
                     continue
                 row_dt = dict()
                 for sn, ixn, typ in column_names:
@@ -262,9 +263,9 @@ class ProtocolMetrics(object):
         """
         protocol = request.choice
         request = getattr(request, protocol)
-        self.names = request._properties.get('device_names')
-        if self.names is None:
-            self.names = []
+        self.device_names = request._properties.get('device_names')
+        if self.device_names is None:
+            self.device_names = []
         self.columns = request._properties.get('column_names')
         if self.columns is None:
             self.columns = []

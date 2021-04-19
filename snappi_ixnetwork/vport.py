@@ -289,7 +289,7 @@ class Vport(object):
             start = time.time()
             timeout = 10
             while True:
-                self._api._vport.find(Name='^(%s)$' % '|'.join(locations),
+                self._api._vport.find(Name='^(%s)$' % '|'.join(self._api.special_char(locations)),
                                       ConnectionState='^connectedLink')
                 if len(self._api._vport) == len(locations):
                     break
@@ -611,7 +611,8 @@ class Vport(object):
             raise Exception(msg)
 
         port_filter = {'property': 'name', 'regex': '.*'}
-        port_filter['regex'] = '^(%s)$' % '|'.join(port_names)
+        port_filter['regex'] = '^(%s)$' % '|'.join(self._api.special_char(
+                            port_names))
 
         port_rows = dict()
         vports = self._api.select_vports(port_name_filters=[port_filter])

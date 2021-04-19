@@ -18,9 +18,11 @@ class TrafficItem(CustomField):
         ('bytes_tx', 'Tx Bytes', int),
         ('bytes_rx', 'Rx Bytes', int),
         ('loss', 'Loss %', float),
-        # TODO: these are not defined in API spec
         ('bytes_tx_rate', 'Tx Rate (Bps)', float),
         ('bytes_rx_rate', 'Rx Rate (Bps)', float),
+        ('min_latency_ns', 'Store-Forward Min Latency (ns)', int),
+        ('max_latency_ns', 'Store-Forward Max Latency (ns)', int),
+        ('avg_latency_ns', 'Store-Forward Avg Latency (ns)', int)
     ]
 
     _STACK_IGNORE = ['ethernet.fcs', 'pfcPause.fcs']
@@ -183,13 +185,14 @@ class TrafficItem(CustomField):
         self._api._remove(ixn_traffic_item, self._api.snappi_config.flows)
         if len(self._api.snappi_config.flows) > 0:
             for flow in self._api.snappi_config.flows:
+                self._endpoint_validation(flow)
                 args = {
                     'Name': flow.name,
                     'TrafficItemType': 'l2L3',
                     'TrafficType': self._get_traffic_type(flow),
-                    'SrcDestMesh': 'oneToOne'
+                    'SrcDestMesh': self._get_mesh_type(flow)
                 }
-                ixn_traffic_item.find(Name='^%s$' % flow.name,
+                ixn_traffic_item.find(Name='^%s$' % self._api.special_char(flow.name),
                                       TrafficType=args['TrafficType'])
                 if len(ixn_traffic_item) == 0:
                     ixn_traffic_item.add(**args)
@@ -225,16 +228,57 @@ class TrafficItem(CustomField):
         if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:
             self._api._traffic.EnableMinFrameSize = enable_min_frame_size
 
-    def _get_traffic_type(self, flow):
+    def _endpoint_validation(self, flow):
         if flow.tx_rx.choice is None:
             raise ValueError('%s Flow.tx_rx property cannot be None' %
                              flow.name)
-        elif flow.tx_rx.choice == 'port':
+        if flow.tx_rx.choice == 'device':
+            device = flow.tx_rx.device
+            if not isinstance(device.tx_names, list) or \
+                    not isinstance(device.rx_names, list):
+                raise ValueError("device tx_names and rx_names must be a list "
+                                 "in flow %s" % flow.name)
+            if len(device.tx_names) != len(set(device.tx_names)):
+                raise ValueError("All names in device tx_names "
+                                 "must be unique for flow %s" % flow.name)
+            if len(device.rx_names) != len(set(device.rx_names)):
+                raise ValueError("All names in device rx_names "
+                                 "must be unique for flow %s" % flow.name)
+    
+    def _get_mesh_type(self, flow):
+        if flow.tx_rx.choice == 'port':
+            mesh_type = 'oneToOne'
+        else:
+            device = flow.tx_rx.device
+            if device.mode == 'mesh' or \
+                    device.mode is None:
+                mesh_type = 'manyToMany'
+            else:
+                mesh_type = 'oneToOne'
+                if len(device.tx_names) != len(device.rx_names):
+                    raise ValueError("Length of device tx_names and rx_names "
+                             "must be same for device mode ONE_TO_ONE in flow %s" % flow.name)
+        return mesh_type
+    
+    def _get_traffic_type(self, flow):
+        if flow.tx_rx.choice == 'port':
             encap = 'raw'
         else:
-            encap = None
-            for name in flow.tx_rx.device.tx_names:
-                encap = self._api.get_device_encap(name)
+            encap_list = []
+            device = flow.tx_rx.device
+            if device.tx_names is not None:
+                for tx_name in device.tx_names:
+                    encap_list.append(self._api.get_device_encap(
+                            tx_name))
+            if device.rx_names is not None:
+                for rx_name in device.rx_names:
+                    encap_list.append(self._api.get_device_encap(
+                            rx_name))
+            if len(set(encap_list)) == 1:
+                encap = encap_list[0]
+            else:
+                raise Exception("All devices identified in tx_names and rx_names "
+                                "must be of same type in flow %s" %flow.name)
         return encap
 
     def _configure_endpoint(self, ixn_endpoint_set, endpoint):
@@ -508,18 +552,6 @@ class TrafficItem(CustomField):
             args['InterBurstGapUnits'] = duration.burst.inter_burst_gap_unit
         self._update(ixn_tx_control, **args)
 
-    def _convert_string_to_regex(self, names):
-        ret_list = []
-        for n in names:
-            ret_list.append(
-                n.replace('(', '\\(').replace(')', '\\)')
-                    .replace('[', '\\[').replace(']', '\\]')
-                    .replace('.', '\\.').replace('*', '\\*')
-                    .replace('+', '\\+').replace('?', '\\?')
-                    .replace('{', '\\{').replace('}', '\\}')
-            )
-        return ret_list
-
     def transmit(self, request):
         """Set flow transmit
         1) If start then start any device protocols that are traffic dependent
@@ -531,10 +563,10 @@ class TrafficItem(CustomField):
         if request and request.flow_names:
             flow_names = request.flow_names
         if len(flow_names) == 1:
-            regex = '^%s$' % self._convert_string_to_regex(flow_names)[0]
+            regex = '^%s$' % self._api.special_char(flow_names)[0]
         elif len(flow_names) > 1:
             regex = '^(%s)$' % '|'.join(
-                self._convert_string_to_regex(flow_names)
+                self._api.special_char(flow_names)
             )
 
         if request.state == 'start':
@@ -635,8 +667,12 @@ class TrafficItem(CustomField):
 
         filter = {'property': 'name', 'regex': '.*'}
         filter['regex'] = '^(%s)$' % '|'.join(
-            self._convert_string_to_regex(flow_names)
-        )
+                        self._api.special_char(flow_names))
+
+        flow_count = len(flow_names)
+        ixn_page = self._api._ixnetwork.Statistics.View.find(Caption="Flow Statistics").Page
+        if ixn_page.PageSize < flow_count:
+            ixn_page.PageSize = flow_count
 
         # initialize result values
         flow_rows = {}

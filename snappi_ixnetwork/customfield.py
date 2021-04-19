@@ -79,27 +79,51 @@ class CustomField(object):
         for header in headers:
             header = header.parent
             if header.choice == 'ethernetpause':
-                self._ethernet_pause(new_headers, header.ethernetpause)
+                self._ethernet_pause(
+                    new_headers, headers, header.ethernetpause
+                )
             elif header.choice == 'gtpv1':
                 self._gtpv1(new_headers, header)
             else:
                 new_headers.append(header)
         return new_headers
 
-    def _ethernet_pause(self, new_headers, ethernetpause):
-        ''' Current IxNetwork 9.10 do not have Global Pause support. Therefore using Ether > Custom header as work around.
+    def _ethernet_pause(self, new_headers, headers, ethernetpause):
+        ''' Current IxNetwork 9.10 do not have Global Pause support.
+        Therefore using Ether > Custom header as work around.
         We will remove these code and add EthernetPause in generic section.
-        The implementation will only support fixed patterns for control_op_code and time
+        The implementation will only support fixed patterns for
+        control_op_code and time
         '''
-        from abstract_open_traffic_generator.flow import Ethernet, Custom, Header, Pattern
-        ether = Ethernet(src=(lambda: Pattern('00:00:aa:00:00:01'), lambda: ethernetpause.src)[bool(ethernetpause.src)](),
-                         dst=(lambda: Pattern('01:80:c2:00:00:01'), lambda: ethernetpause.dst)[bool(ethernetpause.dst)](),
-                         ether_type=(lambda: Pattern('8808'), lambda: ethernetpause.ether_type)[bool(ethernetpause.ether_type)]())
-        new_headers.append(Header(ether))
-        control_op_code = '0001' if ethernetpause.control_op_code is None else self._get_first_value(ethernetpause.control_op_code).zfill(4)
-        time = 'FFFF' if ethernetpause.time is None else self._get_first_value(ethernetpause.time).zfill(4)
-        custom = Custom(bytes='{0}{1}'.format(control_op_code, time))
-        new_headers.append(Header(custom))
+        from copy import deepcopy
+        ethpause = deepcopy(ethernetpause)
+        headers.clear()
+        eth = headers.ethernet()[-1]
+        cust = headers.custom()[-1]
+        new_headers.append(eth.parent)
+        new_headers.append(cust.parent)
+        if ethpause._properties.get('src') is not None:
+            eth.src.deserialize(ethpause.src.serialize('dict'))
+        else:
+            eth.src.value = '00:00:aa:00:00:01'
+        if ethpause._properties.get('dst') is not None:
+            eth.dst.deserialize(ethpause.dst.serialize('dict'))
+        else:
+            eth.dst.value = '01:80:c2:00:00:01'
+        if ethpause._properties.get('ether_type') is not None:
+            eth.ether_type.deserialize(ethpause.ether_type.serialize('dict'))
+        else:
+            eth.ether_type.value = '8808'
+        if ethpause._properties.get('control_op_code') is not None:
+            control_op_code =\
+                self._get_first_value(ethpause.control_op_code).zfill(4)
+        else:
+            control_op_code = '0001'
+        if ethpause._properties.get('time') is not None:
+            time = self._get_first_value(ethpause.time).zfill(4)
+        else:
+            time = 'FFFF'
+        cust.bytes = '{0}{1}'.format(control_op_code, time)
 
     def _gtpv1(self, new_headers, header):
         ''''''

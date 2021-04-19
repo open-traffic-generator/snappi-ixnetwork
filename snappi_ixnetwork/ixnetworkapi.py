@@ -166,6 +166,7 @@ class Api(snappi.Api):
         self._device_encap = {}
         self._ixn_objects = {}
         self._connect()
+        self.capture.reset_capture_request()
         self._config = self._validate_instance(
                             config)
         with Timer(self, 'Config validation'):
@@ -312,6 +313,29 @@ class Api(snappi.Api):
                         card_info,
                         port_info)
     
+    def special_char(self, names):
+        is_names = True
+        if not isinstance(names, list):
+            is_names = False
+            names = [names]
+        
+        ret_list = []
+        for name in names:
+            if name is None:
+                ret_list.append(name)
+            else:
+                ret_list.append(
+                    name.replace('(', '\\(').replace(')', '\\)')
+                        .replace('[', '\\[').replace(']', '\\]')
+                        .replace('.', '\\.').replace('*', '\\*')
+                        .replace('+', '\\+').replace('?', '\\?')
+                        .replace('{', '\\{').replace('}', '\\}')
+                )
+        if is_names is True:
+            return ret_list
+        else:
+            return ret_list[0]
+    
     def _connect(self):
         """Connect to an IxNetwork API Server.
         """
@@ -338,6 +362,8 @@ class Api(snappi.Api):
             self._traffic = self._ixnetwork.Traffic
             self._traffic_item = self._ixnetwork.Traffic.TrafficItem
             self._globals = self._ixnetwork.Globals
+            if not self._ixn_version_check():
+                raise Exception("IxNetwork 9.10 or newer is required for snappi[ixnetwork]")
             if len(self._license_servers) > 0:
                 self._ixnetwork.Globals.Licensing \
                     .LicensingServers = self._license_servers
@@ -362,6 +388,14 @@ class Api(snappi.Api):
                 self.warning('{}'.format(e))
         self._backup_errors()
 
+    def _ixn_version_check(self):
+        major, minor = self._globals.BuildNumber.split('.')[0:2]
+        if int(major) < 9:
+            return False
+        if int(major) == 9 and int(minor) < 10:
+            return False
+        return True
+    
     def _backup_errors(self):
         app_errors = self._globals.AppErrors.find()
         if len(app_errors) > 0:
@@ -442,7 +476,7 @@ class Api(snappi.Api):
                     'stoppedWaitingForStats'
                 ]
                 for item in ixn_obj.find(Name='^(%s)$' %
-                                         '|'.join(invalid_names)):
+                                         '|'.join(self.special_char(invalid_names))):
                     if item.State in start_states:
                         item.StopStatelessTraffic()
                 if len(ixn_obj) > 0:
@@ -454,7 +488,7 @@ class Api(snappi.Api):
                                     'error', 'stopped', 'unapplied'
                             ]:
                                 poll = True
-            ixn_obj.find(Name='^(%s)$' % '|'.join(invalid_names))
+            ixn_obj.find(Name='^(%s)$' % '|'.join(self.special_char(invalid_names)))
             if len(ixn_obj) > 0:
                 ixn_obj.remove()
 

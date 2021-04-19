@@ -1,5 +1,3 @@
-import pytest
-@pytest.mark.skip(reason="Intermittent failure. Issue #338")
 def test_bgpv6_routes(api, b2b_raw_config, utils):
     """
     Test for the bgpv6 routes
@@ -27,23 +25,28 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     bgp1.dut_address = '3000::1'
     bgp2.dut_address = '2000::1'
 
-    bgp1_rr = bgp1.bgpv6_routes.bgpv6route(name="bgp1_rr")[-1]
-    bgp2_rr = bgp2.bgpv6_routes.bgpv6route(name="bgp2_rr")[-1]
+    bgp1_rr1 = bgp1.bgpv6_routes.bgpv6route(name="bgp1_rr1")[-1]
+    bgp1_rr2 = bgp1.bgpv6_routes.bgpv6route(name="bgp1_rr2")[-1]
+    bgp2_rr1 = bgp2.bgpv6_routes.bgpv6route(name="bgp2_rr1")[-1]
+    bgp2_rr2 = bgp2.bgpv6_routes.bgpv6route(name="bgp2_rr2")[-1]
 
-    bgp1_rr.addresses.bgpv6routeaddress(address="4000::1",
-                                        prefix=64)
+    bgp1_rr1.addresses.bgpv6routeaddress(address="4000::1", prefix=64)
+    bgp1_rr2.addresses.bgpv6routeaddress(address="5000::1", prefix=64)
 
-    bgp2_rr.addresses.bgpv6routeaddress(address="4000::1",
-                                        prefix=64)
+    bgp2_rr1.addresses.bgpv6routeaddress(address="4000::1", prefix=64)
+    bgp2_rr2.addresses.bgpv6routeaddress(address="5000::1", prefix=64)
 
     flow_bgp = b2b_raw_config.flows.flow(name='flow_bgp')[-1]
 
     flow_bgp.rate.percentage = 1
     flow_bgp.duration.fixed_packets.packets = packets
     flow_bgp.size.fixed = size
-
-    flow_bgp.tx_rx.device.tx_names = [bgp1_rr.name]
-    flow_bgp.tx_rx.device.rx_names = [bgp2_rr.name]
+    flow_bgp.tx_rx.device.tx_names = [
+        bgp1_rr1.name, bgp1_rr2.name, bgp2_rr1.name, bgp2_rr2.name
+    ]
+    flow_bgp.tx_rx.device.rx_names = [
+        bgp1_rr1.name, bgp1_rr2.name, bgp2_rr1.name, bgp2_rr2.name
+    ]
 
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
 

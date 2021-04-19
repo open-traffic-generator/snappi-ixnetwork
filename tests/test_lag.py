@@ -52,6 +52,14 @@ def test_static_lag(api, utils):
     packets = 2000
     f1_size = 74
     f2_size = 1500
+    d1, d2 = config.devices.device(name='device1').device(name='device2')
+    d1.container_name = lag1.name
+    d2.container_name = lag2.name
+    ip1, ip2 = d1.ethernet.ipv4, d2.ethernet.ipv4
+    ip1.address = '10.1.1.1'
+    ip1.gateway = '10.1.1.2'
+    ip2.address = '10.1.1.2'
+    ip2.gateway = '10.1.1.1'
     f1, f2 = config.flows.flow(name='f1').flow(name='f2')
     f1.tx_rx.port.tx_name, f1.tx_rx.port.rx_name = p1.name, p2.name
     f2.tx_rx.port.tx_name, f2.tx_rx.port.rx_name = p3.name, p4.name
@@ -133,6 +141,14 @@ def test_lacp_lag(api, utils):
     packets = 2000
     f1_size = 74
     f2_size = 1500
+    d1, d2 = config.devices.device(name='device1').device(name='device2')
+    d1.container_name = lag1.name
+    d2.container_name = lag2.name
+    ip1, ip2 = d1.ethernet.ipv4, d2.ethernet.ipv4
+    ip1.address = '10.1.1.1'
+    ip1.gateway = '10.1.1.2'
+    ip2.address = '10.1.1.2'
+    ip2.gateway = '10.1.1.1'
     f1, f2 = config.flows.flow(name='f1').flow(name='f2')
     f1.tx_rx.port.tx_name, f1.tx_rx.port.rx_name = p1.name, p2.name
     f2.tx_rx.port.tx_name, f2.tx_rx.port.rx_name = p3.name, p4.name

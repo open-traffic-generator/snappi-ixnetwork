@@ -1,7 +1,7 @@
 import pytest
+import time
 
 
-@pytest.mark.skip("skip until migrated to snappi")
 @pytest.mark.e2e
 def test_global_pause_e2e(api, settings, utils):
     """
@@ -19,89 +19,53 @@ def test_global_pause_e2e(api, settings, utils):
 
     size = 128
     packets = 1000000
+    config = api.config()
 
-    tx = port.Port(name='raw_tx', location=settings.ports[0])
-    rx = port.Port(name='raw_rx', location=settings.ports[1])
-
-    tx_l1 = layer1.Layer1(
-        name='txl1', port_names=[tx.name], speed=settings.speed,
-        media=settings.media,
-        flow_control=layer1.FlowControl(choice=layer1.Ieee8023x())
+    tx, rx = (
+        config.ports
+        .port(name='raw_tx', location=settings.ports[0])
+        .port(name='raw_rx', location=settings.ports[1])
     )
+    l1 = config.layer1.layer1(
+        name='L1', port_names=[tx.name, rx.name], speed=settings.speed,
+    )[-1]
 
-    rx_l1 = layer1.Layer1(
-        name='rxl1', port_names=[rx.name], speed=settings.speed,
-        media=settings.media,
-        flow_control=layer1.FlowControl(choice=layer1.Ieee8023x())
-    )
-
-    tx_flow = flow.Flow(
-        name='tx_flow',
-        tx_rx=flow.TxRx(
-            flow.PortTxRx(tx_port_name=tx.name, rx_port_name=rx.name)
-        ),
-        packet=[
-            flow.Header(
-                flow.Ethernet(
-                    src=flow.Pattern('00:CD:DC:CD:DC:CD'),
-                    dst=flow.Pattern('00:AB:BC:AB:BC:AB')
-                )
-            ),
-            flow.Header(
-                flow.Ipv4(
-                    src=flow.Pattern('1.1.1.2'),
-                    dst=flow.Pattern('1.1.1.1'),
-                    priority=flow_ipv4.Priority(
-                        flow.Pattern(
-                            flow.Counter(start='0', step='1', count=256)
-                        )
-                    )
-                )
-            )
-        ],
-        duration=flow.Duration(
-            flow.FixedPackets(
-                packets=packets, delay=10**9, delay_unit='nanoseconds'
-            )
-        ),
-        size=flow.Size(size),
-        rate=flow.Rate(value=100, unit='line')
-    )
-
-    rx_flow = flow.Flow(
-        name='rx_flow',
-        tx_rx=flow.TxRx(
-            flow.PortTxRx(tx_port_name=rx.name, rx_port_name=tx.name)
-        ),
-        packet=[
-            flow.Header(
-                flow.EthernetPause(
-                    src=flow.Pattern('00:AB:BC:AB:BC:AB'),
-                    control_op_code=flow.Pattern('01'),
-                    time=flow.Pattern('FFFF')
-                )
-            )
-        ],
-        duration=flow.Duration(flow.FixedSeconds(seconds=20)),
-        size=flow.Size(size),
-        rate=flow.Rate(value=100, unit='line')
-    )
-
-    cfg = config.Config(
-        ports=[tx, rx], layer1=[tx_l1, rx_l1], flows=[tx_flow, rx_flow],
-        options=config.Options(port.Options(location_preemption=True))
-    )
-
-    utils.start_traffic(api, cfg)
+    l1.flow_control.ieee_802_3x
+    tx_flow, rx_flow = config.flows.flow(name='tx_flow').flow('rx_flow')
+    tx_flow.tx_rx.port.tx_name, tx_flow.tx_rx.port.rx_name = tx.name, rx.name
+    rx_flow.tx_rx.port.tx_name, rx_flow.tx_rx.port.rx_name = rx.name, tx.name
+    tx_eth = tx_flow.packet.ethernet()[-1]
+    tx_ipv4 = tx_flow.packet.ipv4()[-1]
+    rx_eth_pause = rx_flow.packet.ethernetpause()[-1]
+    tx_eth.src.value = '00:CD:DC:CD:DC:CD'
+    tx_eth.dst.value = '00:AB:BC:AB:BC:AB'
+    tx_ipv4.src.value = '1.1.1.2'
+    tx_ipv4.dst.value = '1.1.1.1'
+    tx_ipv4.priority.raw.increment.start = 0
+    tx_ipv4.priority.raw.increment.step = 1
+    tx_ipv4.priority.raw.increment.count = 256
+    tx_flow.duration.fixed_packets.packets = packets
+    tx_flow.duration.fixed_packets.delay = 10**9
+    tx_flow.duration.fixed_packets.delay_unit = 'nanoseconds'
+    tx_flow.size.fixed = size
+    tx_flow.rate.percentage = 100
+    rx_eth_pause.src.value = '00:AB:BC:AB:BC:AB'
+    rx_eth_pause.control_op_code.value = '01'
+    rx_eth_pause.time.value = 'FFFF'
+    rx_flow.duration.fixed_seconds.seconds = 20
+    rx_flow.size.fixed = size
+    rx_flow.rate.percentage = 100
+    api.set_config(config)
+    utils.start_traffic(api, config)
     # wait for some packets to start flowing
     time.sleep(10)
 
     utils.wait_for(
-        lambda: results_ok(api, cfg, utils, size, 0),
+        lambda: results_ok(api, config, utils, size, 0),
         'stats to be as expected', timeout_seconds=30
     )
     utils.wait_for(
-        lambda: results_ok(api, cfg, utils, size, packets),
+        lambda: results_ok(api, config, utils, size, packets),
         'stats to be as expected', timeout_seconds=30
     )
 
@@ -113,5 +77,5 @@ def results_ok(api, cfg, utils, size, packets):
     port_results, flow_results = utils.get_all_stats(api)
 
     return packets == sum(
-        [p['frames_tx'] for p in port_results if p['name'] == 'raw_tx']
+        [p.frames_tx for p in port_results if p.name == 'raw_tx']
     )

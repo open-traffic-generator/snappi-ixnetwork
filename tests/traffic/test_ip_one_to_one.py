@@ -33,6 +33,9 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
         'mac_tx': mac_tx, 'mac_rx': mac_rx, 'ip_tx': ip_tx, 'ip_rx': ip_rx
     }
 
+    # import snappi
+    # b2b_raw_config = snappi.Api().config()
+
     for i in range(count * 2):
         port = int(i / count)
         node = 'tx' if port == 0 else 'rx'
@@ -52,15 +55,15 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
             'ip_%s' % ('rx' if node == 'tx' else 'tx')
         ][i]
         dev.ethernet.ipv4.prefix = 24
-    f1, f2 = b2b_raw_config.flows.flow(name='TxFlow-2')
-    f1.name = 'TxFlow-1'
+    b2b_raw_config.flows.clear()
+    f1, f2 = b2b_raw_config.flows.flow(name='TxFlow-1').flow(name='TxFlow-2')
     f1.tx_rx.device.tx_names = [
         b2b_raw_config.devices[i].name for i in range(count)
     ]
     f1.tx_rx.device.rx_names = [
-        b2b_raw_config.devices[i].name for i in range(count, count * 2)
+        b2b_raw_config.devices[i + count].name for i in range(count)
     ]
-    f1.tx_rx.device.mode = f2.tx_rx.device.ONE_TO_ONE
+    f1.tx_rx.device.mode = f1.tx_rx.device.ONE_TO_ONE
     f1.size.fixed = size
     f1.duration.fixed_packets.packets = packets
     f1.rate.percentage = "10"
@@ -69,9 +72,9 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
         b2b_raw_config.devices[i].name for i in range(count)
     ]
     f2.tx_rx.device.rx_names = [
-        b2b_raw_config.devices[i].name for i in range(count, count * 2)
+        b2b_raw_config.devices[i + count].name for i in range(count)
     ]
-    f2.tx_rx.device.mode = f2.tx_rx.device.ONE_TO_ONE
+    f2.tx_rx.device.mode = f1.tx_rx.device.ONE_TO_ONE
     f2.packet.ethernet().ipv4().tcp()
     tcp = f2.packet[-1]
     tcp.src_port.increment.start = "5000"
@@ -83,9 +86,7 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     f2.size.fixed = size * 2
     f2.duration.fixed_packets.packets = packets
     f2.rate.percentage = "10"
-
     utils.start_traffic(api, b2b_raw_config)
-
     utils.wait_for(
         lambda: results_ok(api, utils, size, size * 2, packets),
         'stats to be as expected', timeout_seconds=20
@@ -126,7 +127,6 @@ def captures_ok(api, cfg, utils, count, packets):
         128: [0 for i in range(count)],
         256: [0 for i in range(count)]
     }
-
     for b in cap_dict[list(cap_dict.keys())[0]]:
         i = dst_mac.index(b[0:6])
         assert b[0:6] == dst_mac[i] and b[6:12] == src_mac[i]
