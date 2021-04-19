@@ -455,8 +455,8 @@ class ConfigureBgp(object):
         self.configure_value(bgp_xpath, 'capabilitySRTEPoliciesV4', True)
         self.configure_value(bgp_xpath, 'capabilitySRTEPoliciesV6', True)
         ixn_bgp.NumberSRTEPolicies = len(sr_te_list)
-        if re.search(ixn_bgp.href, 'bgpIpv4Peer') is not None:
-            ixn_sr_te = ixn_bgp.bgpSRTEPoliciesListV4
+        if re.search('bgpIpv4Peer', ixn_bgp.href) is not None:
+            ixn_sr_te = ixn_bgp.BgpSRTEPoliciesListV4
         else:
             ixn_sr_te = ixn_bgp.BgpSRTEPoliciesListV6
         sr_te_xpath = self.get_xpath(ixn_sr_te.href)
@@ -524,7 +524,7 @@ class ConfigureBgp(object):
         if int(nodes_info.max_len) > 2:
             raise Exception("Value {0} for SR TE Policy Number of Tunnel TLVs is "
                             "greater than maximal value 2".format(nodes_info.max_len))
-        if re.search(ixn_sr_te.href, 'bgpSRTEPoliciesListV4') is not None:
+        if re.search('bgpSRTEPoliciesListV4', ixn_sr_te.href) is not None:
             ixn_sr_te.NumberOfTunnelsV4 = nodes_info.max_len
             ixn_tunnel = ixn_sr_te.BgpSRTEPoliciesTunnelEncapsulationListV4
         else:
@@ -565,7 +565,7 @@ class ConfigureBgp(object):
 
     def _configure_tlv_segment(self, ixn_tunnel, tunnel_tlvs):
         nodes_info = self._get_symmetric_nodes(tunnel_tlvs, 'segment_lists')
-        if re.search(ixn_tunnel.href, 'bgpSRTEPoliciesTunnelEncapsulationListV6') is not None:
+        if re.search('bgpSRTEPoliciesTunnelEncapsulationListV4', ixn_tunnel.href) is not None:
             ixn_tunnel.NumberOfSegmentListV4 = nodes_info.max_len
             ixn_segment_list = ixn_tunnel.BgpSRTEPoliciesSegmentListV4
         else:
@@ -580,7 +580,7 @@ class ConfigureBgp(object):
                                        segment_list_xpath)
         
         nodes_info = self._get_symmetric_nodes(segment_list, 'segments')
-        if re.search(ixn_tunnel.href, 'bgpSRTEPoliciesSegmentListV4') is not None:
+        if re.search('bgpSRTEPoliciesSegmentListV4', ixn_segment_list.href) is not None:
             ixn_segment_list.NumberOfSegmentsV4 = nodes_info.max_len
             ixn_segments = ixn_segment_list.BgpSRTEPoliciesSegmentsCollectionV4
         else:
