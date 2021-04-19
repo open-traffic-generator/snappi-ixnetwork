@@ -201,10 +201,11 @@ class ConfigureBgp(object):
     def configure_bgpv4(self, ixn_parent, bgpv4, ixn_dg):
         ixn_bgpv4 = ixn_parent.BgpIpv4Peer
         self._api._remove(ixn_bgpv4, [bgpv4])
+        name = self._api.special_char(bgpv4.name)
         args = {
-            'Name': bgpv4.name,
+            'Name': name,
         }
-        ixn_bgpv4.find(Name='^%s$' % bgpv4.name)
+        ixn_bgpv4.find(Name='^%s$' % name)
         if len(ixn_bgpv4) == 0:
             ixn_bgpv4.add(**args)[-1]
         else:
@@ -235,7 +236,7 @@ class ConfigureBgp(object):
         self.configure_value(bgp_xpath, 'md5Key', advanced.md5_key)
         self.configure_value(bgp_xpath, 'updateInterval', advanced.update_interval)
         self.configure_value(bgp_xpath, 'ttl', advanced.time_to_live)
-        self._configure_sr_te(ixn_bgpv4, bgpv4.sr_te_policies)
+        self._configure_sr_te(ixn_bgpv4, bgp_xpath, bgpv4.sr_te_policies)
         self._bgp_route_builder(ixn_dg, ixn_bgpv4, bgpv4)
         return ixn_bgpv4
     
@@ -255,10 +256,11 @@ class ConfigureBgp(object):
 
     def _configure_bgpv4_route(self, ixn_dg, ixn_bgp, route_range):
         ixn_ng = ixn_dg.NetworkGroup
+        name = self._api.special_char(route_range.name)
         args = {
-            'Name': route_range.name,
+            'Name': name,
         }
-        ixn_ng.find(Name='^%s$' % route_range.name)
+        ixn_ng.find(Name='^%s$' % name)
         if len(ixn_ng) == 0:
             self.stop_topology()
             ixn_ng.add(**args)[-1]
@@ -310,10 +312,11 @@ class ConfigureBgp(object):
     def configure_bgpv6(self, ixn_parent, bgpv6, ixn_dg):
         ixn_bgpv6 = ixn_parent.BgpIpv6Peer
         self._api._remove(ixn_bgpv6, [bgpv6])
+        name = self._api.special_char(bgpv6.name)
         args = {
-            'Name': bgpv6.name,
+            'Name': name,
         }
-        ixn_bgpv6.find(Name='^%s$' % bgpv6.name)
+        ixn_bgpv6.find(Name='^%s$' % name)
         if len(ixn_bgpv6) == 0:
             ixn_bgpv6.add(**args)[-1]
         else:
@@ -344,17 +347,17 @@ class ConfigureBgp(object):
         self.configure_value(bgp_xpath, 'md5Key', advanced.md5_key)
         self.configure_value(bgp_xpath, 'updateInterval', advanced.update_interval)
         self.configure_value(bgp_xpath, 'ttl', advanced.time_to_live)
-
-        self._configure_sr_te(ixn_bgpv6, bgpv6.sr_te_policies)
+        self._configure_sr_te(ixn_bgpv6, bgp_xpath, bgpv6.sr_te_policies)
         self._bgp_route_builder(ixn_dg, ixn_bgpv6, bgpv6)
         return ixn_bgpv6
 
     def _configure_bgpv6_route(self, ixn_dg, ixn_bgp, route_range):
         ixn_ng = ixn_dg.NetworkGroup
+        name = self._api.special_char(route_range.name)
         args = {
-            'Name': route_range.name,
+            'Name': name,
         }
-        ixn_ng.find(Name='^%s$' % route_range.name)
+        ixn_ng.find(Name='^%s$' % name)
         if len(ixn_ng) == 0:
             self.stop_topology()
             ixn_ng.add(**args)[-1]
@@ -446,9 +449,11 @@ class ConfigureBgp(object):
             self.configure_value(community_xpath, 'asNumber', community.as_number)
             self.configure_value(community_xpath, 'lastTwoOctets', community.as_custom)
 
-    def _configure_sr_te(self, ixn_bgp, sr_te_list):
+    def _configure_sr_te(self, ixn_bgp, bgp_xpath, sr_te_list):
         if sr_te_list is None or len(sr_te_list) == 0:
             return
+        self.configure_value(bgp_xpath, 'capabilitySRTEPoliciesV4', True)
+        self.configure_value(bgp_xpath, 'capabilitySRTEPoliciesV6', True)
         ixn_bgp.NumberSRTEPolicies = len(sr_te_list)
         if re.search(ixn_bgp.href, 'bgpIpv4Peer') is not None:
             ixn_sr_te = ixn_bgp.bgpSRTEPoliciesListV4
