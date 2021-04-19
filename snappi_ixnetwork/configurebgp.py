@@ -482,7 +482,7 @@ class ConfigureBgp(object):
         self.configure_value(sr_te_xpath, 'enableAddPath', active_list)
         if any(active_list):
             self._configure_attributes(ConfigureBgp._SRTE_ADDPATH,
-                                       next_hops,
+                                       add_paths,
                                        sr_te_xpath)
         self._configure_tlvs(ixn_sr_te, sr_te_list)
 
