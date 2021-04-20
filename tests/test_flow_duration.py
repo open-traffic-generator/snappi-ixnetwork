@@ -44,8 +44,7 @@ def test_flow_duration(api, utils):
     fp.packet.ethernet().vlan().ipv4()
     fp.duration.fixed_packets.packets = 125
     fp.duration.fixed_packets.gap = 2
-    fp.duration.fixed_packets.delay = 8
-    fp.duration.fixed_packets.delay_unit = fp.duration.fixed_packets.BYTES
+    fp.duration.fixed_packets.delay.bytes = 8
 
     # Test for Fix second with Gap and Delay
     fs.name = 'Fixed Seconds Duration'
@@ -54,8 +53,7 @@ def test_flow_duration(api, utils):
     fs.packet.ethernet().vlan().ipv4()
     fs.duration.fixed_seconds.seconds = 312
     fs.duration.fixed_seconds.gap = 2
-    fs.duration.fixed_seconds.delay = 8
-    fs.duration.fixed_seconds.delay_unit = fp.duration.fixed_seconds.BYTES
+    fs.duration.fixed_seconds.delay.bytes = 8
 
     # Test for Burst Duration with Gap and inter burst gap
     b.name = 'Fixed Burst Duration'
