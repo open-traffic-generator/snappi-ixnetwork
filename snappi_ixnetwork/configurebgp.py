@@ -578,7 +578,8 @@ class ConfigureBgp(object):
             self._configure_attributes(ConfigureBgp._POLICIES_SEGMENT_LIST,
                                        segment_list,
                                        segment_list_xpath)
-        
+            self.configure_value(segment_list_xpath, 'enWeight',
+                                 [True] * len(segment_list))
         nodes_info = self._get_symmetric_nodes(segment_list, 'segments')
         if re.search('bgpSRTEPoliciesSegmentListV4', ixn_segment_list.href) is not None:
             ixn_segment_list.NumberOfSegmentsV4 = nodes_info.max_len
