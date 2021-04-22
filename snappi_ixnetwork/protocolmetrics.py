@@ -278,7 +278,9 @@ class ProtocolMetrics(object):
         myfilter = [{
             'property': 'name',
             'regex': '.*' if len(self.device_names) == 0
-                        else '^%s$' % "|".join(self.device_names)
+                        else '^%s$' % "|".join(
+                            self._api.special_char(self.device_names)
+                            )
         }]
         url, payload = self._get_search_payload(
             '/topology',
