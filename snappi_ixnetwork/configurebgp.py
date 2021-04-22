@@ -89,6 +89,18 @@ class ConfigureBgp(object):
         }
     }
 
+    _SRTE_AS_PATH = {
+        'override_peer_as_set_mode' : {
+            'ixn_attr' : 'overridePeerAsSetMode',
+            'default' : False
+        },
+        'segment_type' : {
+            'ixn_attr' : 'asSetMode',
+            'default' : 'includelocalasasasseq',
+            'enum_map' : _BGP_AS_SET_MODE
+        }
+    }
+
     _REMOTE_ENDPOINT_SUB_TLV = {
         'as_number' : {
             'ixn_attr' : 'as4Number',
