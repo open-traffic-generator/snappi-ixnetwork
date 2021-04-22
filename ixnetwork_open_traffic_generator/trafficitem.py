@@ -554,14 +554,11 @@ class TrafficItem(CustomField):
         self._api._traffic_item.find(Name=regex)
         if len(self._api._traffic_item) > 0:
             if request.state == 'start':
-                self._api._traffic_item.find(Name=regex, State='^started$')
+                self._api._traffic_item.find(Name=regex, Suspend=True,
+                                             State='^started$')
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows resume'):
-                        try:
-                            self._api._traffic_item.PauseStatelessTraffic(False)
-                        except Exception:
-                            self._api.warning("Issue at the time to start pause traffic")
-                            self._api._traffic_item.StopStatelessTrafficBlocking()
+                        self._api._traffic_item.PauseStatelessTraffic(False)
                 self._api._traffic_item.find(Name=regex, State='^stopped$')
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows start'):
