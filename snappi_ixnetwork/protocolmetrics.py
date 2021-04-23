@@ -10,21 +10,13 @@ class ProtocolMetrics(object):
     _SUPPORTED_PROTOCOLS_ = [
         "bgpv4", "bgpv6"
     ]
-    _PROTO_NAME_MAP_ = {
-        "bgpv4": {
-            'per_port': 'BGP Peer Per Port',
-            'drill_down': 'BGP Peer Drill Down',
-            'drill_down_options': [
-                'BGP Peer:Per Device Group', 'BGP Peer:Per Session'
-            ]
-        },
-        "bgpv6": {
-            'per_port': 'BGP\+ Peer Per Port',
-            'drill_down': 'BGP\+ Peer Drill Down',
-            'drill_down_options': [
-                'BGP+ Peer:Per Device Group', 'BGP+ Peer:Per Session'
-            ]
-        }
+
+    _TOPO_STATS = {
+        "name": "name",
+        "total": "sessions_total",
+        "up": "sessions_up",
+        "down": "sessions_down",
+        "notStarted": "sessions_not_started"
     }
 
     _RESULT_COLUMNS = {
@@ -46,6 +38,27 @@ class ProtocolMetrics(object):
             ("routes_advertised", "Routes Advertised", int),
             ("routes_withdrawn", "Routes Withdrawn", int),
         ]
+    }
+
+    _PROTO_NAME_MAP_ = {
+        "bgpv4": {
+            'per_port': 'BGP Peer Per Port',
+            'drill_down': 'BGP Peer Drill Down',
+            'drill_down_options': [
+                'BGP Peer:Per Device Group', 'BGP Peer:Per Session'
+            ],
+            'supported_stats': [s[0] for s in _RESULT_COLUMNS["bgpv4"]],
+            'ixn_name': 'bgpIpv4Peer'
+        },
+        "bgpv6": {
+            'per_port': 'BGP\+ Peer Per Port',
+            'drill_down': 'BGP\+ Peer Drill Down',
+            'drill_down_options': [
+                'BGP+ Peer:Per Device Group', 'BGP+ Peer:Per Session'
+            ],
+            'supported_stats': [s[0] for s in _RESULT_COLUMNS["bgpv6"]],
+            'ixn_name': 'bgpIpv6Peer'
+        }
     }
 
     def __init__(self, ixnetworkapi):
@@ -155,9 +168,9 @@ class ProtocolMetrics(object):
 
     def _port_names_from_devices(self):
         config = self._api.snappi_config
-        snappi_port_list = [p.name for p in config.ports]
         if len(self.device_names) == 0:
-            return snappi_port_list
+            port_list = [p.name for p in config.ports]
+            return port_list
         port_list = [
             d.container_name
             for d in config.devices if d.name in self.device_names
@@ -252,6 +265,58 @@ class ProtocolMetrics(object):
                 row_dt[stat_name] = 0 \
                     if stat_type.__name__ in ['float', 'int'] else stat_value
 
+    def _topo_stats(self, protocol):
+        url = '%s/operations/gettopologystatus' % self.ixn.href
+        res = self._api._request('POST', url)
+        stats_map = {}
+        for d in res['result']:
+            if self._PROTO_NAME_MAP_[protocol]['ixn_name'] not in d['arg1']:
+                continue
+            stats_map[d['arg1']] = {
+                self._TOPO_STATS[i['arg1']]: i['arg2'] for i in d['arg2']
+            }
+        myfilter = [{
+            'property': 'name',
+            'regex': '.*' if len(self.device_names) == 0
+                        else '^%s$' % "|".join(
+                            self._api.special_char(self.device_names)
+                            )
+        }]
+        url, payload = self._get_search_payload(
+            '/topology',
+            '(?i)^(deviceGroup)$',
+            ['name'],
+            myfilter
+        )
+        result = self.ixn._connection._execute(url, payload)
+        for t in result:
+            if t.get('deviceGroup') is None:
+                continue
+            for d in t['deviceGroup']:
+                for p in stats_map:
+                    if d['href'] not in p:
+                        continue
+                    stats_map[p]['name'] = d['name']
+        if self.device_names == []:
+            return [stats_map[p] for p in stats_map]
+        return [
+            stats_map[p]
+            for p in stats_map
+            if stats_map['name'] in self.device_names
+        ]
+
+    def _filter_stats(self, protocol):
+        self.ixn = self._api.assistant._ixnetwork
+        f = [
+            i for i in filter(
+                lambda y: y not in self._TOPO_STATS.values(),
+                self.columns
+            )]
+        if len(f) > 0:
+            return self._get_per_device_group_stats(protocol)
+        else:
+            return self._topo_stats(protocol)
+
     def results(self, request):
         """
         Return the Protocol statistics
@@ -267,10 +332,12 @@ class ProtocolMetrics(object):
         if self.device_names is None:
             self.device_names = []
         self.columns = request._properties.get('column_names')
-        if self.columns is None:
-            self.columns = []
+        if self.columns is None or self.columns == []:
+            self.columns = self._PROTO_NAME_MAP_[protocol][
+                'supported_stats'
+            ]
         if len(self.columns) > 0:
             self.columns.append('name')
             self.columns = list(set(self.columns))
         with Timer(self._api, "Fetching {} Metrics".format(protocol)):
-            return self._get_per_device_group_stats(protocol)
+            return self._filter_stats(protocol)

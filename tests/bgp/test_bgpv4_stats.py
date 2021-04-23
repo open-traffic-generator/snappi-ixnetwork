@@ -1,6 +1,3 @@
-import pytest
-
-@pytest.mark.skip(reason="Intermittent failure. Issue #338")
 def test_bgpv4_stats(api, b2b_raw_config, utils):
     """
     Test for the bgpv4 metrics
@@ -28,9 +25,10 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     bgp2.dut_address = '10.1.1.1'
 
     utils.start_traffic(api, b2b_raw_config)
-    req = api.metrics_request()
-    req.bgpv4.device_names = []
-    results = api.get_metrics(req)
+    utils.wait_for(
+        lambda: results_ok(api),
+        'stats to be as expected', timeout_seconds=20
+    )
     enums = [
         'sessions_total', 'sessions_up',
         'sessions_down', 'sessions_not_started',
@@ -40,6 +38,21 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
         'tx_bgp': [1, 1, 0, 0, 0, 0],
         'rx_bgp': [1, 1, 0, 0, 0, 0]
     }
+    req = api.metrics_request()
+    req.bgpv4.device_names = []
+    req.bgpv4.column_names = enums[:-2]
+    results = api.get_metrics(req)
+
+    assert len(results.bgpv4_metrics) == 2
+    for bgp_res in results.bgpv4_metrics:
+        for i, enum in enumerate(enums[:-2]):
+            val = expected_results[bgp_res.name][i]
+            assert getattr(bgp_res, enum) == val
+
+    req = api.metrics_request()
+    req.bgpv4.device_names = []
+    req.bgpv4.column_names = []
+    results = api.get_metrics(req)
 
     assert len(results.bgpv4_metrics) == 2
     for bgp_res in results.bgpv4_metrics:
@@ -67,3 +80,13 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     assert results.bgpv4_metrics[1].sessions_total == 1
     assert results.bgpv4_metrics[1].sessions_up == 1
     utils.stop_traffic(api, b2b_raw_config)
+
+
+def results_ok(api):
+    req = api.metrics_request()
+    req.bgpv4.column_names = ['sessions_total', 'sessions_up']
+    results = api.get_metrics(req)
+    ok = []
+    for r in results.bgpv4_metrics:
+        ok.append(r.sessions_total == r.sessions_up)
+    return all(ok)
