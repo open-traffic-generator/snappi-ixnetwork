@@ -62,7 +62,6 @@ def test_flow_duration(api, utils):
     b.packet.ethernet().vlan().ipv4()
     b.duration.burst.packets = 700
     b.duration.burst.gap = 8
-    b.duration.burst.inter_burst_gap = 4
-    b.duration.burst.inter_burst_gap_unit = fp.duration.burst.NANOSECONDS
+    b.duration.burst.inter_burst_gap.nanoseconds = 4
 
     api.set_config(config)
