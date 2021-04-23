@@ -45,9 +45,9 @@ jobs:
       run: |
         ${{steps.path.outputs.pythonv}} -m pip install --upgrade dist/snappi_ixnetwork-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl[dev]
 
-#    - name: Run tests
-#      run: |
-#        ${{steps.path.outputs.pythonv}} -m pytest --api_server="https://10.39.71.97:443" --ports="10.39.65.230;6;1 10.39.65.230;6;2 10.39.65.230;6;3 10.39.65.230;6;4" --media="fiber" tests -m "not e2e and not l1_manual"
+    - name: Run tests
+      run: |
+      ${{steps.path.outputs.pythonv}} -m pytest --api_server="https://10.39.71.97:443" --ports="10.39.65.230;6;1 10.39.65.230;6;2 10.39.65.230;6;3 10.39.65.230;6;4" --media="fiber" tests -m "not e2e and not l1_manual"
 
   create_release_and_deploy:
     needs: build_and_test
