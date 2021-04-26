@@ -163,10 +163,16 @@ class Ngpf(object):
         if enum_map is not None:
             value = enum_map[value]
         if isinstance(value, list):
-            ixn_value =  {
-                "xpath": "{0}/valueList".format(xpath),
-                "values": value
-            }
+            if len(set(value)) == 1:
+                ixn_value = {
+                    "xpath": "{0}/singleValue".format(xpath),
+                    "value": value[0]
+                }
+            else:
+                ixn_value =  {
+                    "xpath": "{0}/valueList".format(xpath),
+                    "values": value
+                }
         else:
             ixn_value = {
                 "xpath": "{0}/singleValue".format(xpath),

@@ -94,13 +94,21 @@ class ConfigureBgp(object):
             'ixn_attr' : 'overridePeerAsSetMode',
             'default' : False
         },
-        'segment_type' : {
+        'as_set_mode' : {
             'ixn_attr' : 'asSetMode',
             'default' : 'includelocalasasasseq',
-            'enum_map' : _BGP_AS_SET_MODE
+            'enum_map' : _BGP_AS_MODE
         }
     }
-
+    
+    _SRTE_ASPATH_SEGMENT = {
+        'segment_type' : {
+            'ixn_attr' : 'segmentType',
+            'default' : 'asset',
+            'enum_map' : _BGP_SEG_TYPE
+        }
+    }
+    
     _REMOTE_ENDPOINT_SUB_TLV = {
         'as_number' : {
             'ixn_attr' : 'as4Number',
@@ -496,8 +504,15 @@ class ConfigureBgp(object):
             self._configure_attributes(ConfigureBgp._SRTE_ADDPATH,
                                        add_paths,
                                        sr_te_xpath)
+        active_list = self._process_nodes(as_paths)
+        if any(active_list):
+            self._configure_attributes(ConfigureBgp._SRTE_AS_PATH,
+                                       as_paths,
+                                       sr_te_xpath)
+            self._configure_srte_aspath_segment(as_paths,
+                                                ixn_sr_te)
         self._configure_tlvs(ixn_sr_te, sr_te_list)
-
+    
     def _get_symmetric_nodes(self, parent_list, node_name):
         NodesInfo = namedtuple("NodesInfo", ["max_len",
                                              "active_list",
@@ -531,6 +546,74 @@ class ConfigureBgp(object):
                          active_list,
                          symmetric_nodes)
     
+    def _get_symetric_tab_nodes(self, parent_list, node_name):
+        TabNodesInfo = namedtuple("TabNodesInfo", ["max_len",
+                                           "symmetric_nodes_list",
+                                           "actives_list"])
+        max_len = 0
+        symmetric_nodes_list = []
+        actives_list = []
+        is_enable = False
+        for parent in parent_list:
+            nodes = getattr(parent, node_name)
+            if nodes is None:
+                continue
+            is_enable = True
+            node_len = len(nodes)
+            if node_len > max_len:
+                for index in range(max_len, node_len):
+                    symmetric_nodes_list.append([nodes[index]] * len(
+                                parent_list))
+                    actives_list.append([False] * len(parent_list))
+                max_len = node_len
+        if is_enable:
+            for parent_idx, parent in enumerate(parent_list):
+                nodes = getattr(parent, node_name)
+                for node_idx, node in enumerate(nodes):
+                    symmetric_nodes_list[node_idx][parent_idx] = node
+                    actives_list[node_idx][parent_idx] = True
+        return TabNodesInfo(max_len,
+                            symmetric_nodes_list,
+                            actives_list)
+
+    def _configure_srte_aspath_segment(self, as_paths, ixn_sr_te):
+        nodes_list_info = self._get_symetric_tab_nodes(as_paths, 'as_path_segments')
+        if nodes_list_info.max_len == 0:
+            return
+        ixn_sr_te.EnableAsPathSegments.Single(True)
+        ixn_sr_te.NoOfASPathSegmentsPerRouteRange = nodes_list_info.max_len
+        ixn_segments = ixn_sr_te.BgpAsPathSegmentList
+        ixn_segments.find()
+        segments_info = self.select_node(ixn_sr_te.refresh().href,
+                                         children=['bgpAsPathSegmentList'])
+        for seg_idx , segment in enumerate(segments_info['bgpAsPathSegmentList']):
+            segment_xpath = segment['xpath']
+            ixn_segment = ixn_segments[seg_idx]
+            segment_nodes = nodes_list_info.symmetric_nodes_list[seg_idx]
+            self.configure_value(segment_xpath, 'enableASPathSegment',
+                                 nodes_list_info.actives_list[seg_idx])
+            self._configure_attributes(ConfigureBgp._SRTE_ASPATH_SEGMENT,
+                                       segment_nodes,
+                                       segment_xpath)
+            configure_as_number = False
+            for segment_node in segment_nodes:
+                as_numbers = getattr(segment_node, 'as_numbers')
+                if as_numbers is not None:
+                    configure_as_number = True
+                    if not isinstance(as_numbers, list):
+                        raise Exception("as_numbers must be list")
+            if configure_as_number is True:
+                as_numbers_list = self._get_symetric_tab_nodes(segment_nodes, 'as_numbers')
+                ixn_segment.NumberOfAsNumberInSegment = as_numbers_list.max_len
+                numbers_info = self.select_node(ixn_segment.href,
+                                         children=['bgpAsNumberList'])
+                for num_idx, number in enumerate(numbers_info['bgpAsNumberList']):
+                    number_xpath = number['xpath']
+                    self.configure_value(number_xpath, 'enableASNumber',
+                                         as_numbers_list.actives_list[num_idx])
+                    self.configure_value(number_xpath, 'asNumber',
+                                         as_numbers_list.symmetric_nodes_list[num_idx])
+        
     def _configure_tlvs(self, ixn_sr_te, sr_te_list):
         nodes_info = self._get_symmetric_nodes(sr_te_list, 'tunnel_tlvs')
         if int(nodes_info.max_len) > 2:
