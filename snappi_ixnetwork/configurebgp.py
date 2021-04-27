@@ -167,9 +167,19 @@ class ConfigureBgp(object):
         #     'ixn_attr': '',
         # }
     }
-    
-    _EXPLICIT_NULL_LABEL_POLICY_SUB_TLV = {
-    
+
+    _ENLP_SUB_TLV = {
+        'explicit_null_label_policy' : {
+            'ixn_attr' : 'ENLPValue',
+            'default' : '4',
+            'enum_map' : {
+                'reserved_enlp' : '0',
+                'push_ipv4_enlp' : '1',
+                'push_ipv6_enlp' : '2',
+                'push_ipv4_ipv6_enlp' : '3',
+                'do_not_push_enlp' : '4'
+            }
+        }
     }
 
     _POLICIES_SEGMENT_LIST = {
@@ -656,6 +666,12 @@ class ConfigureBgp(object):
             self._configure_attributes(ConfigureBgp._BINDING_SUB_TLV,
                                        binding_sub_tlv,
                                        tunnel_xpath)
+        active_list = self._process_nodes(explicit_null_label_policy_sub_tlv)
+        self.configure_value(tunnel_xpath, 'enENLPTLV', active_list)
+        if any(active_list):
+            self._configure_attributes(ConfigureBgp._ENLP_SUB_TLV,
+                                       explicit_null_label_policy_sub_tlv,
+                                       tunnel_xpath)
         self._configure_tlv_segment(ixn_tunnel, tunnel_tlvs)
 
     def _configure_tlv_segment(self, ixn_tunnel, tunnel_tlvs):
@@ -726,6 +742,9 @@ class ConfigureBgp(object):
                     if enum_map is None:
                         config_values.append(str(config_value))
                     else:
+                        if str(config_value) not in enum_map.keys():
+                            raise Exception("{0} must configure with enum {1}".format(
+                                        attribute, enum_map.keys()))
                         config_values.append(enum_map[
                             str(config_value)])
                 elif default_obj is not None:
