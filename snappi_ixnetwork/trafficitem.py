@@ -590,7 +590,8 @@ class TrafficItem(CustomField):
         self._api._traffic_item.find(Name=regex)
         if len(self._api._traffic_item) > 0:
             if request.state == 'start':
-                self._api._traffic_item.find(Name=regex, State='^started$')
+                self._api._traffic_item.find(Name=regex, Suspend=True,
+                                             State='^started$')
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, 'Flows resume'):
                         self._api._traffic_item.PauseStatelessTraffic(False)
