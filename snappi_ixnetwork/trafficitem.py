@@ -522,10 +522,12 @@ class TrafficItem(CustomField):
         if delay.choice is not None:
             value = getattr(delay, delay.choice, None)
             if value is None:
-                raise Exception("Delay mush be of type some <int> value")
+                raise Exception("Delay must be of type <int>")
+            if isinstance(value, float):
+                self._api.warning("Cast Delay to <int> due to software limitation")
             if delay.choice == 'microseconds':
                 args['StartDelayUnits'] = 'nanoseconds'
-                args['StartDelay'] = int(value) * 1000
+                args['StartDelay'] = value * 1000
             else:
                 args['StartDelayUnits'] = delay.choice
                 args['StartDelay'] = value
@@ -563,7 +565,7 @@ class TrafficItem(CustomField):
                 if value is None:
                     raise Exception("Inter packet gap mush be of type some <int> value")
                 if inter_burst_gap.choice == 'microseconds':
-                    args['InterBurstGap'] = int(value) * 1000
+                    args['InterBurstGap'] = value * 1000
                     args['InterBurstGapUnits'] = 'nanoseconds'
                 else:
                     args['InterBurstGap'] = value
