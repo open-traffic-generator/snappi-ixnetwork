@@ -157,15 +157,18 @@ class ConfigureBgp(object):
             'ixn_attr' : 'IPv6SID',
             'default': '::'
         },
-        # 's_flag' : {
-        #     'ixn_attr' : '',
-        # },
-        # 'i_flag' : {
-        #     'ixn_attr': '',
-        # },
-        # 'remaining_flag_bits' : {
-        #     'ixn_attr': '',
-        # }
+        's_flag' : {
+            'ixn_attr' : 'sflag',
+            'default': False
+        },
+        'i_flag' : {
+            'ixn_attr': 'iflag',
+            'default': False
+        },
+        'remaining_flag_bits' : {
+            'ixn_attr': 'remainingBits',
+            'default': '0'
+        }
     }
 
     _ENLP_SUB_TLV = {
