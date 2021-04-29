@@ -151,7 +151,7 @@ class Api(snappi.Api):
         request_detail.errors = errors
         request_detail.warnings = warnings
         return request_detail
-    
+
     def set_config(self, config):
         """Set or update the configuration
         """
@@ -159,7 +159,7 @@ class Api(snappi.Api):
                                 str)) is False:
             raise TypeError(
                 'The content must be of type Union[Config, str]')
-        
+
         if isinstance(config, str) is True:
             config = self._config_type.deserialize(config)
         self._config_objects = {}
@@ -182,6 +182,20 @@ class Api(snappi.Api):
                 self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
+        app_errors = self._globals.AppErrors.find()
+        bad_requests = []
+        if len(app_errors) > 0:
+            current_errors = app_errors[0].Error.find()
+            if len(current_errors) > 0:
+                for error in current_errors:
+                    if error.Name == 'JSON Import Issues':
+                        bad_requests = [instance.SourceValues[0]
+                                        for instance in error.Instance.find()]
+        if bad_requests:
+            if len(bad_requests) == 1:
+                raise Exception("Bad request error: {}".format(
+                    bad_requests[0]))
+            raise Exception("Bad request errors:", bad_requests)
         return self._request_detail()
 
     def set_transmit_state(self, payload):
