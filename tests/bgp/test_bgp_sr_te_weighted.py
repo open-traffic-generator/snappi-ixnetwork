@@ -20,6 +20,9 @@ def test_bgp_sr_te_weighted(api):
 
     BGPV4_SR_TE_TUNNEL_SEGMENTS = {
         'Label': ['16002', '16004', '16005', '16004'],
+        'Vflag': ['true', 'true', 'false', 'false'],
+        'RemainingBits': ['1', '1', '0', '0']
+
     }
 
     config = api.config()
@@ -83,7 +86,6 @@ def test_bgp_sr_te_weighted(api):
         seg = seglist1.segments.bgpsegment(active=True)[-1]
         seg.segment_type = seg.MPLS_SID
         seg.mpls_label = label
-        # TODO: add validation once implementation is done
         seg.v_flag = True
         seg.remaining_flag_bits = '0x01'
 
