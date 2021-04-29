@@ -171,6 +171,7 @@ class Api(snappi.Api):
                             config)
         with Timer(self, 'Config validation'):
             self.validation.validate_config()
+        self._ixnetwork.Traffic.UseRfc5952 = True
         if len(self._config._properties) == 0:
             self._ixnetwork.NewConfig()
         else:
