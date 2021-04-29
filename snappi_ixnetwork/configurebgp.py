@@ -167,7 +167,7 @@ class ConfigureBgp(object):
         },
         'remaining_flag_bits' : {
             'ixn_attr': 'remainingBits',
-            'default': '0'
+            'default': '0x01'
         }
     }
 
@@ -213,9 +213,14 @@ class ConfigureBgp(object):
             'ixn_attr' : 'timeToLive',
             'default' : '255'
         },
-        # 'v_flag' : {
-        #     'ixn_attr' : '',
-        # }
+        'v_flag' : {
+            'ixn_attr' : 'vflag',
+            'default': False
+        },
+        'remaining_flag_bits' : {
+            'ixn_attr' : 'remainingBits',
+            'default': '0x01'
+        },
         'ipv6_sid' : {
             'ixn_attr' : 'ipv6SID',
             'default' : '::'
