@@ -36,7 +36,7 @@ class ConfigureBgp(object):
         'no_llgr': 'no_llgr'
     }
     
-    _BGP_SR_TR = {
+    _BGP_SR_TE = {
         'policy_type' : {
             'ixn_attr' : 'policyType',
             'default' : 'ipv4'
@@ -59,7 +59,7 @@ class ConfigureBgp(object):
         }
     }
 
-    _SRTR_NEXT_HOP = {
+    _SRTE_NEXT_HOP = {
         'next_hop_mode' : {
             'ixn_attr': 'setNextHop',
             'default': 'sameaslocalip',
@@ -498,7 +498,7 @@ class ConfigureBgp(object):
         else:
             ixn_sr_te = ixn_bgp.BgpSRTEPoliciesListV6
         sr_te_xpath = self.get_xpath(ixn_sr_te.href)
-        self._configure_attributes(ConfigureBgp._BGP_SR_TR,
+        self._configure_attributes(ConfigureBgp._BGP_SR_TE,
                                    sr_te_list,
                                    sr_te_xpath)
         next_hops = []
@@ -513,7 +513,7 @@ class ConfigureBgp(object):
         active_list = self._process_nodes(next_hops)
         self.configure_value(sr_te_xpath, 'enableNextHop', active_list)
         if any(active_list):
-            self._configure_attributes(ConfigureBgp._SRTR_NEXT_HOP,
+            self._configure_attributes(ConfigureBgp._SRTE_NEXT_HOP,
                                        next_hops,
                                        sr_te_xpath)
         active_list = self._process_nodes(add_paths)
@@ -743,8 +743,6 @@ class ConfigureBgp(object):
             default_obj = getattr(self, str(default_value), None)
             config_values = []
             for parent in parent_list:
-                # if obj_name is not None:
-                #     parent = getattr(parent, obj_name, None)
                 config_value = getattr(parent, attribute, None)
                 if config_value is not None:
                     if enum_map is None:
