@@ -518,6 +518,20 @@ class TrafficItem(CustomField):
         args['Rate'] = value
         self._update(ixn_frame_rate, **args)
 
+    def _configure_delay(self, delay, args):
+        if delay.choice is not None:
+            value = getattr(delay, delay.choice, None)
+            if value is None:
+                raise Exception("Delay must be of type <int>")
+            if isinstance(value, float):
+                self._api.warning("Cast Delay to <int> due to software limitation")
+            if delay.choice == 'microseconds':
+                args['StartDelayUnits'] = 'nanoseconds'
+                args['StartDelay'] = value * 1000
+            else:
+                args['StartDelayUnits'] = delay.choice
+                args['StartDelay'] = value
+    
     def _configure_tx_control(self, ixn_stream, hl_stream_count, duration):
         """Transform duration flows.duration to /traffic/trafficItem[*]/configElement[*]/TransmissionControl
         """
@@ -528,28 +542,34 @@ class TrafficItem(CustomField):
         if duration.choice == 'continuous':
             args['Type'] = 'continuous'
             args['MinGapBytes'] = duration.continuous.gap
-            args['StartDelay'] = duration.continuous.delay
-            args['StartDelayUnits'] = duration.continuous.delay_unit
+            self._configure_delay(duration.continuous.delay, args)
         elif duration.choice == 'fixed_packets':
             args['Type'] = 'fixedFrameCount'
             args['FrameCount'] = duration.fixed_packets.packets / hl_stream_count
             args['MinGapBytes'] = duration.fixed_packets.gap
-            args['StartDelay'] = duration.fixed_packets.delay
-            args['StartDelayUnits'] = duration.fixed_packets.delay_unit
+            self._configure_delay(duration.fixed_packets.delay, args)
         elif duration.choice == 'fixed_seconds':
             args['Type'] = 'fixedDuration'
             args['Duration'] = duration.fixed_seconds.seconds
             args['MinGapBytes'] = duration.fixed_seconds.gap
-            args['StartDelay'] = duration.fixed_seconds.delay
-            args['StartDelayUnits'] = duration.fixed_seconds.delay_unit
+            self._configure_delay(duration.fixed_seconds.delay, args)
         elif duration.choice == 'burst':
             args['Type'] = 'custom'
             args['BurstPacketCount'] = duration.burst.packets
             args['MinGapBytes'] = duration.burst.gap
             args[
                 'EnableInterBurstGap'] = True if duration.burst.gap > 0 else False
-            args['InterBurstGap'] = duration.burst.inter_burst_gap
-            args['InterBurstGapUnits'] = duration.burst.inter_burst_gap_unit
+            inter_burst_gap = duration.burst.inter_burst_gap
+            if inter_burst_gap.choice is not None:
+                value = getattr(inter_burst_gap, inter_burst_gap.choice, None)
+                if value is None:
+                    raise Exception("Inter packet gap mush be of type some <int> value")
+                if inter_burst_gap.choice == 'microseconds':
+                    args['InterBurstGap'] = value * 1000
+                    args['InterBurstGapUnits'] = 'nanoseconds'
+                else:
+                    args['InterBurstGap'] = value
+                    args['InterBurstGapUnits'] = inter_burst_gap.choice
         self._update(ixn_tx_control, **args)
 
     def transmit(self, request):

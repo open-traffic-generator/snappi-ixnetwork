@@ -84,7 +84,7 @@ def test_static_lag(api, utils):
         lambda: results_ok(
             api, utils, f1_size, f2_size, packets
         ),
-        'stats to be as expected', timeout_seconds=10
+        'stats to be as expected', timeout_seconds=30
     )
 
 
@@ -173,7 +173,7 @@ def test_lacp_lag(api, utils):
         lambda: results_ok(
             api, utils, f1_size, f2_size, packets
         ),
-        'stats to be as expected', timeout_seconds=10
+        'stats to be as expected', timeout_seconds=30
     )
 
 

@@ -63,8 +63,7 @@ def test_pfc_unpause_e2e(api, settings, utils, lossless_priorities):
         ipv4.dst.value = '1.1.1.1'
         ipv4.priority.dscp.phb.value = str(prio * 8)
         f.duration.fixed_packets.packets = packets
-        f.duration.fixed_packets.delay = 10**9
-        f.duration.fixed_packets.delay_unit = 'nanoseconds'
+        f.duration.fixed_packets.delay.nanoseconds = 10**9
         f.size.fixed = size
         f.rate.percentage = 10
 
@@ -91,8 +90,7 @@ def test_pfc_unpause_e2e(api, settings, utils, lossless_priorities):
     pfc.pause_class_3.value = '0000'
     pfc.pause_class_4.value = '0000'
     rx_unpause.duration.fixed_seconds.seconds = 10
-    rx_unpause.duration.fixed_seconds.delay = (10**9) * 10
-    rx_unpause.duration.fixed_seconds.delay_unit = 'nanoseconds'
+    rx_unpause.duration.fixed_seconds.delay.nanoseconds = (10**9) * 10
     rx_unpause.size.fixed = size
     rx_unpause.rate.percentage = 50
 
