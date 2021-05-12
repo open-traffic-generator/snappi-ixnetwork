@@ -41,8 +41,11 @@ def test_capture_filter_settings(api, settings):
     filter3.custom.offset = attrs['PatternOffset1']
     filter3.custom.mask = attrs['PatternMask1']
     filter3.custom.negate = True
-
-    api.set_config(config)
+    
+    try:
+        api.set_config(config)
+    except Exception as e:
+        print(e)
 
     validate_capture_filter_settings(api, attrs)
 
