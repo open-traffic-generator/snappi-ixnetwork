@@ -644,7 +644,7 @@ class Vport(object):
         try:
             table = self._api.assistant.StatViewAssistant('Port Statistics')
         except Exception:
-            self._api.warn("Could not retrive the port statistics viewer")
+            self._api.warning("Could not retrive the port statistics viewer")
             return list(port_rows.values())
 
         for row in table.Rows:

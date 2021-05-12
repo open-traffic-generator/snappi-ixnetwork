@@ -12,6 +12,7 @@ from snappi_ixnetwork.capture import Capture
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.protocolmetrics import ProtocolMetrics
 from snappi_ixnetwork.resourcegroup import ResourceGroup
+from snappi_ixnetwork.exceptions import SnappiIxnException
 
 
 class Api(snappi.Api):
@@ -132,7 +133,7 @@ class Api(snappi.Api):
         return o
 
     def _request_detail(self):
-        request_detail = snappi.Details()
+        request_detail = snappi.ResponseWarning()
         errors = self._errors
         warnings = list()
         app_errors = self._globals.AppErrors.find()
@@ -148,41 +149,47 @@ class Api(snappi.Api):
                             warnings.append("IxNet - {0}".format(error.Description))
                         if error.ErrorLevel == 'kError':
                             errors.append("IxNet - {0}".format(error.Description))
-        request_detail.errors = errors
+        # request_detail.errors = errors
+        if len(errors) > 0:
+            self._errors = []
+            raise SnappiIxnException(500, errors)
         request_detail.warnings = warnings
         return request_detail
 
     def set_config(self, config):
         """Set or update the configuration
         """
-        if isinstance(config, (type(self._config_type),
-                                str)) is False:
-            raise TypeError(
-                'The content must be of type Union[Config, str]')
+        try:
+            if isinstance(config, (type(self._config_type),
+                                    str)) is False:
+                raise TypeError(
+                    'The content must be of type Union[Config, str]')
 
-        if isinstance(config, str) is True:
-            config = self._config_type.deserialize(config)
-        self._config_objects = {}
-        self._device_encap = {}
-        self._ixn_objects = {}
-        self._connect()
-        self.capture.reset_capture_request()
-        self._config = self._validate_instance(
-                            config)
-        with Timer(self, 'Config validation'):
-            self.validation.validate_config()
-        self._ixnetwork.Traffic.UseRfc5952 = True
-        if len(self._config._properties) == 0:
-            self._ixnetwork.NewConfig()
-        else:
-            self.vport.config()
-            self.lag.config()
-            with Timer(self, 'Devices configuration'):
-                self.ngpf.config()
-            with Timer(self, 'Flows configuration'):
-                self.traffic_item.config()
-        self._running_config = self._config
-        self._apply_change()
+            if isinstance(config, str) is True:
+                config = self._config_type.deserialize(config)
+            self._config_objects = {}
+            self._device_encap = {}
+            self._ixn_objects = {}
+            self._connect()
+            self.capture.reset_capture_request()
+            self._config = self._validate_instance(
+                                config)
+            with Timer(self, 'Config validation'):
+                self.validation.validate_config()
+            self._ixnetwork.Traffic.UseRfc5952 = True
+            if len(self._config._properties) == 0:
+                self._ixnetwork.NewConfig()
+            else:
+                self.vport.config()
+                self.lag.config()
+                with Timer(self, 'Devices configuration'):
+                    self.ngpf.config()
+                with Timer(self, 'Flows configuration'):
+                    self.traffic_item.config()
+            self._running_config = self._config
+            self._apply_change()
+        except Exception as err:
+            raise SnappiIxnException(err)
         app_errors = self._globals.AppErrors.find()
         bad_requests = []
         if len(app_errors) > 0:
@@ -194,64 +201,76 @@ class Api(snappi.Api):
                                         for instance in error.Instance.find()]
         if bad_requests:
             if len(bad_requests) == 1:
-                raise Exception("Bad request error: {}".format(
+                raise SnappiIxnException(400, "Bad request error: {}".format(
                     bad_requests[0]))
-            raise Exception("Bad request errors:", bad_requests)
+            raise SnappiIxnException(400, "Bad request errors:", bad_requests)
         return self._request_detail()
 
     def set_transmit_state(self, payload):
         """Set the transmit state of flows
         """
-        if isinstance(payload, (type(self._transmit_state),
-                                str)) is False:
-            raise TypeError(
-                'The content must be of type Union[TransmitState, str]')
-        if isinstance(payload, str) is True:
-            payload = self._transmit_state.deserialize(
-                                    payload)
-        self._connect()
-        self.traffic_item.transmit(payload)
+        try:
+            if isinstance(payload, (type(self._transmit_state),
+                                    str)) is False:
+                raise TypeError(
+                    'The content must be of type Union[TransmitState, str]')
+            if isinstance(payload, str) is True:
+                payload = self._transmit_state.deserialize(
+                                        payload)
+            self._connect()
+            self.traffic_item.transmit(payload)
+        except Exception as err:
+            raise SnappiIxnException(err)
         return self._request_detail()
 
     def set_link_state(self, link_state):
-        if isinstance(link_state, (type(self._link_state),
-                                str)) is False:
-            raise TypeError(
-                'The content must be of type Union[LinkState, str]')
-        if isinstance(link_state, str):
-            link_state = self._link_state.deserialize(link_state)
-        self._connect()
-        if link_state.port_names is not None:
-            self.vport.set_link_state(link_state)
+        try:
+            if isinstance(link_state, (type(self._link_state),
+                                    str)) is False:
+                raise TypeError(
+                    'The content must be of type Union[LinkState, str]')
+            if isinstance(link_state, str):
+                link_state = self._link_state.deserialize(link_state)
+            self._connect()
+            if link_state.port_names is not None:
+                self.vport.set_link_state(link_state)
+        except Exception as err:
+            raise SnappiIxnException(err)
         return self._request_detail()
     
     def set_capture_state(self, payload):
         """Starts capture on all ports that have capture enabled.
         """
-        if isinstance(payload, (type(self._capture_state),
-                                str)) is False:
-            raise TypeError(
-                'The content must be of type Union[CaptureState, str]')
-        if isinstance(payload, str) is True:
-            payload = self._capture_state.deserialize(
-                                    payload)
-        self._connect()
-        self.capture.set_capture_state(payload)
+        try:
+            if isinstance(payload, (type(self._capture_state),
+                                    str)) is False:
+                raise TypeError(
+                    'The content must be of type Union[CaptureState, str]')
+            if isinstance(payload, str) is True:
+                payload = self._capture_state.deserialize(
+                                        payload)
+            self._connect()
+            self.capture.set_capture_state(payload)
+        except Exception as err:
+            raise SnappiIxnException(err)
         return self._request_detail()
 
     def get_capture(self, request):
         """Gets capture file and returns it as a byte stream
         """
-        if isinstance(request, (type(self._capture_request),
-                                str)) is False:
-            raise TypeError(
-                'The content must be of type Union[CaptureRequest, str]')
-        if isinstance(request, str) is True:
-            request = self._capture_request.deserialize(
-                request)
-        self._connect()
+        try:
+            if isinstance(request, (type(self._capture_request),
+                                    str)) is False:
+                raise TypeError(
+                    'The content must be of type Union[CaptureRequest, str]')
+            if isinstance(request, str) is True:
+                request = self._capture_request.deserialize(
+                    request)
+            self._connect()
+        except Exception as err:
+            raise SnappiIxnException(err)
         return self.capture.results(request)
-    
+
     def get_metrics(self, request):
         """
         Gets port, flow and protocol metrics.
@@ -264,37 +283,40 @@ class Api(snappi.Api):
           #/components/schemas/Result.MetricsRequest
           See the docs/openapi.yaml document for all model details
         """
-        self._connect()
-        metric_req = self.metrics_request()
-        if isinstance(request, (type(metric_req),
-                                str)) is False:
-            raise TypeError(
-                'The content must be of type Union[MetricsRequest, str]')
-        if isinstance(request, str) is True:
-            request = metric_req.deserialize(request)
-        # Need to change the code style when the choice Enum grows big
-        if request.choice == 'port':
-            response = self.vport.results(request.port)
-            metric_res = self.metrics_response()
-            metric_res.port_metrics.deserialize(response)
-            return metric_res
-        if request.choice == 'flow':
-            response = self.traffic_item.results(request.flow)
-            metric_res = self.metrics_response()
-            metric_res.flow_metrics.deserialize(response)
-            return metric_res
-        if request.choice in self.protocol_metrics.get_supported_protocols():
-            response = self.protocol_metrics.results(request)
-            metric_res = self.metrics_response()
-            getattr(
-                metric_res, request.choice + '_metrics'
-            ).deserialize(response)
-            return metric_res
+        try:
+            self._connect()
+            metric_req = self.metrics_request()
+            if isinstance(request, (type(metric_req),
+                                    str)) is False:
+                raise TypeError(
+                    'The content must be of type Union[MetricsRequest, str]')
+            if isinstance(request, str) is True:
+                request = metric_req.deserialize(request)
+            # Need to change the code style when the choice Enum grows big
+            if request.choice == 'port':
+                response = self.vport.results(request.port)
+                metric_res = self.metrics_response()
+                metric_res.port_metrics.deserialize(response)
+                return metric_res
+            if request.choice == 'flow':
+                response = self.traffic_item.results(request.flow)
+                metric_res = self.metrics_response()
+                metric_res.flow_metrics.deserialize(response)
+                return metric_res
+            if request.choice in self.protocol_metrics.get_supported_protocols():
+                response = self.protocol_metrics.results(request)
+                metric_res = self.metrics_response()
+                getattr(
+                    metric_res, request.choice + '_metrics'
+                ).deserialize(response)
+                return metric_res
+        except Exception as err:
+            raise SnappiIxnException(err)
         if request.choice is not None:
             msg = "{} is not a supported choice for metrics; \
             the supported choices are \
             ['port', 'flow']".format(request.choice)
-            raise Exception(msg)
+            raise SnappiIxnException(400, msg)
 
     def add_error(self, error):
         """Add an error to the global errors
