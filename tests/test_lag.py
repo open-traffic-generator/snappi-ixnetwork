@@ -1,3 +1,5 @@
+import pytest
+
 
 def test_static_lag(api, utils):
     """Demonstrates the following:
