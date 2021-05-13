@@ -16,7 +16,7 @@ class SnappiIxnException(Exception):
             self._status_code,
             (
                 [self._message]
-                if isinstance(self._message, str) else self._message
+                if not isinstance(self._message, list) else self._message
             )
         )
 
@@ -24,7 +24,7 @@ class SnappiIxnException(Exception):
     def message(self):
         return (
             [self._message]
-            if isinstance(self._message, str) else self._message
+            if not isinstance(self._message, list) else self._message
         )
 
     @property
@@ -61,6 +61,8 @@ class SnappiIxnException(Exception):
             self._status_code = self._args[0]
             self._message = self._args[1]
             return
+        else:
+            self._message = self._args
         return
 
     def __str__(self):
