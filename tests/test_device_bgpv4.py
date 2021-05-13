@@ -77,8 +77,7 @@ def test_devices(api, utils):
     flow.tx_rx.device.tx_names = [tx_rr.name]
     flow.tx_rx.device.rx_names = [rx_rr.name]
 
-    response = api.set_config(config)
-    assert(len(response.errors)) == 0
+    api.set_config(config)
 
 
 if __name__ == '__main__':
