@@ -60,8 +60,7 @@ def test_flow_sizes(api, settings):
     random_size.size.random.min = "72"
     random_size.size.random.max = "1518"
 
-    response = api.set_config(config)
-    assert(len(response.errors)) == 0
+    api.set_config(config)
 
 
 if __name__ == '__main__':

@@ -116,8 +116,8 @@ def start_traffic(api, cfg, start_capture=True):
     Applies configuration, and starts flows.
     """
     print('Setting config ...')
-    response = api.set_config(cfg)
-    assert(len(response.errors)) == 0
+    api.set_config(cfg)
+    # assert(len(response.errors)) == 0
 
     capture_names = get_capture_port_names(cfg)
     if capture_names and start_capture:

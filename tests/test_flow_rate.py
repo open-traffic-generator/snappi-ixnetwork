@@ -50,8 +50,7 @@ def test_flow_rates(api, settings):
     rate_gbps.tx_rx.port.rx_name = rx.name
     rate_gbps.rate.gbps = 10
 
-    response = api.set_config(config)
-    assert(len(response.errors)) == 0
+    api.set_config(config)
 
 
 if __name__ == '__main__':
