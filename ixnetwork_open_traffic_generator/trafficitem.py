@@ -494,11 +494,15 @@ class TrafficItem(CustomField):
             args['StartDelay'] = duration.seconds.delay
             args['StartDelayUnits'] = duration.seconds.delay_unit
         elif duration.choice == 'burst':
-            args['Type'] = 'custom'
+            if duration.burst.bursts is not None \
+                    and int(duration.burst.bursts) > 0:
+                args['Type'] = 'burstFixedDuration'
+                args['RepeatBurst'] = duration.burst.bursts
+            else:
+                args['Type'] = 'custom'
             args['BurstPacketCount'] = duration.burst.packets
             args['MinGapBytes'] = duration.burst.gap
-            args[
-                'EnableInterBurstGap'] = True if duration.burst.gap > 0 else False
+            args['EnableInterBurstGap'] = True
             args['InterBurstGap'] = duration.burst.inter_burst_gap
             args['InterBurstGapUnits'] = duration.burst.inter_burst_gap_unit
         self._update(ixn_tx_control, **args)
