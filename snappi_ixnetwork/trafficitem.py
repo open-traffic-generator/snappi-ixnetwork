@@ -555,7 +555,12 @@ class TrafficItem(CustomField):
             args['MinGapBytes'] = duration.fixed_seconds.gap
             self._configure_delay(duration.fixed_seconds.delay, args)
         elif duration.choice == 'burst':
-            args['Type'] = 'custom'
+            if duration.burst.bursts is not None \
+                    and int(duration.burst.bursts) > 0:
+                args['Type'] = 'burstFixedDuration'
+                args['RepeatBurst'] = duration.burst.bursts
+            else:
+                args['Type'] = 'custom'
             args['BurstPacketCount'] = duration.burst.packets
             args['MinGapBytes'] = duration.burst.gap
             args[
