@@ -563,8 +563,7 @@ class TrafficItem(CustomField):
                 args['Type'] = 'custom'
             args['BurstPacketCount'] = duration.burst.packets
             args['MinGapBytes'] = duration.burst.gap
-            args[
-                'EnableInterBurstGap'] = True if duration.burst.gap > 0 else False
+            args['EnableInterBurstGap'] = True
             inter_burst_gap = duration.burst.inter_burst_gap
             if inter_burst_gap.choice is not None:
                 value = getattr(inter_burst_gap, inter_burst_gap.choice, None)
