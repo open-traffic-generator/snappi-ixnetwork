@@ -243,6 +243,8 @@ class TrafficItem(CustomField):
         if config_latency is None:
             if latency.mode is not None:
                 config_latency = latency.mode
+            else:
+                config_latency = 'store_forward'
         else:
             if latency.mode is not None and \
                     config_latency != latency.mode:
