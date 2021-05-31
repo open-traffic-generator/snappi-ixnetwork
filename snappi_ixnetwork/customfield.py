@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 class CustomField(object):
     """
     Implemented All custom field which specify within TrafficItem class
@@ -95,7 +97,6 @@ class CustomField(object):
         The implementation will only support fixed patterns for
         control_op_code and time
         '''
-        from copy import deepcopy
         ethpause = deepcopy(ethernetpause)
         headers.clear()
         eth = headers.ethernet()[-1]
@@ -127,9 +128,8 @@ class CustomField(object):
 
     def _gtpv1(self, new_headers, header):
         ''''''
-        import copy
         new_headers.append(header)
-        gtp_option = copy.deepcopy(header)
+        gtp_option = deepcopy(header)
         gtp_option.__setattr__('choice', 'gtpv1option')
         gtp_option.__setattr__('gtpv1option', header.gtpv1)
         gtp_option.__delattr__('gtpv1')

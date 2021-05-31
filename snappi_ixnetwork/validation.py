@@ -1,5 +1,3 @@
-import json
-
 
 class Validation(object):
     """Validate the configuration

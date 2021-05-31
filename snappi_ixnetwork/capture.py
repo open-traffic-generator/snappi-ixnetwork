@@ -285,11 +285,11 @@ class Capture(object):
 
         url = '%s/vport/operations/saveCaptureInfo' % self._api._ixnetwork.href
         payload = {'arg1': self._api._vport.href, 'arg2': file_id}
-        response = self._api._request('POST', url, payload)
+        self._api._request('POST', url, payload)
 
         url = '%s/vport/operations/releaseCapturePorts' % self._api._ixnetwork.href
         payload = {'arg1': [self._api._vport.href]}
-        response = self._api._request('POST', url, payload)
+        self._api._request('POST', url, payload)
 
         path = '%s/capture' % self._api._ixnetwork.Globals.PersistencePath
         url = '%s/files?absolute=%s&filename=%s.cap' % (self._api._ixnetwork.href,

@@ -1,4 +1,4 @@
-import re, time
+import time
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.customfield import CustomField
 
