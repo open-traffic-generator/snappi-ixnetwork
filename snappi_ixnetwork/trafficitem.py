@@ -1,6 +1,6 @@
+import re, time
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.customfield import CustomField
-
 
 class TrafficItem(CustomField):
     """TrafficItem configuration
@@ -20,9 +20,23 @@ class TrafficItem(CustomField):
         ('loss', 'Loss %', float),
         ('bytes_tx_rate', 'Tx Rate (Bps)', float),
         ('bytes_rx_rate', 'Rx Rate (Bps)', float),
-        ('min_latency_ns', 'Store-Forward Min Latency (ns)', int),
-        ('max_latency_ns', 'Store-Forward Max Latency (ns)', int),
-        ('avg_latency_ns', 'Store-Forward Avg Latency (ns)', int)
+    ]
+
+    _RESULT_LATENCY_STORE_FORWARD = [
+        ('minimum_us', 'Store-Forward Min Latency (ns)', int),
+        ('maximum_us', 'Store-Forward Max Latency (ns)', int),
+        ('average_us', 'Store-Forward Avg Latency (ns)', int),
+    ]
+    
+    _RESULT_LATENCY_CUT_THROUGH = [
+        ('minimum_us', 'Cut-Through Min Latency (ns)', int),
+        ('maximum_us', 'Cut-Through Max Latency (ns)', int),
+        ('average_us', 'Cut-Through Avg Latency (ns)', int),
+    ]
+    
+    _RESULT_TIMESTAMP = [
+        ('first_timestamp_us', 'First TimeStamp', int),
+        ('last_timestamp_us', 'Last TimeStamp', int)
     ]
 
     _STACK_IGNORE = ['ethernet.fcs', 'pfcPause.fcs']
@@ -58,6 +72,11 @@ class TrafficItem(CustomField):
         'kbps': 'kbitsPerSec',
         'mbps': 'mbitsPerSec',
         'gbps': 'mbytesPerSec'
+    }
+
+    _LATENCY = {
+        'cut_through' : 'cutThrough',
+        'store_forward' : 'storeForward'
     }
 
     _PFCPAUSE = {
@@ -166,11 +185,13 @@ class TrafficItem(CustomField):
         "n_pdu_number" : "gTPuOptionalFields.header.npduNumber",
         "next_extension_header_type" : "gTPuOptionalFields.header.nextExtHdrField"
     }
-    
+
     _CUSTOM = '_custom_headers'
 
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
+        self.has_latency = False
+        self._flow_timeout = 10
 
     def config(self):
         """Configure config.flows onto Ixnetwork.Traffic.TrafficItem
@@ -182,6 +203,7 @@ class TrafficItem(CustomField):
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
         ixn_traffic_item = self._api._traffic_item
+        config_latency = None
         self._api._remove(ixn_traffic_item, self._api.snappi_config.flows)
         if len(self._api.snappi_config.flows) > 0:
             for flow in self._api.snappi_config.flows:
@@ -200,7 +222,14 @@ class TrafficItem(CustomField):
                     self._update(ixn_traffic_item, **args)
                 self._configure_endpoint(ixn_traffic_item.EndpointSet,
                                          flow.tx_rx)
-                self._configure_tracking(flow, ixn_traffic_item.Tracking)
+                metrics = flow._properties.get('metrics')
+                if metrics is not None and metrics.enable is True:
+                    self._configure_tracking(flow, ixn_traffic_item.Tracking)
+                if metrics is not None:
+                    latency = metrics._properties.get('latency')
+                    if latency is not None and latency.enable is True:
+                        config_latency = self._process_latency(latency,
+                                                               config_latency)
                 ixn_ce = ixn_traffic_item.ConfigElement.find()
                 hl_stream_count = len(ixn_traffic_item.HighLevelStream.find())
                 self._configure_stack(ixn_ce, flow.packet)
@@ -208,7 +237,31 @@ class TrafficItem(CustomField):
                 self._configure_rate(ixn_ce, flow.rate)
                 self._configure_tx_control(ixn_ce, hl_stream_count, flow.duration)
             self._configure_options()
+            self._configure_latency(config_latency)
 
+    def _process_latency(self, latency, config_latency):
+        if config_latency is None:
+            if latency.mode is not None:
+                config_latency = latency.mode
+        else:
+            if latency.mode is not None and \
+                    config_latency != latency.mode:
+                raise Exception("Solution only accept same type of latency mode")
+        return config_latency
+    
+    def _configure_latency(self, config_latency):
+        ixn_latency = self._api._traffic.Statistics.Latency
+        if config_latency is not None:
+            self.has_latency = True
+            ixn_CpdpConvergence = self._api._traffic.Statistics.CpdpConvergence
+            ixn_CpdpConvergence.Enabled = False
+            ixn_latency.Enabled = True
+            ixn_latency.Mode = TrafficItem._LATENCY[
+                    config_latency]
+        else:
+            self.has_latency = False
+            ixn_latency.Enabled = False
+    
     def _configure_tracking(self, flow, ixn_tracking):
         """Set tracking options"""
         ixn_tracking.find()
@@ -422,26 +475,25 @@ class TrafficItem(CustomField):
                              ValueType='valueList',
                              ValueList=pattern.values)
         elif pattern.choice == 'increment':
-            # try:
-            ixn_field.update(Auto=False,
-                            ValueType='increment',
-                            ActiveFieldChoice=field_choice,
-                            StartValue=pattern.increment.start,
-                            StepValue=pattern.increment.step,
-                            CountValue=pattern.increment.count)
-            # except Exception as e:
-            #     import pdb; pdb.set_trace()
-            #     print(e)
+            try:
+                ixn_field.update(Auto=False,
+                                 ValueType='increment',
+                                 ActiveFieldChoice=field_choice,
+                                 StartValue=pattern.increment.start,
+                                 StepValue=pattern.increment.step,
+                                 CountValue=pattern.increment.count)
+            except Exception as e:
+                print(e)
         elif pattern.choice == 'decrement':
-            # try:
-            ixn_field.update(Auto=False,
-                            ValueType='decrement',
-                            ActiveFieldChoice=field_choice,
-                            StartValue=pattern.decrement.start,
-                            StepValue=pattern.decrement.step,
-                            CountValue=pattern.decrement.count)
-            # except Exception as e:
-            #     print(e)
+            try:
+                ixn_field.update(Auto=False,
+                                 ValueType='decrement',
+                                 ActiveFieldChoice=field_choice,
+                                 StartValue=pattern.decrement.start,
+                                 StepValue=pattern.decrement.step,
+                                 CountValue=pattern.decrement.count)
+            except Exception as e:
+                print(e)
         elif pattern.choice == 'random':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
@@ -670,12 +722,33 @@ class TrafficItem(CustomField):
             return 'started'
         else:
             return 'stopped'
-
+    
+    def _get_flow_rows(self):
+        count = 0
+        sleep_time = 0.5
+        flow_stat = self._api.assistant.StatViewAssistant(
+            'Flow Statistics')
+        while True:
+            flow_rows = flow_stat.Rows
+            has_values = False
+            for row in flow_rows:
+                if int(row['Tx Frames']) > 0 or int(row[
+                            'Rx Frames']) > 0:
+                    has_values = True
+                    break
+            if has_values is True:
+                break
+            if count * sleep_time > self._flow_timeout:
+                raise Exception("Somehow flow stats are not updating")
+            time.sleep(sleep_time)
+            count += 1
+        return flow_rows
+    
     def results(self, request):
         """Return flow results
         """
         # setup parameters
-        self._column_names = request._properties.get('column_names')
+        self._column_names = request._properties.get('metric_names')
         if self._column_names is None:
             self._column_names = []
         elif not isinstance(self._column_names, list):
@@ -690,10 +763,26 @@ class TrafficItem(CustomField):
             msg = "Invalid format of flow_names passed {},\
                     expected list".format(flow_names)
             raise Exception(msg)
-
-        filter = {'property': 'name', 'regex': '.*'}
-        filter['regex'] = '^(%s)$' % '|'.join(
-                        self._api.special_char(flow_names))
+        final_flow_names = [
+            f.name for f in self._api._config.flows
+            if f.metrics.enable is True and f.name in flow_names
+        ]
+        if final_flow_names == []:
+            msg = """
+            To fetch flow metrics at least one flow shall have metric enabled
+            """
+            raise Exception(msg.strip())
+        diff = set(flow_names).difference(final_flow_names)
+        if len(diff) > 0:
+            self._api.warning(
+                "{} flow(s) is/are not enabled with metrics, \
+                   skipping the flow(s)".format("".join(list(diff)))
+            )
+        flow_names = final_flow_names
+        regfilter = {'property': 'name', 'regex': '.*'}
+        regfilter['regex'] = '^(%s)$' % '|'.join(
+            self._api.special_char(flow_names)
+        )
 
         flow_count = len(flow_names)
         ixn_page = self._api._ixnetwork.Statistics.View.find(Caption="Flow Statistics").Page
@@ -703,7 +792,7 @@ class TrafficItem(CustomField):
         # initialize result values
         flow_rows = {}
         for traffic_item in self._api.select_traffic_items(
-                traffic_item_filters=[filter]).values():
+                traffic_item_filters=[regfilter]).values():
             for stream in traffic_item['highLevelStream']:
                 for rx_port_name in stream['rxPortNames']:
                     flow_row = {}
@@ -720,14 +809,30 @@ class TrafficItem(CustomField):
                         )
                     flow_rows[traffic_item['name'] + stream['txPortName'] + rx_port_name] = flow_row
 
-        # resolve result values
-        table = self._api.assistant.StatViewAssistant(
-            'Flow Statistics')
-        for row in table.Rows:
-            if len(flow_names) > 0 and row['Traffic Item'] not in flow_names:
+        flows_has_latency = []
+        flows_has_timestamp = []
+        flows_has_loss = []
+        latency_mode = 'store_forward'
+        for flow in self._api.snappi_config.flows:
+            metrics = flow.metrics
+            if metrics is not None:
+                if metrics.latency is not None \
+                    and metrics.latency.enable is True:
+                    flows_has_latency.append(flow.name)
+                    latency_mode = metrics.latency.mode
+                if metrics.timestamps is True:
+                    flows_has_timestamp.append(flow.name)
+                if metrics.loss is True:
+                    flows_has_loss.append(flow.name)
+        
+        for row in self._get_flow_rows():
+            name = row['Traffic Item']
+            if len(flow_names) > 0 and name not in flow_names:
                 continue
-            if row['Traffic Item'] + row['Tx Port'] + row['Rx Port'] in flow_rows:
-                flow_row = flow_rows[row['Traffic Item'] + row['Tx Port'] + row['Rx Port']]
+            tx_port = row['Tx Port']
+            rx_port = row['Rx Port']
+            if name + tx_port + rx_port in flow_rows:
+                flow_row = flow_rows[name + tx_port + rx_port]
                 if float(row['Tx Frame Rate']) > 0 or int(row['Tx Frames']) == 0:
                     flow_row['transmit'] = 'started'
                 else:
@@ -743,5 +848,48 @@ class TrafficItem(CustomField):
                     except Exception:
                         # TODO print a warning maybe ?
                         pass
-
+                if name in flows_has_latency:
+                    self._construct_latency(flow_row, latency_mode, row)
+                if name in flows_has_timestamp:
+                    self._construct_timestamp(flow_row, row)
+                if name not in flows_has_loss:
+                    flow_row.pop('loss')
         return list(flow_rows.values())
+
+    def _construct_latency(self, flow_row, latency_mode, row):
+        if latency_mode == 'store_forward':
+            latency_map = TrafficItem._RESULT_LATENCY_STORE_FORWARD
+        else:
+            latency_map = TrafficItem._RESULT_LATENCY_CUT_THROUGH
+        latency_result = {}
+        for external_name, internal_name, external_type in latency_map:
+            if internal_name not in row.Columns:
+                continue
+            try:
+                self._set_result_value(latency_result, external_name,
+                                       row[internal_name], external_type)
+            except Exception:
+                self._api.warning("Issue at the time processing latency result")
+                pass
+        if len(latency_result) > 0:
+            flow_row['latency'] = latency_result
+    
+    def _construct_timestamp(self, flow_row, row):
+        timestamp_result = {}
+        for external_name, internal_name, external_type in TrafficItem._RESULT_TIMESTAMP:
+            if internal_name not in row.Columns:
+                continue
+            try:
+                val = row[internal_name].split(':')
+                mul = [3600, 60, 1]
+                sv = sum([
+                    int(float(v) * 10 ** 9 + 0.1) * mul[i]
+                    for i, v in enumerate(val)
+                ])
+                self._set_result_value(timestamp_result, external_name,
+                                       sv, external_type)
+            except Exception:
+                self._api.warning("Issue at the time processing timestamp result")
+                pass
+        if len(timestamp_result) > 0:
+            flow_row['timestamps'] = timestamp_result
