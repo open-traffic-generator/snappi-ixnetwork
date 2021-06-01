@@ -331,10 +331,6 @@ class Ngpf(object):
     def set_route_state(self, payload):
         if payload.state is None:
             return
-        if not self._api.events.event_allow (
-                'route_advertise_withdraw'):
-            raise Exception("Event route_advertise_withdraw must Enable "
-                            "to execute set_route_state")
         names = payload.names
         if len(names) == 0:
             names = self._api.ixn_route_objects.keys()

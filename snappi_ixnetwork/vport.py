@@ -149,8 +149,6 @@ class Vport(object):
 
     def set_link_state(self, link_state):
         with Timer(self._api, 'Link State operation'):
-            if not self._api.events.event_allow('link'):
-                raise Exception("Event link must enable to set_link_state")
             payload = {
                 'arg1': [],
                 'arg2': link_state.state,

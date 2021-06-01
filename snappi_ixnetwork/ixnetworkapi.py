@@ -13,7 +13,6 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.protocolmetrics import ProtocolMetrics
 from snappi_ixnetwork.resourcegroup import ResourceGroup
 from snappi_ixnetwork.exceptions import SnappiIxnException
-from snappi_ixnetwork.events import Events
 
 class Api(snappi.Api):
     """IxNetwork implementation of the abstract-open-traffic-generator package
@@ -68,7 +67,6 @@ class Api(snappi.Api):
         self.capture = Capture(self)
         self.protocol_metrics = ProtocolMetrics(self)
         self.resource_group = ResourceGroup(self)
-        self.events = Events(self)
 
     def _get_addr_port(self, host):
         items = host.split('/')
@@ -197,8 +195,6 @@ class Api(snappi.Api):
                     self.ngpf.config()
                 with Timer(self, 'Flows configuration'):
                     self.traffic_item.config()
-                with Timer(self, 'Events configuration'):
-                    self.events.config()
             self._running_config = self._config
             self._apply_change()
         except Exception as err:
