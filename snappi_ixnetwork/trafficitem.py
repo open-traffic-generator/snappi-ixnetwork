@@ -29,14 +29,14 @@ class TrafficItem(CustomField):
     ]
     
     _RESULT_LATENCY_CUT_THROUGH = [
-        ('minimum_us', 'Cut-Through Min Latency (ns)', int),
-        ('maximum_us', 'Cut-Through Max Latency (ns)', int),
-        ('average_us', 'Cut-Through Avg Latency (ns)', int),
+        ('minimum_ns', 'Cut-Through Min Latency (ns)', int),
+        ('maximum_ns', 'Cut-Through Max Latency (ns)', int),
+        ('average_ns', 'Cut-Through Avg Latency (ns)', int),
     ]
     
     _RESULT_TIMESTAMP = [
-        ('first_timestamp_us', 'First TimeStamp', int),
-        ('last_timestamp_us', 'Last TimeStamp', int)
+        ('first_timestamp_ns', 'First TimeStamp', int),
+        ('last_timestamp_ns', 'Last TimeStamp', int)
     ]
 
     _STACK_IGNORE = ['ethernet.fcs', 'pfcPause.fcs']
@@ -734,8 +734,8 @@ class TrafficItem(CustomField):
             flow_rows = flow_stat.Rows
             has_values = False
             for row in flow_rows:
-                if int(row['Tx Frames']) > 0 or int(row[
-                            'Rx Frames']) > 0:
+                if (int(row['Tx Frames']) > 0 or int(row['Rx Frames']) > 0) \
+                        and (row['First TimeStamp'] != '' or row['Last TimeStamp'] != ''):
                     has_values = True
                     break
             if has_values is True:
@@ -744,6 +744,7 @@ class TrafficItem(CustomField):
                 raise Exception("Somehow flow stats are not updating")
             time.sleep(sleep_time)
             count += 1
+        self._api.info("Stat availability time {0}".format(count * sleep_time))
         return flow_rows
     
     def results(self, request):
