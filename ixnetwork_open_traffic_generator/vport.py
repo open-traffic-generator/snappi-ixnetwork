@@ -620,11 +620,17 @@ class Vport(object):
         auto_field_name  = 'enableAutoNegotiation'
         if re.search('novustengiglan', vport['type'].lower()) is not None:
             auto_field_name = 'autoNegotiate'
+        # Due to ieeeL1Defaults dependency
+        ieee_media_defaults = {
+            'xpath':
+                vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', ''),
+            'ieeeL1Defaults':
+                layer1.ieee_media_defaults
+        }
+        self._add_l1config_import(vport, ieee_media_defaults, imports)
         proposed_import = {
             'xpath':
             vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', ''),
-            'ieeeL1Defaults':
-            layer1.ieee_media_defaults,
             'speed':
             Vport._SPEED_MAP[layer1.speed],
             '{0}'.format(auto_field_name):
