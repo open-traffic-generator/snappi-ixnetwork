@@ -23,9 +23,9 @@ class TrafficItem(CustomField):
     ]
 
     _RESULT_LATENCY_STORE_FORWARD = [
-        ('minimum_us', 'Store-Forward Min Latency (ns)', int),
-        ('maximum_us', 'Store-Forward Max Latency (ns)', int),
-        ('average_us', 'Store-Forward Avg Latency (ns)', int),
+        ('minimum_ns', 'Store-Forward Min Latency (ns)', int),
+        ('maximum_ns', 'Store-Forward Max Latency (ns)', int),
+        ('average_ns', 'Store-Forward Avg Latency (ns)', int),
     ]
     
     _RESULT_LATENCY_CUT_THROUGH = [
@@ -725,28 +725,6 @@ class TrafficItem(CustomField):
         else:
             return 'stopped'
     
-    def _get_flow_rows(self):
-        count = 0
-        sleep_time = 0.5
-        flow_stat = self._api.assistant.StatViewAssistant(
-            'Flow Statistics')
-        while True:
-            flow_rows = flow_stat.Rows
-            has_values = False
-            for row in flow_rows:
-                if (int(row['Tx Frames']) > 0 or int(row['Rx Frames']) > 0) \
-                        and (row['First TimeStamp'] != '' or row['Last TimeStamp'] != ''):
-                    has_values = True
-                    break
-            if has_values is True:
-                break
-            if count * sleep_time > self._flow_timeout:
-                raise Exception("Somehow flow stats are not updating")
-            time.sleep(sleep_time)
-            count += 1
-        self._api.info("Stat availability time {0}".format(count * sleep_time))
-        return flow_rows
-    
     def results(self, request):
         """Return flow results
         """
@@ -819,16 +797,20 @@ class TrafficItem(CustomField):
         for flow in self._api.snappi_config.flows:
             metrics = flow.metrics
             if metrics is not None:
-                if metrics.latency is not None \
-                    and metrics.latency.enable is True:
+                latency = metrics.latency
+                if latency is not None \
+                    and latency.enable is True:
                     flows_has_latency.append(flow.name)
-                    latency_mode = metrics.latency.mode
+                    if latency.mode is not None:
+                        latency_mode = metrics.latency.mode
                 if metrics.timestamps is True:
                     flows_has_timestamp.append(flow.name)
                 if metrics.loss is True:
                     flows_has_loss.append(flow.name)
-        
-        for row in self._get_flow_rows():
+
+        flow_stat = self._api.assistant.StatViewAssistant(
+            'Flow Statistics')
+        for row in flow_stat.Rows:
             name = row['Traffic Item']
             if len(flow_names) > 0 and name not in flow_names:
                 continue
