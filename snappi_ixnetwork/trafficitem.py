@@ -477,25 +477,19 @@ class TrafficItem(CustomField):
                              ValueType='valueList',
                              ValueList=pattern.values)
         elif pattern.choice == 'increment':
-            try:
-                ixn_field.update(Auto=False,
-                                 ValueType='increment',
-                                 ActiveFieldChoice=field_choice,
-                                 StartValue=pattern.increment.start,
-                                 StepValue=pattern.increment.step,
-                                 CountValue=pattern.increment.count)
-            except Exception as e:
-                print(e)
+            ixn_field.update(Auto=False,
+                             ValueType='increment',
+                             ActiveFieldChoice=field_choice,
+                             StartValue=pattern.increment.start,
+                             StepValue=pattern.increment.step,
+                             CountValue=pattern.increment.count)
         elif pattern.choice == 'decrement':
-            try:
-                ixn_field.update(Auto=False,
-                                 ValueType='decrement',
-                                 ActiveFieldChoice=field_choice,
-                                 StartValue=pattern.decrement.start,
-                                 StepValue=pattern.decrement.step,
-                                 CountValue=pattern.decrement.count)
-            except Exception as e:
-                print(e)
+            ixn_field.update(Auto=False,
+                             ValueType='decrement',
+                             ActiveFieldChoice=field_choice,
+                             StartValue=pattern.decrement.start,
+                             StepValue=pattern.decrement.step,
+                             CountValue=pattern.decrement.count)
         elif pattern.choice == 'random':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
