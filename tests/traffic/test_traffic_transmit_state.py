@@ -43,6 +43,12 @@ def test_traffic_transmit_state(api, b2b_raw_config, utils):
     flow3.size.fixed = f2_size
     flow3.rate.percentage = 10
 
+    flow1.metrics.enable = True
+    flow1.metrics.loss = True
+
+    flow3.metrics.enable = True
+    flow3.metrics.loss = True
+
     utils.start_traffic(api, b2b_raw_config)
     import time
     time.sleep(10)

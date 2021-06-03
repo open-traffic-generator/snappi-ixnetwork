@@ -72,6 +72,12 @@ def test_static_lag(api, utils):
     f1.rate.percentage = 10
     f2.rate.percentage = 10
 
+    f1.metrics.enable = True
+    f1.metrics.loss = True
+
+    f2.metrics.enable = True
+    f2.metrics.loss = True
+
     utils.start_traffic(api, config, start_capture=False)
     utils.wait_for(
         lambda: utils.is_traffic_stopped(api), 'traffic to stop'

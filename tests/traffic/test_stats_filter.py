@@ -32,6 +32,12 @@ def test_stats_filter(api, b2b_raw_config, utils):
     flow2.size.fixed = f2_size
     flow2.rate.percentage = 10
 
+    flow1.metrics.enable = True
+    flow1.metrics.loss = True
+
+    flow2.metrics.enable = True
+    flow2.metrics.loss = True
+
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
     utils.wait_for(
         lambda: utils.is_traffic_stopped(api), 'traffic to stop'
@@ -74,24 +80,24 @@ def test_stats_filter(api, b2b_raw_config, utils):
     for flow_name in flow_names:
         req = api.metrics_request()
         req.flow.flow_names = [flow_name]
-        req.flow.column_names = ['name']
+        req.flow.metric_names = ['name']
         flow_results = api.get_metrics(req).flow_metrics
         # flow_results = api.get_flow_results(result.FlowRequest(
         #                                     flow_names=[flow_name],
         #                                     column_names=['name']))
         validate_flow_stats_based_on_flow_name(flow_results, flow_name)
 
-    # Validation on Flow statistics based on column names
-    column_names = ['frames_tx', 'frames_rx', 'bytes_rx']
-    for column_name in column_names:
+    # Validation on Flow statistics based on metric names
+    metric_names = ['frames_tx', 'frames_rx', 'bytes_rx']
+    for metric_name in metric_names:
         req = api.metrics_request()
-        req.flow.column_names = ['name', column_name]
+        req.flow.metric_names = ['name', column_name]
         flow_results = api.get_metrics(req).flow_metrics
         # flow_results = api.get_flow_results(result.FlowRequest(
         #                                     column_names=['name',
         #                                                   column_name]))
-        validate_flow_stats_based_on_column_name(flow_results,
-                                                 column_name,
+        validate_flow_stats_based_on_metric_name(flow_results,
+                                                 metric_name,
                                                  f1_packets,
                                                  f2_packets,
                                                  f1_size,
@@ -139,27 +145,27 @@ def validate_flow_stats_based_on_flow_name(flow_results, flow_name):
         assert row.name == flow_name
 
 
-def validate_flow_stats_based_on_column_name(flow_results,
-                                             column_name,
+def validate_flow_stats_based_on_metric_name(flow_results,
+                                             metric_name,
                                              f1_packets,
                                              f2_packets,
                                              f1_size,
                                              f2_size):
     """
-    Validate Flow stats based on column_names
+    Validate Flow stats based on metric_names
     """
     for row in flow_results:
         if row.name == 'f1':
-            if column_name == 'frames_tx':
-                assert getattr(row, column_name) == f1_packets
-            elif column_name == 'frames_rx':
-                assert getattr(row, column_name) == f1_packets
-            elif column_name == 'bytes_rx':
-                assert getattr(row, column_name) == f1_packets * f1_size
+            if metric_name == 'frames_tx':
+                assert getattr(row, metric_name) == f1_packets
+            elif metric_name == 'frames_rx':
+                assert getattr(row, metric_name) == f1_packets
+            elif metric_name == 'bytes_rx':
+                assert getattr(row, metric_name) == f1_packets * f1_size
         elif row.name == 'f2':
-            if column_name == 'frames_tx':
-                assert getattr(row, column_name) == f2_packets
-            elif column_name == 'frames_rx':
-                assert getattr(row, column_name) == f2_packets
-            elif column_name == 'bytes_rx':
-                assert getattr(row, column_name) == f2_packets * f2_size
+            if metric_name == 'frames_tx':
+                assert getattr(row, metric_name) == f2_packets
+            elif metric_name == 'frames_rx':
+                assert getattr(row, metric_name) == f2_packets
+            elif metric_name == 'bytes_rx':
+                assert getattr(row, metric_name) == f2_packets * f2_size

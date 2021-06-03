@@ -47,7 +47,8 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     flow_bgp.tx_rx.device.rx_names = [
         bgp1_rr1.name, bgp1_rr2.name, bgp2_rr1.name, bgp2_rr2.name
     ]
-
+    flow_bgp.metrics.enable = True
+    flow_bgp.metrics.loss = True
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
 
     req = api.metrics_request()
