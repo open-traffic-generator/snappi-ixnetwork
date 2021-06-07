@@ -223,9 +223,11 @@ class TrafficItem(CustomField):
                 self._configure_endpoint(ixn_traffic_item.EndpointSet,
                                          flow.tx_rx)
                 metrics = flow._properties.get('metrics')
-                if metrics is not None and metrics.enable is True:
+                if metrics is not None \
+                        and metrics.enable is True:
                     self._configure_tracking(flow, ixn_traffic_item.Tracking)
-                if metrics is not None:
+                if metrics is not None \
+                        and metrics.enable is True:
                     latency = metrics._properties.get('latency')
                     if latency is not None and latency.enable is True:
                         config_latency = self._process_latency(latency,
@@ -248,7 +250,7 @@ class TrafficItem(CustomField):
         else:
             if latency.mode is not None and \
                     config_latency != latency.mode:
-                raise Exception("Solution only accept same type of latency mode")
+                raise Exception("Latency mode needs to be same for all flows")
         return config_latency
     
     def _configure_latency(self, config_latency):
@@ -738,22 +740,24 @@ class TrafficItem(CustomField):
             msg = "Invalid format of flow_names passed {},\
                     expected list".format(flow_names)
             raise Exception(msg)
-        final_flow_names = [
-            f.name for f in self._api._config.flows
-            if f.metrics.enable is True and f.name in flow_names
-        ]
-        if final_flow_names == []:
+        final_flow_names = []
+        for flow in self._api._config.flows:
+            metrics = flow._properties.get('metrics')
+            if metrics is None:
+                continue
+            if metrics.enable is True \
+                    and flow.name in flow_names:
+                final_flow_names.append(flow.name)
+        if len(final_flow_names) == 0:
             msg = """
             To fetch flow metrics at least one flow shall have metric enabled
             """
             raise Exception(msg.strip())
         diff = set(flow_names).difference(final_flow_names)
-        if len(diff) > 0:
-            self._api.warning(
-                "{} flow(s) is/are not enabled with metrics, \
-                   skipping the flow(s)".format("".join(list(diff)))
-            )
-        flow_names = final_flow_names
+        if len(diff) > 0 and len(request._properties.get(
+                    'flow_names')) != 0:
+            raise Exception("Flow metrics is not enabled on flows {}".format(
+                    "".join(list(diff))))
         regfilter = {'property': 'name', 'regex': '.*'}
         regfilter['regex'] = '^(%s)$' % '|'.join(
             self._api.special_char(flow_names)
@@ -843,12 +847,12 @@ class TrafficItem(CustomField):
         latency_result = {}
         for external_name, internal_name, external_type in latency_map:
             if internal_name not in row.Columns:
-                continue
+                raise Exception("Column %s could not fetch in latency metrics" %internal_name)
             try:
                 self._set_result_value(latency_result, external_name,
                                        row[internal_name], external_type)
-            except Exception:
-                self._api.warning("Issue at the time processing latency result")
+            except Exception as exception_err:
+                self._api.warning("Could not fetch latency metrics: %s" % exception_err)
                 pass
         if len(latency_result) > 0:
             flow_row['latency'] = latency_result
@@ -857,7 +861,7 @@ class TrafficItem(CustomField):
         timestamp_result = {}
         for external_name, internal_name, external_type in TrafficItem._RESULT_TIMESTAMP:
             if internal_name not in row.Columns:
-                continue
+                raise Exception("Column %s could not fetch in timestamp metrics" %internal_name)
             try:
                 val = row[internal_name].split(':')
                 mul = [3600, 60, 1]
@@ -867,8 +871,8 @@ class TrafficItem(CustomField):
                 ])
                 self._set_result_value(timestamp_result, external_name,
                                        sv, external_type)
-            except Exception:
-                self._api.warning("Issue at the time processing timestamp result")
+            except Exception as exception_err:
+                self._api.warning("Could not fetch timestamp metrics: %s" % exception_err)
                 pass
         if len(timestamp_result) > 0:
             flow_row['timestamps'] = timestamp_result
