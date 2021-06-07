@@ -734,7 +734,9 @@ class TrafficItem(CustomField):
             raise Exception(msg)
 
         flow_names = request._properties.get('flow_names')
+        has_request_flow = True
         if flow_names is None or len(flow_names) == 0:
+            has_request_flow = False
             flow_names = [flow.name for flow in self._api._config.flows]
         elif not isinstance(flow_names, list):
             msg = "Invalid format of flow_names passed {},\
@@ -754,10 +756,10 @@ class TrafficItem(CustomField):
             """
             raise Exception(msg.strip())
         diff = set(flow_names).difference(final_flow_names)
-        if len(diff) > 0 and len(request._properties.get(
-                    'flow_names')) != 0:
+        if len(diff) > 0 and has_request_flow is True:
             raise Exception("Flow metrics is not enabled on flows {}".format(
                     "".join(list(diff))))
+        flow_names = final_flow_names
         regfilter = {'property': 'name', 'regex': '.*'}
         regfilter['regex'] = '^(%s)$' % '|'.join(
             self._api.special_char(flow_names)
