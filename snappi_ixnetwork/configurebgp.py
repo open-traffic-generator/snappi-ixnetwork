@@ -338,6 +338,9 @@ class ConfigureBgp(object):
             property_xpath = pool_infos['bgpV6IPRouteProperty'][0]['xpath']
         self.configure_value(property_xpath, 'ipv4NextHop',
                               route_range.next_hop_address)
+        if route_range.name is not None:
+            ixn_bgp_property.Name = route_range.name
+            self._api.ixn_route_objects[route_range.name] = ixn_bgp_property
         advanced = route_range.advanced
         if advanced.multi_exit_discriminator is not None:
             self.configure_value(property_xpath, 'enableMultiExitDiscriminator', True)
@@ -435,6 +438,9 @@ class ConfigureBgp(object):
             property_xpath = pool_infos['bgpV6IPRouteProperty'][0]['xpath']
         self.configure_value(property_xpath, 'ipv6NextHop',
                              route_range.next_hop_address)
+        if route_range.name is not None:
+            ixn_bgp_property.Name = route_range.name
+            self._api.ixn_route_objects[route_range.name] = ixn_bgp_property
         advanced = route_range.advanced
         if advanced.multi_exit_discriminator is not None:
             self.configure_value(property_xpath, 'enableMultiExitDiscriminator', True)

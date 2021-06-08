@@ -14,7 +14,6 @@ from snappi_ixnetwork.protocolmetrics import ProtocolMetrics
 from snappi_ixnetwork.resourcegroup import ResourceGroup
 from snappi_ixnetwork.exceptions import SnappiIxnException
 
-
 class Api(snappi.Api):
     """IxNetwork implementation of the abstract-open-traffic-generator package
 
@@ -59,6 +58,7 @@ class Api(snappi.Api):
         self._link_state = self.link_state()
         self._capture_state = self.capture_state()
         self._capture_request = self.capture_request()
+        self._ixn_route_objects = {}
         self.validation = Validation(self)
         self.vport = Vport(self)
         self.lag = Lag(self)
@@ -115,6 +115,15 @@ class Api(snappi.Api):
         """Returns an href given a unique configuration name
         """
         return self._ixn_objects[name]
+    
+    @property
+    def ixn_route_objects(self):
+        return self._ixn_route_objects
+    
+    def get_route_object(self, name):
+        if name not in self._ixn_route_objects.keys():
+            raise Exception("%s not within configure routes" %name)
+        return self._ixn_route_objects[name]
 
     @property
     def assistant(self):
@@ -255,6 +264,23 @@ class Api(snappi.Api):
             raise SnappiIxnException(err)
         return self._request_detail()
 
+    def set_route_state(self, payload):
+        try:
+            route_state = self.route_state()
+            if isinstance(payload, (type(route_state),
+                                    str)) is False:
+                raise TypeError(
+                    'The content must be of type Union[RouteState, str]')
+            if isinstance(payload, str) is True:
+                payload = route_state.deserialize(
+                                        payload)
+            self._connect()
+            with Timer(self, 'Setting route state'):
+                self.ngpf.set_route_state(payload)
+            return self._request_detail()
+        except Exception as err:
+            raise SnappiIxnException(err)
+
     def get_capture(self, request):
         """Gets capture file and returns it as a byte stream
         """
@@ -349,7 +375,7 @@ class Api(snappi.Api):
         return LocationInfo(chassis_info,
                         card_info,
                         port_info)
-    
+
     def special_char(self, names):
         is_names = True
         if not isinstance(names, list):

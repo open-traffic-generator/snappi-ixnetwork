@@ -25,6 +25,11 @@ class Ngpf(object):
         'bgpv6': 'ipv6',
     }
     
+    _ROUTE_STATE = {
+        'advertise' : True,
+        'withdraw' : False
+    }
+    
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         self._conf_bgp = ConfigureBgp(self)
@@ -322,3 +327,15 @@ class Ngpf(object):
         return self._conf_bgp.configure_bgpv6(ixn_parent,
                                               bgpv6,
                                               ixn_dg)
+
+    def set_route_state(self, payload):
+        if payload.state is None:
+            return
+        names = payload.names
+        if len(names) == 0:
+            names = self._api.ixn_route_objects.keys()
+        for name in names:
+            ixn_route = self._api.get_route_object(name)
+            ixn_route.Active.Single(Ngpf._ROUTE_STATE[
+                                payload.state])
+        self._api._ixnetwork.Globals.Topology.ApplyOnTheFly()

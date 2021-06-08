@@ -83,7 +83,7 @@ def tx_port(b2b_raw_config):
 def rx_port(b2b_raw_config):
     """Returns a receive port
     """
-    return b2b_raw_config.ports[0]
+    return b2b_raw_config.ports[1]
 
 
 @pytest.fixture
