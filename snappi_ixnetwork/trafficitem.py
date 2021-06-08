@@ -203,7 +203,10 @@ class TrafficItem(CustomField):
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
         ixn_traffic_item = self._api._traffic_item
-        config_latency = None
+        self.flows_has_latency = []
+        self.flows_has_timestamp = []
+        self.flows_has_loss = []
+        self.latency_mode = None
         self._api._remove(ixn_traffic_item, self._api.snappi_config.flows)
         if len(self._api.snappi_config.flows) > 0:
             for flow in self._api.snappi_config.flows:
@@ -226,12 +229,16 @@ class TrafficItem(CustomField):
                 if metrics is not None \
                         and metrics.enable is True:
                     self._configure_tracking(flow, ixn_traffic_item.Tracking)
-                if metrics is not None \
-                        and metrics.enable is True:
                     latency = metrics._properties.get('latency')
                     if latency is not None and latency.enable is True:
-                        config_latency = self._process_latency(latency,
-                                                               config_latency)
+                        self.flows_has_latency.append(flow.name)
+                        self._process_latency(latency)
+                    timestamps = metrics._properties.get('timestamps')
+                    if timestamps is True:
+                        self.flows_has_timestamp.append(flow.name)
+                    loss = metrics._properties.get('loss')
+                    if loss is True:
+                        self.flows_has_loss.append(flow.name)
                 ixn_ce = ixn_traffic_item.ConfigElement.find()
                 hl_stream_count = len(ixn_traffic_item.HighLevelStream.find())
                 self._configure_stack(ixn_ce, flow.packet)
@@ -239,29 +246,28 @@ class TrafficItem(CustomField):
                 self._configure_rate(ixn_ce, flow.rate)
                 self._configure_tx_control(ixn_ce, hl_stream_count, flow.duration)
             self._configure_options()
-            self._configure_latency(config_latency)
+            self._configure_latency()
 
-    def _process_latency(self, latency, config_latency):
-        if config_latency is None:
+    def _process_latency(self, latency):
+        if self.latency_mode is None:
             if latency.mode is not None:
-                config_latency = latency.mode
+                self.latency_mode = latency.mode
             else:
-                config_latency = 'store_forward'
+                self.latency_mode = 'store_forward'
         else:
             if latency.mode is not None and \
-                    config_latency != latency.mode:
+                    self.latency_mode != latency.mode:
                 raise Exception("Latency mode needs to be same for all flows")
-        return config_latency
-    
-    def _configure_latency(self, config_latency):
+
+    def _configure_latency(self):
         ixn_latency = self._api._traffic.Statistics.Latency
-        if config_latency is not None:
+        if self.latency_mode is not None:
             self.has_latency = True
             ixn_CpdpConvergence = self._api._traffic.Statistics.CpdpConvergence
             ixn_CpdpConvergence.Enabled = False
             ixn_latency.Enabled = True
             ixn_latency.Mode = TrafficItem._LATENCY[
-                    config_latency]
+                self.latency_mode]
         else:
             self.has_latency = False
             ixn_latency.Enabled = False
@@ -789,25 +795,7 @@ class TrafficItem(CustomField):
                             flow_row, external_name, 0, external_type
                         )
                     flow_rows[traffic_item['name'] + stream['txPortName'] + rx_port_name] = flow_row
-
-        flows_has_latency = []
-        flows_has_timestamp = []
-        flows_has_loss = []
-        latency_mode = 'store_forward'
-        for flow in self._api.snappi_config.flows:
-            metrics = flow.metrics
-            if metrics is not None:
-                latency = metrics.latency
-                if latency is not None \
-                    and latency.enable is True:
-                    flows_has_latency.append(flow.name)
-                    if latency.mode is not None:
-                        latency_mode = metrics.latency.mode
-                if metrics.timestamps is True:
-                    flows_has_timestamp.append(flow.name)
-                if metrics.loss is True:
-                    flows_has_loss.append(flow.name)
-
+                    
         flow_stat = self._api.assistant.StatViewAssistant(
             'Flow Statistics')
         for row in flow_stat.Rows:
@@ -833,23 +821,23 @@ class TrafficItem(CustomField):
                     except Exception:
                         # TODO print a warning maybe ?
                         pass
-                if name in flows_has_latency:
-                    self._construct_latency(flow_row, latency_mode, row)
-                if name in flows_has_timestamp:
+                if name in self.flows_has_latency:
+                    self._construct_latency(flow_row, row)
+                if name in self.flows_has_timestamp:
                     self._construct_timestamp(flow_row, row)
-                if name not in flows_has_loss:
+                if name not in self.flows_has_loss:
                     flow_row.pop('loss')
         return list(flow_rows.values())
 
-    def _construct_latency(self, flow_row, latency_mode, row):
-        if latency_mode == 'store_forward':
+    def _construct_latency(self, flow_row, row):
+        if self.latency_mode == 'store_forward':
             latency_map = TrafficItem._RESULT_LATENCY_STORE_FORWARD
         else:
             latency_map = TrafficItem._RESULT_LATENCY_CUT_THROUGH
         latency_result = {}
         for external_name, internal_name, external_type in latency_map:
             if internal_name not in row.Columns:
-                raise Exception("Column %s could not fetch in latency metrics" %internal_name)
+                raise Exception("Could not fetch column %s in latency metrics" %internal_name)
             try:
                 self._set_result_value(latency_result, external_name,
                                        row[internal_name], external_type)
@@ -863,7 +851,8 @@ class TrafficItem(CustomField):
         timestamp_result = {}
         for external_name, internal_name, external_type in TrafficItem._RESULT_TIMESTAMP:
             if internal_name not in row.Columns:
-                raise Exception("Column %s could not fetch in timestamp metrics" %internal_name)
+                raise Exception("Could not fetch column %s in timestamp metrics" %internal_name)
+            
             try:
                 val = row[internal_name].split(':')
                 mul = [3600, 60, 1]
