@@ -6,6 +6,7 @@
 [![python](https://img.shields.io/pypi/pyversions/snappi_ixnetwork.svg)](https://pypi.python.org/pypi/snappi_ixnetwork)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/open-traffic-generator/ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/ixnetwork/alerts/)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/open-traffic-generator/ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/ixnetwork/context:python)
+[![downloads](https://pepy.tech/badge/snappi-ixnetwork)](https://pepy.tech/project/snappi-ixnetwork)
 
 This extension allows executing test scripts written using [snappi](https://github.com/open-traffic-generator/snappi) against  
 IxNetwork, (one of) Keysight's implementation of [Open Traffic Generator](https://github.com/open-traffic-generator/models/releases).
