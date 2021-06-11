@@ -68,6 +68,26 @@ def b2b_raw_config(api):
 
 
 @pytest.fixture
+def b2b_raw_config_vports(api):
+    """
+    back to back raw config with virtual ports
+    """
+    config = api.config()
+
+    tx, rx = (
+        config.ports
+        .port(name='tx')
+        .port(name='rx')
+    )
+
+    flow = config.flows.flow(name='f1')[-1]
+    flow.tx_rx.port.tx_name = tx.name
+    flow.tx_rx.port.rx_name = rx.name
+
+    return config
+
+
+@pytest.fixture
 def utils():
     return utl
 
@@ -84,6 +104,20 @@ def rx_port(b2b_raw_config):
     """Returns a receive port
     """
     return b2b_raw_config.ports[1]
+
+
+@pytest.fixture
+def tx_vport(b2b_raw_config_vports):
+    """Returns a transmit vport
+    """
+    return b2b_raw_config_vports.ports[0]
+
+
+@pytest.fixture
+def rx_vport(b2b_raw_config_vports):
+    """Returns a receive vport
+    """
+    return b2b_raw_config_vports.ports[1]
 
 
 @pytest.fixture

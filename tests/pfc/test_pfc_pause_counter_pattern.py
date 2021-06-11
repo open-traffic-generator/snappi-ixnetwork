@@ -57,11 +57,11 @@ def test_counter_pfc_pause(api, b2b_raw_config, utils):
         'PFC Queue 7': ('ffff', '1', '10'),
     }
 
-    utils.validate_config(api, 0, **attrs)
+    utils.validate_config(api, 'pfcpause', 0, **attrs)
 
     pfc.pause_class_7.increment.start = '3333'
 
     api.set_config(b2b_raw_config)
 
     attrs['PFC Queue 7'] = ('3333', '1', '10')
-    utils.validate_config(api, 0, **attrs)
+    utils.validate_config(api, 'pfcpause', 0, **attrs)

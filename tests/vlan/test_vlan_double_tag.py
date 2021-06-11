@@ -1,4 +1,4 @@
-def test_vlan_double_tag(api, b2b_raw_config, utils):
+def test_vlan_double_tag(api, b2b_raw_config_vports, utils):
     """
     Configure a raw traffic with two vlan headers
 
@@ -7,7 +7,7 @@ def test_vlan_double_tag(api, b2b_raw_config, utils):
       against expected.
     """
 
-    f = b2b_raw_config.flows[0]
+    f = b2b_raw_config_vports.flows[0]
     source = '00:0C:29:E3:53:EA'
     destination = '00:0C:29:E3:53:F4'
     ether_type = '8100'
@@ -35,12 +35,12 @@ def test_vlan_double_tag(api, b2b_raw_config, utils):
 
     vlan1.id.value = vlan_id
 
-    api.set_config(b2b_raw_config)
+    api.set_config(b2b_raw_config_vports)
 
     attrs = {
         'VLAN Priority': str(priority),
         'Canonical Format Indicator': str(cfi),
         'VLAN-ID': str(vlan_id),
     }
-    utils.validate_config(api, 1, **attrs)
-    utils.validate_config(api, 2, **attrs)
+    utils.validate_config(api, 'f1', 1, **attrs)
+    utils.validate_config(api, 'f1', 2, **attrs)
