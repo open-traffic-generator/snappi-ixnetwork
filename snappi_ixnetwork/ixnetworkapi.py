@@ -27,11 +27,7 @@ class Api(snappi.Api):
         This is not required when connecting to single session environments
     """
     def __init__(self,
-                 host=None,
-                 username='admin',
-                 password='admin',
-                 license_servers=[],
-                 log_level='info'):
+                 **kwargs):
         """Create a session
         - address (str): The ip address of the TestPlatform to connect to
         where test sessions will be created or connected to.
@@ -39,14 +35,18 @@ class Api(snappi.Api):
         - username (str): The username to be used for authentication
         - password (str): The password to be used for authentication
         """
-        super(Api, self).__init__(
-            host='https://127.0.0.1:11009' if host is None else host
-        )
-        self._address, self._port = self._get_addr_port(self.host)
-        self._username = username
-        self._password = password
-        self._license_servers = license_servers
-        self._log_level = log_level
+        super(Api, self).__init__()
+        location = kwargs.get('location')
+        username = kwargs.get('username')
+        password = kwargs.get('password')
+        license_servers = kwargs.get('license_servers')
+        log_level = kwargs.get('loglevel')
+        location = 'https://127.0.0.1:11009' if location is None else location
+        self._address, self._port = self._get_addr_port(location)
+        self._username = 'admin' if username is None else username
+        self._password = 'admin' if password is None else password
+        self._license_servers = [] if license_servers is None else license_servers
+        self._log_level = 'info'
         self._running_config = None
         self._config = None
         self._assistant = None
@@ -176,27 +176,7 @@ class Api(snappi.Api):
 
             if isinstance(config, str) is True:
                 config = self._config_type.deserialize(config)
-            self._config_objects = {}
-            self._device_encap = {}
-            self._ixn_objects = {}
-            self._connect()
-            self.capture.reset_capture_request()
-            self._config = self._validate_instance(
-                                config)
-            with Timer(self, 'Config validation'):
-                self.validation.validate_config()
-            self._ixnetwork.Traffic.UseRfc5952 = True
-            if len(self._config._properties) == 0:
-                self._ixnetwork.NewConfig()
-            else:
-                self.vport.config()
-                self.lag.config()
-                with Timer(self, 'Devices configuration'):
-                    self.ngpf.config()
-                with Timer(self, 'Flows configuration'):
-                    self.traffic_item.config()
-            self._running_config = self._config
-            self._apply_change()
+            self.config_ixnetwork(config)
         except Exception as err:
             raise SnappiIxnException(err)
         app_errors = self._globals.AppErrors.find()
@@ -215,6 +195,29 @@ class Api(snappi.Api):
             raise SnappiIxnException(400, "Bad request errors:", bad_requests)
         return self._request_detail()
 
+    def config_ixnetwork(self, config):
+        self._config_objects = {}
+        self._device_encap = {}
+        self._ixn_objects = {}
+        self._connect()
+        self.capture.reset_capture_request()
+        self._config = self._validate_instance(
+            config)
+        with Timer(self, 'Config validation'):
+            self.validation.validate_config()
+        self._ixnetwork.Traffic.UseRfc5952 = True
+        if len(self._config._properties) == 0:
+            self._ixnetwork.NewConfig()
+        else:
+            self.vport.config()
+            self.lag.config()
+            with Timer(self, 'Devices configuration'):
+                self.ngpf.config()
+            with Timer(self, 'Flows configuration'):
+                self.traffic_item.config()
+        self._running_config = self._config
+        self._apply_change()
+    
     def set_transmit_state(self, payload):
         """Set the transmit state of flows
         """
