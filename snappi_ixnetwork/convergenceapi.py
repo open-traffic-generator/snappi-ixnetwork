@@ -9,7 +9,7 @@ except Exception:
 from snappi_ixnetwork.ixnetworkapi import Api as snappiApi
 
 # todo: api should remove when package will ready
-def api(location = None):
+def api(location = None, ext='ixnetwork'):
     return Api(location= location)
 
 

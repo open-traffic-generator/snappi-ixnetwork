@@ -3,7 +3,7 @@ from snappi_ixnetwork.ixnetworkapi import Api
 # from snappi_ixnetwork.exceptions import SnappiIxnException
 #
 # supported_modules = ['snappi.snappi',
-#                      'otg_convergence.otg_convergence']
+#                      'snappi_convergence.snappi_convergence']
 # module_name = None
 # for frame in inspect.stack():
 #     module = inspect.getmodule(frame.frame)
@@ -15,7 +15,7 @@ from snappi_ixnetwork.ixnetworkapi import Api
 #
 # if module_name == 'snappi.snappi':
 #     from snappi_ixnetwork.ixnetworkapi import Api
-# elif module_name == 'otg_convergence.otg_convergence':
+# elif module_name == 'snappi_convergence.snappi_convergence':
 #     from snappi_ixnetwork.convergenceapi import Api
 # else:
 #     raise SnappiIxnException(500, "Module is not supported")

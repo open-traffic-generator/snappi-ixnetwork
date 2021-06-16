@@ -69,6 +69,7 @@ setup(
     extras_require={
         'dev': [
             'snappi==0.4.0',
+            'snappi_convergence==0.0.2',
             'pytest',
             'flake8==3.8.4',
             'dpkt==1.9.4',
