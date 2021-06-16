@@ -32,14 +32,14 @@ class Api(snappi_convergence.Api):
         
     def set_config(self, payload):
         try:
-            conv_config = self.convergence_config()
-            if isinstance(payload, (type(conv_config),
+            cvg_config = self.convergence_config()
+            if isinstance(payload, (type(cvg_config),
                                     str)) is False:
                 raise TypeError(
                     'The content must be of type Union[Config, str]')
 
             if isinstance(payload, str) is True:
-                payload = conv_config.deserialize(payload)
+                payload = cvg_config.deserialize(payload)
             config = payload._properties.get('config')
             if config is None:
                 raise Exception("config should not None")
@@ -78,13 +78,13 @@ class Api(snappi_convergence.Api):
     
     def set_state(self, payload):
         try:
-            convergence_state = self.convergence_state()
-            if isinstance(payload, (type(convergence_state),
+            cvg_state = self.convergence_state()
+            if isinstance(payload, (type(cvg_state),
                                     str)) is False:
                 raise TypeError(
                     'The content must be of type Union[LinkState, str]')
             if isinstance(payload, str):
-                payload = convergence_state.deserialize(payload)
+                payload = cvg_state.deserialize(payload)
             self._api._connect()
             if payload.choice is None:
                 raise Exception("state [transmit/ link/ route] must configure")
@@ -108,27 +108,27 @@ class Api(snappi_convergence.Api):
     def get_results(self, payload):
         try:
             self._api._connect()
-            conv_req = self.convergence_request()
-            if isinstance(payload, (type(conv_req),
+            cvg_req = self.convergence_request()
+            if isinstance(payload, (type(cvg_req),
                                     str)) is False:
                 raise TypeError(
                     'The content must be of type Union[MetricsRequest, str]')
             if isinstance(payload, str) is True:
-                payload = conv_req.deserialize(payload)
+                payload = cvg_req.deserialize(payload)
             if payload.choice is None:
                 raise Exception("state [metrics/ convergence] must configure")
-            conv_res = self.convergence_response()
+            cvg_res = self.convergence_response()
             if payload.choice == 'metrics':
                 response = self._api.traffic_item.results(
-                            conv_res.metrics)
-                conv_res.flow_metric.deserialize(response)
+                            payload.metrics)
+                cvg_res.flow_metric.deserialize(response)
             elif payload.choice == 'convergence':
                 response = self._result(
                             payload.convergence)
-                conv_res.flow_convergence.deserialize(response)
+                cvg_res.flow_convergence.deserialize(response)
             else:
                 raise Exception("These[metrics/ convergence] are valid convergence_request")
-            return conv_res
+            return cvg_res
         except Exception as err:
             raise SnappiIxnException(err)
 
