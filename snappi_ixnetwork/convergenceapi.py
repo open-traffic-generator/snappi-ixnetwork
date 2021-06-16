@@ -8,6 +8,11 @@ except Exception:
     raise SnappiIxnException(500, "otg_convergence not installed")
 from snappi_ixnetwork.ixnetworkapi import Api as snappiApi
 
+# todo: api should remove when package will ready
+def api(location = None):
+    return Api(location= location)
+
+
 class Api(otg_convergence.Api):
     _CONVERGENCE = {
         ('data_plane_convergence_us', 'DP/DP Convergence Time (us)', float),
@@ -25,7 +30,7 @@ class Api(otg_convergence.Api):
         self._convergence_timeout = 10
         self._api = snappiApi(**kwargs)
         
-    def set_convergence(self, payload):
+    def set_config(self, payload):
         try:
             conv_config = self.convergence_config()
             if isinstance(payload, (type(conv_config),
@@ -34,7 +39,7 @@ class Api(otg_convergence.Api):
                     'The content must be of type Union[Config, str]')
 
             if isinstance(payload, str) is True:
-                config = conv_config.deserialize(config)
+                payload = conv_config.deserialize(payload)
             config = payload._properties.get('config')
             if config is None:
                 raise Exception("config should not None")
@@ -71,7 +76,7 @@ class Api(otg_convergence.Api):
             raise SnappiIxnException(400, "Bad request errors:", bad_requests)
         return self._request_detail()
     
-    def set_convergence_state(self, payload):
+    def set_state(self, payload):
         try:
             convergence_state = self.convergence_state()
             if isinstance(payload, (type(convergence_state),
@@ -82,20 +87,25 @@ class Api(otg_convergence.Api):
                 payload = convergence_state.deserialize(payload)
             self._api._connect()
             if payload.choice is None:
-                raise Exception("state [link/ route] must configure")
+                raise Exception("state [transmit/ link/ route] must configure")
+            if payload.choice == 'transmit':
+                transmit = payload.transmit
+                self._api.traffic_item.transmit(transmit)
             elif payload.choice == 'link':
                 link = payload.link
                 if link.port_names is not None:
                     self._api.vport.set_link_state(link)
             elif payload.choice == 'route':
                 route = payload.route
-                with Timer(self, 'Setting route state'):
+                with Timer(self._api, 'Setting route state'):
                     self._api.ngpf.set_route_state(route)
+            else:
+                raise Exception("These[transmit/ link/ route] are valid convergence_state")
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()
     
-    def get_convergence(self, payload):
+    def get_results(self, payload):
         try:
             self._api._connect()
             conv_req = self.convergence_request()
@@ -105,10 +115,20 @@ class Api(otg_convergence.Api):
                     'The content must be of type Union[MetricsRequest, str]')
             if isinstance(payload, str) is True:
                 payload = conv_req.deserialize(payload)
-            response = self._result(payload)
+            if payload.choice is None:
+                raise Exception("state [metrics/ convergence] must configure")
             conv_res = self.convergence_response()
-            conv_res.deserialize(response)
-            return response
+            if payload.choice == 'metrics':
+                response = self._api.traffic_item.results(
+                            conv_res.metrics)
+                conv_res.flow_metric.deserialize(response)
+            elif payload.choice == 'convergence':
+                response = self._result(
+                            payload.convergence)
+                conv_res.flow_convergence.deserialize(response)
+            else:
+                raise Exception("These[metrics/ convergence] are valid convergence_request")
+            return conv_res
         except Exception as err:
             raise SnappiIxnException(err)
 
