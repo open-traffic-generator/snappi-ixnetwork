@@ -3,9 +3,9 @@ import time
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.timer import Timer
 try:
-    import otg_convergence
+    import snappi_convergence
 except Exception:
-    raise SnappiIxnException(500, "otg_convergence not installed")
+    raise SnappiIxnException(500, "snappi_convergence not installed")
 from snappi_ixnetwork.ixnetworkapi import Api as snappiApi
 
 # todo: api should remove when package will ready
@@ -13,7 +13,7 @@ def api(location = None):
     return Api(location= location)
 
 
-class Api(otg_convergence.Api):
+class Api(snappi_convergence.Api):
     _CONVERGENCE = {
         ('data_plane_convergence_us', 'DP/DP Convergence Time (us)', float),
         ('control_plane_data_plane_convergence_us', 'CP/DP Convergence Time (us)', float),
