@@ -339,3 +339,4 @@ class Ngpf(object):
             ixn_route.Active.Single(Ngpf._ROUTE_STATE[
                                 payload.state])
         self._api._ixnetwork.Globals.Topology.ApplyOnTheFly()
+        return names

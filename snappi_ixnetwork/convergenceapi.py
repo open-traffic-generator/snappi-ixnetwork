@@ -1,5 +1,6 @@
 import re
 import time
+from collections import namedtuple
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.timer import Timer
 try:
@@ -29,6 +30,7 @@ class Api(snappi_convergence.Api):
         
         self._convergence_timeout = 10
         self._api = snappiApi(**kwargs)
+        self._event_info = None
         
     def set_config(self, payload):
         try:
@@ -88,19 +90,31 @@ class Api(snappi_convergence.Api):
             self._api._connect()
             if payload.choice is None:
                 raise Exception("state [transmit/ link/ route] must configure")
+            event_names = []
+            event_state = None
+            event_type = payload.choice
+            EventInfo = namedtuple("EventInfo", ["event_type",
+                                                 "event_state",
+                                                 "event_names"])
             if payload.choice == 'transmit':
                 transmit = payload.transmit
                 self._api.traffic_item.transmit(transmit)
             elif payload.choice == 'link':
                 link = payload.link
                 if link.port_names is not None:
+                    event_names = link.port_names
+                    event_state = link.state
                     self._api.vport.set_link_state(link)
             elif payload.choice == 'route':
                 route = payload.route
+                event_state = route.state
                 with Timer(self._api, 'Setting route state'):
-                    self._api.ngpf.set_route_state(route)
+                    event_names = self._api.ngpf.set_route_state(route)
             else:
                 raise Exception("These[transmit/ link/ route] are valid convergence_state")
+            self._event_info = EventInfo(event_type,
+                                         event_state,
+                                         event_names)
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()
@@ -164,11 +178,15 @@ class Api(snappi_convergence.Api):
             raise Exception(msg)
         if flow_names is None or len(flow_names) == 0:
             flow_names = [flow.name for flow in self._api.snappi_config.flows]
-        flow_rows = self._get_flow_rows(flow_names)
+        flow_stat = self._api.assistant.StatViewAssistant(
+            'Flow Statistics')
+        flow_rows = flow_stat.Rows
         traffic_stat = self._api.assistant.StatViewAssistant(
             'Traffic Item Statistics')
         traffic_index = {}
-        for index, row in enumerate(traffic_stat.Rows):
+        drill_down_option = 'Drill down per Dest Endpoint'
+        for index, row in enumerate(self._get_traffic_rows(
+                    traffic_stat, drill_down_option)):
             traffic_index[row['Traffic Item']] = index
         response = []
         for flow_name in flow_names:
@@ -177,25 +195,27 @@ class Api(snappi_convergence.Api):
             }
             if flow_name not in traffic_index.keys():
                 raise Exception("Somehow flow %s is missing" % flow_name)
+            
+            drill_down_options = traffic_stat.DrillDownOptions()
+            drilldown_index = drill_down_options.index(drill_down_option)
+            drill_down = traffic_stat.Drilldown(traffic_index[flow_name], drill_down_option,
+                                                traffic_stat.TargetRowFilters()[drilldown_index])
+            drill_down_result = drill_down.Rows[0]
+            for external_name, internal_name, external_type in self._CONVERGENCE:
+                self._set_result_value(convergence, external_name, drill_down_result[
+                    internal_name], external_type)
+            
             events = []
             interruption_time = None
             for flow_result in flow_rows:
-                event = {}
-                event_name = flow_result['Event Name']
-                if event_name == '' or \
-                    flow_result['Traffic Item'] != flow_name:
+                if flow_result['Traffic Item'] != flow_name:
                     continue
-                for route_name in self._api.ixn_route_objects.keys():
-                    if re.search(route_name,
-                                 event_name) is not None:
-                        event['source'] = route_name
-                        event_type = event_name.split(route_name)[-1]
-                        if event_type.strip().lower() == 'disable':
-                            event_type = 'route_withdraw'
-                        else:
-                            event_type = "route_advertise"
-                        event['type'] = event_type
-                        break
+                convergence['port_tx'] = flow_result['Tx Port']
+                convergence['port_rx'] = flow_result['Rx Port']
+                event_name = flow_result['Event Name']
+                if event_name == '':
+                    continue
+                event = self._event_info(event_name, flow_result)
                 for external_name, internal_name, external_type in self._EVENT:
                     value = int(flow_result[internal_name].split('.')[-1])
                     self._set_result_value(event, external_name, value * 1000, external_type)
@@ -206,19 +226,36 @@ class Api(snappi_convergence.Api):
                     self._set_result_value(convergence, 'service_interruption_time_ns',
                                            interruption_time, float)
             convergence['events'] = events
-            drill_down_options = traffic_stat.DrillDownOptions()
-            drill_down_option = 'Drill down per Dest Endpoint'
-            if drill_down_option not in drill_down_options:
-                raise Exception("Please configure advance setting")
-            drilldown_index = drill_down_options.index(drill_down_option)
-            drill_down = traffic_stat.Drilldown(traffic_index[flow_name], drill_down_option,
-                                                traffic_stat.TargetRowFilters()[drilldown_index])
-            drill_down_result = drill_down.Rows[0]
-            for external_name, internal_name, external_type in self._CONVERGENCE:
-                self._set_result_value(convergence, external_name, drill_down_result[
-                    internal_name], external_type)
             response.append(convergence)
         return response
+    
+    def _get_event(self, event_name, flow_result):
+        event = {}
+        if event_name == "Port Link Up":
+            if flow_result['Tx Port'] in self._event_info.event_names:
+                event['source'] = flow_result['Tx Port']
+            elif flow_result['Rx Port'] in self._event_info.event_names:
+                event['source'] = flow_result['Rx Port']
+            else:
+                self._api.warning("Not find any event source")
+                event['source'] = ''
+            if self._event_info.event_state == 'up':
+                event['type'] = 'link_up'
+            else:
+                event['type'] = 'link_down'
+        else:
+            for route_name in self._api.ixn_route_objects.keys():
+                if re.search(route_name,
+                             event_name) is not None:
+                    event['source'] = route_name
+                    event_type = event_name.split(route_name)[-1]
+                    if event_type.strip().lower() == 'disable':
+                        event_type = 'route_withdraw'
+                    else:
+                        event_type = "route_advertise"
+                    event['type'] = event_type
+                    break
+        return event
     
     def _set_result_value(self,
                           row,
@@ -233,23 +270,19 @@ class Api(snappi_convergence.Api):
             else:
                 row[column_type] = column_value
 
-    def _get_flow_rows(self, flow_names):
+    def _get_traffic_rows(self, traffic_stat, drill_down_option):
         count = 0
         sleep_time = 0.5
-        flow_stat = self._api.assistant.StatViewAssistant(
-            'Flow Statistics')
         while True:
-            flow_rows = flow_stat.Rows
             has_event = False
-            for row in flow_rows:
-                if row['Traffic Item'] in flow_names \
-                    and row['Event Name'] != '':
-                    has_event = True
-                    break
+            drill_down_options = traffic_stat.DrillDownOptions()
+            if drill_down_option in drill_down_options:
+                has_event = True
+                break
             if has_event is True:
                 break
             if count * sleep_time > self._convergence_timeout:
-                raise Exception("Somehow event is not reflected in stat")
+                raise Exception("Somehow \'Drill down per Dest Endpoint\' not available")
             time.sleep(sleep_time)
             count += 1
-        return flow_rows
+        return traffic_stat.Rows
