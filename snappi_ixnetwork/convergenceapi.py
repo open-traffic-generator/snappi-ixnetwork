@@ -231,7 +231,7 @@ class Api(snappi_convergence.Api):
     
     def _get_event(self, event_name, flow_result):
         event = {}
-        if event_name == "Port Link Up":
+        if re.search(r'Port Link Up', event_name):
             if flow_result['Tx Port'] in self._event_info.event_names:
                 event['source'] = flow_result['Tx Port']
             elif flow_result['Rx Port'] in self._event_info.event_names:
