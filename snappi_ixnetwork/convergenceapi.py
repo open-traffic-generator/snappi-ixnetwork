@@ -215,7 +215,7 @@ class Api(snappi_convergence.Api):
                 event_name = flow_result['Event Name']
                 if event_name == '':
                     continue
-                event = self._event_info(event_name, flow_result)
+                event = self._get_event(event_name, flow_result)
                 for external_name, internal_name, external_type in self._EVENT:
                     value = int(flow_result[internal_name].split('.')[-1])
                     self._set_result_value(event, external_name, value * 1000, external_type)
