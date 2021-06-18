@@ -18,8 +18,8 @@ class TrafficItem(CustomField):
         ('bytes_tx', 'Tx Bytes', int),
         ('bytes_rx', 'Rx Bytes', int),
         ('loss', 'Loss %', float),
-        ('bytes_tx_rate', 'Tx Rate (Bps)', float),
-        ('bytes_rx_rate', 'Rx Rate (Bps)', float),
+        # ('bytes_tx_rate', 'Tx Rate (Bps)', float),
+        # ('bytes_rx_rate', 'Rx Rate (Bps)', float),
     ]
 
     _RESULT_LATENCY_STORE_FORWARD = [
@@ -451,8 +451,8 @@ class TrafficItem(CustomField):
             return
 
         for packet_field_name in dir(packet):
-            if packet_field_name in field_map:
-                pattern = getattr(packet, packet_field_name)
+            pattern = packet.getproperty(packet_field_name)
+            if packet_field_name in field_map and pattern is not None:
                 field_type_id = field_map[packet_field_name]
                 self._configure_pattern(ixn_field, field_type_id, pattern,
                                         field_choice)
@@ -510,8 +510,8 @@ class TrafficItem(CustomField):
         else:
             # TBD: add to set_config errors - invalid pattern specified
             pass
-    
-        if pattern.metric_group is not None:
+
+        if getattr(pattern, 'metric_group', None) is not None:
             ixn_field.TrackingEnabled = True
             self._api.ixn_objects[pattern.metric_group] = ixn_field.href
 
@@ -519,7 +519,7 @@ class TrafficItem(CustomField):
         """We are setting all the field to default. Otherwise test is keeping the same value from previous run."""
         if ixn_field.ReadOnly:
             return
-        
+
         if ixn_field.SupportsAuto:
             if ixn_field.Auto is not True:
                 ixn_field.Auto = True

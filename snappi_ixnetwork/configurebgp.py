@@ -1,6 +1,7 @@
 import re
 from collections import namedtuple
 
+
 class ConfigureBgp(object):
     _BGP_AS_SET_MODE = {
         'do_not_include_as': 'dontincludelocalas',
@@ -250,31 +251,37 @@ class ConfigureBgp(object):
             self.update(ixn_bgpv4, **args)
         self._api.ixn_objects[bgpv4.name] = ixn_bgpv4.href
         as_type = 'internal'
-        if bgpv4.as_type is not None and bgpv4.as_type \
-                    == 'ebgp':
+        if bgpv4.getproperty('as_type') is not None \
+            and bgpv4.getproperty('as_type') == 'ebgp':
             as_type = 'external'
         bgp_xpath = self.get_xpath(ixn_bgpv4.href)
         self.configure_value(bgp_xpath, 'type', as_type)
-        as_bytes = bgpv4.as_number_width
-        if as_bytes is None or as_bytes == 'two':
-            self.configure_value(bgp_xpath, 'localAs2Bytes', bgpv4.as_number)
-        elif as_bytes == 'four':
-            self.configure_value(bgp_xpath, 'enable4ByteAs', True)
-            self.configure_value(bgp_xpath, 'localAs4Bytes', bgpv4.as_number)
-        else:
-            raise Exception("Please configure supported [two, four] as_number_width")
-        self.configure_value(bgp_xpath, 'dutIp', bgpv4.dut_address)
-        self.configure_value(bgp_xpath, 'asSetMode',
-                           bgpv4.as_number_set_mode,
-                           enum_map=ConfigureBgp._BGP_AS_SET_MODE)
+        as_bytes = bgpv4.getproperty('as_number_width')
+        import pdb; pdb.set_trace()
+        if bgpv4.getproperty('as_number') is not None:
+            if as_bytes is None or as_bytes == 'two':
+                self.configure_value(bgp_xpath, 'localAs2Bytes', bgpv4.as_number)
+            elif as_bytes == 'four':
+                self.configure_value(bgp_xpath, 'enable4ByteAs', True)
+                self.configure_value(bgp_xpath, 'localAs4Bytes', bgpv4.as_number)
+            else:
+                raise Exception("Please configure supported [two, four] as_number_width")
+        if bgpv4.getproperty('dut_address') is not None:
+            self.configure_value(bgp_xpath, 'dutIp', bgpv4.dut_address)
+        if bgpv4.getproperty('as_number_set_mode'):
+            self.configure_value(bgp_xpath, 'asSetMode',
+                            bgpv4.as_number_set_mode,
+                            enum_map=ConfigureBgp._BGP_AS_SET_MODE)
         # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
-        advanced = bgpv4.advanced
-        self.configure_value(bgp_xpath, 'holdTimer', advanced.hold_time_interval)
-        self.configure_value(bgp_xpath, 'keepaliveTimer', advanced.keep_alive_interval)
-        self.configure_value(bgp_xpath, 'md5Key', advanced.md5_key)
-        self.configure_value(bgp_xpath, 'updateInterval', advanced.update_interval)
-        self.configure_value(bgp_xpath, 'ttl', advanced.time_to_live)
-        self._configure_sr_te(ixn_bgpv4, bgp_xpath, bgpv4.sr_te_policies)
+        advanced = bgpv4.getproperty('advanced')
+        if advanced is not None:
+            self.configure_value(bgp_xpath, 'holdTimer', advanced.hold_time_interval)
+            self.configure_value(bgp_xpath, 'keepaliveTimer', advanced.keep_alive_interval)
+            self.configure_value(bgp_xpath, 'md5Key', advanced.md5_key)
+            self.configure_value(bgp_xpath, 'updateInterval', advanced.update_interval)
+            self.configure_value(bgp_xpath, 'ttl', advanced.time_to_live)
+        if bgpv4.getproperty('sr_te_policies') is not None:
+            self._configure_sr_te(ixn_bgpv4, bgp_xpath, bgpv4.sr_te_policies)
         self._bgp_route_builder(ixn_dg, ixn_bgpv4, bgpv4)
         return ixn_bgpv4
     

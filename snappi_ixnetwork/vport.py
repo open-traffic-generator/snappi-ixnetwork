@@ -112,14 +112,14 @@ class Vport(object):
         ('bytes_rx', 'Bytes Rx.', int),
         ('bytes_tx_rate', 'Bytes Tx. Rate', float),
         ('bytes_rx_rate', 'Bytes Rx. Rate', float),
-        ('pfc_class_0_frames_rx', 'Rx Pause Priority Group 0 Frames', int),
-        ('pfc_class_1_frames_rx', 'Rx Pause Priority Group 1 Frames', int),
-        ('pfc_class_2_frames_rx', 'Rx Pause Priority Group 2 Frames', int),
-        ('pfc_class_3_frames_rx', 'Rx Pause Priority Group 3 Frames', int),
-        ('pfc_class_4_frames_rx', 'Rx Pause Priority Group 4 Frames', int),
-        ('pfc_class_5_frames_rx', 'Rx Pause Priority Group 5 Frames', int),
-        ('pfc_class_6_frames_rx', 'Rx Pause Priority Group 6 Frames', int),
-        ('pfc_class_7_frames_rx', 'Rx Pause Priority Group 7 Frames', int),
+        # ('pfc_class_0_frames_rx', 'Rx Pause Priority Group 0 Frames', int),
+        # ('pfc_class_1_frames_rx', 'Rx Pause Priority Group 1 Frames', int),
+        # ('pfc_class_2_frames_rx', 'Rx Pause Priority Group 2 Frames', int),
+        # ('pfc_class_3_frames_rx', 'Rx Pause Priority Group 3 Frames', int),
+        # ('pfc_class_4_frames_rx', 'Rx Pause Priority Group 4 Frames', int),
+        # ('pfc_class_5_frames_rx', 'Rx Pause Priority Group 5 Frames', int),
+        # ('pfc_class_6_frames_rx', 'Rx Pause Priority Group 6 Frames', int),
+        # ('pfc_class_7_frames_rx', 'Rx Pause Priority Group 7 Frames', int),
     ]
 
     def __init__(self, ixnetworkapi):
@@ -241,10 +241,10 @@ class Vport(object):
             location_supported = False
         
         self._add_hosts(60)
-        with Timer(self._api,
-                   'Aggregation mode speed change'):
-            layer1_check = self._api.resource_group.set_group()
-            self._layer1_check.extend(layer1_check)
+        # with Timer(self._api,
+        #            'Aggregation mode speed change'):
+        #     layer1_check = self._api.resource_group.set_group()
+        #     self._layer1_check.extend(layer1_check)
         vports = self._api.select_vports()
         locations = []
         imports = []

@@ -10,6 +10,7 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     d1.container_name, d2.container_name = p1.name, p2.name
     # d1.device_count, d2.device_count = 10, 10
     eth1, eth2 = d1.ethernet, d2.ethernet
+    eth1.mac, eth2.mac = '11:11:11:11:11:11', '11:11:11:11:11:22'
     ip1, ip2 = eth1.ipv4, eth2.ipv4
     bgp1, bgp2 = ip1.bgpv4, ip2.bgpv4
 

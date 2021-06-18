@@ -40,6 +40,7 @@ class Ngpf(object):
         self.imports = []
         self._resource_manager = self._api._ixnetwork.ResourceManager
         self._configure_topology(self._api._topology, self._api.snappi_config.devices)
+        import pdb; pdb.set_trace()
         self._import(self.imports)
 
     def update(self, ixn_object, **kwargs):
