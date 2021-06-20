@@ -297,7 +297,6 @@ def validate_sr_te_config(api,
         assert BGPV4_SR_TE[attr] == (getattr(bgpv4_sr_te, attr).Values)[0]
 
     bgpv4_sr_te_tunnel = bgpv4_sr_te.BgpSRTEPoliciesTunnelEncapsulationListV4
-    # import pdb;pdb.set_trace()
     for attr in BGPV4_SR_TE_TUNNEL:
         assert BGPV4_SR_TE_TUNNEL[attr] == (
             getattr(bgpv4_sr_te_tunnel, attr).Values)[0]

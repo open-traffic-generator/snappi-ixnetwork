@@ -4,6 +4,7 @@ from collections import namedtuple
 
 class ResourceGroup(object):
     """"""
+    """"""
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         self._store_properties = []
@@ -14,7 +15,7 @@ class ResourceGroup(object):
     def set_group(self):
         self.layer1_check = []
         self._store_properties = []
-        self._layer1_conf = self._api.snappi_config.layer1
+        self._layer1_conf = self._api.snappi_config.getproperty('layer1')
         if self._layer1_conf is None or len(
                 self._layer1_conf ) == 0 or self._is_redundant is True:
             return self.layer1_check
@@ -92,22 +93,25 @@ class ResourceGroup(object):
                                "due to redundant Layer1 config")
                 is_redundant = True
                 for layer1 in self._layer1_conf:
-                    self.layer1_check.append(layer1.name)
+                    self.layer1_check.append(
+                            layer1.getproperty('name'))
         self._layer1_backup = self._layer1_conf
         return is_redundant
         
     def _cache_properties(self):
         port_list = []
-        ports = self._api.snappi_config.ports
+        ports = self._api.snappi_config.getproperty('ports')
         for layer1 in self._layer1_conf:
-            if layer1.port_names is None or len(
-                    layer1.port_names) == 0:
+            port_names = layer1.getproperty('port_names')
+            if port_names is None or len(
+                    port_names) == 0:
                 return
             for port in ports:
                 if port in port_list:
                     return
-                if port.name in layer1.port_names:
-                    location = port.location
+                port_name = port.getproperty('name')
+                if port_name in port_names:
+                    location = port.getproperty('location')
                     if location is None:
                         raise Exception("Please configure location to change speed")
                     location_info = self._api.parse_location_info(location)
@@ -115,7 +119,7 @@ class ResourceGroup(object):
                     property = StoreProperty(chassis_info,
                                         location_info.card_info,
                                         location_info.port_info,
-                                        port.name,
+                                        port_name,
                                         layer1)
                     self._store_properties.append(
                             property)
@@ -144,7 +148,7 @@ class ResourceGroup(object):
             info = self.get_chassis_card(property, response)
             if info is None:
                 raise Exception("Chassis or card not available for %s"
-                                % property.port_name)
+                                % property.getproperty('port_name'))
             chassis_id = info.chassis_id
             card_info = info.card_info
             for card in card_info:

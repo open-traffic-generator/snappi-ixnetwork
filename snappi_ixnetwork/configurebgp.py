@@ -257,7 +257,6 @@ class ConfigureBgp(object):
         bgp_xpath = self.get_xpath(ixn_bgpv4.href)
         self.configure_value(bgp_xpath, 'type', as_type)
         as_bytes = bgpv4.getproperty('as_number_width')
-        import pdb; pdb.set_trace()
         if bgpv4.getproperty('as_number') is not None:
             if as_bytes is None or as_bytes == 'two':
                 self.configure_value(bgp_xpath, 'localAs2Bytes', bgpv4.as_number)

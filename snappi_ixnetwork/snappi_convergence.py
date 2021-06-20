@@ -42,11 +42,11 @@ class Api(snappi_convergence.Api):
 
             if isinstance(payload, str) is True:
                 payload = cvg_config.deserialize(payload)
-            config = payload._properties.get('config')
+            config = payload.getproperty('config')
             if config is None:
                 raise Exception("config should not None")
             self._api.config_ixnetwork(config)
-            rx_rate_threshold = payload._properties.get('rx_rate_threshold')
+            rx_rate_threshold = payload.getproperty('rx_rate_threshold')
             ixn_CpdpConvergence = self._api._traffic.Statistics.CpdpConvergence
             if rx_rate_threshold is not None:
                 if self._api.traffic_item.has_latency is True:
@@ -171,7 +171,7 @@ class Api(snappi_convergence.Api):
         return request_detail
     
     def _result(self, request):
-        flow_names = request._properties.get('flow_names')
+        flow_names = request.getproperty('flow_names')
         if not isinstance(flow_names, list):
             msg = "Invalid format of flow_names passed {},\
                                                 expected list".format(flow_names)

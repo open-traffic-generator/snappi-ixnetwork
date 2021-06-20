@@ -225,25 +225,28 @@ class TrafficItem(CustomField):
                     self._update(ixn_traffic_item, **args)
                 self._configure_endpoint(ixn_traffic_item.EndpointSet,
                                          flow.tx_rx)
-                metrics = flow._properties.get('metrics')
+                metrics = flow.getproperty('metrics')
                 if metrics is not None \
                         and metrics.enable is True:
                     self._configure_tracking(flow, ixn_traffic_item.Tracking)
-                    latency = metrics._properties.get('latency')
+                    latency = metrics.getproperty('latency')
                     if latency is not None and latency.enable is True:
                         self.flows_has_latency.append(flow.name)
                         self._process_latency(latency)
-                    timestamps = metrics._properties.get('timestamps')
+                    timestamps = metrics.getproperty('timestamps')
                     if timestamps is True:
                         self.flows_has_timestamp.append(flow.name)
-                    loss = metrics._properties.get('loss')
+                    loss = metrics.getproperty('loss')
                     if loss is True:
                         self.flows_has_loss.append(flow.name)
                 ixn_ce = ixn_traffic_item.ConfigElement.find()
                 hl_stream_count = len(ixn_traffic_item.HighLevelStream.find())
-                self._configure_stack(ixn_ce, flow.packet)
-                self._configure_size(ixn_ce, flow.size)
-                self._configure_rate(ixn_ce, flow.rate)
+                self._configure_stack(ixn_ce, flow.getproperty('packet',
+                                          get_default=True))
+                self._configure_size(ixn_ce, flow.getproperty('size',
+                                          get_default=True))
+                self._configure_rate(ixn_ce, flow.getproperty('rate',
+                                          get_default=True))
                 self._configure_tx_control(ixn_ce, hl_stream_count, flow.duration)
             self._configure_options()
             self._configure_latency()
@@ -451,11 +454,13 @@ class TrafficItem(CustomField):
             return
 
         for packet_field_name in dir(packet):
-            pattern = packet.getproperty(packet_field_name)
-            if packet_field_name in field_map and pattern is not None:
-                field_type_id = field_map[packet_field_name]
-                self._configure_pattern(ixn_field, field_type_id, pattern,
-                                        field_choice)
+            if packet_field_name in field_map:
+                pattern = packet.getproperty(packet_field_name,
+                                             get_default=True)
+                if pattern is not None:
+                    field_type_id = field_map[packet_field_name]
+                    self._configure_pattern(ixn_field, field_type_id, pattern,
+                                            field_choice)
 
     def _configure_pattern(self,
                            ixn_field,
@@ -469,9 +474,8 @@ class TrafficItem(CustomField):
             return
     
         ixn_field = ixn_field.find(FieldTypeId=field_type_id)
-        self._set_default(ixn_field, field_choice)
-    
         if pattern.choice is None:
+            self._set_default(ixn_field, field_choice)
             return
     
         if pattern.choice == 'value':
@@ -485,19 +489,26 @@ class TrafficItem(CustomField):
                              ValueType='valueList',
                              ValueList=pattern.values)
         elif pattern.choice == 'increment':
+            # try:
             ixn_field.update(Auto=False,
-                             ValueType='increment',
-                             ActiveFieldChoice=field_choice,
-                             StartValue=pattern.increment.start,
-                             StepValue=pattern.increment.step,
-                             CountValue=pattern.increment.count)
+                            ValueType='increment',
+                            ActiveFieldChoice=field_choice,
+                            StartValue=pattern.increment.start,
+                            StepValue=pattern.increment.step,
+                            CountValue=pattern.increment.count)
+            # except Exception as e:
+            #     import pdb; pdb.set_trace()
+            #     print(e)
         elif pattern.choice == 'decrement':
+            # try:
             ixn_field.update(Auto=False,
-                             ValueType='decrement',
-                             ActiveFieldChoice=field_choice,
-                             StartValue=pattern.decrement.start,
-                             StepValue=pattern.decrement.step,
-                             CountValue=pattern.decrement.count)
+                            ValueType='decrement',
+                            ActiveFieldChoice=field_choice,
+                            StartValue=pattern.decrement.start,
+                            StepValue=pattern.decrement.step,
+                            CountValue=pattern.decrement.count)
+            # except Exception as e:
+            #     print(e)
         elif pattern.choice == 'random':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
@@ -511,7 +522,7 @@ class TrafficItem(CustomField):
             # TBD: add to set_config errors - invalid pattern specified
             pass
 
-        if getattr(pattern, 'metric_group', None) is not None:
+        if pattern.getproperty('metric_group') is not None:
             ixn_field.TrackingEnabled = True
             self._api.ixn_objects[pattern.metric_group] = ixn_field.href
 
@@ -519,7 +530,7 @@ class TrafficItem(CustomField):
         """We are setting all the field to default. Otherwise test is keeping the same value from previous run."""
         if ixn_field.ReadOnly:
             return
-
+        
         if ixn_field.SupportsAuto:
             if ixn_field.Auto is not True:
                 ixn_field.Auto = True
@@ -575,7 +586,8 @@ class TrafficItem(CustomField):
         args['Rate'] = value
         self._update(ixn_frame_rate, **args)
 
-    def _configure_delay(self, delay, args):
+    def _configure_delay(self, parent, args):
+        delay = parent.getproperty('delay', get_default=True)
         if delay.choice is not None:
             value = getattr(delay, delay.choice, None)
             if value is None:
@@ -599,17 +611,17 @@ class TrafficItem(CustomField):
         if duration.choice == 'continuous':
             args['Type'] = 'continuous'
             args['MinGapBytes'] = duration.continuous.gap
-            self._configure_delay(duration.continuous.delay, args)
+            self._configure_delay(duration.continuous, args)
         elif duration.choice == 'fixed_packets':
             args['Type'] = 'fixedFrameCount'
             args['FrameCount'] = duration.fixed_packets.packets / hl_stream_count
             args['MinGapBytes'] = duration.fixed_packets.gap
-            self._configure_delay(duration.fixed_packets.delay, args)
+            self._configure_delay(duration.fixed_packets, args)
         elif duration.choice == 'fixed_seconds':
             args['Type'] = 'fixedDuration'
             args['Duration'] = duration.fixed_seconds.seconds
             args['MinGapBytes'] = duration.fixed_seconds.gap
-            self._configure_delay(duration.fixed_seconds.delay, args)
+            self._configure_delay(duration.fixed_seconds, args)
         elif duration.choice == 'burst':
             if duration.burst.bursts is not None \
                     and int(duration.burst.bursts) > 0:
@@ -620,7 +632,8 @@ class TrafficItem(CustomField):
             args['BurstPacketCount'] = duration.burst.packets
             args['MinGapBytes'] = duration.burst.gap
             args['EnableInterBurstGap'] = True
-            inter_burst_gap = duration.burst.inter_burst_gap
+            inter_burst_gap = duration.burst.getproperty('inter_burst_gap',
+                                                 get_default=True)
             if inter_burst_gap.choice is not None:
                 value = getattr(inter_burst_gap, inter_burst_gap.choice, None)
                 if value is None:
@@ -731,7 +744,7 @@ class TrafficItem(CustomField):
         """Return flow results
         """
         # setup parameters
-        self._column_names = request._properties.get('metric_names')
+        self._column_names = request.getproperty('metric_names')
         if self._column_names is None:
             self._column_names = []
         elif not isinstance(self._column_names, list):
@@ -739,7 +752,7 @@ class TrafficItem(CustomField):
                     expected list".format(self._column_names)
             raise Exception(msg)
 
-        flow_names = request._properties.get('flow_names')
+        flow_names = request.getproperty('flow_names')
         has_request_flow = True
         if flow_names is None or len(flow_names) == 0:
             has_request_flow = False
@@ -750,7 +763,7 @@ class TrafficItem(CustomField):
             raise Exception(msg)
         final_flow_names = []
         for flow in self._api._config.flows:
-            metrics = flow._properties.get('metrics')
+            metrics = flow.getproperty('metrics')
             if metrics is None:
                 continue
             if metrics.enable is True \
