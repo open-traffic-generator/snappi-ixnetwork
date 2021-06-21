@@ -9,6 +9,9 @@ class TrafficItem(CustomField):
     ----
     - ixnetworkapi (Api): instance of the ixnetworkapi class
     
+    Note: Sometime IxNetwork field type not matches with model packet field type
+    Please use '@' to specify model packet field type. Ex
+        'ether_type': 'pfcPause.header.header.ethertype@int'
     """
     _RESULT_COLUMNS = [
         ('frames_tx', 'Tx Frames', int),
@@ -82,7 +85,7 @@ class TrafficItem(CustomField):
     _PFCPAUSE = {
         'dst': 'pfcPause.header.header.dstAddress',
         'src': 'pfcPause.header.header.srcAddress',
-        'ether_type': 'pfcPause.header.header.ethertype',
+        'ether_type': 'pfcPause.header.header.ethertype@int',
         'control_op_code': 'pfcPause.header.macControl.controlOpcode',
         'class_enable_vector':
         'pfcPause.header.macControl.priorityEnableVector',
@@ -467,12 +470,22 @@ class TrafficItem(CustomField):
                            field_type_id,
                            pattern,
                            field_choice=False):
+        def get_value(field_value):
+            if field_type is None:
+                return field_value
+            ixn_type = ixn_field.ValueFormat
+            if field_type == 'int' and ixn_type == 'hex':
+                field_value = str(hex(int(field_value)))[2:]
+            return field_value
+        
         custom_field = getattr(self, field_type_id, None)
         if custom_field is not None:
             if pattern.choice is not None:
                 custom_field(ixn_field, pattern)
             return
-    
+        id_type = field_type_id.split('@')
+        field_type_id, field_type = id_type if len(id_type) > 1 else [
+                            id_type[0], None]
         ixn_field = ixn_field.find(FieldTypeId=field_type_id)
         if pattern.choice is None:
             self._set_default(ixn_field, field_choice)
@@ -482,33 +495,26 @@ class TrafficItem(CustomField):
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
                              ValueType='singleValue',
-                             SingleValue=pattern.value)
+                             SingleValue=get_value(pattern.value))
         elif pattern.choice == 'values':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
                              ValueType='valueList',
-                             ValueList=pattern.values)
+                             ValueList=[get_value(v) for v in pattern.values])
         elif pattern.choice == 'increment':
-            # try:
             ixn_field.update(Auto=False,
                             ValueType='increment',
                             ActiveFieldChoice=field_choice,
-                            StartValue=pattern.increment.start,
+                            StartValue=get_value(pattern.increment.start),
                             StepValue=pattern.increment.step,
                             CountValue=pattern.increment.count)
-            # except Exception as e:
-            #     import pdb; pdb.set_trace()
-            #     print(e)
         elif pattern.choice == 'decrement':
-            # try:
             ixn_field.update(Auto=False,
                             ValueType='decrement',
                             ActiveFieldChoice=field_choice,
-                            StartValue=pattern.decrement.start,
+                            StartValue=get_value(pattern.decrement.start),
                             StepValue=pattern.decrement.step,
                             CountValue=pattern.decrement.count)
-            # except Exception as e:
-            #     print(e)
         elif pattern.choice == 'random':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
