@@ -285,18 +285,23 @@ class Api(snappi_convergence.Api):
         sleep_time = 0.5
         flow_stat = self._api.assistant.StatViewAssistant(
             'Flow Statistics')
+        has_flow = False
         while True:
             flow_rows = flow_stat.Rows
             has_event = False
             for row in flow_rows:
-                if row['Traffic Item'] in flow_names \
-                    and row['Event Name'] != '':
-                    has_event = True
-                    break
+                if row['Traffic Item'] in flow_names:
+                    has_flow = True
+                    if row['Event Name'] != '':
+                        has_event = True
+                        break
             if has_event is True:
                 break
             if count * sleep_time > self._convergence_timeout:
-                raise Exception("Somehow event is not reflected in stat")
+                if has_flow is not True:
+                    raise Exception("flow_names must present within in config.flows")
+                else:
+                    raise Exception("Somehow event is not reflected in stat")
             time.sleep(sleep_time)
             count += 1
         return flow_rows
