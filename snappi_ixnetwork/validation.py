@@ -20,6 +20,7 @@ class Validation(object):
     def __check_config_objects(self, config_item):
         if config_item is None:
             return
+        config_item.validate()
 
         if hasattr(config_item, 'choice') is True and getattr(
                 config_item, 'choice') is None:

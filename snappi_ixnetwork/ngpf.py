@@ -134,7 +134,7 @@ class Ngpf(object):
         if pattern is None:
             return
         # Asymmetric support- without pattern
-        if getattr(pattern, 'choice', None) is None:
+        if pattern.getproperty('choice') is None:
             if enum_map is not None:
                 ixn_obj.Single(enum_map[pattern])
             elif isinstance(pattern, list):
@@ -143,21 +143,22 @@ class Ngpf(object):
                 ixn_obj.Single(pattern)
         # Symmetric support with pattern
         else:
-            if pattern.choice is None:
+            if pattern.getproperty('choice') is None:
                 return
-            elif enum_map is not None and pattern.choice == 'value':
+            elif enum_map is not None and\
+                    pattern.getproperty('choice') == 'value':
                 ixn_obj.Single(enum_map[pattern.value])
-            elif pattern.choice == 'value':
+            elif pattern.getproperty('choice') == 'value':
                 ixn_obj.Single(pattern.value)
-            elif pattern.choice == 'values':
+            elif pattern.getproperty('choice') == 'values':
                 ixn_obj.ValueList(pattern.values)
-            elif pattern.choice == 'increment':
+            elif pattern.getproperty('choice') == 'increment':
                 ixn_obj.Increment(pattern.increment.start,
                                   pattern.increment.step)
-            elif pattern.choice == 'decrement':
+            elif pattern.getproperty('choice') == 'decrement':
                 ixn_obj.Decrement(pattern.decrement.start,
                                   pattern.decrement.step)
-            elif pattern.choice == 'random':
+            elif pattern.getproperty('choice') == 'random':
                 pass
 
     def configure_value(self, source, attribute, value, enum_map=None):
