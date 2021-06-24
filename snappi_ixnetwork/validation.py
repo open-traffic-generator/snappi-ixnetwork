@@ -30,7 +30,7 @@ class Validation(object):
             if attr_name.startswith('_') or \
                         attr_name == 'parent':
                 continue
-            attr_value = config_item.getproperty(attr_name)
+            attr_value = config_item.get(attr_name)
             if callable(attr_value) is True:
                 continue
             

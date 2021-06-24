@@ -328,10 +328,10 @@ class ProtocolMetrics(object):
         """
         protocol = request.choice
         request = getattr(request, protocol)
-        self.device_names = request.getproperty('device_names')
+        self.device_names = request.get('device_names')
         if self.device_names is None:
             self.device_names = []
-        self.columns = request.getproperty('column_names')
+        self.columns = request.get('column_names')
         if self.columns is None or self.columns == []:
             self.columns = self._PROTO_NAME_MAP_[protocol][
                 'supported_stats'

@@ -326,17 +326,17 @@ class Api(snappi.Api):
             if isinstance(request, str) is True:
                 request = metric_req.deserialize(request)
             # Need to change the code style when the choice Enum grows big
-            if request.getproperty('choice') == 'port':
+            if request.get('choice') == 'port':
                 response = self.vport.results(request.port)
                 metric_res = self.metrics_response()
                 metric_res.port_metrics.deserialize(response)
                 return metric_res
-            if request.getproperty('choice') == 'flow':
+            if request.get('choice') == 'flow':
                 response = self.traffic_item.results(request.flow)
                 metric_res = self.metrics_response()
                 metric_res.flow_metrics.deserialize(response)
                 return metric_res
-            if request.getproperty('choice') in\
+            if request.get('choice') in\
                     self.protocol_metrics.get_supported_protocols():
                 response = self.protocol_metrics.results(request)
                 metric_res = self.metrics_response()
@@ -346,7 +346,7 @@ class Api(snappi.Api):
                 return metric_res
         except Exception as err:
             raise SnappiIxnException(err)
-        if request.getproperty('choice') is not None:
+        if request.get('choice') is not None:
             msg = "{} is not a supported choice for metrics; \
             the supported choices are \
             ['port', 'flow']".format(request.choice)

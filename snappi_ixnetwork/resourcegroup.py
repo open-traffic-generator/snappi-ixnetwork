@@ -15,7 +15,7 @@ class ResourceGroup(object):
     def set_group(self):
         self.layer1_check = []
         self._store_properties = []
-        self._layer1_conf = self._api.snappi_config.getproperty('layer1')
+        self._layer1_conf = self._api.snappi_config.get('layer1')
         if self._layer1_conf is None or len(
                 self._layer1_conf ) == 0 or self._is_redundant is True:
             return self.layer1_check
@@ -94,24 +94,24 @@ class ResourceGroup(object):
                 is_redundant = True
                 for layer1 in self._layer1_conf:
                     self.layer1_check.append(
-                            layer1.getproperty('name'))
+                            layer1.get('name'))
         self._layer1_backup = self._layer1_conf
         return is_redundant
         
     def _cache_properties(self):
         port_list = []
-        ports = self._api.snappi_config.getproperty('ports')
+        ports = self._api.snappi_config.get('ports')
         for layer1 in self._layer1_conf:
-            port_names = layer1.getproperty('port_names')
+            port_names = layer1.get('port_names')
             if port_names is None or len(
                     port_names) == 0:
                 return
             for port in ports:
                 if port in port_list:
                     return
-                port_name = port.getproperty('name')
+                port_name = port.get('name')
                 if port_name in port_names:
-                    location = port.getproperty('location')
+                    location = port.get('location')
                     if location is None:
                         raise Exception("Please configure location to change speed")
                     location_info = self._api.parse_location_info(location)
@@ -148,7 +148,7 @@ class ResourceGroup(object):
             info = self.get_chassis_card(property, response)
             if info is None:
                 raise Exception("Chassis or card not available for %s"
-                                % property.getproperty('port_name'))
+                                % property.get('port_name'))
             chassis_id = info.chassis_id
             card_info = info.card_info
             for card in card_info:

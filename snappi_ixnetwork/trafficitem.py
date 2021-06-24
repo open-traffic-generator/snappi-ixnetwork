@@ -78,31 +78,39 @@ class TrafficItem(CustomField):
     }
 
     _LATENCY = {
-        'cut_through' : 'cutThrough',
-        'store_forward' : 'storeForward'
+        'cut_through': 'cutThrough',
+        'store_forward': 'storeForward'
     }
 
     _PFCPAUSE = {
         'dst': 'pfcPause.header.header.dstAddress',
         'src': 'pfcPause.header.header.srcAddress',
         'ether_type': 'pfcPause.header.header.ethertype@int',
-        'control_op_code': 'pfcPause.header.macControl.controlOpcode',
+        'control_op_code': 'pfcPause.header.macControl.controlOpcode@int',
         'class_enable_vector':
-        'pfcPause.header.macControl.priorityEnableVector',
-        'pause_class_0': 'pfcPause.header.macControl.pauseQuanta.pfcQueue0',
-        'pause_class_1': 'pfcPause.header.macControl.pauseQuanta.pfcQueue1',
-        'pause_class_2': 'pfcPause.header.macControl.pauseQuanta.pfcQueue2',
-        'pause_class_3': 'pfcPause.header.macControl.pauseQuanta.pfcQueue3',
-        'pause_class_4': 'pfcPause.header.macControl.pauseQuanta.pfcQueue4',
-        'pause_class_5': 'pfcPause.header.macControl.pauseQuanta.pfcQueue5',
-        'pause_class_6': 'pfcPause.header.macControl.pauseQuanta.pfcQueue6',
-        'pause_class_7': 'pfcPause.header.macControl.pauseQuanta.pfcQueue7',
+        'pfcPause.header.macControl.priorityEnableVector@int',
+        'pause_class_0':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue0@int',
+        'pause_class_1':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue1@int',
+        'pause_class_2':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue2@int',
+        'pause_class_3':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue3@int',
+        'pause_class_4':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue4@int',
+        'pause_class_5':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue5@int',
+        'pause_class_6':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue6@int',
+        'pause_class_7':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue7@int',
     }
 
     _ETHERNET = {
         'dst': 'ethernet.header.destinationAddress',
         'src': 'ethernet.header.sourceAddress',
-        'ether_type': 'ethernet.header.etherType',
+        'ether_type': 'ethernet.header.etherType@int',
         'pfc_queue': 'ethernet.header.pfcQueue',
     }
 
@@ -228,28 +236,28 @@ class TrafficItem(CustomField):
                     self._update(ixn_traffic_item, **args)
                 self._configure_endpoint(ixn_traffic_item.EndpointSet,
                                          flow.tx_rx)
-                metrics = flow.getproperty('metrics')
+                metrics = flow.get('metrics')
                 if metrics is not None \
                         and metrics.enable is True:
                     self._configure_tracking(flow, ixn_traffic_item.Tracking)
-                    latency = metrics.getproperty('latency')
+                    latency = metrics.get('latency')
                     if latency is not None and latency.enable is True:
                         self.flows_has_latency.append(flow.name)
                         self._process_latency(latency)
-                    timestamps = metrics.getproperty('timestamps')
+                    timestamps = metrics.get('timestamps')
                     if timestamps is True:
                         self.flows_has_timestamp.append(flow.name)
-                    loss = metrics.getproperty('loss')
+                    loss = metrics.get('loss')
                     if loss is True:
                         self.flows_has_loss.append(flow.name)
                 ixn_ce = ixn_traffic_item.ConfigElement.find()
                 hl_stream_count = len(ixn_traffic_item.HighLevelStream.find())
-                self._configure_stack(ixn_ce, flow.getproperty('packet',
-                                          get_default=True))
-                self._configure_size(ixn_ce, flow.getproperty('size',
-                                          get_default=True))
-                self._configure_rate(ixn_ce, flow.getproperty('rate',
-                                          get_default=True))
+                self._configure_stack(ixn_ce, flow.get('packet',
+                                          with_default=True))
+                self._configure_size(ixn_ce, flow.get('size',
+                                          with_default=True))
+                self._configure_rate(ixn_ce, flow.get('rate',
+                                          with_default=True))
                 self._configure_tx_control(ixn_ce, hl_stream_count, flow.duration)
             self._configure_options()
             self._configure_latency()
@@ -458,8 +466,8 @@ class TrafficItem(CustomField):
 
         for packet_field_name in dir(packet):
             if packet_field_name in field_map:
-                pattern = packet.getproperty(packet_field_name,
-                                             get_default=True)
+                pattern = packet.get(packet_field_name,
+                                             with_default=True)
                 if pattern is not None:
                     field_type_id = field_map[packet_field_name]
                     self._configure_pattern(ixn_field, field_type_id, pattern,
@@ -528,7 +536,7 @@ class TrafficItem(CustomField):
             # TBD: add to set_config errors - invalid pattern specified
             pass
 
-        if pattern.getproperty('metric_group') is not None:
+        if pattern.get('metric_group') is not None:
             ixn_field.TrackingEnabled = True
             self._api.ixn_objects[pattern.metric_group] = ixn_field.href
 
@@ -593,7 +601,7 @@ class TrafficItem(CustomField):
         self._update(ixn_frame_rate, **args)
 
     def _configure_delay(self, parent, args):
-        delay = parent.getproperty('delay', get_default=True)
+        delay = parent.get('delay', with_default=True)
         if delay.choice is not None:
             value = getattr(delay, delay.choice, None)
             if value is None:
@@ -638,8 +646,8 @@ class TrafficItem(CustomField):
             args['BurstPacketCount'] = duration.burst.packets
             args['MinGapBytes'] = duration.burst.gap
             args['EnableInterBurstGap'] = True
-            inter_burst_gap = duration.burst.getproperty('inter_burst_gap',
-                                                 get_default=True)
+            inter_burst_gap = duration.burst.get('inter_burst_gap',
+                                                 with_default=True)
             if inter_burst_gap.choice is not None:
                 value = getattr(inter_burst_gap, inter_burst_gap.choice, None)
                 if value is None:
@@ -750,7 +758,7 @@ class TrafficItem(CustomField):
         """Return flow results
         """
         # setup parameters
-        self._column_names = request.getproperty('metric_names')
+        self._column_names = request.get('metric_names')
         if self._column_names is None:
             self._column_names = []
         elif not isinstance(self._column_names, list):
@@ -758,7 +766,7 @@ class TrafficItem(CustomField):
                     expected list".format(self._column_names)
             raise Exception(msg)
 
-        flow_names = request.getproperty('flow_names')
+        flow_names = request.get('flow_names')
         has_request_flow = True
         if flow_names is None or len(flow_names) == 0:
             has_request_flow = False
@@ -769,7 +777,7 @@ class TrafficItem(CustomField):
             raise Exception(msg)
         final_flow_names = []
         for flow in self._api._config.flows:
-            metrics = flow.getproperty('metrics')
+            metrics = flow.get('metrics')
             if metrics is None:
                 continue
             if metrics.enable is True \

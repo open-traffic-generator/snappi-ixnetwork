@@ -24,7 +24,7 @@ def test_list_mac_addrs(api, b2b_raw_config, utils):
     eth = flow.packet[-1]
     eth.src.values = src
     eth.dst.values = dst
-    eth.ether_type.values = eth_type
+    eth.ether_type.values = [int(x, 16) for x in eth_type]
     api.set_config(b2b_raw_config)
     attrs = {
         'Destination MAC Address': dst,

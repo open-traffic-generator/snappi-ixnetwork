@@ -186,7 +186,7 @@ class Vport(object):
                     'rxMode': 'captureAndMeasure',
                     'txMode': 'interleaved'
                 }
-                location = port.getproperty('location')
+                location = port.get('location')
                 if location is None:
                     vport_import['connectedTo'] = location
                     port.location = None
@@ -200,7 +200,7 @@ class Vport(object):
         add_addresses = []
         check_addresses = []
         for port in self._api.snappi_config.ports:
-            location = port.getproperty('location')
+            location = port.get('location')
             if location is not None:
                 location_info = self._api.parse_location_info(
                         location)
@@ -251,7 +251,7 @@ class Vport(object):
         clear_locations = []
         for port in self._api.snappi_config.ports:
             vport = vports[port.name]
-            location = port.getproperty('location')
+            location = port.get('location')
 
             if location_supported is True:
                 if vport['location'] == location and vport[
@@ -311,7 +311,7 @@ class Vport(object):
         This should only happen if the vport connectionState is connectedLink...
         as it determines the ./l1Config child node.
         """
-        layer1_config = self._api.snappi_config.getproperty('layer1')
+        layer1_config = self._api.snappi_config.get('layer1')
         if layer1_config is None:
             return
         if len(layer1_config) == 0:
@@ -408,7 +408,7 @@ class Vport(object):
         be switched to a type without the Fcoe extension.
         """
         fcoe = False
-        flow_control = layer1.getproperty('flow_control')
+        flow_control = layer1.get('flow_control')
         if flow_control is not None:
             fcoe = True
         vport_type = vport['type']
@@ -450,9 +450,9 @@ class Vport(object):
             'speed':
             self._get_speed(vport, layer1),
             'media':
-            layer1.getproperty('media', get_default = True),
+            layer1.get('media', with_default=True),
             'autoNegotiate':
-            layer1.getproperty('auto_negotiate', get_default=True),
+            layer1.get('auto_negotiate', with_default=True),
             'speedAuto':
             advertise
         }
@@ -478,7 +478,7 @@ class Vport(object):
     def _set_gigabit_auto_negotiation(self, vport, layer1, imports):
         advertise = []
         advertise.append(Vport._SPEED_MAP[
-                 layer1.getproperty('speed', get_default=True)])
+                 layer1.get('speed', with_default=True)])
         auto_field_name  = 'enableAutoNegotiation'
         if re.search('novustengiglan', vport['type'].lower()) is not None:
             auto_field_name = 'autoNegotiate'
@@ -487,12 +487,12 @@ class Vport(object):
             'xpath':
                 vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', ''),
             'ieeeL1Defaults':
-                layer1.getproperty('ieee_media_defaults', get_default=True)
+                layer1.get('ieee_media_defaults', with_default=True)
         }
         self._add_l1config_import(vport, ieee_media_defaults, imports)
-        auto_negotiate = layer1.getproperty('auto_negotiate', get_default=True)
-        rs_fec = auto_negotiate.getproperty('rs_fec', get_default=True)
-        link_training = auto_negotiate.getproperty('link_training', get_default=True)
+        auto_negotiate = layer1.get('auto_negotiate', with_default=True)
+        rs_fec = auto_negotiate.get('rs_fec', with_default=True)
+        link_training = auto_negotiate.get('link_training', with_default=True)
         proposed_import = {
             'xpath':
             vport['xpath'] + '/l1Config/' + vport['type'].replace('Fcoe', ''),
@@ -507,7 +507,7 @@ class Vport(object):
             'speedAuto':
             advertise
         }
-        proposed_import['media'] = layer1.getproperty('media', get_default=True)
+        proposed_import['media'] = layer1.get('media', with_default=True)
         self._add_l1config_import(vport, proposed_import, imports)
 
     def _get_speed(self, vport, layer1):
@@ -524,11 +524,11 @@ class Vport(object):
                 vport['xpath'] + '/l1Config/' +
                 vport['type'].replace('Fcoe', ''),
                 'enableAutoNegotiation':
-                layer1.getproperty('auto_negotiate', get_default=True) ,
+                layer1.get('auto_negotiate', with_default=True) ,
             })
 
     def _set_fcoe(self, vport, layer1, imports):
-        flow_control = layer1.getproperty('flow_control')
+        flow_control = layer1.get('flow_control')
         if flow_control is None:
             return
         xpath = '%s/l1Config/%s/fcoe' % (vport['xpath'], vport['type'].replace(
@@ -539,8 +539,8 @@ class Vport(object):
             Vport._FLOW_CONTROL_MAP[flow_control.choice]
         }
         if flow_control.choice == 'ieee_802_1qbb':
-            pfc = flow_control.getproperty('ieee_802_1qbb', get_default=True)
-            pfc_delay = pfc.getproperty('pfc_delay', get_default=True)
+            pfc = flow_control.get('ieee_802_1qbb', with_default=True)
+            pfc_delay = pfc.get('pfc_delay', with_default=True)
             fcoe['enablePFCPauseDelay'] = False if pfc_delay == 0 else True
             fcoe['pfcPauseDelay'] = pfc_delay
             fcoe['pfcPriorityGroups'] = [
@@ -606,7 +606,7 @@ class Vport(object):
         """Return port results
         """
 
-        self._column_names = request.getproperty('column_names')
+        self._column_names = request.get('column_names')
         if self._column_names is None:
             self._column_names = []
         elif not isinstance(self._column_names, list):
@@ -614,7 +614,7 @@ class Vport(object):
                     expected list".format(self._column_names)
             raise Exception(msg)
 
-        port_names = request.getproperty('port_names')
+        port_names = request.get('port_names')
         if port_names is None or len(port_names) == 0:
             port_names = [port.name for port in self._api._config.ports]
         elif not isinstance(port_names, list):

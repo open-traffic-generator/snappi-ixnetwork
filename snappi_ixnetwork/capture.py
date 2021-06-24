@@ -81,7 +81,7 @@ class Capture(object):
                 continue
             for port_name in capture_item.port_names:
                 capture_mode = 'captureTriggerMode'
-                if capture_item.getproperty('overwrite'):
+                if capture_item.get('overwrite'):
                     capture_mode = 'captureContinuousMode'
                     reset = {
                         'xpath': vports[port_name][

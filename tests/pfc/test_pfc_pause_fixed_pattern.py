@@ -14,22 +14,22 @@ def test_fixed_pfc_pause(api, b2b_raw_config, utils):
     pfc = f.packet[0]
     pfc.src.value = '00:AB:BC:AB:BC:AB'
     pfc.dst.value = '00:AB:BC:AB:BC:AB'
-    pfc.ether_type.value = '8100'
-    pfc.class_enable_vector.value = 'FF'
-    pfc.control_op_code.value = '0101'
-    pfc.pause_class_0.value = 'FFFF'
-    pfc.pause_class_1.value = 'FFFF'
-    pfc.pause_class_2.value = 'FFFF'
-    pfc.pause_class_3.value = 'FFFF'
-    pfc.pause_class_4.value = 'FFFF'
-    pfc.pause_class_5.value = 'FFFF'
-    pfc.pause_class_6.value = 'FFFF'
-    pfc.pause_class_7.value = 'FFFF'
+    pfc.ether_type.value = 3000
+    pfc.class_enable_vector.value = 255
+    pfc.control_op_code.value = 257
+    pfc.pause_class_0.value = 65535
+    pfc.pause_class_1.value = 65535
+    pfc.pause_class_2.value = 65535
+    pfc.pause_class_3.value = 65535
+    pfc.pause_class_4.value = 65535
+    pfc.pause_class_5.value = 65535
+    pfc.pause_class_6.value = 65535
+    pfc.pause_class_7.value = 65535
     api.set_config(b2b_raw_config)
     attrs = {
         'Destination address': '00:ab:bc:ab:bc:ab',
         'Source address': '00:ab:bc:ab:bc:ab',
-        'Ethertype': '8100',
+        'Ethertype': 'bb8',
         'Control opcode': '101',
         'priority_enable_vector': 'ff',
         'PFC Queue 0': 'ffff',
@@ -43,10 +43,10 @@ def test_fixed_pfc_pause(api, b2b_raw_config, utils):
     }
     utils.validate_config(api, 0, **attrs)
 
-    pfc.pause_class_7.value = '3333'
+    pfc.pause_class_7.value = 3333
 
     api.set_config(b2b_raw_config)
 
-    attrs['PFC Queue 7'] = '3333'
+    attrs['PFC Queue 7'] = 'd05'
 
     utils.validate_config(api, 0, **attrs)

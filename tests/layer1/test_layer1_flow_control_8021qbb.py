@@ -6,7 +6,7 @@ def test_layer1_flow_control_8021qbb(api, utils):
     Validation: Validate the layer1 8021qbb properties applied using Restpy
     """
     port1_delay = 3
-    port1_pfc_priority_groups = [1, 0, -1, -1, 7, -1, -1, -1]
+    port1_pfc_priority_groups = [1, 0, 2, 3, 7, 5, 6, 7]
     directed_address = '01 80 C2 00 00 01'
     config = api.config()
     config.ports.port().port()

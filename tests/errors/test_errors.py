@@ -15,8 +15,7 @@ def test_Bad_Request_server_side(api, b2b_raw_config, utils):
     src = ['00:0C:29:E3:53:EA']
     dst = '00:0C:29:E3:53:F4'
     step = '00:00:00:00:01:00'
-    eth_type = '8100'
-    eth_step = '2'
+    eth_step = 2
 
     flow.packet.ethernet()
     eth = flow.packet[-1]
@@ -26,7 +25,6 @@ def test_Bad_Request_server_side(api, b2b_raw_config, utils):
     eth.dst.decrement.start = dst
     eth.dst.decrement.step = step
     eth.dst.decrement.count = count
-    eth.ether_type.increment.start = eth_type
     eth.ether_type.increment.step = eth_step
     eth.ether_type.increment.count = count
     try:
@@ -58,7 +56,7 @@ def test_error_list_from_server(api, b2b_raw_config, utils):
     config = api.config()
     api.set_config(config)
     size = 128
-    packets = 100000
+
     count = 1
     mac_tx = utils.mac_or_ip_addr_from_counter_pattern(
         '00:10:10:20:20:10', '00:00:00:00:00:01', count, True
@@ -108,7 +106,7 @@ def test_error_list_from_server(api, b2b_raw_config, utils):
     f1.tx_rx.device.mode = f2.tx_rx.device.ONE_TO_ONE
     f1.size.fixed = size
     # f1.duration.fixed_packets.packets = packets
-    f1.rate.percentage = "10"
+    f1.rate.percentage = 10
 
     f2.tx_rx.device.tx_names = [
         b2b_raw_config.devices[i].name for i in range(count)
@@ -119,15 +117,15 @@ def test_error_list_from_server(api, b2b_raw_config, utils):
     f2.tx_rx.device.mode = f2.tx_rx.device.ONE_TO_ONE
     f2.packet.ethernet().ipv4().tcp()
     tcp = f2.packet[-1]
-    tcp.src_port.increment.start = "5000"
-    tcp.src_port.increment.step = "1"
-    tcp.src_port.increment.count = "%d" % count
-    tcp.dst_port.increment.start = "2000"
-    tcp.dst_port.increment.step = "1"
-    tcp.dst_port.increment.count = "%d" % count
+    tcp.src_port.increment.start = 5000
+    tcp.src_port.increment.step = 1
+    tcp.src_port.increment.count = count
+    tcp.dst_port.increment.start = 2000
+    tcp.dst_port.increment.step = 1
+    tcp.dst_port.increment.count = count
     f2.size.fixed = size * 2
     # f2.duration.fixed_packets.packets = packets
-    f2.rate.percentage = "10"
+    f2.rate.percentage = 10
     api.set_config(b2b_raw_config)
     try:
         utils.get_all_stats(api)

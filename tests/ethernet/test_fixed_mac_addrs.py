@@ -10,7 +10,7 @@ def test_fixed_mac_addrs(api, b2b_raw_config, utils):
     flow = b2b_raw_config.flows[0]
     source = '00:0C:29:E3:53:EA'
     destination = '00:0C:29:E3:53:F4'
-    ether_type = '8100'
+    ether_type = 33024
 
     # import snappi
     # flow = snappi.Api().config().flows.flow()[-1]
@@ -23,6 +23,6 @@ def test_fixed_mac_addrs(api, b2b_raw_config, utils):
     attrs = {
         'Destination MAC Address': destination.lower(),
         'Source MAC Address': source.lower(),
-        'Ethernet-Type': ether_type.lower(),
+        'Ethernet-Type': "{:x}".format(ether_type),
     }
     utils.validate_config(api, 'ethernet', **attrs)

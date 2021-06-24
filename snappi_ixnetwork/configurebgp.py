@@ -251,13 +251,13 @@ class ConfigureBgp(object):
             self.update(ixn_bgpv4, **args)
         self._api.ixn_objects[bgpv4.name] = ixn_bgpv4.href
         as_type = 'internal'
-        if bgpv4.getproperty('as_type') is not None \
-                and bgpv4.getproperty('as_type') == 'ebgp':
+        if bgpv4.get('as_type') is not None \
+                and bgpv4.get('as_type') == 'ebgp':
             as_type = 'external'
         bgp_xpath = self.get_xpath(ixn_bgpv4.href)
         self.configure_value(bgp_xpath, 'type', as_type)
-        as_bytes = bgpv4.getproperty('as_number_width')
-        if bgpv4.getproperty('as_number') is not None:
+        as_bytes = bgpv4.get('as_number_width')
+        if bgpv4.get('as_number') is not None:
             if as_bytes is None or as_bytes == 'two':
                 self.configure_value(
                     bgp_xpath, 'localAs2Bytes', bgpv4.as_number)
@@ -269,15 +269,15 @@ class ConfigureBgp(object):
             else:
                 msg = "Please configure supported [two, four] as_number_width"
                 raise Exception(msg)
-        if bgpv4.getproperty('dut_address') is not None:
+        if bgpv4.get('dut_address') is not None:
             self.configure_value(bgp_xpath, 'dutIp', bgpv4.dut_address)
-        if bgpv4.getproperty('as_number_set_mode'):
+        if bgpv4.get('as_number_set_mode'):
             self.configure_value(
                 bgp_xpath, 'asSetMode', bgpv4.as_number_set_mode,
                 enum_map=ConfigureBgp._BGP_AS_SET_MODE
             )
         # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
-        advanced = bgpv4.getproperty('advanced')
+        advanced = bgpv4.get('advanced')
         if advanced is not None:
             self.configure_value(
                 bgp_xpath, 'holdTimer', advanced.hold_time_interval)
@@ -289,7 +289,7 @@ class ConfigureBgp(object):
                 bgp_xpath, 'updateInterval', advanced.update_interval)
             self.configure_value(
                 bgp_xpath, 'ttl', advanced.time_to_live)
-        if bgpv4.getproperty('sr_te_policies') is not None:
+        if bgpv4.get('sr_te_policies') is not None:
             self._configure_sr_te(ixn_bgpv4, bgp_xpath, bgpv4.sr_te_policies)
         self._bgp_route_builder(ixn_dg, ixn_bgpv4, bgpv4)
         return ixn_bgpv4
@@ -356,13 +356,13 @@ class ConfigureBgp(object):
         else:
             ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
             property_xpath = pool_infos['bgpV6IPRouteProperty'][0]['xpath']
-        if route_range.getproperty('next_hop_address'):
+        if route_range.get('next_hop_address'):
             self.configure_value(
                 property_xpath, 'ipv4NextHop', route_range.next_hop_address)
         if route_range.name is not None:
             ixn_bgp_property.Name = route_range.name
             self._api.ixn_route_objects[route_range.name] = ixn_bgp_property
-        advanced = route_range.getproperty('advanced')
+        advanced = route_range.get('advanced')
         if advanced is not None \
                 and advanced.multi_exit_discriminator is not None:
             self.configure_value(
@@ -374,9 +374,9 @@ class ConfigureBgp(object):
             )
         if advanced is not None:
             self.configure_value(property_xpath, 'origin', advanced.origin)
-        if route_range.getproperty('as_path') is not None:
+        if route_range.get('as_path') is not None:
             self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
-        if route_range.getproperty('communities'):
+        if route_range.get('communities'):
             self._config_bgp_community(
                 route_range.communities, ixn_bgp_property)
 
@@ -394,12 +394,12 @@ class ConfigureBgp(object):
             self.update(ixn_bgpv6, **args)
         self._api.ixn_objects[bgpv6.name] = ixn_bgpv6.href
         as_type = 'internal'
-        if bgpv6.getproperty('as_type') is not None \
-                and bgpv6.getproperty('as_type') == 'ebgp':
+        if bgpv6.get('as_type') is not None \
+                and bgpv6.get('as_type') == 'ebgp':
             as_type = 'external'
         bgp_xpath = self.get_xpath(ixn_bgpv6.href)
         self.configure_value(bgp_xpath, 'type', as_type)
-        as_bytes = bgpv6.getproperty('as_number_width')
+        as_bytes = bgpv6.get('as_number_width')
         if as_bytes is None or as_bytes == 'two':
             self.configure_value(bgp_xpath, 'localAs2Bytes', bgpv6.as_number)
         elif as_bytes == 'four':
@@ -408,15 +408,15 @@ class ConfigureBgp(object):
         else:
             msg = "Please configure supported [two, four] as_number_width"
             raise Exception(msg)
-        if bgpv6.getproperty('dut_address') is not None:
+        if bgpv6.get('dut_address') is not None:
             self.configure_value(bgp_xpath, 'dutIp', bgpv6.dut_address)
-        if bgpv6.getproperty('as_number_set_mode') is not None:
+        if bgpv6.get('as_number_set_mode') is not None:
             self.configure_value(
                 bgp_xpath, 'asSetMode', bgpv6.as_number_set_mode,
                 enum_map=ConfigureBgp._BGP_AS_SET_MODE
             )
         # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
-        if bgpv6.getproperty('advanced') is not None:
+        if bgpv6.get('advanced') is not None:
             advanced = bgpv6.advanced
             self.configure_value(
                 bgp_xpath, 'holdTimer', advanced.hold_time_interval)
@@ -428,7 +428,7 @@ class ConfigureBgp(object):
                 bgp_xpath, 'updateInterval', advanced.update_interval)
             self.configure_value(
                 bgp_xpath, 'ttl', advanced.time_to_live)
-        if bgpv6.getproperty('sr_te_policies'):
+        if bgpv6.get('sr_te_policies'):
             self._configure_sr_te(ixn_bgpv6, bgp_xpath, bgpv6.sr_te_policies)
         self._bgp_route_builder(ixn_dg, ixn_bgpv6, bgpv6)
         return ixn_bgpv6
@@ -479,15 +479,15 @@ class ConfigureBgp(object):
         else:
             ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
             property_xpath = pool_infos['bgpV6IPRouteProperty'][0]['xpath']
-        if route_range.getproperty('next_hop_address') is not None:
+        if route_range.get('next_hop_address') is not None:
             self.configure_value(
                 property_xpath, 'ipv6NextHop', route_range.next_hop_address)
         if route_range.name is not None:
             ixn_bgp_property.Name = route_range.name
             self._api.ixn_route_objects[route_range.name] = ixn_bgp_property
-        advanced = route_range.getproperty('advanced')
+        advanced = route_range.get('advanced')
         if advanced is not None \
-                and advanced.getproperty(
+                and advanced.get(
                     'multi_exit_discriminator') is not None:
             self.configure_value(
                 property_xpath, 'enableMultiExitDiscriminator', True)
@@ -496,9 +496,9 @@ class ConfigureBgp(object):
                 advanced.multi_exit_discriminator)
         if advanced is not None:
             self.configure_value(property_xpath, 'origin', advanced.origin)
-        if route_range.getproperty('as_path') is not None:
+        if route_range.get('as_path') is not None:
             self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
-        if route_range.getproperty('communities') is not None:
+        if route_range.get('communities') is not None:
             self._config_bgp_community(
                 route_range.communities, ixn_bgp_property)
 
@@ -574,13 +574,13 @@ class ConfigureBgp(object):
         as_paths = []
         communities = []
         for sr_te in sr_te_list:
-            if sr_te.getproperty('next_hop') is not None:
+            if sr_te.get('next_hop') is not None:
                 next_hops.append(sr_te.next_hop)
-            if sr_te.getproperty('add_path') is not None:
+            if sr_te.get('add_path') is not None:
                 add_paths.append(sr_te.add_path)
-            if sr_te.getproperty('as_path') is not None:
+            if sr_te.get('as_path') is not None:
                 as_paths.append(sr_te.as_path)
-            if sr_te.getproperty('communities') is not None:
+            if sr_te.get('communities') is not None:
                 communities.append(sr_te.communities)
 
         active_list = self._process_nodes(next_hops)
@@ -743,14 +743,14 @@ class ConfigureBgp(object):
         binding_sub_tlv = []
         explicit_null_label_policy_sub_tlv = []
         for tunnel_tlv in tunnel_tlvs:
-            if tunnel_tlv.getproperty('remote_endpoint_sub_tlv') is not None:
+            if tunnel_tlv.get('remote_endpoint_sub_tlv') is not None:
                 remote_endpoint_sub_tlv.append(
                     tunnel_tlv.remote_endpoint_sub_tlv)
-            if tunnel_tlv.getproperty('preference_sub_tlv') is not None:
+            if tunnel_tlv.get('preference_sub_tlv') is not None:
                 preference_sub_tlv.append(tunnel_tlv.preference_sub_tlv)
-            if tunnel_tlv.getproperty('binding_sub_tlv') is not None:
+            if tunnel_tlv.get('binding_sub_tlv') is not None:
                 binding_sub_tlv.append(tunnel_tlv.binding_sub_tlv)
-            if tunnel_tlv.getproperty(
+            if tunnel_tlv.get(
                     'explicit_null_label_policy_sub_tlv') is not None:
                 explicit_null_label_policy_sub_tlv.append(
                     tunnel_tlv.explicit_null_label_policy_sub_tlv

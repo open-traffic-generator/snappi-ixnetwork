@@ -1,4 +1,6 @@
 import pytest
+
+
 @pytest.mark.skip(reason="Intermittent failure. Issue #338")
 def test_bgpv6_routes(api, b2b_raw_config, utils):
     """
@@ -13,8 +15,14 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     d1, d2 = b2b_raw_config.devices.device(name='tx_bgp').device(name='rx_bgp')
     d1.container_name, d2.container_name = p1.name, p2.name
     eth1, eth2 = d1.ethernet, d2.ethernet
+    eth1.name, eth2.name = 'eth1', 'eth2'
+    eth1.mac, eth2.mac = '11:11:11:11:11:11', '11:11:11:11:11:22'
     ip1, ip2 = eth1.ipv6, eth2.ipv6
     bgp1, bgp2 = ip1.bgpv6, ip2.bgpv6
+
+    eth1.name, eth2.name = 'eth1', 'eth2'
+    ip1.name, ip2.name = 'ip1', 'ip2'
+    bgp1.name, bgp2.name = 'bgp1', 'bpg2'
 
     ip1.address = '2000::1'
     ip1.gateway = '3000::1'
@@ -25,7 +33,14 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     ip2.prefix = 64
 
     bgp1.dut_address = '3000::1'
+    bgp1.local_address = '2000::1'
+    bgp1.as_type = 'ibgp'
+    bgp1.as_number = 10
+
     bgp2.dut_address = '2000::1'
+    bgp2.local_address = '3000::1'
+    bgp2.as_type = 'ibgp'
+    bgp2.as_number = 10
 
     bgp1_rr = bgp1.bgpv6_routes.bgpv6route(name="bgp1_rr")[-1]
     bgp2_rr = bgp2.bgpv6_routes.bgpv6route(name="bgp2_rr")[-1]

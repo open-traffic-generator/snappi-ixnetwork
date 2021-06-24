@@ -22,8 +22,8 @@ def test_list_tcp_ports_e2e(api, utils, b2b_raw_config):
     eth.dst.value = '00:AB:BC:AB:BC:AB'
     ip.src.value = '1.1.1.2'
     ip.dst.value = '1.1.1.1'
-    tcp.src_port.values = ['5000', '5050', '5015', '5040', '5032', '5021']
-    tcp.dst_port.values = ['6000', '6015', '6050']
+    tcp.src_port.values = [5000, 5050, 5015, 5040, 5032, 5021]
+    tcp.dst_port.values = [6000, 6015, 6050]
     f.duration.fixed_packets.packets = packets
     f.size.fixed = size
     f.rate.percentage = 10

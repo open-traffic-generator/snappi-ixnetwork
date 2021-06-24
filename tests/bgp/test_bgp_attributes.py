@@ -22,7 +22,7 @@ def test_bgp_attributes(api, utils):
     ly.speed = utils.settings.speed
     ly.media = utils.settings.media
 
-    device,  = (
+    device, = (
         config.devices
         .device(name="device", container_name=port.name)
     )
@@ -30,20 +30,22 @@ def test_bgp_attributes(api, utils):
     # device config
     eth = device.ethernet
     eth.name = "eth"
+    eth.mac = '00:00:00:00:00:11'
     ipv4 = eth.ipv4
     ipv4.name = "ipv4"
     ipv4.address = "21.1.1.1"
-    ipv4.prefix = "24"
+    ipv4.prefix = 24
     ipv4.gateway = "21.1.1.2"
     bgpv4 = ipv4.bgpv4
     bgpv4.name = "rx_bgpv4"
+    bgpv4.local_address = '21.1.1.1'
     bgpv4.as_type = "ebgp"
     bgpv4.dut_address = "22.1.1.1"
-    bgpv4.as_number = "65200"
+    bgpv4.as_number = 65200
 
     rr = bgpv4.bgpv4_routes.bgpv4route(name="rr")[-1]
     rr.addresses.bgpv4routeaddress(address="200.1.0.1",
-                                   prefix="32")
+                                   prefix=32)
 
     # Community
     manual_as_community = (
@@ -68,17 +70,18 @@ def test_bgp_attributes(api, utils):
     ipv6 = eth.ipv6
     ipv6.name = "ipv6"
     ipv6.address = "2000::1"
-    ipv6.prefix = "64"
+    ipv6.prefix = 64
     ipv6.gateway = "2000::2"
     bgpv6 = ipv6.bgpv6
     bgpv6.name = "rx_bgpv6"
+    bgpv6.local_address = "2000::1"
     bgpv6.as_type = "ebgp"
     bgpv6.dut_address = "2000::2"
-    bgpv6.as_number = "65200"
+    bgpv6.as_number = 65200
 
     rrv6 = bgpv6.bgpv6_routes.bgpv6route(name="rrv6")[-1]
     rrv6.addresses.bgpv6routeaddress(address="4000::1",
-                                     prefix="64")
+                                     prefix=64)
 
     # Community
     manual_as_community = (
