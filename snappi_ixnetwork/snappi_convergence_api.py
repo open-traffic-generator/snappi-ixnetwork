@@ -9,11 +9,6 @@ except Exception:
     raise SnappiIxnException(500, "snappi_convergence not installed")
 from snappi_ixnetwork.ixnetworkapi import Api as snappiApi
 
-# todo: api should remove when package will ready
-def api(location = None, ext='ixnetwork'):
-    return Api(location= location)
-
-
 class Api(snappi_convergence.Api):
     _CONVERGENCE = {
         ('data_plane_convergence_us', 'DP/DP Convergence Time (us)', float),
@@ -178,9 +173,7 @@ class Api(snappi_convergence.Api):
             raise Exception(msg)
         if flow_names is None or len(flow_names) == 0:
             flow_names = [flow.name for flow in self._api.snappi_config.flows]
-        flow_stat = self._api.assistant.StatViewAssistant(
-            'Flow Statistics')
-        flow_rows = flow_stat.Rows
+        flow_rows = self._get_flow_rows(flow_names)
         traffic_stat = self._api.assistant.StatViewAssistant(
             'Traffic Item Statistics')
         traffic_index = {}
@@ -286,3 +279,29 @@ class Api(snappi_convergence.Api):
             time.sleep(sleep_time)
             count += 1
         return traffic_stat.Rows
+    
+    def _get_flow_rows(self, flow_names):
+        count = 0
+        sleep_time = 0.5
+        flow_stat = self._api.assistant.StatViewAssistant(
+            'Flow Statistics')
+        has_flow = False
+        while True:
+            flow_rows = flow_stat.Rows
+            has_event = False
+            for row in flow_rows:
+                if row['Traffic Item'] in flow_names:
+                    has_flow = True
+                    if row['Event Name'] != '':
+                        has_event = True
+                        break
+            if has_event is True:
+                break
+            if count * sleep_time > self._convergence_timeout:
+                if has_flow is not True:
+                    raise Exception("flow_names must present within in config.flows")
+                else:
+                    raise Exception("Somehow event is not reflected in stat")
+            time.sleep(sleep_time)
+            count += 1
+        return flow_rows
