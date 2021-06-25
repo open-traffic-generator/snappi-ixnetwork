@@ -221,7 +221,7 @@ class Api(snappi_convergence.Api):
                 if interruption_time is None:
                     interruption_time = float(flow_result['DP Above Threshold Timestamp'].split(':')[-1]) - \
                                         float(flow_result['DP Below Threshold Timestamp'].split(':')[-1])
-                    self._set_result_value(convergence, 'service_interruption_time_ns',
+                    self._set_result_value(convergence, 'service_interruption_time_us',
                                            interruption_time, float)
             convergence['events'] = events
             response.append(convergence)
