@@ -135,6 +135,11 @@ class Api(snappi_convergence.Api):
                 response = self._result(
                             payload.convergence)
                 cvg_res.flow_convergence.deserialize(response)
+            elif payload.choice in self._api.protocol_metrics.get_supported_protocols():
+                response = self._api.protocol_metrics.results(payload)
+                getattr(
+                    cvg_res, payload.choice + '_metrics'
+                ).deserialize(response)
             else:
                 raise Exception("These[metrics/ convergence] are valid convergence_request")
             return cvg_res
