@@ -7,7 +7,7 @@ try:
     import snappi_convergence
 except Exception:
     raise SnappiIxnException(500, "snappi_convergence not installed")
-from snappi_ixnetwork.ixnetworkapi import Api as snappiApi
+from snappi_ixnetwork.snappi_api import Api as snappiApi
 
 class Api(snappi_convergence.Api):
     _CONVERGENCE = {

@@ -1,1 +1,1 @@
-from snappi_ixnetwork.ixnetworkapi import Api
+from snappi_ixnetwork.snappi_api import Api
