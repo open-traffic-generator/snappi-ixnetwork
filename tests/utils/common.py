@@ -68,7 +68,7 @@ class Settings(object):
     def __init__(self):
         # these not be defined and are here only for documentation
         self.username = None
-        self.api_server = None
+        self.location = None
         self.ports = None
         self.speed = None
         self.media = None
