@@ -20,17 +20,17 @@ def test_counter_pfc_pause(api, b2b_raw_config, utils):
     pfc.dst.increment.start = '00:AB:BC:AB:BC:AB'
     pfc.dst.increment.step = '00:01:00:00:01:00'
     pfc.dst.increment.count = 10
-    pfc.ether_type.increment.start = '8100'
+    pfc.ether_type.increment.start = 3000
     pfc.ether_type.increment.step = 1
     pfc.ether_type.increment.count = 10
-    pfc.class_enable_vector.increment.start = 'FF'
+    pfc.class_enable_vector.increment.start = 255
     pfc.class_enable_vector.increment.step = 1
     pfc.class_enable_vector.increment.count = 10
-    pfc.control_op_code.value = '101'
+    pfc.control_op_code.value = 257
 
     for i in range(8):
         cl = getattr(pfc, 'pause_class_{}'.format(i))
-        cl.increment.start = 'FFFF'
+        cl.increment.start = 65535
         cl.increment.step = 1
         cl.increment.count = 10
 
@@ -44,7 +44,7 @@ def test_counter_pfc_pause(api, b2b_raw_config, utils):
             '00:AB:BC:AB:BC:AB'.lower(),
             '00:01:00:00:01:00', '10'
         ),
-        'Ethertype': ('8100', '1', '10'),
+        'Ethertype': ('bb8', '1', '10'),
         'Control opcode': '101',
         'priority_enable_vector': ('ff', '1', '10'),
         'PFC Queue 0': ('ffff', '1', '10'),
@@ -59,9 +59,9 @@ def test_counter_pfc_pause(api, b2b_raw_config, utils):
 
     utils.validate_config(api, 0, **attrs)
 
-    pfc.pause_class_7.increment.start = '3333'
+    pfc.pause_class_7.increment.start = 3333
 
     api.set_config(b2b_raw_config)
 
-    attrs['PFC Queue 7'] = ('3333', '1', '10')
+    attrs['PFC Queue 7'] = ('d05', '1', '10')
     utils.validate_config(api, 0, **attrs)

@@ -12,8 +12,8 @@ def test_counter_mac_addrs(api, b2b_raw_config, utils):
     src = '00:0C:29:E3:53:EA'
     dst = '00:0C:29:E3:53:F4'
     step = '00:00:00:00:01:00'
-    eth_type = '8100'
-    eth_step = '2'
+    eth_type = 33024
+    eth_step = 2
 
     flow.packet.ethernet()
     eth = flow.packet[-1]
@@ -39,6 +39,8 @@ def test_counter_mac_addrs(api, b2b_raw_config, utils):
             step,
             str(count)
         ),
-        'Ethernet-Type': (eth_type, eth_step, str(count)),
+        'Ethernet-Type': (
+            "{:x}".format(eth_type), str(eth_step), str(count)
+        ),
     }
     utils.validate_config(api, 'ethernet', **attrs)

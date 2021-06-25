@@ -10,8 +10,12 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     d1.container_name, d2.container_name = p1.name, p2.name
     # d1.device_count, d2.device_count = 10, 10
     eth1, eth2 = d1.ethernet, d2.ethernet
+    eth1.mac, eth2.mac = '00:00:00:00:00:11', '00:00:00:00:00:22'
     ip1, ip2 = eth1.ipv4, eth2.ipv4
     bgp1, bgp2 = ip1.bgpv4, ip2.bgpv4
+    eth1.name, eth2.name = 'eth1', 'eth2'
+    ip1.name, ip2.name = 'ip1', 'ip2'
+    bgp1.name, bgp2.name = 'bgp1', 'bpg2'
 
     ip1.address = '10.1.1.1'
     ip1.gateway = '10.1.1.2'
@@ -22,7 +26,14 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     ip2.prefix = 24
 
     bgp1.dut_address = '10.1.1.2'
+    bgp1.local_address = '10.1.1.1'
+    bgp1.as_type = 'ibgp'
+    bgp1.as_number = 10
+
     bgp2.dut_address = '10.1.1.1'
+    bgp2.local_address = '10.1.1.2'
+    bgp2.as_type = 'ibgp'
+    bgp2.as_number = 10
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(

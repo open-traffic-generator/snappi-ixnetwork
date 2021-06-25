@@ -23,7 +23,7 @@ def test_capture_filter_settings(api, settings):
 
     cap = config.captures.capture(name='capture1')[-1]
     cap.port_names = [tx.name]
-    filter1, filter2, filter3 = cap.filters.filter().filter().filter()
+    filter1, filter2 = cap.filters.filter().filter()
 
     # https://github.com/open-traffic-generator/snappi/issues/25
     # currently assigning the choice as work around
@@ -32,15 +32,14 @@ def test_capture_filter_settings(api, settings):
     filter1.ethernet.src.mask = attrs['SAMask1']
     filter1.ethernet.src.negate = True
 
-    filter2.choice = filter2.ETHERNET
-    filter2.ethernet.dst.value = attrs['DA1']
-    filter2.ethernet.dst.mask = attrs['DAMask1']
-    filter2.ethernet.dst.negate = True
+    filter1.ethernet.dst.value = attrs['DA1']
+    filter1.ethernet.dst.mask = attrs['DAMask1']
+    filter1.ethernet.dst.negate = True
 
-    filter3.custom.value = attrs['Pattern1']
-    filter3.custom.offset = attrs['PatternOffset1']
-    filter3.custom.mask = attrs['PatternMask1']
-    filter3.custom.negate = True
+    filter2.custom.value = attrs['Pattern1']
+    filter2.custom.offset = attrs['PatternOffset1']
+    filter2.custom.mask = attrs['PatternMask1']
+    filter2.custom.negate = True
     
     try:
         api.set_config(config)

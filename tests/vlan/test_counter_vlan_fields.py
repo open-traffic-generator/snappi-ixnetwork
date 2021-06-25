@@ -11,7 +11,7 @@ def test_counter_vlan_fields(api, b2b_raw_config, utils):
     f = b2b_raw_config.flows[0]
     source = '00:0C:29:E3:53:EA'
     destination = '00:0C:29:E3:53:F4'
-    ether_type = '8100'
+    ether_type = 33024
 
     f.packet.ethernet().vlan()
     eth, vlan = f.packet[0], f.packet[1]

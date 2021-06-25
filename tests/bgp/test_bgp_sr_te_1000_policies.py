@@ -10,17 +10,17 @@ def test_bgp_sr_te_1000_policies(api):
     """
     BGPV4_SR_TE = {
         'PolicyType': 'ipv4',
-        'Distinguisher': '1',
-        'PolicyColor': '1',
+        'Distinguisher': 1,
+        'PolicyColor': 1,
         'EndPointV4': '10.10.10.2',
         'SetNextHop': 'manually',
         'SetNextHopIpType': 'ipv4',
         'Ipv4NextHop': '10.10.10.2',
     }
     BGPV4_SR_TE_TUNNEL = {
-        'PrefValue': '400',
+        'PrefValue': 400,
         'BindingSIDType': 'sid4',
-        'SID4Octet': '483001',
+        'SID4Octet': 483001,
         'UseAsMPLSLabel': 'true'
     }
 
@@ -28,12 +28,12 @@ def test_bgp_sr_te_1000_policies(api):
         'Count': 1000,
         'NumberOfSegmentsV4': 5,
         'EnWeight': 'True',
-        'Weight': '1',
+        'Weight': 1,
     }
 
     BGPV4_SR_TE_TUNNEL_SEGMENTS = {
         'SegmentType': 'mplssid',
-        'Label': ['1018001', '432999', '1048333', '1048561', '432001'],
+        'Label': [1018001, 432999, 1048333, 1048561, 432001],
     }
 
     config = api.config()
@@ -61,6 +61,7 @@ def test_bgp_sr_te_1000_policies(api):
     bgp.name = 'b4'
     bgp.router_id = '193.0.0.1'
     bgp.as_number = 65511
+    bgp.as_type = 'ebgp'
     bgp.as_number_set_mode = bgp.DO_NOT_INCLUDE_AS
     bgp.local_address = '10.10.10.1'
     bgp.dut_address = '10.10.10.2'
@@ -103,7 +104,7 @@ def test_bgp_sr_te_1000_policies(api):
         for label in BGPV4_SR_TE_TUNNEL_SEGMENTS['Label']:
             seg = seglist.segments.bgpsegment(active=True)[-1]
             seg.segment_type = seg.MPLS_SID
-            seg.mpls_label = int(label)
+            seg.mpls_label = label
 
     api.set_config(config)
 
@@ -138,21 +139,30 @@ def validate_sr_te_config(api,
             assert [BGPV4_SR_TE[attr] for i in range(1, 1001)] == getattr(
                 bgpv4_sr_te, attr).Values
         elif attr == 'PolicyColor':
-            assert [str(i) for i in range(1, 1001)] == getattr(
-                bgpv4_sr_te, attr).Values
-        assert BGPV4_SR_TE[attr] == (getattr(bgpv4_sr_te, attr).Values)[0]
+            assert [i for i in range(1, 1001)] == (
+                [int(value) for value in getattr(bgpv4_sr_te, attr).Values])
+        elif attr == 'Distinguisher':
+            assert BGPV4_SR_TE[attr] == int((
+                getattr(bgpv4_sr_te, attr).Values)[0])
+        else:
+            assert BGPV4_SR_TE[attr] == (getattr(bgpv4_sr_te, attr).Values)[0]
 
     bgpv4_sr_te_tunnel = bgpv4_sr_te.BgpSRTEPoliciesTunnelEncapsulationListV4
     for attr in BGPV4_SR_TE_TUNNEL:
-        assert [BGPV4_SR_TE_TUNNEL[attr] for i in range(1, 1001)] == getattr(
-            bgpv4_sr_te_tunnel, attr).Values
+        if attr in ['PrefValue', 'SID4Octet']:
+            assert [BGPV4_SR_TE_TUNNEL[attr] for i in range(1, 1001)] == (
+                [int(value) for value in getattr(
+                    bgpv4_sr_te_tunnel, attr).Values])
+        else:
+            assert [BGPV4_SR_TE_TUNNEL[attr] for i in range(1, 1001)] == (
+                getattr(bgpv4_sr_te_tunnel, attr).Values)
 
     bgpv4_sr_te_tunnel_seg_lists = (
         bgpv4_sr_te_tunnel.BgpSRTEPoliciesSegmentListV4)
     for attr in BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST:
         if attr == 'Weight':
-            assert BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST[attr] == (
-                getattr(bgpv4_sr_te_tunnel_seg_lists, attr).Values)[0]
+            assert BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST[attr] == int((
+                getattr(bgpv4_sr_te_tunnel_seg_lists, attr).Values)[0])
         else:
             assert BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST[attr] == (
                 getattr(bgpv4_sr_te_tunnel_seg_lists, attr))
@@ -163,7 +173,8 @@ def validate_sr_te_config(api,
         if attr == 'Label':
             lg = [BGPV4_SR_TE_TUNNEL_SEGMENTS[attr] for i in range(1, 1001)]
             assert reduce(lambda x, y: x + y, lg) == (
-                getattr(bgpv4_sr_te_tunnel_segments, attr).Values)
+                [int(value) for value in getattr(
+                    bgpv4_sr_te_tunnel_segments, attr).Values])
         else:
             assert [BGPV4_SR_TE_TUNNEL_SEGMENTS[attr] for i in range(
                 1, 5001)] == getattr(bgpv4_sr_te_tunnel_segments, attr).Values

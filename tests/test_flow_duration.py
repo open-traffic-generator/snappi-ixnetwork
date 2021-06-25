@@ -24,7 +24,7 @@ def test_flow_duration(api, utils):
     tx_port, rx_port = config.ports
     tx_port.location = utils.settings.ports[0]
     rx_port.location = utils.settings.ports[1]
-    l1, l2 = config.layer1.layer1().layer1()
+    l1, l2 = config.layer1.layer1(name='l10').layer1(name='l11')
     l1.port_names, l2.port_names = [tx_port.name], [rx_port.name]
     l1.media, l1.media = utils.settings.media, utils.settings.media
     l1.speed, l2.speed = utils.settings.speed, utils.settings.speed

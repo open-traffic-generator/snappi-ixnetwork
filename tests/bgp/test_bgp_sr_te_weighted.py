@@ -15,13 +15,13 @@ def test_bgp_sr_te_weighted(api):
     }
 
     BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST = {
-        'Weight': ['1', '4'],
+        'Weight': [1, 4],
     }
 
     BGPV4_SR_TE_TUNNEL_SEGMENTS = {
-        'Label': ['16002', '16004', '16005', '16004'],
+        'Label': [16002, 16004, 16005, 16004],
         'Vflag': ['true', 'true', 'false', 'false'],
-        'RemainingBits': ['1', '1', '0', '0']
+        'RemainingBits': [1, 1, 0, 0]
 
     }
 
@@ -50,6 +50,7 @@ def test_bgp_sr_te_weighted(api):
     bgp.name = 'b4'
     bgp.router_id = '193.0.0.1'
     bgp.as_number = 65511
+    bgp.as_type = 'ebgp'
     bgp.as_number_set_mode = bgp.DO_NOT_INCLUDE_AS
     bgp.local_address = '10.10.10.1'
     bgp.dut_address = '10.10.10.2'
@@ -74,12 +75,10 @@ def test_bgp_sr_te_weighted(api):
 
     # setup tunnel tlv segment lists
     seglist1 = tunnel.segment_lists.bgpsegmentlist(active=True)[-1]
-    seglist1.segment_weight = int(
-        BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST['Weight'][0])
+    seglist1.segment_weight = BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST['Weight'][0]
 
     seglist2 = tunnel.segment_lists.bgpsegmentlist(active=True)[-1]
-    seglist2.segment_weight = int(
-        BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST['Weight'][1])
+    seglist2.segment_weight = BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST['Weight'][1]
 
     # setup segment list segments
     for label in BGPV4_SR_TE_TUNNEL_SEGMENTS['Label'][0:2]:
@@ -87,7 +86,7 @@ def test_bgp_sr_te_weighted(api):
         seg.segment_type = seg.MPLS_SID
         seg.mpls_label = label
         seg.v_flag = True
-        seg.remaining_flag_bits = '0x01'
+        seg.remaining_flag_bits = 1
 
     for label in BGPV4_SR_TE_TUNNEL_SEGMENTS['Label'][2:]:
         seg = seglist2.segments.bgpsegment(active=True)[-1]
@@ -130,13 +129,19 @@ def validate_sr_te_config(api,
         bgpv4_sr_te_tunnel.BgpSRTEPoliciesSegmentListV4)
     for attr in BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST:
         assert BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST[attr] == (
-            getattr(bgpv4_sr_te_tunnel_seg_lists, attr).Values)
+            [int(value) for value in getattr(
+                bgpv4_sr_te_tunnel_seg_lists, attr).Values])
 
     bgpv4_sr_te_tunnel_segments = (
         bgpv4_sr_te_tunnel_seg_lists.BgpSRTEPoliciesSegmentsCollectionV4)
     for attr in BGPV4_SR_TE_TUNNEL_SEGMENTS:
-        assert BGPV4_SR_TE_TUNNEL_SEGMENTS[attr] == (
-            getattr(bgpv4_sr_te_tunnel_segments, attr).Values)
+        if attr in ['Label', 'RemainingBits']:
+            assert BGPV4_SR_TE_TUNNEL_SEGMENTS[attr] == (
+                [int(value) for value in getattr(
+                    bgpv4_sr_te_tunnel_segments, attr).Values])
+        else:
+            assert BGPV4_SR_TE_TUNNEL_SEGMENTS[attr] == (
+                getattr(bgpv4_sr_te_tunnel_segments, attr).Values)
 
 
 if __name__ == '__main__':

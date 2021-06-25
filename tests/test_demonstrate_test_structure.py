@@ -34,8 +34,11 @@ def port_configs(api, utils):
             devices[i].name = 'Device %s' % (i)
             eth = devices[i].ethernet
             eth.name = 'Ethernet %s' % (i)
+            eth.mac = '00:00:00:00:00:{:02x}'.format(i)
             ip = eth.ipv4
             ip.name = 'Ipv4 %s' % (i)
+            ip.gateway = '1.1.1.2'
+            ip.address = '1.1.1.1'
         configs.append(config)
     return configs
 

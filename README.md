@@ -35,7 +35,7 @@ Validate,
 
 import snappi
 # host is IxNetwork API Server
-api = snappi.api(host='https://localhost:443', ext='ixnetwork')
+api = snappi.api(location='https://localhost:443', ext='ixnetwork')
 # new config
 config = api.config()
 # port location is chassis-ip;card-id;port-id

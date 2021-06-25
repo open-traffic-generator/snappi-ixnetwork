@@ -36,21 +36,17 @@ class Api(snappi.Api):
         - password (str): The password to be used for authentication
         """
         super(Api, self).__init__()
-        host = kwargs.get('host')
         location = kwargs.get('location')
         username = kwargs.get('username')
         password = kwargs.get('password')
         license_servers = kwargs.get('license_servers')
-        log_level = kwargs.get('loglevel')
-        # temporary fix to allow tests to run
-        if host is not None:
-            location = host
+        log_level = kwargs.get('log_level')
         location = 'https://127.0.0.1:11009' if location is None else location
         self._address, self._port = self._get_addr_port(location)
         self._username = 'admin' if username is None else username
         self._password = 'admin' if password is None else password
         self._license_servers = [] if license_servers is None else license_servers
-        self._log_level = 'info'
+        self._log_level = 'info' if log_level is None else log_level
         self._running_config = None
         self._config = None
         self._assistant = None
@@ -326,17 +322,18 @@ class Api(snappi.Api):
             if isinstance(request, str) is True:
                 request = metric_req.deserialize(request)
             # Need to change the code style when the choice Enum grows big
-            if request.choice == 'port':
+            if request.get('choice') == 'port':
                 response = self.vport.results(request.port)
                 metric_res = self.metrics_response()
                 metric_res.port_metrics.deserialize(response)
                 return metric_res
-            if request.choice == 'flow':
+            if request.get('choice') == 'flow':
                 response = self.traffic_item.results(request.flow)
                 metric_res = self.metrics_response()
                 metric_res.flow_metrics.deserialize(response)
                 return metric_res
-            if request.choice in self.protocol_metrics.get_supported_protocols():
+            if request.get('choice') in\
+                    self.protocol_metrics.get_supported_protocols():
                 response = self.protocol_metrics.results(request)
                 metric_res = self.metrics_response()
                 getattr(
@@ -345,7 +342,7 @@ class Api(snappi.Api):
                 return metric_res
         except Exception as err:
             raise SnappiIxnException(err)
-        if request.choice is not None:
+        if request.get('choice') is not None:
             msg = "{} is not a supported choice for metrics; \
             the supported choices are \
             ['port', 'flow']".format(request.choice)

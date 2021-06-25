@@ -9,8 +9,8 @@ def test_tcp_header_with_counter(api, b2b_raw_config, utils):
     Validate,
     - Config is applied using validate config
     """
-    src_port = ('5000', '2', '10')
-    dst_port = ('6000', '2', '10')
+    src_port = (5000, 2, 10)
+    dst_port = (6000, 2, 10)
     size = 74
     packets = 100
     flow = b2b_raw_config.flows[0]
@@ -34,7 +34,7 @@ def test_tcp_header_with_counter(api, b2b_raw_config, utils):
 
     api.set_config(b2b_raw_config)
     attrs = {
-        'TCP-Source-Port': src_port,
-        'TCP-Dest-Port': dst_port,
+        'TCP-Source-Port': ('5000', '2', '10'),
+        'TCP-Dest-Port': ('6000', '2', '10'),
     }
     utils.validate_config(api, 'tcp', **attrs)

@@ -57,7 +57,10 @@ def test_static_lag(api, utils):
     d1, d2 = config.devices.device(name='device1').device(name='device2')
     d1.container_name = lag1.name
     d2.container_name = lag2.name
+    d1.ethernet.name, d2.ethernet.name = 'd_eth1', 'd_eth2'
+    d1.ethernet.mac, d2.ethernet.mac = '00:00:00:00:00:11', '00:00:00:00:00:22'
     ip1, ip2 = d1.ethernet.ipv4, d2.ethernet.ipv4
+    ip1.name, ip2.name = 'ip1', 'ip2'
     ip1.address = '10.1.1.1'
     ip1.gateway = '10.1.1.2'
     ip2.address = '10.1.1.2'

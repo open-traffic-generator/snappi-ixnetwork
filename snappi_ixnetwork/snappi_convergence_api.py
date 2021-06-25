@@ -7,7 +7,7 @@ try:
     import snappi_convergence
 except Exception:
     raise SnappiIxnException(500, "snappi_convergence not installed")
-from snappi_ixnetwork.ixnetworkapi import Api as snappiApi
+from snappi_ixnetwork.snappi_api import Api as snappiApi
 
 class Api(snappi_convergence.Api):
     _CONVERGENCE = {
@@ -37,11 +37,11 @@ class Api(snappi_convergence.Api):
 
             if isinstance(payload, str) is True:
                 payload = cvg_config.deserialize(payload)
-            config = payload._properties.get('config')
+            config = payload.get('config')
             if config is None:
                 raise Exception("config should not None")
             self._api.config_ixnetwork(config)
-            rx_rate_threshold = payload._properties.get('rx_rate_threshold')
+            rx_rate_threshold = payload.get('rx_rate_threshold')
             ixn_CpdpConvergence = self._api._traffic.Statistics.CpdpConvergence
             if rx_rate_threshold is not None:
                 if self._api.traffic_item.has_latency is True:
@@ -135,6 +135,11 @@ class Api(snappi_convergence.Api):
                 response = self._result(
                             payload.convergence)
                 cvg_res.flow_convergence.deserialize(response)
+            elif payload.choice in self._api.protocol_metrics.get_supported_protocols():
+                response = self._api.protocol_metrics.results(payload)
+                getattr(
+                    cvg_res, payload.choice + '_metrics'
+                ).deserialize(response)
             else:
                 raise Exception("These[metrics/ convergence] are valid convergence_request")
             return cvg_res
@@ -166,7 +171,7 @@ class Api(snappi_convergence.Api):
         return request_detail
     
     def _result(self, request):
-        flow_names = request._properties.get('flow_names')
+        flow_names = request.get('flow_names')
         if not isinstance(flow_names, list):
             msg = "Invalid format of flow_names passed {},\
                                                 expected list".format(flow_names)
@@ -216,7 +221,7 @@ class Api(snappi_convergence.Api):
                 if interruption_time is None:
                     interruption_time = float(flow_result['DP Above Threshold Timestamp'].split(':')[-1]) - \
                                         float(flow_result['DP Below Threshold Timestamp'].split(':')[-1])
-                    self._set_result_value(convergence, 'service_interruption_time_ns',
+                    self._set_result_value(convergence, 'service_interruption_time_us',
                                            interruption_time, float)
             convergence['events'] = events
             response.append(convergence)

@@ -10,49 +10,49 @@ def test_bgp_sr_te_policy_v4v6(api):
 
     BGPV4_SR_TE = {
         'PolicyType': 'ipv4',
-        'Distinguisher': '2',
-        'PolicyColor': '2',
+        'Distinguisher': 2,
+        'PolicyColor': 2,
         'EndPointV4': '10.10.10.1',
         'SetNextHop': 'manually',
         'SetNextHopIpType': 'ipv4',
         'Ipv4NextHop': '10.10.10.1',
         'OverridePeerAsSetMode': 'true',
         'AsSetMode': 'includelocalasasasseq',
-        'AddPathId': '2'
+        'AddPathId': 2
     }
     BGPV4_SR_TE_TUNNEL = {
-        'As4Number': '100',
+        'As4Number': 100,
         'AddressFamily': 'ipv4',
         'RemoteEndpointIPv4': '1.1.1.4',
-        'PrefValue': '400',
+        'PrefValue': 400,
         'BindingSIDType': 'sid4',
-        'SID4Octet': '483001',
+        'SID4Octet': 483001,
         'UseAsMPLSLabel': 'true',
         'EnENLPTLV': 'true',
         'ENLPValue': '2',
         'Iflag': 'true',
         'Sflag': 'true',
-        'RemainingBits': '1'
+        'RemainingBits': 1
     }
 
     BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST = {
         'Count': 1,
         'NumberOfSegmentsV4': 5,
         'EnWeight': 'True',
-        'Weight': '1',
+        'Weight': 1,
     }
 
     BGPV4_SR_TE_TUNNEL_SEGMENTS = {
         'SegmentType': ['mplssid', 'mplssid', 'mplssid', 'mplssid', 'mplssid'],
-        'Label': ['1018001', '432999', '1048333', '1048561', '432001'],
-        'TimeToLive': ['64', '64', '64', '64', '64'],
-        'TrafficClass': ['2', '2', '2', '2', '2'],
+        'Label': [1018001, 432999, 1048333, 1048561, 432001],
+        'TimeToLive': [64, 64, 64, 64, 64],
+        'TrafficClass': [2, 2, 2, 2, 2],
     }
 
     BGPV6_SR_TE = {
         'PolicyType': 'ipv6',
-        'Distinguisher': '3',
-        'PolicyColor': '3',
+        'Distinguisher': 3,
+        'PolicyColor': 3,
         'EndPointV6': '2000::2',
         'SetNextHop': 'manually',
         'SetNextHopIpType': 'ipv6',
@@ -62,32 +62,32 @@ def test_bgp_sr_te_policy_v4v6(api):
     }
 
     BGPV6_SR_TE_TUNNEL = {
-        'As4Number': '100',
+        'As4Number': 100,
         'AddressFamily': 'ipv6',
         'RemoteEndpointIPv6': '2000::2',
-        'PrefValue': '400',
+        'PrefValue': 400,
         'BindingSIDType': 'sid4',
-        'SID4Octet': '483001',
+        'SID4Octet': 483001,
         'UseAsMPLSLabel': 'true',
         'EnENLPTLV': 'true',
         'ENLPValue': '2',
         'Iflag': 'false',
         'Sflag': 'false',
-        'RemainingBits': '1'
+        'RemainingBits': 1
     }
 
     BGPV6_SR_TE_TUNNEL_SEGMENTS_LIST = {
         'Count': 1,
         'NumberOfSegmentsV6': 5,
         'EnWeight': 'True',
-        'Weight': '1',
+        'Weight': 1,
     }
 
     BGPV6_SR_TE_TUNNEL_SEGMENTS = {
         'SegmentType': ['mplssid', 'mplssid', 'mplssid', 'mplssid', 'mplssid'],
-        'Label': ['1018001', '432999', '1048333', '1048561', '432001'],
-        'TimeToLive': ['64', '64', '64', '64', '64'],
-        'TrafficClass': ['2', '2', '2', '2', '2'],
+        'Label': [1018001, 432999, 1048333, 1048561, 432001],
+        'TimeToLive': [64, 64, 64, 64, 64],
+        'TrafficClass': [2, 2, 2, 2, 2],
     }
 
     config = api.config()
@@ -115,6 +115,7 @@ def test_bgp_sr_te_policy_v4v6(api):
     bgp.name = 'b4'
     bgp.router_id = '193.0.0.1'
     bgp.as_number = 65511
+    bgp.as_type = 'ebgp'
     bgp.as_number_set_mode = bgp.DO_NOT_INCLUDE_AS
     bgp.local_address = '10.10.10.1'
     bgp.dut_address = '10.10.10.2'
@@ -167,7 +168,7 @@ def test_bgp_sr_te_policy_v4v6(api):
     bind_sub_tlv.bsid_as_mpls_label = True
     bind_sub_tlv.s_flag = True
     bind_sub_tlv.i_flag = True
-    bind_sub_tlv.remaining_flag_bits = '0x01'
+    bind_sub_tlv.remaining_flag_bits = BGPV4_SR_TE_TUNNEL['RemainingBits']
 
     # setup explicit null label policy sub tlv
     enlp_sub_tlv = tunnel.explicit_null_label_policy_sub_tlv
@@ -195,6 +196,7 @@ def test_bgp_sr_te_policy_v4v6(api):
     bgp6.name = 'b6'
     bgp6.router_id = '193.0.0.1'
     bgp6.as_number = 65511
+    bgp6.as_type = 'ebgp'
     bgp6.as_number_set_mode = bgp6.DO_NOT_INCLUDE_AS
     bgp6.local_address = '2000::1'
     bgp6.dut_address = '2000::2'
@@ -243,7 +245,7 @@ def test_bgp_sr_te_policy_v4v6(api):
     bind_sub_tlv.bsid_as_mpls_label = True
     bind_sub_tlv.s_flag = False
     bind_sub_tlv.i_flag = False
-    bind_sub_tlv.remaining_flag_bits = '0x01'
+    bind_sub_tlv.remaining_flag_bits = BGPV6_SR_TE_TUNNEL['RemainingBits']
 
     # setup explicit null label policy sub tlv
     enlp_sub_tlv = tunnel.explicit_null_label_policy_sub_tlv
@@ -294,20 +296,27 @@ def validate_sr_te_config(api,
                    Ethernet.find().Ipv4.find().BgpIpv4Peer.find().
                    BgpSRTEPoliciesListV4)
     for attr in BGPV4_SR_TE:
-        assert BGPV4_SR_TE[attr] == (getattr(bgpv4_sr_te, attr).Values)[0]
+        if attr in ['Distinguisher', 'PolicyColor', 'AddPathId']:
+            assert BGPV4_SR_TE[attr] == int((
+                getattr(bgpv4_sr_te, attr).Values)[0])
+        else:
+            assert BGPV4_SR_TE[attr] == (getattr(bgpv4_sr_te, attr).Values)[0]
 
     bgpv4_sr_te_tunnel = bgpv4_sr_te.BgpSRTEPoliciesTunnelEncapsulationListV4
-    # import pdb;pdb.set_trace()
     for attr in BGPV4_SR_TE_TUNNEL:
-        assert BGPV4_SR_TE_TUNNEL[attr] == (
-            getattr(bgpv4_sr_te_tunnel, attr).Values)[0]
+        if attr in ['PrefValue', 'As4Number', 'SID4Octet', 'RemainingBits']:
+            assert BGPV4_SR_TE_TUNNEL[attr] == int((
+                getattr(bgpv4_sr_te_tunnel, attr).Values)[0])
+        else:
+            assert BGPV4_SR_TE_TUNNEL[attr] == (
+                getattr(bgpv4_sr_te_tunnel, attr).Values)[0]
 
     bgpv4_sr_te_tunnel_seg_lists = (
         bgpv4_sr_te_tunnel.BgpSRTEPoliciesSegmentListV4)
     for attr in BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST:
         if attr == 'Weight':
-            assert BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST[attr] == (
-                getattr(bgpv4_sr_te_tunnel_seg_lists, attr).Values)[0]
+            assert BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST[attr] == int((
+                getattr(bgpv4_sr_te_tunnel_seg_lists, attr).Values)[0])
         else:
             assert BGPV4_SR_TE_TUNNEL_SEGMENTS_LIST[attr] == (
                 getattr(bgpv4_sr_te_tunnel_seg_lists, attr))
@@ -315,8 +324,13 @@ def validate_sr_te_config(api,
     bgpv4_sr_te_tunnel_segments = (
         bgpv4_sr_te_tunnel_seg_lists.BgpSRTEPoliciesSegmentsCollectionV4)
     for attr in BGPV4_SR_TE_TUNNEL_SEGMENTS:
-        assert BGPV4_SR_TE_TUNNEL_SEGMENTS[attr] == (
-            getattr(bgpv4_sr_te_tunnel_segments, attr).Values)
+        if attr in ['Label', 'TimeToLive', 'TrafficClass']:
+            assert BGPV4_SR_TE_TUNNEL_SEGMENTS[attr] == (
+                [int(value) for value in getattr(
+                    bgpv4_sr_te_tunnel_segments, attr).Values])
+        else:
+            assert BGPV4_SR_TE_TUNNEL_SEGMENTS[attr] == (
+                getattr(bgpv4_sr_te_tunnel_segments, attr).Values)
 
     # bgpv6
     bgpv6 = (ixnetwork.Topology.find().DeviceGroup.find().
@@ -327,19 +341,27 @@ def validate_sr_te_config(api,
                    Ethernet.find().Ipv6.find().BgpIpv6Peer.find().
                    BgpSRTEPoliciesListV6)
     for attr in BGPV6_SR_TE:
-        assert BGPV6_SR_TE[attr] == (getattr(bgpv6_sr_te, attr).Values)[0]
+        if attr in ['Distinguisher', 'PolicyColor']:
+            assert BGPV6_SR_TE[attr] == int((
+                getattr(bgpv6_sr_te, attr).Values)[0])
+        else:
+            assert BGPV6_SR_TE[attr] == (getattr(bgpv6_sr_te, attr).Values)[0]
 
     bgpv6_sr_te_tunnel = bgpv6_sr_te.BgpSRTEPoliciesTunnelEncapsulationListV6
     for attr in BGPV6_SR_TE_TUNNEL:
-        assert BGPV6_SR_TE_TUNNEL[attr] == (
-            getattr(bgpv6_sr_te_tunnel, attr).Values)[0]
+        if attr in ['PrefValue', 'As4Number', 'SID4Octet', 'RemainingBits']:
+            assert BGPV6_SR_TE_TUNNEL[attr] == int((
+                getattr(bgpv6_sr_te_tunnel, attr).Values)[0])
+        else:
+            assert BGPV6_SR_TE_TUNNEL[attr] == (
+                getattr(bgpv6_sr_te_tunnel, attr).Values)[0]
 
     bgpv6_sr_te_tunnel_seg_lists = (
         bgpv6_sr_te_tunnel.BgpSRTEPoliciesSegmentListV6)
     for attr in BGPV6_SR_TE_TUNNEL_SEGMENTS_LIST:
         if attr == 'Weight':
-            assert BGPV6_SR_TE_TUNNEL_SEGMENTS_LIST[attr] == (
-                getattr(bgpv6_sr_te_tunnel_seg_lists, attr).Values)[0]
+            assert BGPV6_SR_TE_TUNNEL_SEGMENTS_LIST[attr] == int((
+                getattr(bgpv6_sr_te_tunnel_seg_lists, attr).Values)[0])
         else:
             assert BGPV6_SR_TE_TUNNEL_SEGMENTS_LIST[attr] == (
                 getattr(bgpv6_sr_te_tunnel_seg_lists, attr))
@@ -347,8 +369,13 @@ def validate_sr_te_config(api,
     bgpv6_sr_te_tunnel_segments = (
         bgpv6_sr_te_tunnel_seg_lists.BgpSRTEPoliciesSegmentsCollectionV6)
     for attr in BGPV6_SR_TE_TUNNEL_SEGMENTS:
-        assert BGPV6_SR_TE_TUNNEL_SEGMENTS[attr] == (
-            getattr(bgpv6_sr_te_tunnel_segments, attr).Values)
+        if attr in ['Label', 'TimeToLive', 'TrafficClass']:
+            assert BGPV6_SR_TE_TUNNEL_SEGMENTS[attr] == (
+                [int(value) for value in getattr(
+                    bgpv4_sr_te_tunnel_segments, attr).Values])
+        else:
+            assert BGPV6_SR_TE_TUNNEL_SEGMENTS[attr] == (
+                getattr(bgpv6_sr_te_tunnel_segments, attr).Values)
 
 
 if __name__ == '__main__':

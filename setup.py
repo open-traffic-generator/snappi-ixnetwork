@@ -4,34 +4,6 @@ To build `python setup.py sdist --formats=gztar bdist_wheel --universal`
 """
 import os
 from setuptools import setup
-import requests
-import json
-
-
-RELEASES_URL = (
-    'https://api.github.com/repos/open-traffic-generator/models/releases'
-)
-
-response = requests.request('GET', RELEASES_URL, allow_redirects=True)
-assert response.status_code == 200
-releases = json.loads(response.content)
-# get latest release from v0.1.x branch
-MODELS_RELEASES = [r['tag_name'] for r in releases if 'v0.1.' in r['tag_name']]
-
-OPENAPI_URL = (
-    'https://github.com/open-traffic-generator/models/releases/download/%s'
-    '/openapi.yaml'
-) % MODELS_RELEASES[0]
-
-response = requests.request('GET', OPENAPI_URL, allow_redirects=True)
-assert response.status_code == 200
-
-# put the downloaded file inside docs dir of package
-doc_dir = './snappi_ixnetwork/docs'
-if os.path.exists(doc_dir) is False:
-    os.mkdir(doc_dir)
-with open(os.path.join(doc_dir, 'openapi.yaml'), 'wb') as fp:
-    fp.write(response.content)
 
 # read long description and version number
 pkg_name = 'snappi_ixnetwork'
@@ -68,8 +40,8 @@ setup(
     ],
     extras_require={
         'dev': [
-            'snappi==0.4.0',
-            'snappi_convergence==0.0.7',
+            'snappi==0.4.11',
+            'snappi_convergence==0.0.14',
             'pytest',
             'flake8==3.8.4',
             'dpkt==1.9.4',

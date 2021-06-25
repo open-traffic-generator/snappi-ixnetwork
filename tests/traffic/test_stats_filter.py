@@ -12,7 +12,7 @@ def test_stats_filter(api, b2b_raw_config, utils):
     each flow & column has returned the values and assert them against
     packets and frame size sent
     """
-
+    api.set_config(api.config())
     f1_packets = 1000
     f2_packets = 2000
     f1_size = 74

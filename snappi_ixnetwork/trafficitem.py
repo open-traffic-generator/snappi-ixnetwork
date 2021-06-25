@@ -9,6 +9,9 @@ class TrafficItem(CustomField):
     ----
     - ixnetworkapi (Api): instance of the ixnetworkapi class
     
+    Note: Sometime IxNetwork field type not matches with model packet field type
+    Please use '@' to specify model packet field type. Ex
+        'ether_type': 'pfcPause.header.header.ethertype@int'
     """
     _RESULT_COLUMNS = [
         ('frames_tx', 'Tx Frames', int),
@@ -18,8 +21,8 @@ class TrafficItem(CustomField):
         ('bytes_tx', 'Tx Bytes', int),
         ('bytes_rx', 'Rx Bytes', int),
         ('loss', 'Loss %', float),
-        ('bytes_tx_rate', 'Tx Rate (Bps)', float),
-        ('bytes_rx_rate', 'Rx Rate (Bps)', float),
+        # ('bytes_tx_rate', 'Tx Rate (Bps)', float),
+        # ('bytes_rx_rate', 'Rx Rate (Bps)', float),
     ]
 
     _RESULT_LATENCY_STORE_FORWARD = [
@@ -75,31 +78,39 @@ class TrafficItem(CustomField):
     }
 
     _LATENCY = {
-        'cut_through' : 'cutThrough',
-        'store_forward' : 'storeForward'
+        'cut_through': 'cutThrough',
+        'store_forward': 'storeForward'
     }
 
     _PFCPAUSE = {
         'dst': 'pfcPause.header.header.dstAddress',
         'src': 'pfcPause.header.header.srcAddress',
-        'ether_type': 'pfcPause.header.header.ethertype',
-        'control_op_code': 'pfcPause.header.macControl.controlOpcode',
+        'ether_type': 'pfcPause.header.header.ethertype@int',
+        'control_op_code': 'pfcPause.header.macControl.controlOpcode@int',
         'class_enable_vector':
-        'pfcPause.header.macControl.priorityEnableVector',
-        'pause_class_0': 'pfcPause.header.macControl.pauseQuanta.pfcQueue0',
-        'pause_class_1': 'pfcPause.header.macControl.pauseQuanta.pfcQueue1',
-        'pause_class_2': 'pfcPause.header.macControl.pauseQuanta.pfcQueue2',
-        'pause_class_3': 'pfcPause.header.macControl.pauseQuanta.pfcQueue3',
-        'pause_class_4': 'pfcPause.header.macControl.pauseQuanta.pfcQueue4',
-        'pause_class_5': 'pfcPause.header.macControl.pauseQuanta.pfcQueue5',
-        'pause_class_6': 'pfcPause.header.macControl.pauseQuanta.pfcQueue6',
-        'pause_class_7': 'pfcPause.header.macControl.pauseQuanta.pfcQueue7',
+        'pfcPause.header.macControl.priorityEnableVector@int',
+        'pause_class_0':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue0@int',
+        'pause_class_1':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue1@int',
+        'pause_class_2':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue2@int',
+        'pause_class_3':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue3@int',
+        'pause_class_4':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue4@int',
+        'pause_class_5':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue5@int',
+        'pause_class_6':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue6@int',
+        'pause_class_7':
+        'pfcPause.header.macControl.pauseQuanta.pfcQueue7@int',
     }
 
     _ETHERNET = {
         'dst': 'ethernet.header.destinationAddress',
         'src': 'ethernet.header.sourceAddress',
-        'ether_type': 'ethernet.header.etherType',
+        'ether_type': 'ethernet.header.etherType@int',
         'pfc_queue': 'ethernet.header.pfcQueue',
     }
 
@@ -225,25 +236,28 @@ class TrafficItem(CustomField):
                     self._update(ixn_traffic_item, **args)
                 self._configure_endpoint(ixn_traffic_item.EndpointSet,
                                          flow.tx_rx)
-                metrics = flow._properties.get('metrics')
+                metrics = flow.get('metrics')
                 if metrics is not None \
                         and metrics.enable is True:
                     self._configure_tracking(flow, ixn_traffic_item.Tracking)
-                    latency = metrics._properties.get('latency')
+                    latency = metrics.get('latency')
                     if latency is not None and latency.enable is True:
                         self.flows_has_latency.append(flow.name)
                         self._process_latency(latency)
-                    timestamps = metrics._properties.get('timestamps')
+                    timestamps = metrics.get('timestamps')
                     if timestamps is True:
                         self.flows_has_timestamp.append(flow.name)
-                    loss = metrics._properties.get('loss')
+                    loss = metrics.get('loss')
                     if loss is True:
                         self.flows_has_loss.append(flow.name)
                 ixn_ce = ixn_traffic_item.ConfigElement.find()
                 hl_stream_count = len(ixn_traffic_item.HighLevelStream.find())
-                self._configure_stack(ixn_ce, flow.packet)
-                self._configure_size(ixn_ce, flow.size)
-                self._configure_rate(ixn_ce, flow.rate)
+                self._configure_stack(ixn_ce, flow.get('packet',
+                                          with_default=True))
+                self._configure_size(ixn_ce, flow.get('size',
+                                          with_default=True))
+                self._configure_rate(ixn_ce, flow.get('rate',
+                                          with_default=True))
                 self._configure_tx_control(ixn_ce, hl_stream_count, flow.duration)
             self._configure_options()
             self._configure_latency()
@@ -452,52 +466,63 @@ class TrafficItem(CustomField):
 
         for packet_field_name in dir(packet):
             if packet_field_name in field_map:
-                pattern = getattr(packet, packet_field_name)
-                field_type_id = field_map[packet_field_name]
-                self._configure_pattern(ixn_field, field_type_id, pattern,
-                                        field_choice)
+                pattern = packet.get(packet_field_name,
+                                             with_default=True)
+                if pattern is not None:
+                    field_type_id = field_map[packet_field_name]
+                    self._configure_pattern(ixn_field, field_type_id, pattern,
+                                            field_choice)
 
     def _configure_pattern(self,
                            ixn_field,
                            field_type_id,
                            pattern,
                            field_choice=False):
+        def get_value(field_value):
+            if field_type is None:
+                return field_value
+            ixn_type = ixn_field.ValueFormat
+            if field_type == 'int' and ixn_type == 'hex':
+                field_value = str(hex(int(field_value)))[2:]
+            return field_value
+        
         custom_field = getattr(self, field_type_id, None)
         if custom_field is not None:
             if pattern.choice is not None:
                 custom_field(ixn_field, pattern)
             return
-    
+        id_type = field_type_id.split('@')
+        field_type_id, field_type = id_type if len(id_type) > 1 else [
+                            id_type[0], None]
         ixn_field = ixn_field.find(FieldTypeId=field_type_id)
-        self._set_default(ixn_field, field_choice)
-    
         if pattern.choice is None:
+            self._set_default(ixn_field, field_choice)
             return
     
         if pattern.choice == 'value':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
                              ValueType='singleValue',
-                             SingleValue=pattern.value)
+                             SingleValue=get_value(pattern.value))
         elif pattern.choice == 'values':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
                              ValueType='valueList',
-                             ValueList=pattern.values)
+                             ValueList=[get_value(v) for v in pattern.values])
         elif pattern.choice == 'increment':
             ixn_field.update(Auto=False,
-                             ValueType='increment',
-                             ActiveFieldChoice=field_choice,
-                             StartValue=pattern.increment.start,
-                             StepValue=pattern.increment.step,
-                             CountValue=pattern.increment.count)
+                            ValueType='increment',
+                            ActiveFieldChoice=field_choice,
+                            StartValue=get_value(pattern.increment.start),
+                            StepValue=pattern.increment.step,
+                            CountValue=pattern.increment.count)
         elif pattern.choice == 'decrement':
             ixn_field.update(Auto=False,
-                             ValueType='decrement',
-                             ActiveFieldChoice=field_choice,
-                             StartValue=pattern.decrement.start,
-                             StepValue=pattern.decrement.step,
-                             CountValue=pattern.decrement.count)
+                            ValueType='decrement',
+                            ActiveFieldChoice=field_choice,
+                            StartValue=get_value(pattern.decrement.start),
+                            StepValue=pattern.decrement.step,
+                            CountValue=pattern.decrement.count)
         elif pattern.choice == 'random':
             ixn_field.update(Auto=False,
                              ActiveFieldChoice=field_choice,
@@ -510,8 +535,8 @@ class TrafficItem(CustomField):
         else:
             # TBD: add to set_config errors - invalid pattern specified
             pass
-    
-        if pattern.metric_group is not None:
+
+        if pattern.get('metric_group') is not None:
             ixn_field.TrackingEnabled = True
             self._api.ixn_objects[pattern.metric_group] = ixn_field.href
 
@@ -575,7 +600,8 @@ class TrafficItem(CustomField):
         args['Rate'] = value
         self._update(ixn_frame_rate, **args)
 
-    def _configure_delay(self, delay, args):
+    def _configure_delay(self, parent, args):
+        delay = parent.get('delay', with_default=True)
         if delay.choice is not None:
             value = getattr(delay, delay.choice, None)
             if value is None:
@@ -599,17 +625,17 @@ class TrafficItem(CustomField):
         if duration.choice == 'continuous':
             args['Type'] = 'continuous'
             args['MinGapBytes'] = duration.continuous.gap
-            self._configure_delay(duration.continuous.delay, args)
+            self._configure_delay(duration.continuous, args)
         elif duration.choice == 'fixed_packets':
             args['Type'] = 'fixedFrameCount'
             args['FrameCount'] = duration.fixed_packets.packets / hl_stream_count
             args['MinGapBytes'] = duration.fixed_packets.gap
-            self._configure_delay(duration.fixed_packets.delay, args)
+            self._configure_delay(duration.fixed_packets, args)
         elif duration.choice == 'fixed_seconds':
             args['Type'] = 'fixedDuration'
             args['Duration'] = duration.fixed_seconds.seconds
             args['MinGapBytes'] = duration.fixed_seconds.gap
-            self._configure_delay(duration.fixed_seconds.delay, args)
+            self._configure_delay(duration.fixed_seconds, args)
         elif duration.choice == 'burst':
             if duration.burst.bursts is not None \
                     and int(duration.burst.bursts) > 0:
@@ -620,7 +646,8 @@ class TrafficItem(CustomField):
             args['BurstPacketCount'] = duration.burst.packets
             args['MinGapBytes'] = duration.burst.gap
             args['EnableInterBurstGap'] = True
-            inter_burst_gap = duration.burst.inter_burst_gap
+            inter_burst_gap = duration.burst.get('inter_burst_gap',
+                                                 with_default=True)
             if inter_burst_gap.choice is not None:
                 value = getattr(inter_burst_gap, inter_burst_gap.choice, None)
                 if value is None:
@@ -731,7 +758,7 @@ class TrafficItem(CustomField):
         """Return flow results
         """
         # setup parameters
-        self._column_names = request._properties.get('metric_names')
+        self._column_names = request.get('metric_names')
         if self._column_names is None:
             self._column_names = []
         elif not isinstance(self._column_names, list):
@@ -739,7 +766,7 @@ class TrafficItem(CustomField):
                     expected list".format(self._column_names)
             raise Exception(msg)
 
-        flow_names = request._properties.get('flow_names')
+        flow_names = request.get('flow_names')
         has_request_flow = True
         if flow_names is None or len(flow_names) == 0:
             has_request_flow = False
@@ -750,7 +777,7 @@ class TrafficItem(CustomField):
             raise Exception(msg)
         final_flow_names = []
         for flow in self._api._config.flows:
-            metrics = flow._properties.get('metrics')
+            metrics = flow.get('metrics')
             if metrics is None:
                 continue
             if metrics.enable is True \

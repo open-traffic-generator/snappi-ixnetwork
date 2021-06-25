@@ -9,8 +9,8 @@ def test_tcp_control_flags(api, b2b_raw_config, utils):
     - Config is applied using validate config
     """
     flow = b2b_raw_config.flows[0]
-    src_port = '3000'
-    dst_port = '4000'
+    src_port = 3000
+    dst_port = 4000
     control_flags = '111100101'
     size = 1500
     packets = 100
@@ -23,7 +23,7 @@ def test_tcp_control_flags(api, b2b_raw_config, utils):
         "ctl_psh", "ctl_rst", "ctl_syn", "ctl_fin"
     ]
     for i, f in enumerate(flags):
-        getattr(tcp, f).value = control_flags[i]
+        getattr(tcp, f).value = int(control_flags[i])
 
     flow.duration.fixed_packets.packets = packets
     flow.size.fixed = size
@@ -32,8 +32,8 @@ def test_tcp_control_flags(api, b2b_raw_config, utils):
     api.set_config(b2b_raw_config)
 
     attrs = {
-        'TCP-Source-Port': src_port,
-        'TCP-Dest-Port': dst_port,
+        'TCP-Source-Port': str(src_port),
+        'TCP-Dest-Port': str(dst_port),
         'NS': control_flags[0],
         'CWR': control_flags[1],
         'ECN-Echo': control_flags[2],
