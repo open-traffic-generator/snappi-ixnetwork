@@ -36,21 +36,17 @@ class Api(snappi.Api):
         - password (str): The password to be used for authentication
         """
         super(Api, self).__init__()
-        host = kwargs.get('host')
         location = kwargs.get('location')
         username = kwargs.get('username')
         password = kwargs.get('password')
         license_servers = kwargs.get('license_servers')
-        log_level = kwargs.get('loglevel')
-        # temporary fix to allow tests to run
-        if host is not None:
-            location = host
+        log_level = kwargs.get('log_level')
         location = 'https://127.0.0.1:11009' if location is None else location
         self._address, self._port = self._get_addr_port(location)
         self._username = 'admin' if username is None else username
         self._password = 'admin' if password is None else password
         self._license_servers = [] if license_servers is None else license_servers
-        self._log_level = 'info'
+        self._log_level = 'info' if log_level is None else log_level
         self._running_config = None
         self._config = None
         self._assistant = None
