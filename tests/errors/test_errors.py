@@ -12,9 +12,9 @@ def test_Bad_Request_server_side(api, b2b_raw_config, utils):
     """
     flow = b2b_raw_config.flows[0]
     count = 10
-    src = ['00:0C:29:E3:53:EA']
-    dst = '00:0C:29:E3:53:F4'
-    step = '00:00:00:00:01:00'
+    src = ["00:0C:29:E3:53:EA"]
+    dst = "00:0C:29:E3:53:F4"
+    step = "00:00:00:00:01:00"
     eth_step = 2
 
     flow.packet.ethernet()
@@ -40,8 +40,8 @@ def test_Bad_Request_server_side(api, b2b_raw_config, utils):
 def test_bad_request_client_side(api):
     config = api.config()
     api.set_config(config)
-    config.ports.port(name='port')
-    config.ports.port(name='port')
+    config.ports.port(name="port")
+    config.ports.port(name="port")
     try:
         api.set_config(config)
         assert False
@@ -59,44 +59,47 @@ def test_error_list_from_server(api, b2b_raw_config, utils):
 
     count = 1
     mac_tx = utils.mac_or_ip_addr_from_counter_pattern(
-        '00:10:10:20:20:10', '00:00:00:00:00:01', count, True
+        "00:10:10:20:20:10", "00:00:00:00:00:01", count, True
     )
     mac_rx = utils.mac_or_ip_addr_from_counter_pattern(
-        '00:10:10:20:20:20', '00:00:00:00:00:01', count, False
+        "00:10:10:20:20:20", "00:00:00:00:00:01", count, False
     )
     ip_tx = utils.mac_or_ip_addr_from_counter_pattern(
-        '10.1.1.1', '0.0.1.0', count, True, False
+        "10.1.1.1", "0.0.1.0", count, True, False
     )
 
     ip_rx = utils.mac_or_ip_addr_from_counter_pattern(
-        '10.1.1.2', '0.0.1.0', count, True, False
+        "10.1.1.2", "0.0.1.0", count, True, False
     )
 
     addrs = {
-        'mac_tx': mac_tx, 'mac_rx': mac_rx, 'ip_tx': ip_tx, 'ip_rx': ip_rx
+        "mac_tx": mac_tx,
+        "mac_rx": mac_rx,
+        "ip_tx": ip_tx,
+        "ip_rx": ip_rx,
     }
 
     for i in range(count * 2):
         port = int(i / count)
-        node = 'tx' if port == 0 else 'rx'
+        node = "tx" if port == 0 else "rx"
         if i >= count:
             i = i - count
         dev = b2b_raw_config.devices.device()[-1]
 
-        dev.name = '%s_dev_%d' % (node, i + 1)
+        dev.name = "%s_dev_%d" % (node, i + 1)
         dev.container_name = b2b_raw_config.ports[port].name
 
-        dev.ethernet.name = '%s_eth_%d' % (node, i + 1)
-        dev.ethernet.mac = addrs['mac_%s' % node][i]
+        dev.ethernet.name = "%s_eth_%d" % (node, i + 1)
+        dev.ethernet.mac = addrs["mac_%s" % node][i]
 
-        dev.ethernet.ipv4.name = '%s_ipv4_%d' % (node, i + 1)
-        dev.ethernet.ipv4.address = addrs['ip_%s' % node][i]
+        dev.ethernet.ipv4.name = "%s_ipv4_%d" % (node, i + 1)
+        dev.ethernet.ipv4.address = addrs["ip_%s" % node][i]
         dev.ethernet.ipv4.gateway = addrs[
-            'ip_%s' % ('rx' if node == 'tx' else 'tx')
+            "ip_%s" % ("rx" if node == "tx" else "tx")
         ][i]
         dev.ethernet.ipv4.prefix = 24
-    f1, f2 = b2b_raw_config.flows.flow(name='TxFlow-2')
-    f1.name = 'TxFlow-1'
+    f1, f2 = b2b_raw_config.flows.flow(name="TxFlow-2")
+    f1.name = "TxFlow-1"
     f1.tx_rx.device.tx_names = [
         b2b_raw_config.devices[i].name for i in range(count)
     ]

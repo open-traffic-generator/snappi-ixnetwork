@@ -25,7 +25,7 @@ def test_flow_metrics(api, utils, b2b_raw_config, tx_port, rx_port):
     f1.metrics.loss = True
 
     # flow -f2 config(with UDP)
-    f2 = b2b_raw_config.flows.flow(name='f2')[-1]
+    f2 = b2b_raw_config.flows.flow(name="f2")[-1]
     f2.tx_rx.port.tx_name = tx_port.name
     f2.tx_rx.port.rx_name = rx_port.name
 
@@ -37,14 +37,14 @@ def test_flow_metrics(api, utils, b2b_raw_config, tx_port, rx_port):
 
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
     utils.wait_for(
-        lambda: stats_ok(api, PACKETS, utils), 'stats to be as expected'
+        lambda: stats_ok(api, PACKETS, utils), "stats to be as expected"
     )
 
     _, flow_stats = utils.get_all_stats(api)
 
     # Validation
     for result in flow_stats:
-        assert result.name != 'f2'
+        assert result.name != "f2"
 
 
 def stats_ok(api, packets, utils):
@@ -57,6 +57,5 @@ def stats_ok(api, packets, utils):
     return flow_rx == packets
 
 
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
-
+if __name__ == "__main__":
+    pytest.main(["-s", __file__])

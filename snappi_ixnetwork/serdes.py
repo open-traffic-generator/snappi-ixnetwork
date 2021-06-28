@@ -4,6 +4,7 @@ import json
 
 class SerDesObj(object):
     """Comment removed"""
+
     def __init__(self, data):
         for name, value in data.items():
             setattr(self, name, self._wrap(value))
@@ -42,7 +43,7 @@ class SerDes(object):
         return yaml.dump(obj)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # start with yaml
     y = """
 config:

@@ -9,8 +9,8 @@ def test_counter_vlan_fields(api, b2b_raw_config, utils):
     """
 
     f = b2b_raw_config.flows[0]
-    source = '00:0C:29:E3:53:EA'
-    destination = '00:0C:29:E3:53:F4'
+    source = "00:0C:29:E3:53:EA"
+    destination = "00:0C:29:E3:53:F4"
     ether_type = 33024
 
     f.packet.ethernet().vlan()
@@ -32,22 +32,22 @@ def test_counter_vlan_fields(api, b2b_raw_config, utils):
     vlan.id.increment.count = 4094
 
     attrs = {
-        'VLAN Priority': (
+        "VLAN Priority": (
             str(vlan.priority.increment.start),
             str(vlan.priority.increment.step),
-            str(vlan.priority.increment.count)
+            str(vlan.priority.increment.count),
         ),
-        'Canonical Format Indicator': (
+        "Canonical Format Indicator": (
             str(vlan.cfi.increment.start),
             str(vlan.cfi.increment.step),
-            str(vlan.cfi.increment.count)
+            str(vlan.cfi.increment.count),
         ),
-        'VLAN-ID': (
+        "VLAN-ID": (
             str(vlan.id.increment.start),
             str(vlan.id.increment.step),
-            str(vlan.id.increment.count)
-        )
+            str(vlan.id.increment.count),
+        ),
     }
 
     api.set_config(b2b_raw_config)
-    utils.validate_config(api, 'vlan', **attrs)
+    utils.validate_config(api, "vlan", **attrs)

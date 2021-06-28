@@ -13,19 +13,19 @@ def test_counter_ip_fields(api, b2b_raw_config, utils):
     """
     f = b2b_raw_config.flows[0]
     fields = [
-        "header_length", "total_length", "identification",
-        "reserved", "dont_fragment", "more_fragments", "fragment_offset",
-        "time_to_live", "protocol"
+        "header_length",
+        "total_length",
+        "identification",
+        "reserved",
+        "dont_fragment",
+        "more_fragments",
+        "fragment_offset",
+        "time_to_live",
+        "protocol",
     ]
-    start = [
-        5, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    ]
-    step = [
-        1, 2, 1000, 1, 1, 1, 100, 10, 1, 10
-    ]
-    count = [
-        11, 10000, 65, 10, 10, 10, 1000, 10000, 1000, 1000
-    ]
+    start = [5, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    step = [1, 2, 1000, 1, 1, 1, 100, 10, 1, 10]
+    count = [11, 10000, 65, 10, 10, 10, 1000, 10000, 1000, 1000]
     # import snappi
     # f = snappi.Api().config().flows.flow()[-1]
 
@@ -44,20 +44,18 @@ def test_counter_ip_fields(api, b2b_raw_config, utils):
 
     api.set_config(b2b_raw_config)
     keys = [
-        'Header Length',
-        'Total Length (octets)',
-        'Identification',
-        'Reserved',
-        'Fragment',
-        'Last Fragment',
-        'Fragment offset',
-        'TTL (Time to live)',
-        'Protocol',
+        "Header Length",
+        "Total Length (octets)",
+        "Identification",
+        "Reserved",
+        "Fragment",
+        "Last Fragment",
+        "Fragment offset",
+        "TTL (Time to live)",
+        "Protocol",
     ]
     attrs = dict()
     for i, k in enumerate(keys):
-        attrs[k] = (
-            str(start[i]), str(step[i]), str(count[i])
-        )
+        attrs[k] = (str(start[i]), str(step[i]), str(count[i]))
 
-    utils.validate_config(api, 'ipv4', **attrs)
+    utils.validate_config(api, "ipv4", **attrs)

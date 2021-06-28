@@ -9,17 +9,17 @@ def test_counter_ip_addr(api, b2b_raw_config, utils):
     """
     f = b2b_raw_config.flows[0]
     count = 10
-    step = '05:00:00:02:01:00'
+    step = "05:00:00:02:01:00"
     src = utils.mac_or_ip_addr_from_counter_pattern(
-        '00:0C:29:E3:53:EA', step, count, True
+        "00:0C:29:E3:53:EA", step, count, True
     )
     dst = utils.mac_or_ip_addr_from_counter_pattern(
-        '00:0C:29:E3:53:F4', step, count, True
+        "00:0C:29:E3:53:F4", step, count, True
     )
 
-    step = '0.0.1.0'
-    src_ip = '10.1.1.1'
-    dst_ip = '20.1.1.1'
+    step = "0.0.1.0"
+    src_ip = "10.1.1.1"
+    dst_ip = "20.1.1.1"
 
     f.packet.ethernet().ipv4()
     eth = f.packet[0]
@@ -35,7 +35,7 @@ def test_counter_ip_addr(api, b2b_raw_config, utils):
     ipv4.dst.decrement.count = count
     api.set_config(b2b_raw_config)
     attrs = {
-        'Destination Address': (dst_ip, step, str(count)),
-        'Source Address': (src_ip, step, str(count)),
+        "Destination Address": (dst_ip, step, str(count)),
+        "Source Address": (src_ip, step, str(count)),
     }
-    utils.validate_config(api, 'ipv4', **attrs)
+    utils.validate_config(api, "ipv4", **attrs)

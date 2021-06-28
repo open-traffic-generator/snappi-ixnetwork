@@ -9,25 +9,22 @@ def test_flow_rates(api, settings):
     """
     config = api.config()
 
-    tx, rx = (
-        config.ports
-        .port(name='tx', location=settings.ports[0])
-        .port(name='rx', location=settings.ports[1])
+    tx, rx = config.ports.port(name="tx", location=settings.ports[0]).port(
+        name="rx", location=settings.ports[1]
     )
 
     l1 = config.layer1.layer1()[0]
-    l1.name = 'l1'
+    l1.name = "l1"
     l1.port_names = [rx.name, tx.name]
     l1.media = settings.media
     l1.speed = settings.speed
 
     rate_line, rate_pps, rate_bps, rate_kbps, rate_gbps = (
-        config.flows
-        .flow(name='rate_line')
-        .flow(name='rate_pps')
-        .flow(name='rate_bps')
-        .flow(name='rate_kbps')
-        .flow(name='rate_gbps')
+        config.flows.flow(name="rate_line")
+        .flow(name="rate_pps")
+        .flow(name="rate_bps")
+        .flow(name="rate_kbps")
+        .flow(name="rate_gbps")
     )
 
     rate_line.tx_rx.port.tx_name = tx.name
@@ -53,5 +50,5 @@ def test_flow_rates(api, settings):
     api.set_config(config)
 
 
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
+if __name__ == "__main__":
+    pytest.main(["-s", __file__])

@@ -19,7 +19,5 @@ def test_short_duration_flow_results(api, utils, b2b_raw_config):
     f.duration.fixed_seconds.seconds = 1
     api.set_config(b2b_raw_config)
     utils.start_traffic(api, b2b_raw_config)
-    utils.wait_for(
-        lambda: utils.is_traffic_stopped(api), 'traffic to stop'
-    )
+    utils.wait_for(lambda: utils.is_traffic_stopped(api), "traffic to stop")
     utils.get_all_stats(api)

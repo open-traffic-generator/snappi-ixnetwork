@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.skip(reason='need to fix pfcpause')
+@pytest.mark.skip(reason="need to fix pfcpause")
 def test_flow_sizes(api, settings):
     """
     This will test supported Flow Size
@@ -13,30 +13,27 @@ def test_flow_sizes(api, settings):
     config = api.config()
     api.set_config(config)
 
-    tx, rx = (
-        config.ports
-        .port(name='tx', location=settings.ports[0])
-        .port(name='rx', location=settings.ports[1])
+    tx, rx = config.ports.port(name="tx", location=settings.ports[0]).port(
+        name="rx", location=settings.ports[1]
     )
 
     l1 = config.layer1.layer1()[0]
-    l1.name = 'l1'
+    l1.name = "l1"
     l1.port_names = [rx.name, tx.name]
     l1.media = settings.media
     l1.speed = settings.speed
 
     fixed_size, increment_size, random_size = (
-        config.flows
-        .flow(name='Fixed Size')
-        .flow(name='Increment Size')
-        .flow(name='Random Size')
+        config.flows.flow(name="Fixed Size")
+        .flow(name="Increment Size")
+        .flow(name="Random Size")
     )
 
     fixed_size.tx_rx.port.tx_name = tx.name
     fixed_size.tx_rx.port.rx_name = rx.name
-    pfc, = fixed_size.packet.pfcpause()
-    pfc.src.value = '00:AB:BC:AB:BC:AB'
-    pfc.dst.value = '00:AB:BC:AB:BC:AB'
+    (pfc,) = fixed_size.packet.pfcpause()
+    pfc.src.value = "00:AB:BC:AB:BC:AB"
+    pfc.dst.value = "00:AB:BC:AB:BC:AB"
     pfc.ether_type
     pfc.class_enable_vector.value = 65535
     pfc.control_op_code
@@ -64,5 +61,5 @@ def test_flow_sizes(api, settings):
     api.set_config(config)
 
 
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
+if __name__ == "__main__":
+    pytest.main(["-s", __file__])

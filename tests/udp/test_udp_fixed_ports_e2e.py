@@ -19,10 +19,10 @@ def test_udp_fixed_ports_e2e(api, b2b_raw_config, utils):
     size = 74
     f.packet.ethernet().ipv4().udp()
     eth, ip, udp = f.packet[0], f.packet[1], f.packet[2]
-    eth.src.value = '00:0c:29:1d:10:67'
-    eth.dst.value = '00:0c:29:1d:10:71'
-    ip.src.value = '10.10.10.1'
-    ip.dst.value = '10.10.10.2'
+    eth.src.value = "00:0c:29:1d:10:67"
+    eth.dst.value = "00:0c:29:1d:10:71"
+    ip.src.value = "10.10.10.1"
+    ip.dst.value = "10.10.10.2"
     udp.src_port.value = 3000
     udp.dst_port.value = 4000
 
@@ -32,7 +32,7 @@ def test_udp_fixed_ports_e2e(api, b2b_raw_config, utils):
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: stats_ok(api, size, packets, utils), 'stats to be as expected'
+        lambda: stats_ok(api, size, packets, utils), "stats to be as expected"
     )
 
     captures_ok(api, b2b_raw_config, size, utils)
@@ -48,8 +48,8 @@ def stats_ok(api, size, packets, utils):
     ok = ok and utils.total_bytes_ok(
         port_results, flow_results, packets * size
     )
-    if utils.flow_transmit_matches(flow_results, 'stopped') and not ok:
-        raise Exception('Stats not ok after flows are stopped')
+    if utils.flow_transmit_matches(flow_results, "stopped") and not ok:
+        raise Exception("Stats not ok after flows are stopped")
 
     return ok
 

@@ -18,10 +18,10 @@ def test_tcp_header_with_list(api, b2b_raw_config, utils):
     eth = flow.packet[0]
     ipv4 = flow.packet[1]
     tcp = flow.packet[2]
-    eth.src.value = '00:0c:29:1d:10:67'
-    eth.dst.value = '00:0c:29:1d:10:71'
-    ipv4.src.value = '10.10.10.1'
-    ipv4.dst.value = '10.10.10.2'
+    eth.src.value = "00:0c:29:1d:10:67"
+    eth.dst.value = "00:0c:29:1d:10:71"
+    ipv4.src.value = "10.10.10.1"
+    ipv4.dst.value = "10.10.10.2"
     tcp.src_port.values = src_port
     tcp.dst_port.values = dst_port
     flow.duration.fixed_packets.packets = packets
@@ -30,7 +30,7 @@ def test_tcp_header_with_list(api, b2b_raw_config, utils):
 
     api.set_config(b2b_raw_config)
     attrs = {
-        'TCP-Source-Port': [str(i) for i in src_port],
-        'TCP-Dest-Port': [str(i) for i in dst_port],
+        "TCP-Source-Port": [str(i) for i in src_port],
+        "TCP-Dest-Port": [str(i) for i in dst_port],
     }
-    utils.validate_config(api, 'tcp', **attrs)
+    utils.validate_config(api, "tcp", **attrs)

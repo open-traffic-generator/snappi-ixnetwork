@@ -20,25 +20,25 @@ def test_flow_duration(api, utils):
     """
 
     config = api.config()
-    config.ports.port(name='tx').port(name='rx')
+    config.ports.port(name="tx").port(name="rx")
     tx_port, rx_port = config.ports
     tx_port.location = utils.settings.ports[0]
     rx_port.location = utils.settings.ports[1]
-    l1, l2 = config.layer1.layer1(name='l10').layer1(name='l11')
+    l1, l2 = config.layer1.layer1(name="l10").layer1(name="l11")
     l1.port_names, l2.port_names = [tx_port.name], [rx_port.name]
     l1.media, l1.media = utils.settings.media, utils.settings.media
     l1.speed, l2.speed = utils.settings.speed, utils.settings.speed
     c, fp, fs, b = config.flows.flow().flow().flow().flow()
 
     # Test for Continuous Flow
-    c.name = 'Continuous Duration'
+    c.name = "Continuous Duration"
     c.packet.ethernet().vlan().ipv4()
     c.duration.choice = c.duration.CONTINUOUS
     c.tx_rx.port.tx_name = tx_port.name
     c.tx_rx.port.rx_name = rx_port.name
 
     # Test for Fix packet with Gap and Delay
-    fp.name = 'Fixed Packet Duration'
+    fp.name = "Fixed Packet Duration"
     fp.tx_rx.port.tx_name = tx_port.name
     fp.tx_rx.port.rx_name = rx_port.name
     fp.packet.ethernet().vlan().ipv4()
@@ -47,7 +47,7 @@ def test_flow_duration(api, utils):
     fp.duration.fixed_packets.delay.bytes = 8
 
     # Test for Fix second with Gap and Delay
-    fs.name = 'Fixed Seconds Duration'
+    fs.name = "Fixed Seconds Duration"
     fs.tx_rx.port.tx_name = tx_port.name
     fs.tx_rx.port.rx_name = rx_port.name
     fs.packet.ethernet().vlan().ipv4()
@@ -56,7 +56,7 @@ def test_flow_duration(api, utils):
     fs.duration.fixed_seconds.delay.bytes = 8
 
     # Test for Burst Duration with Gap and inter burst gap
-    b.name = 'Fixed Burst Duration'
+    b.name = "Fixed Burst Duration"
     b.tx_rx.port.tx_name = tx_port.name
     b.tx_rx.port.rx_name = rx_port.name
     b.packet.ethernet().vlan().ipv4()

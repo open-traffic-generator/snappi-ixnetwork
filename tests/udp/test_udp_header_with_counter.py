@@ -23,11 +23,11 @@ def test_udp_header_with_counter(api, b2b_raw_config, utils):
 
     eth, ip, udp = flow.packet.ethernet().ipv4().udp()
 
-    eth.src.value = '00:0c:29:1d:10:67'
-    eth.dst.value = '00:0c:29:1d:10:71'
+    eth.src.value = "00:0c:29:1d:10:67"
+    eth.dst.value = "00:0c:29:1d:10:71"
 
-    ip.src.value = '10.10.10.1'
-    ip.dst.value = '10.10.10.2'
+    ip.src.value = "10.10.10.1"
+    ip.dst.value = "10.10.10.2"
 
     udp.src_port.increment.start = src_port[0]
     udp.src_port.increment.step = src_port[1]
@@ -44,8 +44,8 @@ def test_udp_header_with_counter(api, b2b_raw_config, utils):
     api.set_config(b2b_raw_config)
 
     attrs = {
-        'UDP-Source-Port': tuple(map(str, src_port)),
-        'UDP-Dest-Port': tuple(map(str, dst_port)),
-        'UDP-Length': tuple(map(str, length)),
+        "UDP-Source-Port": tuple(map(str, src_port)),
+        "UDP-Dest-Port": tuple(map(str, dst_port)),
+        "UDP-Length": tuple(map(str, length)),
     }
-    utils.validate_config(api, 'udp', **attrs)
+    utils.validate_config(api, "udp", **attrs)

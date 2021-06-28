@@ -11,26 +11,22 @@ def bgp_convergence_config(utils, cvg_api):
     conv_config = cvg_api.convergence_config()
     config = conv_config.config
 
-    tx, rx = (
-        config.ports
-        .port(name='tx', location=utils.settings.ports[0])
-        .port(name='rx', location=utils.settings.ports[1])
-    )
+    tx, rx = config.ports.port(
+        name="tx", location=utils.settings.ports[0]
+    ).port(name="rx", location=utils.settings.ports[1])
 
     config.options.port_options.location_preemption = True
     ly = config.layer1.layer1()[-1]
-    ly.name = 'ly'
+    ly.name = "ly"
     ly.port_names = [tx.name, rx.name]
     ly.ieee_media_defaults = False
     ly.auto_negotiate = False
     ly.speed = utils.settings.speed
     ly.media = utils.settings.media
 
-    tx_device, rx_device = (
-        config.devices
-        .device(name="tx_device", container_name=tx.name)
-        .device(name="rx_device", container_name=rx.name)
-    )
+    tx_device, rx_device = config.devices.device(
+        name="tx_device", container_name=tx.name
+    ).device(name="rx_device", container_name=rx.name)
 
     # tx_device config
     tx_eth = tx_device.ethernet
@@ -64,12 +60,12 @@ def bgp_convergence_config(utils, cvg_api):
     rx_bgpv4.local_address = "21.1.1.1"
     rx_bgpv4.as_number = 65200
     rx_rr = rx_bgpv4.bgpv4_routes.bgpv4route(name="rx_rr")[-1]
-    rx_rr.addresses.bgpv4routeaddress(count=1000,
-                                      address='200.1.0.1',
-                                      prefix=32)
+    rx_rr.addresses.bgpv4routeaddress(
+        count=1000, address="200.1.0.1", prefix=32
+    )
 
     # flow config
-    flow = config.flows.flow(name='convergence_test')[-1]
+    flow = config.flows.flow(name="convergence_test")[-1]
     flow.tx_rx.device.tx_names = [tx_device.name]
     flow.tx_rx.device.rx_names = [rx_rr.name]
 
@@ -79,12 +75,12 @@ def bgp_convergence_config(utils, cvg_api):
 
     # flow2 config
     rx1_rr = rx_bgpv4.bgpv4_routes.bgpv4route(name="rx1_rr")[-1]
-    rx1_rr.addresses.bgpv4routeaddress(count=1000,
-                                       address='200.1.0.1',
-                                       prefix=32)
+    rx1_rr.addresses.bgpv4routeaddress(
+        count=1000, address="200.1.0.1", prefix=32
+    )
 
     # flow config
-    flow2 = config.flows.flow(name='background_flow')[-1]
+    flow2 = config.flows.flow(name="background_flow")[-1]
     flow2.tx_rx.device.tx_names = [tx_device.name]
     flow2.tx_rx.device.rx_names = [rx1_rr.name]
 

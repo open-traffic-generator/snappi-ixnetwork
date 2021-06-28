@@ -12,11 +12,11 @@ def test_fixed_ip_fields(api, b2b_raw_config, utils):
       against expected
     """
     f = b2b_raw_config.flows[0]
-    src = '00:0C:29:E3:53:EA'
-    dst = '00:0C:29:E3:53:F4'
+    src = "00:0C:29:E3:53:EA"
+    dst = "00:0C:29:E3:53:F4"
 
-    src_ip = '10.1.1.1'
-    dst_ip = '20.1.1.1'
+    src_ip = "10.1.1.1"
+    dst_ip = "20.1.1.1"
 
     f.packet.ethernet().ipv4()
     eth = f.packet[0]
@@ -37,14 +37,14 @@ def test_fixed_ip_fields(api, b2b_raw_config, utils):
 
     api.set_config(b2b_raw_config)
     attrs = {
-        'Header Length': '5',
-        'Total Length (octets)': '100',
-        'Identification': '1234',
-        'Reserved': '1',
-        'Fragment': '1',
-        'Last Fragment': '1',
-        'Fragment offset': '0',
-        'TTL (Time to live)': '50',
-        'Protocol': '200',
+        "Header Length": "5",
+        "Total Length (octets)": "100",
+        "Identification": "1234",
+        "Reserved": "1",
+        "Fragment": "1",
+        "Last Fragment": "1",
+        "Fragment offset": "0",
+        "TTL (Time to live)": "50",
+        "Protocol": "200",
     }
-    utils.validate_config(api, 'ipv4', **attrs)
+    utils.validate_config(api, "ipv4", **attrs)

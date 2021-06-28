@@ -12,13 +12,14 @@ def test_list_ip_fields(api, b2b_raw_config, utils):
       against expected
     """
     f = b2b_raw_config.flows[0]
-    src = '00:0C:29:E3:53:EA'
-    dst = '00:0C:29:E3:53:F4'
+    src = "00:0C:29:E3:53:EA"
+    dst = "00:0C:29:E3:53:F4"
 
-    src_ip = '10.1.1.1'
-    dst_ip = '20.1.1.1'
+    src_ip = "10.1.1.1"
+    dst_ip = "20.1.1.1"
 
     from random import Random
+
     r = Random()
 
     header_length = [str(r.randint(5, 15)) for i in range(10)]
@@ -49,14 +50,14 @@ def test_list_ip_fields(api, b2b_raw_config, utils):
 
     api.set_config(b2b_raw_config)
     attrs = {
-        'Header Length': header_length,
-        'Total Length (octets)': total_length,
-        'Identification': identification,
-        'Reserved': reserved,
-        'Fragment': dont_fragment,
-        'Last Fragment': more_fragments,
-        'Fragment offset': fragment_offset,
-        'TTL (Time to live)': time_to_live,
-        'Protocol': protocol,
+        "Header Length": header_length,
+        "Total Length (octets)": total_length,
+        "Identification": identification,
+        "Reserved": reserved,
+        "Fragment": dont_fragment,
+        "Last Fragment": more_fragments,
+        "Fragment offset": fragment_offset,
+        "TTL (Time to live)": time_to_live,
+        "Protocol": protocol,
     }
-    utils.validate_config(api, 'ipv4', **attrs)
+    utils.validate_config(api, "ipv4", **attrs)

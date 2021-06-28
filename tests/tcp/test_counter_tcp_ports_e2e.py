@@ -19,10 +19,10 @@ def test_counter_tcp_ports_e2e(api, utils, b2b_raw_config):
     packets = 100
     f.packet.ethernet().ipv4().tcp()
     eth, ip, tcp = f.packet[0], f.packet[1], f.packet[2]
-    eth.src.value = '00:CD:DC:CD:DC:CD'
-    eth.dst.value = '00:AB:BC:AB:BC:AB'
-    ip.src.value = '1.1.1.2'
-    ip.dst.value = '1.1.1.1'
+    eth.src.value = "00:CD:DC:CD:DC:CD"
+    eth.dst.value = "00:AB:BC:AB:BC:AB"
+    ip.src.value = "1.1.1.2"
+    ip.dst.value = "1.1.1.1"
     tcp.src_port.increment.start = 5000
     tcp.src_port.increment.step = 2
     tcp.src_port.increment.count = 10
@@ -35,7 +35,8 @@ def test_counter_tcp_ports_e2e(api, utils, b2b_raw_config):
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
         lambda: results_ok(api, utils, size, packets),
-        'stats to be as expected', timeout_seconds=10
+        "stats to be as expected",
+        timeout_seconds=10,
     )
     captures_ok(api, b2b_raw_config, size, utils)
 
@@ -55,12 +56,28 @@ def captures_ok(api, cfg, size, utils):
     Returns normally if patterns in captured packets are as expected.
     """
     src = [
-        [0x13, 0x88], [0x13, 0x8A], [0x13, 0x8C], [0x13, 0x8E], [0x13, 0x90],
-        [0x13, 0x92], [0x13, 0x94], [0x13, 0x96], [0x13, 0x98], [0x13, 0x9A]
+        [0x13, 0x88],
+        [0x13, 0x8A],
+        [0x13, 0x8C],
+        [0x13, 0x8E],
+        [0x13, 0x90],
+        [0x13, 0x92],
+        [0x13, 0x94],
+        [0x13, 0x96],
+        [0x13, 0x98],
+        [0x13, 0x9A],
     ]
     dst = [
-        [0x17, 0x70], [0x17, 0x6E], [0x17, 0x6C], [0x17, 0x6A], [0x17, 0x68],
-        [0x17, 0x66], [0x17, 0x64], [0x17, 0x62], [0x17, 0x60], [0x17, 0x5E]
+        [0x17, 0x70],
+        [0x17, 0x6E],
+        [0x17, 0x6C],
+        [0x17, 0x6A],
+        [0x17, 0x68],
+        [0x17, 0x66],
+        [0x17, 0x64],
+        [0x17, 0x62],
+        [0x17, 0x60],
+        [0x17, 0x5E],
     ]
 
     cap_dict = utils.get_all_captures(api, cfg)

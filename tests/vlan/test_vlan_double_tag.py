@@ -8,8 +8,8 @@ def test_vlan_double_tag(api, b2b_raw_config, utils):
     """
 
     f = b2b_raw_config.flows[0]
-    source = '00:0C:29:E3:53:EA'
-    destination = '00:0C:29:E3:53:F4'
+    source = "00:0C:29:E3:53:EA"
+    destination = "00:0C:29:E3:53:F4"
     ether_type = 33024
 
     # Vlan fields config
@@ -38,9 +38,9 @@ def test_vlan_double_tag(api, b2b_raw_config, utils):
     api.set_config(b2b_raw_config)
 
     attrs = {
-        'VLAN Priority': str(priority),
-        'Canonical Format Indicator': str(cfi),
-        'VLAN-ID': str(vlan_id),
+        "VLAN Priority": str(priority),
+        "Canonical Format Indicator": str(cfi),
+        "VLAN-ID": str(vlan_id),
     }
     utils.validate_config(api, 1, **attrs)
     utils.validate_config(api, 2, **attrs)

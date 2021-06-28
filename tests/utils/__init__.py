@@ -1,3 +1,3 @@
 from utils.common import *
 
-__all__ = ['*']
+__all__ = ["*"]

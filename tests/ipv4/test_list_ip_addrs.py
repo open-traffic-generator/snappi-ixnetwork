@@ -8,17 +8,17 @@ def test_list_ip_addr(api, b2b_raw_config, utils):
       against expected
     """
     f = b2b_raw_config.flows[0]
-    step = '05:00:00:02:01:00'
+    step = "05:00:00:02:01:00"
     src = utils.mac_or_ip_addr_from_counter_pattern(
-        '00:0C:29:E3:53:EA', step, 5, True
+        "00:0C:29:E3:53:EA", step, 5, True
     )
     dst = utils.mac_or_ip_addr_from_counter_pattern(
-        '00:0C:29:E3:53:F4', step, 5, True
+        "00:0C:29:E3:53:F4", step, 5, True
     )
 
-    step = '0.0.1.0'
-    src_ip = '10.1.1.1'
-    dst_ip = '20.1.1.1'
+    step = "0.0.1.0"
+    src_ip = "10.1.1.1"
+    dst_ip = "20.1.1.1"
 
     src_ip_list = utils.mac_or_ip_addr_from_counter_pattern(
         src_ip, step, 5, True, False
@@ -35,7 +35,7 @@ def test_list_ip_addr(api, b2b_raw_config, utils):
     ipv4.dst.values = dst_ip_list
     api.set_config(b2b_raw_config)
     attrs = {
-        'Destination Address': dst_ip_list,
-        'Source Address': src_ip_list,
+        "Destination Address": dst_ip_list,
+        "Source Address": src_ip_list,
     }
-    utils.validate_config(api, 'ipv4', **attrs)
+    utils.validate_config(api, "ipv4", **attrs)

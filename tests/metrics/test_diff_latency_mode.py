@@ -21,7 +21,7 @@ def test_diff_latency_mode(api, b2b_raw_config, tx_port, rx_port):
     f1.metrics.timestamps = True
 
     # flow -f2 config
-    f2 = b2b_raw_config.flows.flow(name='f2')[-1]
+    f2 = b2b_raw_config.flows.flow(name="f2")[-1]
     f2.tx_rx.port.tx_name = tx_port.name
     f2.tx_rx.port.rx_name = rx_port.name
 
@@ -45,6 +45,5 @@ def test_diff_latency_mode(api, b2b_raw_config, tx_port, rx_port):
         assert str(e) == "Latency mode needs to be same for all flows"
 
 
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
-
+if __name__ == "__main__":
+    pytest.main(["-s", __file__])
