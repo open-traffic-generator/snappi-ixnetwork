@@ -1,7 +1,13 @@
 {
-    "editor.rulers": [80, 90],
+    "editor.rulers": [
+        80,
+        90
+    ],
+    "editor.formatOnSave": true,
     "python.linting.pylintEnabled": false,
     "python.linting.flake8Enabled": true,
     "python.linting.enabled": true,
-    "python.venvPath": "${workspaceFolder}"
+    "python.testing.pytestEnabled": true,
+    "python.analysis.typeCheckingMode": "basic",
+    "python.formatting.provider": "black",
 }

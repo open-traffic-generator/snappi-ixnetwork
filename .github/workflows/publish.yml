@@ -1,97 +1,59 @@
-# Build workflow does the following:
-#   - checkout all files
-#   - get the latest version number
-#   - setup python 3.x env
-#   - install python dependencies
-#   - build python distributions
-#   - create a tag and release
-#   - upload assets to the release
-#   - upload assets to pypi
+name: cicd
 
-name: Build
-
-on: [push, pull_request, workflow_dispatch, repository_dispatch]
+on: [push]
 
 jobs:
-  build_and_test:
+  cicd:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     strategy:
+      max-parallel: 1
       matrix:
-         python-version: [python27, python38]
-         #python-version: [python38]
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
+        python-version: [python27, python38]
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-
-    - name: Set python path
-      id: path
-      run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
-
-    - name: Install dependencies
-      run: |
-        ${{steps.path.outputs.pythonv}} -m pip install --upgrade -r requirements.txt
-
-    - name: Build distributions
-      run: |
-        ${{steps.path.outputs.pythonv}} setup.py sdist --formats=gztar bdist_wheel --universal
-
-    - name: Get VERSION number
-      id: get_version
-      run: echo "::set-output name=version::$(cat VERSION)"
-    
-    - name: Test whl distribution installation
-      run: |
-        ${{steps.path.outputs.pythonv}} -m pip install --upgrade dist/snappi_ixnetwork-${{ steps.get_version.outputs.version }}-py2.py3-none-any.whl[dev]
-
-    - name: Run tests
-      run: |
-        ${{steps.path.outputs.pythonv}} -m pytest --location="https://10.39.71.97:443" --ports="10.39.65.230;6;1 10.39.65.230;6;2 10.39.65.230;6;3 10.39.65.230;6;4" --media="fiber" tests -m "not e2e and not l1_manual"
-
-  create_release_and_deploy:
-    needs: build_and_test
-    runs-on: [self-hosted, Linux, Ubuntu, x64]
-    if: github.event_name == 'push'
-    steps:
-    - name: Get all changes
-      id: file_changes
-      uses: jitterbit/get-changed-files@v1
-      with:
-          format: 'json'
-
-    - name: Output changed files
-      id: changed_files
-      run: echo ${{steps.file_changes.outputs.modified}}
-
-    - name: Create Release
-      if: true == contains(steps.file_changes.outputs.modified, 'VERSION')
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
-      with:
-        tag_name: v${{ needs.build_and_test.outputs.version }}
-        release_name: Release ${{ needs.build_and_test.outputs.version  }}
-        draft: false
-        prerelease: false
-
-    - name: Upload Assets To Release
-      if: true == contains(steps.file_changes.outputs.modified, 'VERSION')
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: dist/*
-        tag: v${{ needs.build_and_test.outputs.version }}
-        overwrite: true
-        file_glob: true   
-        
-    - name: Upload Assets to Pypi
-      if: true == contains(steps.file_changes.outputs.modified, 'VERSION')
-      env:
-        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      run: |
-        /home/otg/python38/bin/python -m twine upload dist/snappi_ixnetwork-${{ needs.build_and_test.outputs.version  }}-py2.py3-none-any.whl
-        /home/otg/python38/bin/python -m twine upload dist/snappi_ixnetwork-${{ needs.build_and_test.outputs.version  }}.tar.gz
+      - name: Checkout source
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref }}
+          submodules: recursive
+      - name: Set python path
+        id: path
+        run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
+      - name: Install dependencies
+        run: |
+          rm -rf .env
+          ${{steps.path.outputs.pythonv}} do.py setup
+          ${{steps.path.outputs.pythonv}} do.py init
+      - name: Build distribution
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py dist
+      - name: Install package on clean env
+        run: |
+          rm -rf .env
+          ${{steps.path.outputs.pythonv}} do.py setup
+          ${{steps.path.outputs.pythonv}} do.py install
+      - name: Run tests
+        run: |
+          sudo ${{steps.path.outputs.pythonv}} do.py test
+      - name: Get package version
+        id: get_version
+        run: |
+          echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
+      - name: Check tag for current version
+        uses: mukunku/tag-exists-action@v1.0.0
+        id: check_tag
+        with:
+          tag: ${{ steps.get_version.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish package
+        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+        run: |
+          PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
+      - name: Create release and publish artifacts
+        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "dist/*"
+          tag: ${{ steps.get_version.outputs.version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
