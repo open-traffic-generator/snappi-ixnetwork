@@ -1,4 +1,6 @@
 from ixnetwork_restpy import errors as err
+import sys
+import traceback
 
 
 class SnappiIxnException(Exception):
@@ -8,6 +10,7 @@ class SnappiIxnException(Exception):
         self._message = None
         self._status_code = None
         self.process_exception()
+        self._add_traceback()
 
     @property
     def args(self):
@@ -64,8 +67,28 @@ class SnappiIxnException(Exception):
             self._message = self._args
         return
 
+    def _add_traceback(self):
+        tb = sys.exc_info()
+        if len(tb) >= 2:
+            tb = traceback.format_tb(tb[2])
+            if isinstance(tb, str):
+                tb = [tb]
+            if isinstance(self._message, list):
+                self._message = tb.extend(self._message)
+            if isinstance(self._message, str):
+                self._message = "{} {}".format("".join(tb), self._message)
+            # for line in tb:
+            #     if isinstance(self._message, list):
+            #         self._message.append(line)
+            #     else:
+            #         self._message = "{} {}".format(self._message, line)
+
     def __str__(self):
+        if isinstance(self._message, list):
+            return "".join(self._message)
         return self._message
 
     def __repr__(self):
+        if isinstance(self._message, list):
+            return "".join(self._message)
         return self._message
