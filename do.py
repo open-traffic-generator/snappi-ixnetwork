@@ -31,7 +31,6 @@ def lint():
         [
             py() + " -m black " + " ".join(paths),
             py() + " -m flake8 " + " ".join(paths),
-            py() + " -m pytype " + " ".join(paths),
         ]
     )
 
