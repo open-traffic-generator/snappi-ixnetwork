@@ -639,7 +639,7 @@ class TrafficItem(CustomField):
             value = getattr(delay, delay.choice, None)
             if value is None:
                 raise Exception("Delay must be of type <int>")
-            if isinstance(value, float):
+            if isinstance(value, float) and not float.is_integer(value):
                 self._api.warning(
                     "Cast Delay to <int> due to software limitation"
                 )

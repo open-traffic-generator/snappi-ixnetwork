@@ -1,4 +1,4 @@
-import pytest
+import pytest, re
 
 
 def test_diff_latency_mode(api, b2b_raw_config, tx_port, rx_port):
@@ -42,7 +42,7 @@ def test_diff_latency_mode(api, b2b_raw_config, tx_port, rx_port):
         api.set_config(b2b_raw_config)
     except Exception as e:
         print(e)
-        assert str(e) == "Latency mode needs to be same for all flows"
+        assert re.search("Latency mode needs to be same for all flows", str(e))
 
 
 if __name__ == "__main__":
