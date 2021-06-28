@@ -532,9 +532,12 @@ class Vport(object):
             ),
         }
         self._add_l1config_import(vport, ieee_media_defaults, imports)
+        auto_negotiation = layer1.get("auto_negotiation", with_default=True)
+        rs_fec = auto_negotiation.get("rs_fec", with_default=True)
+        link_training = auto_negotiation.get(
+            "link_training", with_default=True
+        )
         auto_negotiate = layer1.get("auto_negotiate", with_default=True)
-        rs_fec = auto_negotiate.get("rs_fec", with_default=True)
-        link_training = auto_negotiate.get("link_training", with_default=True)
         proposed_import = {
             "xpath": vport["xpath"]
             + "/l1Config/"
