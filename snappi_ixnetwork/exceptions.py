@@ -77,11 +77,6 @@ class SnappiIxnException(Exception):
                 self._message = tb.extend(self._message)
             if isinstance(self._message, str):
                 self._message = "{} {}".format("".join(tb), self._message)
-            # for line in tb:
-            #     if isinstance(self._message, list):
-            #         self._message.append(line)
-            #     else:
-            #         self._message = "{} {}".format(self._message, line)
 
     def __str__(self):
         if isinstance(self._message, list):
