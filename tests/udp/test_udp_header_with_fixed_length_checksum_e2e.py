@@ -21,8 +21,8 @@ def test_udp_header_with_fixed_length_checksum_e2e(api, b2b_raw_config):
     flow.packet = [
         Flow.Header(
             Flow.Ethernet(
-                src=Flow.Pattern('00:0c:29:1d:10:67'),
-                dst=Flow.Pattern('00:0c:29:1d:10:71')
+                src=Flow.Pattern("00:0c:29:1d:10:67"),
+                dst=Flow.Pattern("00:0c:29:1d:10:71"),
             )
         ),
         Flow.Header(
@@ -36,17 +36,17 @@ def test_udp_header_with_fixed_length_checksum_e2e(api, b2b_raw_config):
                 src_port=Flow.Pattern("3000"),
                 dst_port=Flow.Pattern("4000"),
                 length=Flow.Pattern("38"),
-                checksum=Flow.Pattern("5")
+                checksum=Flow.Pattern("5"),
             )
         ),
     ]
     flow.duration = Flow.Duration(Flow.FixedPackets(packets=packets))
     flow.size = Flow.Size(size)
-    flow.rate = Flow.Rate(value=10, unit='line')
+    flow.rate = Flow.Rate(value=10, unit="line")
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: results_ok(api, size, packets), 'stats to be as expected'
+        lambda: results_ok(api, size, packets), "stats to be as expected"
     )
 
     captures_ok(api, b2b_raw_config, size)

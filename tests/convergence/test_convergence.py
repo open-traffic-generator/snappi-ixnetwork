@@ -1,8 +1,8 @@
 import pytest
 from bgp_convergence_config import bgp_convergence_config
 
-PRIMARY_ROUTES_NAME = 'rx_rr'
-PRIMARY_PORT_NAME = 'rx'
+PRIMARY_ROUTES_NAME = "rx_rr"
+PRIMARY_PORT_NAME = "rx"
 
 
 def test_convergence(utils, cvg_api, bgp_convergence_config):
@@ -28,8 +28,7 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
 
     # Wait for traffic to reach configured line rate
     utils.wait_for(
-        lambda: is_traffic_running(cvg_api),
-        'traffic in started state'
+        lambda: is_traffic_running(cvg_api), "traffic in started state"
     )
 
     # Withdraw routes from primary path
@@ -40,14 +39,15 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
 
     # get convergence metrics
     request = cvg_api.convergence_request()
-    request.convergence.flow_names = ['convergence_test']
+    request.convergence.flow_names = ["convergence_test"]
     convergence_metrics = cvg_api.get_results(request).flow_convergence
 
     print(convergence_metrics)
     for metrics in convergence_metrics:
         assert isinstance(
-            metrics.control_plane_data_plane_convergence_us, float)
-        assert (len(metrics.events) > 0)
+            metrics.control_plane_data_plane_convergence_us, float
+        )
+        assert len(metrics.events) > 0
         for event in metrics.events:
             assert event.type == "route_withdraw"
 
@@ -70,8 +70,7 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
 
     # Wait for traffic to reach configured line rate
     utils.wait_for(
-        lambda: is_traffic_running(cvg_api),
-        'traffic in started state'
+        lambda: is_traffic_running(cvg_api), "traffic in started state"
     )
 
     # Link down the primary port
@@ -82,14 +81,15 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
 
     # get convergence metrics
     request = cvg_api.convergence_request()
-    request.convergence.flow_names = ['convergence_test']
+    request.convergence.flow_names = ["convergence_test"]
     convergence_metrics = cvg_api.get_results(request).flow_convergence
 
     print(convergence_metrics)
     for metrics in convergence_metrics:
         assert isinstance(
-            metrics.control_plane_data_plane_convergence_us, float)
-        assert (len(metrics.events) > 0)
+            metrics.control_plane_data_plane_convergence_us, float
+        )
+        assert len(metrics.events) > 0
         for event in metrics.events:
             assert event.type == "link_down"
 
@@ -110,8 +110,7 @@ def is_traffic_running(cvg_api):
     Returns true if traffic in start state
     """
     flow_stats = get_flow_stats(cvg_api)
-    return all([int(fs.frames_rx_rate) > 0
-               for fs in flow_stats])
+    return all([int(fs.frames_rx_rate) > 0 for fs in flow_stats])
 
 
 def get_flow_stats(cvg_api):
@@ -120,5 +119,5 @@ def get_flow_stats(cvg_api):
     return cvg_api.get_results(request).flow_metric
 
 
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
+if __name__ == "__main__":
+    pytest.main(["-s", __file__])

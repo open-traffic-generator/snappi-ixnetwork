@@ -8,11 +8,11 @@ def test_fixed_ip_addr(api, b2b_raw_config, utils):
       against expected
     """
     f = b2b_raw_config.flows[0]
-    src = '00:0C:29:E3:53:EA'
-    dst = '00:0C:29:E3:53:F4'
+    src = "00:0C:29:E3:53:EA"
+    dst = "00:0C:29:E3:53:F4"
 
-    src_ip = '10.1.1.1'
-    dst_ip = '20.1.1.1'
+    src_ip = "10.1.1.1"
+    dst_ip = "20.1.1.1"
     f.packet.ethernet().ipv4()
     eth = f.packet[0]
     ipv4 = f.packet[1]
@@ -23,7 +23,7 @@ def test_fixed_ip_addr(api, b2b_raw_config, utils):
 
     api.set_config(b2b_raw_config)
     attrs = {
-        'Destination Address': dst_ip,
-        'Source Address': src_ip,
+        "Destination Address": dst_ip,
+        "Source Address": src_ip,
     }
-    utils.validate_config(api, 'ipv4', **attrs)
+    utils.validate_config(api, "ipv4", **attrs)

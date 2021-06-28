@@ -15,33 +15,32 @@ with open(os.path.join(base_dir, "readme.md")) as fd:
 setuptools.setup(
     name=pkg_name,
     version=version,
-    description='The Snappi IxNetwork Open Traffic Generator Python Package',
+    description="The Snappi IxNetwork Open Traffic Generator Python Package",
     long_description=long_description,
-    long_description_content_type='text/markdown',
-    url='https://github.com/open-traffic-generator/ixnetwork',
-    author='ajbalogh',
-    author_email='andy.balogh@keysight.com',
-    license='MIT',
+    long_description_content_type="text/markdown",
+    url="https://github.com/open-traffic-generator/ixnetwork",
+    author="ajbalogh",
+    author_email="andy.balogh@keysight.com",
+    license="MIT",
     classifiers=[
-        'Development Status :: 3 - Alpha', 'Intended Audience :: Developers',
-        'Topic :: Software Development :: Testing :: Traffic Generation',
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3'
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "Topic :: Software Development :: Testing :: Traffic Generation",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3",
     ],
-    keywords='snappi ixnetwork testing open traffic generator automation',
+    keywords="snappi ixnetwork testing open traffic generator automation",
     include_package_data=True,
     packages=[pkg_name],
-    python_requires='>=2.7, <4',
-    install_requires=[
-        'ixnetwork-restpy>=1.0.52'
-    ],
+    python_requires=">=2.7, <4",
+    install_requires=["ixnetwork-restpy>=1.0.52"],
     extras_require={
-        'testing': [
-            'snappi==0.4.11',
-            'snappi_convergence==0.0.14',
-            'pytest',
-            'dpkt==1.9.4',
+        "testing": [
+            "snappi==0.4.11",
+            "snappi_convergence==0.0.14",
+            "pytest",
+            "dpkt==1.9.4",
         ]
-    }
+    },
 )

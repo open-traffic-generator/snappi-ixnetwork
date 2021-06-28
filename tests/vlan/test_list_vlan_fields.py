@@ -9,8 +9,8 @@ def test_list_vlan_fields(api, b2b_raw_config, utils):
     """
 
     f = b2b_raw_config.flows[0]
-    source = '00:0C:29:E3:53:EA'
-    destination = '00:0C:29:E3:53:F4'
+    source = "00:0C:29:E3:53:EA"
+    destination = "00:0C:29:E3:53:F4"
     ether_type = 33024
 
     # Vlan fields config
@@ -33,8 +33,8 @@ def test_list_vlan_fields(api, b2b_raw_config, utils):
     api.set_config(b2b_raw_config)
 
     attrs = {
-        'VLAN Priority': [str(p) for p in priority],
-        'Canonical Format Indicator': [str(c) for c in cfi],
-        'VLAN-ID': [str(v) for v in vlan_id],
+        "VLAN Priority": [str(p) for p in priority],
+        "Canonical Format Indicator": [str(c) for c in cfi],
+        "VLAN-ID": [str(v) for v in vlan_id],
     }
-    utils.validate_config(api, 'vlan', **attrs)
+    utils.validate_config(api, "vlan", **attrs)

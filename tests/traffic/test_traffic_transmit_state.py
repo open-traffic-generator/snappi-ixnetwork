@@ -15,19 +15,19 @@ def test_traffic_transmit_state(api, b2b_raw_config, utils):
     f2_size = 1500
     ports = b2b_raw_config.ports
     flow1 = b2b_raw_config.flows[0]
-    flow1.name = 'tx_flow1'
+    flow1.name = "tx_flow1"
     flow1.packet.ethernet().ipv4()
-    flow1.packet[0].src.value = '00:0c:29:1d:10:67'
-    flow1.packet[0].dst.value = '00:0c:29:1d:10:71'
-    flow1.packet[1].src.value = '10.10.10.1'
-    flow1.packet[1].dst.value = '10.10.10.2'
+    flow1.packet[0].src.value = "00:0c:29:1d:10:67"
+    flow1.packet[0].dst.value = "00:0c:29:1d:10:71"
+    flow1.packet[1].src.value = "10.10.10.1"
+    flow1.packet[1].dst.value = "10.10.10.2"
     flow2 = b2b_raw_config.flows.flow()[-1]
-    flow2.name = 'tx_flow2'
+    flow2.name = "tx_flow2"
     flow2.tx_rx.port.tx_name = ports[0].name
     flow2.tx_rx.port.rx_name = ports[1].name
 
     flow3 = b2b_raw_config.flows.flow()[-1]
-    flow3.name = 'tx_flow3'
+    flow3.name = "tx_flow3"
     flow3.tx_rx.port.tx_name = ports[0].name
     flow3.tx_rx.port.rx_name = ports[1].name
 
@@ -51,12 +51,13 @@ def test_traffic_transmit_state(api, b2b_raw_config, utils):
 
     utils.start_traffic(api, b2b_raw_config)
     import time
+
     time.sleep(10)
     utils.wait_for(
         lambda: utils.is_traffic_stopped(
-            api, flow_names=['tx_flow1', 'tx_flow3']
+            api, flow_names=["tx_flow1", "tx_flow3"]
         ),
-        'traffic to stop'
+        "traffic to stop",
     )
 
     utils.stop_traffic(api, b2b_raw_config)

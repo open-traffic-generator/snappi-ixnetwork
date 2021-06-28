@@ -44,8 +44,8 @@ def test():
             ' 10.39.65.230;6;4"'
         ),
         '--media="fiber"',
-        'tests',
-        '-m "not e2e and not l1_manual"'
+        "tests",
+        '-m "not e2e and not l1_manual"',
     ]
     run(
         [

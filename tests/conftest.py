@@ -26,23 +26,24 @@ def settings():
     return utl.settings
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def api():
     # handle to make API calls
     api = snappi.api(location=utl.settings.location, ext=utl.settings.ext)
     yield api
-    if getattr(api, 'assistant', None) is not None:
+    if getattr(api, "assistant", None) is not None:
         api.assistant.Session.remove()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def cvg_api():
     # handle to make Convergence API calls
-    api = snappi_convergence.api(location=utl.settings.location,
-                                 ext=utl.settings.ext)
+    api = snappi_convergence.api(
+        location=utl.settings.location, ext=utl.settings.ext
+    )
 
     yield api
-    if getattr(api, 'assistant', None) is not None:
+    if getattr(api, "assistant", None) is not None:
         api.assistant.Session.remove()
 
 
@@ -53,26 +54,24 @@ def b2b_raw_config(api):
     """
     config = api.config()
 
-    tx, rx = (
-        config.ports
-        .port(name='tx', location=utl.settings.ports[0])
-        .port(name='rx', location=utl.settings.ports[1])
+    tx, rx = config.ports.port(name="tx", location=utl.settings.ports[0]).port(
+        name="rx", location=utl.settings.ports[1]
     )
 
     l1 = config.layer1.layer1()[0]
-    l1.name = 'l1'
+    l1.name = "l1"
     l1.port_names = [rx.name, tx.name]
     l1.media = utl.settings.media
     l1.speed = utl.settings.speed
 
-    flow = config.flows.flow(name='f1')[-1]
+    flow = config.flows.flow(name="f1")[-1]
     flow.tx_rx.port.tx_name = tx.name
     flow.tx_rx.port.rx_name = rx.name
 
     # this will allow us to take over ports that may already be in use
     config.options.port_options.location_preemption = True
 
-    cap = config.captures.capture(name='c1')[-1]
+    cap = config.captures.capture(name="c1")[-1]
     cap.port_names = [rx.name]
     cap.format = cap.PCAP
 
@@ -86,15 +85,13 @@ def utils():
 
 @pytest.fixture
 def tx_port(b2b_raw_config):
-    """Returns a transmit port
-    """
+    """Returns a transmit port"""
     return b2b_raw_config.ports[0]
 
 
 @pytest.fixture
 def rx_port(b2b_raw_config):
-    """Returns a receive port
-    """
+    """Returns a receive port"""
     return b2b_raw_config.ports[1]
 
 
@@ -104,16 +101,18 @@ def b2b_ipv4_devices(b2b_raw_config, tx_port, rx_port):
     Each device object is ipv4, ethernet and vlan
     """
     tx_device, rx_device = b2b_raw_config.devices.device().device()
-    tx_device.name, rx_device.name = 'Tx Devices Ipv4', 'Rx Devices Ipv4'
-    tx_device.container_name, rx_device.container_name = tx_port.name, \
-        rx_port.name
+    tx_device.name, rx_device.name = "Tx Devices Ipv4", "Rx Devices Ipv4"
+    tx_device.container_name, rx_device.container_name = (
+        tx_port.name,
+        rx_port.name,
+    )
     tx_device.device_count, rx_device.device_count = 1, 1
     tx_eth, rx_eth = tx_device.ethernet, rx_device.ethernet
-    tx_eth.name, rx_eth.name = 'Tx eth', 'Rx eth'
+    tx_eth.name, rx_eth.name = "Tx eth", "Rx eth"
     tx_ip, rx_ip = tx_eth.ipv4, rx_eth.ipv4
-    tx_ip.name, rx_ip.name = 'Tx Ip', 'Rx Ip'
-    tx_ip.address.value, rx_ip.address.value = '1.1.1.1', '1.1.2.1'
-    tx_ip.gateway.value, rx_ip.gateway.value = '1.1.2.1', '1.1.1.1'
+    tx_ip.name, rx_ip.name = "Tx Ip", "Rx Ip"
+    tx_ip.address.value, rx_ip.address.value = "1.1.1.1", "1.1.2.1"
+    tx_ip.gateway.value, rx_ip.gateway.value = "1.1.2.1", "1.1.1.1"
     tx_ip.prefix.value, rx_ip.gateway.value = 24, 24
 
     return [tx_device, rx_device]
@@ -121,7 +120,6 @@ def b2b_ipv4_devices(b2b_raw_config, tx_port, rx_port):
 
 @pytest.fixture
 def options(b2b_raw_config):
-    """Returns global options
-    """
+    """Returns global options"""
     b2b_raw_config.options.port_options.location_preemption = True
     return b2b_raw_config.options

@@ -20,10 +20,10 @@ def test_udp_header_with_counter_e2e(api, b2b_raw_config, utils):
     size = 74
     flow.packet.ethernet().ipv4().udp()
     eth, ip, udp = flow.packet[0], flow.packet[1], flow.packet[2]
-    eth.src.value = '00:0c:29:1d:10:67'
-    eth.dst.value = '00:0c:29:1d:10:71'
-    ip.src.value = '10.10.10.1'
-    ip.dst.value = '10.10.10.2'
+    eth.src.value = "00:0c:29:1d:10:67"
+    eth.dst.value = "00:0c:29:1d:10:71"
+    ip.src.value = "10.10.10.1"
+    ip.dst.value = "10.10.10.2"
     udp.src_port.increment.start = 5000
     udp.src_port.increment.step = 2
     udp.src_port.increment.count = 10
@@ -41,7 +41,7 @@ def test_udp_header_with_counter_e2e(api, b2b_raw_config, utils):
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
         lambda: results_ok(api, size, packets, utils),
-        'stats to be as expected'
+        "stats to be as expected",
     )
 
     captures_ok(api, b2b_raw_config, size, utils)

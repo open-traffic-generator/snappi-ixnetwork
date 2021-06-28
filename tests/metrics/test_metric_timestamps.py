@@ -25,7 +25,7 @@ def test_metric_timestamps(api, utils, b2b_raw_config, tx_port, rx_port):
     f1.metrics.timestamps = True
 
     # flow -f2 config
-    f2 = b2b_raw_config.flows.flow(name='f2')[-1]
+    f2 = b2b_raw_config.flows.flow(name="f2")[-1]
     f2.tx_rx.port.tx_name = tx_port.name
     f2.tx_rx.port.rx_name = rx_port.name
 
@@ -39,22 +39,22 @@ def test_metric_timestamps(api, utils, b2b_raw_config, tx_port, rx_port):
 
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
     utils.wait_for(
-        lambda: stats_ok(
-            api, SIZE, PACKETS * 2, utils), 'stats to be as expected'
+        lambda: stats_ok(api, SIZE, PACKETS * 2, utils),
+        "stats to be as expected",
     )
 
     _, flow_stats = utils.get_all_stats(api)
 
     # Validation
     for result in flow_stats:
-        if result.name == 'f1':
-            timestamps = getattr(result, 'timestamps')
-            assert getattr(timestamps, 'first_timestamp_ns') is not None
-            assert getattr(timestamps, 'last_timestamp_ns') is not None
-        if result.name == 'f2':
-            timestamps = getattr(result, 'timestamps')
-            assert getattr(timestamps, 'first_timestamp_ns') is None
-            assert getattr(timestamps, 'last_timestamp_ns') is None
+        if result.name == "f1":
+            timestamps = getattr(result, "timestamps")
+            assert getattr(timestamps, "first_timestamp_ns") is not None
+            assert getattr(timestamps, "last_timestamp_ns") is not None
+        if result.name == "f2":
+            timestamps = getattr(result, "timestamps")
+            assert getattr(timestamps, "first_timestamp_ns") is None
+            assert getattr(timestamps, "last_timestamp_ns") is None
 
 
 def stats_ok(api, size, packets, utils):
@@ -67,12 +67,11 @@ def stats_ok(api, size, packets, utils):
     ok = ok and utils.total_bytes_ok(
         port_results, flow_results, packets * size
     )
-    if utils.flow_transmit_matches(flow_results, 'stopped') and not ok:
-        raise Exception('Stats not ok after flows are stopped')
+    if utils.flow_transmit_matches(flow_results, "stopped") and not ok:
+        raise Exception("Stats not ok after flows are stopped")
 
     return ok
 
 
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
-
+if __name__ == "__main__":
+    pytest.main(["-s", __file__])

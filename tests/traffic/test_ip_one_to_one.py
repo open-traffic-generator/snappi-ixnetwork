@@ -1,4 +1,3 @@
-
 import pytest
 
 
@@ -16,21 +15,24 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     packets = 100000
     count = 10
     mac_tx = utils.mac_or_ip_addr_from_counter_pattern(
-        '00:10:10:20:20:10', '00:00:00:00:00:01', count, True
+        "00:10:10:20:20:10", "00:00:00:00:00:01", count, True
     )
     mac_rx = utils.mac_or_ip_addr_from_counter_pattern(
-        '00:10:10:20:20:20', '00:00:00:00:00:01', count, False
+        "00:10:10:20:20:20", "00:00:00:00:00:01", count, False
     )
     ip_tx = utils.mac_or_ip_addr_from_counter_pattern(
-        '10.1.1.1', '0.0.1.0', count, True, False
+        "10.1.1.1", "0.0.1.0", count, True, False
     )
 
     ip_rx = utils.mac_or_ip_addr_from_counter_pattern(
-        '10.1.1.2', '0.0.1.0', count, True, False
+        "10.1.1.2", "0.0.1.0", count, True, False
     )
 
     addrs = {
-        'mac_tx': mac_tx, 'mac_rx': mac_rx, 'ip_tx': ip_tx, 'ip_rx': ip_rx
+        "mac_tx": mac_tx,
+        "mac_rx": mac_rx,
+        "ip_tx": ip_tx,
+        "ip_rx": ip_rx,
     }
 
     # import snappi
@@ -38,25 +40,25 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
 
     for i in range(count * 2):
         port = int(i / count)
-        node = 'tx' if port == 0 else 'rx'
+        node = "tx" if port == 0 else "rx"
         if i >= count:
             i = i - count
         dev = b2b_raw_config.devices.device()[-1]
 
-        dev.name = '%s_dev_%d' % (node, i + 1)
+        dev.name = "%s_dev_%d" % (node, i + 1)
         dev.container_name = b2b_raw_config.ports[port].name
 
-        dev.ethernet.name = '%s_eth_%d' % (node, i + 1)
-        dev.ethernet.mac = addrs['mac_%s' % node][i]
+        dev.ethernet.name = "%s_eth_%d" % (node, i + 1)
+        dev.ethernet.mac = addrs["mac_%s" % node][i]
 
-        dev.ethernet.ipv4.name = '%s_ipv4_%d' % (node, i + 1)
-        dev.ethernet.ipv4.address = addrs['ip_%s' % node][i]
+        dev.ethernet.ipv4.name = "%s_ipv4_%d" % (node, i + 1)
+        dev.ethernet.ipv4.address = addrs["ip_%s" % node][i]
         dev.ethernet.ipv4.gateway = addrs[
-            'ip_%s' % ('rx' if node == 'tx' else 'tx')
+            "ip_%s" % ("rx" if node == "tx" else "tx")
         ][i]
         dev.ethernet.ipv4.prefix = 24
     b2b_raw_config.flows.clear()
-    f1, f2 = b2b_raw_config.flows.flow(name='TxFlow-1').flow(name='TxFlow-2')
+    f1, f2 = b2b_raw_config.flows.flow(name="TxFlow-1").flow(name="TxFlow-2")
     f1.tx_rx.device.tx_names = [
         b2b_raw_config.devices[i].name for i in range(count)
     ]
@@ -89,7 +91,8 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
         lambda: results_ok(api, utils, size, size * 2, packets),
-        'stats to be as expected', timeout_seconds=20
+        "stats to be as expected",
+        timeout_seconds=20,
     )
     utils.stop_traffic(api, b2b_raw_config)
     captures_ok(api, b2b_raw_config, utils, count, packets * 2)
@@ -114,19 +117,16 @@ def captures_ok(api, cfg, utils, count, packets):
     src_mac = [[0x00, 0x10, 0x10, 0x20, 0x20, 0x10 + i] for i in range(count)]
     dst_mac = [[0x00, 0x10, 0x10, 0x20, 0x20, 0x20 - i] for i in range(count)]
 
-    src_ip = [[0x0a, 0x01, 0x01 + i, 0x01] for i in range(count)]
-    dst_ip = [[0x0a, 0x01, 0x01 + i, 0x02] for i in range(count)]
+    src_ip = [[0x0A, 0x01, 0x01 + i, 0x01] for i in range(count)]
+    dst_ip = [[0x0A, 0x01, 0x01 + i, 0x02] for i in range(count)]
 
     src_port = [[0x13, 0x88 + i] for i in range(count)]
-    dst_port = [[0x07, 0xd0 + i] for i in range(count)]
+    dst_port = [[0x07, 0xD0 + i] for i in range(count)]
 
     cap_dict = utils.get_all_captures(api, cfg)
     assert len(cap_dict) == 1
     sizes = [128, 256]
-    size_dt = {
-        128: [0 for i in range(count)],
-        256: [0 for i in range(count)]
-    }
+    size_dt = {128: [0 for i in range(count)], 256: [0 for i in range(count)]}
     for b in cap_dict[list(cap_dict.keys())[0]]:
         i = dst_mac.index(b[0:6])
         assert b[0:6] == dst_mac[i] and b[6:12] == src_mac[i]

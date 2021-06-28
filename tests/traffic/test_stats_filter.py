@@ -39,17 +39,15 @@ def test_stats_filter(api, b2b_raw_config, utils):
     flow2.metrics.loss = True
 
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
-    utils.wait_for(
-        lambda: utils.is_traffic_stopped(api), 'traffic to stop'
-    )
+    utils.wait_for(lambda: utils.is_traffic_stopped(api), "traffic to stop")
 
     utils.wait_for(
         lambda: utils.is_stats_accumulated(api, f1_packets + f2_packets),
-        'stats to be accumulated'
+        "stats to be accumulated",
     )
 
     # Validation on Port statistics based on port names
-    port_names = ['raw_tx', 'raw_rx']
+    port_names = ["raw_tx", "raw_rx"]
     for port_name in port_names:
         req = api.metrics_request()
         req.port.port_names = [port_name]
@@ -59,28 +57,25 @@ def test_stats_filter(api, b2b_raw_config, utils):
         validate_port_stats_based_on_port_name(port_results, port_name)
 
     # Validation on Port statistics based on column names
-    column_names = ['frames_tx', 'frames_rx', 'bytes_tx', 'bytes_rx']
+    column_names = ["frames_tx", "frames_rx", "bytes_tx", "bytes_rx"]
     for column_name in column_names:
         req = api.metrics_request()
-        req.port.column_names = ['name', column_name]
+        req.port.column_names = ["name", column_name]
         port_results = api.get_metrics(req).port_metrics
 
         # port_results = api.get_port_results(result.PortRequest(
         #                                     column_names=['name',
         #                                        column_name]))
-        validate_port_stats_based_on_column_name(port_results,
-                                                 column_name,
-                                                 f1_packets,
-                                                 f2_packets,
-                                                 f1_size,
-                                                 f2_size)
+        validate_port_stats_based_on_column_name(
+            port_results, column_name, f1_packets, f2_packets, f1_size, f2_size
+        )
 
     # Validation on Flow statistics based on flow names
-    flow_names = ['flow1', 'flow2']
+    flow_names = ["flow1", "flow2"]
     for flow_name in flow_names:
         req = api.metrics_request()
         req.flow.flow_names = [flow_name]
-        req.flow.metric_names = ['name']
+        req.flow.metric_names = ["name"]
         flow_results = api.get_metrics(req).flow_metrics
         # flow_results = api.get_flow_results(result.FlowRequest(
         #                                     flow_names=[flow_name],
@@ -88,20 +83,17 @@ def test_stats_filter(api, b2b_raw_config, utils):
         validate_flow_stats_based_on_flow_name(flow_results, flow_name)
 
     # Validation on Flow statistics based on metric names
-    metric_names = ['frames_tx', 'frames_rx', 'bytes_rx']
+    metric_names = ["frames_tx", "frames_rx", "bytes_rx"]
     for metric_name in metric_names:
         req = api.metrics_request()
-        req.flow.metric_names = ['name', column_name]
+        req.flow.metric_names = ["name", column_name]
         flow_results = api.get_metrics(req).flow_metrics
         # flow_results = api.get_flow_results(result.FlowRequest(
         #                                     column_names=['name',
         #                                                   column_name]))
-        validate_flow_stats_based_on_metric_name(flow_results,
-                                                 metric_name,
-                                                 f1_packets,
-                                                 f2_packets,
-                                                 f1_size,
-                                                 f2_size)
+        validate_flow_stats_based_on_metric_name(
+            flow_results, metric_name, f1_packets, f2_packets, f1_size, f2_size
+        )
 
 
 def validate_port_stats_based_on_port_name(port_results, port_name):
@@ -112,12 +104,9 @@ def validate_port_stats_based_on_port_name(port_results, port_name):
         assert row.name == port_name
 
 
-def validate_port_stats_based_on_column_name(port_results,
-                                             column_name,
-                                             f1_packets,
-                                             f2_packets,
-                                             f1_size,
-                                             f2_size):
+def validate_port_stats_based_on_column_name(
+    port_results, column_name, f1_packets, f2_packets, f1_size, f2_size
+):
     """
     Validate Port stats based on column_names
     """
@@ -125,15 +114,15 @@ def validate_port_stats_based_on_column_name(port_results,
     total_bytes = (f1_packets * f1_size) + (f2_packets * f2_size)
     total_packets = f1_packets + f2_packets
     for row in port_results:
-        if row.name == 'raw_tx':
-            if column_name == 'frames_tx':
+        if row.name == "raw_tx":
+            if column_name == "frames_tx":
                 assert getattr(row, column_name) == total_packets
-            elif column_name == 'bytes_tx':
+            elif column_name == "bytes_tx":
                 assert getattr(row, column_name) == total_bytes
-        elif row.name == 'raw_rx':
-            if column_name == 'frames_rx':
+        elif row.name == "raw_rx":
+            if column_name == "frames_rx":
                 assert getattr(row, column_name) == total_packets
-            elif column_name == 'bytes_rx':
+            elif column_name == "bytes_rx":
                 assert getattr(row, column_name) == total_bytes
 
 
@@ -145,27 +134,24 @@ def validate_flow_stats_based_on_flow_name(flow_results, flow_name):
         assert row.name == flow_name
 
 
-def validate_flow_stats_based_on_metric_name(flow_results,
-                                             metric_name,
-                                             f1_packets,
-                                             f2_packets,
-                                             f1_size,
-                                             f2_size):
+def validate_flow_stats_based_on_metric_name(
+    flow_results, metric_name, f1_packets, f2_packets, f1_size, f2_size
+):
     """
     Validate Flow stats based on metric_names
     """
     for row in flow_results:
-        if row.name == 'f1':
-            if metric_name == 'frames_tx':
+        if row.name == "f1":
+            if metric_name == "frames_tx":
                 assert getattr(row, metric_name) == f1_packets
-            elif metric_name == 'frames_rx':
+            elif metric_name == "frames_rx":
                 assert getattr(row, metric_name) == f1_packets
-            elif metric_name == 'bytes_rx':
+            elif metric_name == "bytes_rx":
                 assert getattr(row, metric_name) == f1_packets * f1_size
-        elif row.name == 'f2':
-            if metric_name == 'frames_tx':
+        elif row.name == "f2":
+            if metric_name == "frames_tx":
                 assert getattr(row, metric_name) == f2_packets
-            elif metric_name == 'frames_rx':
+            elif metric_name == "frames_rx":
                 assert getattr(row, metric_name) == f2_packets
-            elif metric_name == 'bytes_rx':
+            elif metric_name == "bytes_rx":
                 assert getattr(row, metric_name) == f2_packets * f2_size

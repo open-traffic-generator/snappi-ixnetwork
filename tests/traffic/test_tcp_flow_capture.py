@@ -18,14 +18,14 @@ def test_tcp_flow_capture(api, b2b_raw_config, utils):
     flow = b2b_raw_config.flows[0]
     eth, ip, tcp = flow.packet.ethernet().ipv4().tcp()
 
-    eth.src.value = '00:CD:DC:CD:DC:CD'
-    eth.dst.value = '00:AB:BC:AB:BC:AB'
+    eth.src.value = "00:CD:DC:CD:DC:CD"
+    eth.dst.value = "00:AB:BC:AB:BC:AB"
 
-    ip.src.value = '1.1.1.2'
-    ip.dst.value = '1.1.1.1'
+    ip.src.value = "1.1.1.2"
+    ip.dst.value = "1.1.1.1"
 
-    tcp.src_port.values = ['5000', '5050', '5015', '5040', '5032', '5021']
-    tcp.dst_port.values = ['6000', '6015', '6050']
+    tcp.src_port.values = ["5000", "5050", "5015", "5040", "5032", "5021"]
+    tcp.dst_port.values = ["6000", "6015", "6050"]
 
     flow.duration.fixed_packets.packets = packets
     flow.size.fixed = size
@@ -34,7 +34,8 @@ def test_tcp_flow_capture(api, b2b_raw_config, utils):
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
         lambda: results_ok(api, utils, size, packets),
-        'stats to be as expected', timeout_seconds=10
+        "stats to be as expected",
+        timeout_seconds=10,
     )
     captures_ok(api, b2b_raw_config, utils, size)
 
@@ -54,8 +55,12 @@ def captures_ok(api, cfg, utils, size):
     Returns normally if patterns in captured packets are as expected.
     """
     src = [
-        [0x13, 0x88], [0x13, 0xBA], [0x13, 0x97], [0x13, 0xB0], [0x13, 0xA8],
-        [0x13, 0x9D]
+        [0x13, 0x88],
+        [0x13, 0xBA],
+        [0x13, 0x97],
+        [0x13, 0xB0],
+        [0x13, 0xA8],
+        [0x13, 0x9D],
     ]
     dst = [[0x17, 0x70], [0x17, 0x7F], [0x17, 0xA2]]
 

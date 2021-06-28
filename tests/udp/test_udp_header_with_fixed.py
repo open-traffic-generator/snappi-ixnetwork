@@ -22,11 +22,11 @@ def test_udp_header_with_fixed(api, b2b_raw_config, utils):
 
     eth, ip, udp = flow.packet.ethernet().ipv4().udp()
 
-    eth.src.value = '00:0c:29:1d:10:67'
-    eth.dst.value = '00:0c:29:1d:10:71'
+    eth.src.value = "00:0c:29:1d:10:67"
+    eth.dst.value = "00:0c:29:1d:10:71"
 
-    ip.src.value = '10.10.10.1'
-    ip.dst.value = '10.10.10.2'
+    ip.src.value = "10.10.10.1"
+    ip.dst.value = "10.10.10.2"
 
     udp.src_port.value = src_port
     udp.dst_port.value = dst_port
@@ -35,8 +35,8 @@ def test_udp_header_with_fixed(api, b2b_raw_config, utils):
     api.set_config(b2b_raw_config)
 
     attrs = {
-        'UDP-Source-Port': str(src_port),
-        'UDP-Dest-Port': str(dst_port),
-        'UDP-Length': str(length),
+        "UDP-Source-Port": str(src_port),
+        "UDP-Dest-Port": str(dst_port),
+        "UDP-Length": str(length),
     }
-    utils.validate_config(api, 'udp', **attrs)
+    utils.validate_config(api, "udp", **attrs)

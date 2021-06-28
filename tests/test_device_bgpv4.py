@@ -3,28 +3,23 @@ import pytest
 
 @pytest.mark.skip("Already bgpv4 and bgpv6 testcases are available")
 def test_devices(api, utils):
-    """This is a BGPv4 demo test script with router ranges
-    """
+    """This is a BGPv4 demo test script with router ranges"""
     config = api.config()
 
-    tx, rx = (
-        config.ports
-        .port(name='tx', location=utils.settings.ports[0])
-        .port(name='rx', location=utils.settings.ports[1])
-    )
+    tx, rx = config.ports.port(
+        name="tx", location=utils.settings.ports[0]
+    ).port(name="rx", location=utils.settings.ports[1])
 
     config.options.port_options.location_preemption = True
     ly = config.layer1.layer1()[-1]
-    ly.name = 'ly'
+    ly.name = "ly"
     ly.port_names = [tx.name, rx.name]
     ly.speed = utils.settings.speed
     ly.media = utils.settings.media
 
-    tx_device, rx_device = (
-        config.devices
-        .device(name="tx_device", container_name=tx.name)
-        .device(name="rx_device", container_name=rx.name)
-    )
+    tx_device, rx_device = config.devices.device(
+        name="tx_device", container_name=tx.name
+    ).device(name="rx_device", container_name=rx.name)
 
     # tx_device config
     tx_eth = tx_device.ethernet
@@ -73,13 +68,12 @@ def test_devices(api, utils):
     rx_rr.prefix.value = "32"
 
     # flow config
-    flow = config.flows.flow(name='convergence_test')[-1]
+    flow = config.flows.flow(name="convergence_test")[-1]
     flow.tx_rx.device.tx_names = [tx_rr.name]
     flow.tx_rx.device.rx_names = [rx_rr.name]
 
     api.set_config(config)
 
 
-if __name__ == '__main__':
-    pytest.main(['-s', __file__])
-
+if __name__ == "__main__":
+    pytest.main(["-s", __file__])

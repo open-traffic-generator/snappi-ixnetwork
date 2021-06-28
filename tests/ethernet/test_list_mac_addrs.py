@@ -9,14 +9,14 @@ def test_list_mac_addrs(api, b2b_raw_config, utils):
     """
     flow = b2b_raw_config.flows[0]
     count = 10
-    step = '05:00:00:02:01:00'
+    step = "05:00:00:02:01:00"
     src = utils.mac_or_ip_addr_from_counter_pattern(
-        '00:0c:29:e3:53:ea', step, count, True
+        "00:0c:29:e3:53:ea", step, count, True
     )
     dst = utils.mac_or_ip_addr_from_counter_pattern(
-        '00:0c:29:e3:53:f4', step, count, True
+        "00:0c:29:e3:53:f4", step, count, True
     )
-    eth_type = ['8100', '88a8', '9100', '9200']
+    eth_type = ["8100", "88a8", "9100", "9200"]
 
     # import snappi
     # flow = snappi.Api().config().flows.flow()[-1]
@@ -27,8 +27,8 @@ def test_list_mac_addrs(api, b2b_raw_config, utils):
     eth.ether_type.values = [int(x, 16) for x in eth_type]
     api.set_config(b2b_raw_config)
     attrs = {
-        'Destination MAC Address': dst,
-        'Source MAC Address': src,
-        'Ethernet-Type': eth_type,
+        "Destination MAC Address": dst,
+        "Source MAC Address": src,
+        "Ethernet-Type": eth_type,
     }
-    utils.validate_config(api, 'ethernet', **attrs)
+    utils.validate_config(api, "ethernet", **attrs)

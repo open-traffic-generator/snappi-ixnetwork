@@ -8,12 +8,12 @@ def test_fixed_pfc_pause(api, b2b_raw_config, utils):
     against expected
     """
     f = b2b_raw_config.flows[0]
-    f.name = 'pfcpause'
+    f.name = "pfcpause"
     f.size.fixed = 100
     f.packet.pfcpause()
     pfc = f.packet[0]
-    pfc.src.value = '00:AB:BC:AB:BC:AB'
-    pfc.dst.value = '00:AB:BC:AB:BC:AB'
+    pfc.src.value = "00:AB:BC:AB:BC:AB"
+    pfc.dst.value = "00:AB:BC:AB:BC:AB"
     pfc.ether_type.value = 3000
     pfc.class_enable_vector.value = 255
     pfc.control_op_code.value = 257
@@ -27,19 +27,19 @@ def test_fixed_pfc_pause(api, b2b_raw_config, utils):
     pfc.pause_class_7.value = 65535
     api.set_config(b2b_raw_config)
     attrs = {
-        'Destination address': '00:ab:bc:ab:bc:ab',
-        'Source address': '00:ab:bc:ab:bc:ab',
-        'Ethertype': 'bb8',
-        'Control opcode': '101',
-        'priority_enable_vector': 'ff',
-        'PFC Queue 0': 'ffff',
-        'PFC Queue 1': 'ffff',
-        'PFC Queue 2': 'ffff',
-        'PFC Queue 3': 'ffff',
-        'PFC Queue 4': 'ffff',
-        'PFC Queue 5': 'ffff',
-        'PFC Queue 6': 'ffff',
-        'PFC Queue 7': 'ffff'
+        "Destination address": "00:ab:bc:ab:bc:ab",
+        "Source address": "00:ab:bc:ab:bc:ab",
+        "Ethertype": "bb8",
+        "Control opcode": "101",
+        "priority_enable_vector": "ff",
+        "PFC Queue 0": "ffff",
+        "PFC Queue 1": "ffff",
+        "PFC Queue 2": "ffff",
+        "PFC Queue 3": "ffff",
+        "PFC Queue 4": "ffff",
+        "PFC Queue 5": "ffff",
+        "PFC Queue 6": "ffff",
+        "PFC Queue 7": "ffff",
     }
     utils.validate_config(api, 0, **attrs)
 
@@ -47,6 +47,6 @@ def test_fixed_pfc_pause(api, b2b_raw_config, utils):
 
     api.set_config(b2b_raw_config)
 
-    attrs['PFC Queue 7'] = 'd05'
+    attrs["PFC Queue 7"] = "d05"
 
     utils.validate_config(api, 0, **attrs)

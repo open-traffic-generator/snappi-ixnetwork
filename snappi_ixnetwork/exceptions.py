@@ -2,7 +2,6 @@ from ixnetwork_restpy import errors as err
 
 
 class SnappiIxnException(Exception):
-
     def __init__(self, *args):
         super(SnappiIxnException, self).__init__(*args)
         self._args = args
@@ -16,15 +15,17 @@ class SnappiIxnException(Exception):
             self._status_code,
             (
                 [self._message]
-                if not isinstance(self._message, list) else self._message
-            )
+                if not isinstance(self._message, list)
+                else self._message
+            ),
         )
 
     @property
     def message(self):
         return (
             [self._message]
-            if not isinstance(self._message, list) else self._message
+            if not isinstance(self._message, list)
+            else self._message
         )
 
     @property
@@ -35,16 +36,14 @@ class SnappiIxnException(Exception):
         if isinstance(self._args, tuple) and len(self._args) == 1:
             if isinstance(self._args[0], (str, list)):
                 self._status_code = (
-                    500
-                    if self._status_code is None else self._status_code
+                    500 if self._status_code is None else self._status_code
                 )
                 self._message = self._args[0]
                 return
             if isinstance(self._args[0], err.IxNetworkError):
                 self._status_code = self._args[0].status_code
                 self._status_code = (
-                    500
-                    if self._status_code is None else self._status_code
+                    500 if self._status_code is None else self._status_code
                 )
                 self._message = self._args[0].message
                 return
