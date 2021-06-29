@@ -41,7 +41,7 @@ def test_fixed_pfc_pause(api, b2b_raw_config, utils):
         "PFC Queue 6": "ffff",
         "PFC Queue 7": "ffff",
     }
-    utils.validate_config(api, 0, **attrs)
+    utils.validate_config(api, "pfcpause", 0, **attrs)
 
     pfc.pause_class_7.value = 3333
 
@@ -49,4 +49,4 @@ def test_fixed_pfc_pause(api, b2b_raw_config, utils):
 
     attrs["PFC Queue 7"] = "d05"
 
-    utils.validate_config(api, 0, **attrs)
+    utils.validate_config(api, "pfcpause", 0, **attrs)

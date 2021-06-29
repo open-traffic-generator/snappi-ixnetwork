@@ -337,7 +337,7 @@ def get_value(field):
         return field.ValueList
 
 
-def get_packet_information(api, packet_header):
+def get_packet_information(api, flow_name, packet_header):
     """
     Takes any packet_header or header position
     for ex ethernet, ipv4, udp, tcp and returns
@@ -345,7 +345,7 @@ def get_packet_information(api, packet_header):
     if string is passed the header is filtered by name
     if int is passed header is filtered by index
     """
-    trafficItem = api._ixnetwork.Traffic.TrafficItem.find()
+    trafficItem = api._ixnetwork.Traffic.TrafficItem.find(Name=flow_name)
     configElement = trafficItem.ConfigElement.find()
     pckt_info = {}
     if isinstance(packet_header, int):
@@ -357,7 +357,7 @@ def get_packet_information(api, packet_header):
     return pckt_info
 
 
-def validate_config(api, packet_header, **kwargs):
+def validate_config(api, flow_name, packet_header, **kwargs):
     """
     validate config with key and values pairs against
     packet header.
@@ -371,7 +371,7 @@ def validate_config(api, packet_header, **kwargs):
         or
     validate_config(api, 0, **attrs) <with packet index>
     """
-    packet_info = get_packet_information(api, packet_header)
+    packet_info = get_packet_information(api, flow_name, packet_header)
     for key in kwargs:
         assert packet_info[key] == kwargs[key]
 

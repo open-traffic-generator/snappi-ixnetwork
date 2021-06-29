@@ -51,4 +51,4 @@ def test_tcp_control_flags(api, b2b_raw_config, utils):
         "SYN": control_flags[7],
         "FIN": control_flags[8],
     }
-    utils.validate_config(api, "tcp", **attrs)
+    utils.validate_config(api, "f1", "tcp", **attrs)
