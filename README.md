@@ -1,10 +1,10 @@
 # Keysight IxNetwork Open Traffic Generator
-[![Build](https://github.com/open-traffic-generator/ixnetwork/workflows/Build/badge.svg)](https://github.com/open-traffic-generator/ixnetwork/actions)
+[![Build](https://github.com/open-traffic-generator/snappi-ixnetwork/workflows/Build/badge.svg)](https://github.com/open-traffic-generator/snappi-ixnetwork/actions)
 [![pypi](https://img.shields.io/pypi/v/ixnetwork-open-traffic-generator.svg)](https://pypi.org/project/ixnetwork-open-traffic-generator)
 [![python](https://img.shields.io/pypi/pyversions/ixnetwork-open-traffic-generator.svg)](https://pypi.python.org/pypi/ixnetwork-open-traffic-generator)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://en.wikipedia.org/wiki/MIT_License)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/open-traffic-generator/ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/ixnetwork/alerts/)
-[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/open-traffic-generator/ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/ixnetwork/context:python)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/open-traffic-generator/snappi-ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/snappi-ixnetwork/alerts/)
+[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/open-traffic-generator/snappi-ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/snappi-ixnetwork/context:python)
 
 The Keysight IxNetwork implementation of the open-traffic-generator models.  
 To start contributing, please see [contributing.md](contributing.md).
