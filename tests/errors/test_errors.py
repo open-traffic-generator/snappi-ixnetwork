@@ -31,6 +31,7 @@ def test_Bad_Request_server_side(api, b2b_raw_config, utils):
         api.set_config(b2b_raw_config)
         assert False
     except SnappiIxnException as err:
+        print(err)
         assert err.status_code in [400, 500]
         assert err.args[0] in [400, 500]
         assert isinstance(err.message, list)
@@ -46,6 +47,7 @@ def test_bad_request_client_side(api):
         api.set_config(config)
         assert False
     except SnappiIxnException as err:
+        print(err)
         assert err.status_code == 400
         assert err.args[0] == 400
         assert isinstance(err.message, list)
@@ -134,5 +136,6 @@ def test_error_list_from_server(api, b2b_raw_config, utils):
         utils.get_all_stats(api)
         assert False
     except Exception as e:
+        print(e)
         assert e.args[0] == 500
         assert isinstance(e.args[1], list)
