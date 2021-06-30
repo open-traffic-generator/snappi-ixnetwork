@@ -5,7 +5,7 @@ import os
 import setuptools
 
 pkg_name = "snappi_ixnetwork"
-version = "0.4.5"
+version = "0.4.6"
 
 # read long description from readme.md
 base_dir = os.path.abspath(os.path.dirname(__file__))
@@ -18,7 +18,7 @@ setuptools.setup(
     description="The Snappi IxNetwork Open Traffic Generator Python Package",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/open-traffic-generator/ixnetwork",
+    url="https://github.com/open-traffic-generator/snappi-ixnetwork",
     author="ajbalogh",
     author_email="andy.balogh@keysight.com",
     license="MIT",

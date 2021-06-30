@@ -1,11 +1,11 @@
 # Snappi Extension for IxNetwork
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://en.wikipedia.org/wiki/MIT_License)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
-[![Build](https://github.com/open-traffic-generator/ixnetwork/workflows/Build/badge.svg)](https://github.com/open-traffic-generator/ixnetwork/actions)
+[![Build](https://github.com/open-traffic-generator/snappi-ixnetwork/workflows/Build/badge.svg)](https://github.com/open-traffic-generator/snappi-ixnetwork/actions)
 [![pypi](https://img.shields.io/pypi/v/snappi_ixnetwork.svg)](https://pypi.org/project/snappi_ixnetwork)
 [![python](https://img.shields.io/pypi/pyversions/snappi_ixnetwork.svg)](https://pypi.python.org/pypi/snappi_ixnetwork)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/open-traffic-generator/ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/ixnetwork/alerts/)
-[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/open-traffic-generator/ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/ixnetwork/context:python)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/open-traffic-generator/snappi-ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/snappi-ixnetwork/alerts/)
+[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/open-traffic-generator/snappi-ixnetwork.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/open-traffic-generator/snappi-ixnetwork/context:python)
 [![downloads](https://pepy.tech/badge/snappi-ixnetwork)](https://pepy.tech/project/snappi-ixnetwork)
 
 This extension allows executing test scripts written using [snappi](https://github.com/open-traffic-generator/snappi) against  
@@ -54,6 +54,8 @@ flw, = config.flows.flow(name='flw')
 # flow endpoints
 flw.tx_rx.port.tx_name = tx.name
 flw.tx_rx.port.rx_name = rx.name
+# enable flow metrics
+flw.metrics.enable = True
 # configure rate, size, frame count
 flw.size.fixed = 128
 flw.rate.pps = 1000
