@@ -45,7 +45,7 @@ def test_counter_ip_dscp(api, b2b_raw_config, utils):
             attrs = {"Assured forwarding PHB": af_ef[i - 8]}
         else:
             attrs = {"Expedited forwarding PHB": af_ef[-1]}
-        utils.validate_config(api, "ipv4", **attrs)
+        utils.validate_config(api, "f1", "ipv4", **attrs)
 
 
 def test_ip_priority_tos(api, b2b_raw_config, utils):
@@ -94,5 +94,5 @@ def test_ip_priority_tos(api, b2b_raw_config, utils):
             "Monetary": str(flag),
             # 'Unused': str(flag) <restpy returns 0 for unused even if set 1>
         }
-        utils.validate_config(api, "ipv4", **attrs)
+        utils.validate_config(api, "f1", "ipv4", **attrs)
         flag = int(not flag)

@@ -2,13 +2,12 @@ import pytest
 
 
 def test_latency_metrics(api, utils, b2b_raw_config, tx_port, rx_port):
-    """This is a test script to test latency metrics,
-    metrics should be available only for the flows latency is enabled
-
+    """This is a test script to test latency metrics & timestamps,
+    metrics& timestamps should be available only for the flows
+     latency is enabled
     1. Create two flows f1&f2
     2. f1 with latency enabled
     3. f2 with latency disabled
-
     Validation:
     - Check stats and latency metrics are available only for f1
     """
@@ -22,6 +21,7 @@ def test_latency_metrics(api, utils, b2b_raw_config, tx_port, rx_port):
 
     f1.metrics.enable = True
     f1.metrics.loss = True
+    f1.metrics.timestamps = True
 
     # flow -f2 config
     f2 = b2b_raw_config.flows.flow(name="f2")[-1]
@@ -55,11 +55,19 @@ def test_latency_metrics(api, utils, b2b_raw_config, tx_port, rx_port):
             assert getattr(latency, "average_ns") is not None
             assert getattr(latency, "maximum_ns") is not None
             assert getattr(latency, "minimum_ns") is not None
+
+            timestamps = getattr(result, "timestamps")
+            assert getattr(timestamps, "first_timestamp_ns") is not None
+            assert getattr(timestamps, "last_timestamp_ns") is not None
         if result.name == "f2":
             latency = getattr(result, "latency")
             assert getattr(latency, "average_ns") is None
             assert getattr(latency, "maximum_ns") is None
             assert getattr(latency, "minimum_ns") is None
+
+            timestamps = getattr(result, "timestamps")
+            assert getattr(timestamps, "first_timestamp_ns") is None
+            assert getattr(timestamps, "last_timestamp_ns") is None
 
 
 def stats_ok(api, size, packets, utils):
