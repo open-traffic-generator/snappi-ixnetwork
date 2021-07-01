@@ -31,6 +31,7 @@ class Api(snappi_convergence.Api):
         self._convergence_timeout = 10
         self._api = snappiApi(**kwargs)
         self._event_info = None
+        self._remote_link_failure = False
 
     def set_config(self, payload):
         try:
@@ -64,6 +65,11 @@ class Api(snappi_convergence.Api):
                     "destEndpoint0",
                     "destSessionDescription0",
                 ]
+            self._remote_link_failure = False
+            cvg_event = payload.get("convergence_event")
+            if cvg_event is not None:
+                if cvg_event == "remote_link_failure":
+                    self._remote_link_failure = True
         except Exception as err:
             raise SnappiIxnException(err)
         app_errors = self._api._globals.AppErrors.find()
@@ -97,6 +103,10 @@ class Api(snappi_convergence.Api):
             self._api._connect()
             if payload.choice is None:
                 raise Exception("state [transmit/ link/ route] must configure")
+            if self._remote_link_failure is True:
+                raise Exception(
+                    "set_state should not execute as remote_link_failure is configured"
+                )
             event_names = []
             event_state = None
             event_type = payload.choice
@@ -278,7 +288,11 @@ class Api(snappi_convergence.Api):
 
     def _get_event(self, event_name, flow_result):
         event = {}
-        if re.search(r"Port Link Up", event_name):
+        if self._remote_link_failure is True:
+            # todo: extened it for cold and warm reboot if require
+            if event_name != "":
+                event["type"] = "remote_link_failure"
+        elif re.search(r"Port Link Up", event_name):
             if flow_result["Tx Port"] in self._event_info.event_names:
                 event["source"] = flow_result["Tx Port"]
             elif flow_result["Rx Port"] in self._event_info.event_names:
