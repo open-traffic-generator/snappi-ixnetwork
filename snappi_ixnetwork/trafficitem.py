@@ -75,6 +75,8 @@ class TrafficItem(CustomField):
         "gbps": "mbytesPerSec",
     }
 
+    _LATENCY = {"cut_through": "cutThrough", "store_forward": "storeForward"}
+
     _PFCPAUSE = {
         "dst": "pfcPause.header.header.dstAddress",
         "src": "pfcPause.header.header.srcAddress",
@@ -509,10 +511,48 @@ class TrafficItem(CustomField):
                     tr_item["configElement"][i]["stack"] = stack
 
                 tr_json["traffic"]["trafficItem"].append(tr_item)
+                metrics = flow.get("metrics")
+                if metrics is not None and metrics.enable is True:
+                    tr_item.update(
+                        self._configure_tracking(ixn_traffic_item[i])
+                    )
+                    latency = metrics.get("latency")
+                    if latency is not None and latency.enable is True:
+                        self.flows_has_latency.append(flow.name)
+                        self._process_latency(latency)
+                    timestamps = metrics.get("timestamps")
+                    if timestamps is True:
+                        self.flows_has_timestamp.append(flow.name)
+                    loss = metrics.get("loss")
+                    if loss is True:
+                        self.flows_has_loss.append(flow.name)
             # with Timer(self._api, "Apply traffic json"):
             self._importconfig(tr_json)
 
             self._configure_options()
+            self._configure_latency()
+
+    def _process_latency(self, latency):
+        if self.latency_mode is None:
+            if latency.mode is not None:
+                self.latency_mode = latency.mode
+            else:
+                self.latency_mode = "store_forward"
+        else:
+            if latency.mode is not None and self.latency_mode != latency.mode:
+                raise Exception("Latency mode needs to be same for all flows")
+
+    def _configure_latency(self):
+        ixn_latency = self._api._traffic.Statistics.Latency
+        if self.latency_mode is not None:
+            self.has_latency = True
+            ixn_CpdpConvergence = self._api._traffic.Statistics.CpdpConvergence
+            ixn_CpdpConvergence.Enabled = False
+            ixn_latency.Enabled = True
+            ixn_latency.Mode = TrafficItem._LATENCY[self.latency_mode]
+        else:
+            self.has_latency = False
+            ixn_latency.Enabled = False
 
     def _configure_tracking(self, tr_item_json):
         """Set tracking options"""
