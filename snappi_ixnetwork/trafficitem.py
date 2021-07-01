@@ -485,6 +485,10 @@ class TrafficItem(CustomField):
             # with Timer(self._api, "json processing for traffic"):
             for i, flow in enumerate(self._api._config.flows):
                 tr_item = {"xpath": ixn_traffic_item[i]["xpath"]}
+                if ixn_traffic_item[i].get("configElement") is None:
+                    raise Exception(
+                        "Endpoints are not properly configured in IxNetwork"
+                    )
                 ce_xpaths = [
                     {"xpath": ce["xpath"]}
                     for ce in ixn_traffic_item[i]["configElement"]

@@ -194,12 +194,9 @@ class Api(snappi.Api):
                             instance.SourceValues[0]
                             for instance in error.Instance.find()
                         ]
-        if bad_requests:
-            if len(bad_requests) == 1:
-                raise SnappiIxnException(
-                    400, "Bad request error: {}".format(bad_requests[0])
-                )
-            raise SnappiIxnException(400, "Bad request errors:", bad_requests)
+        if bad_requests != []:
+            bad_requests.insert(0, "bad request errors from Ixn:")
+            raise SnappiIxnException(400, bad_requests)
         return self._request_detail()
 
     def config_ixnetwork(self, config):

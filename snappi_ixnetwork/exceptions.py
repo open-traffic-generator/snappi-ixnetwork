@@ -74,7 +74,8 @@ class SnappiIxnException(Exception):
             if isinstance(tb, str):
                 tb = [tb]
             if isinstance(self._message, list):
-                self._message = tb.extend(self._message)
+                tb.extend(self._message)
+                self._message = tb
             if isinstance(self._message, str):
                 self._message = "{} {}".format("".join(tb), self._message)
 
