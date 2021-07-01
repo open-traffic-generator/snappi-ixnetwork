@@ -70,6 +70,7 @@ class Api(snappi.Api):
         self.capture = Capture(self)
         self.protocol_metrics = ProtocolMetrics(self)
         self.resource_group = ResourceGroup(self)
+        self._previous_errors = []
 
     def _get_addr_port(self, host):
         items = host.split("/")
@@ -189,11 +190,16 @@ class Api(snappi.Api):
             current_errors = app_errors[0].Error.find()
             if len(current_errors) > 0:
                 for error in current_errors:
-                    if error.Name == "JSON Import Issues":
-                        bad_requests = [
-                            instance.SourceValues[0]
-                            for instance in error.Instance.find()
-                        ]
+                    if error.Name != "JSON Import Issues":
+                        continue
+                    for instance in error.Instance.find():
+                        if instance.SourceValues in self._previous_errors:
+                            continue
+                        bad_requests.append(instance.SourceValues[0])
+                        # this is for linux as it is retaining errors from
+                        # previous run and raising exception in the latest
+                        # script run
+                        self._previous_errors.append(instance.SourceValues)
         if bad_requests != []:
             bad_requests.insert(0, "bad request errors from Ixn:")
             raise SnappiIxnException(400, bad_requests)
