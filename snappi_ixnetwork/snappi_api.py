@@ -219,8 +219,7 @@ class Api(snappi.Api):
             self.lag.config()
             with Timer(self, "Devices configuration"):
                 self.ngpf.config()
-            with Timer(self, "Flows configuration"):
-                self.traffic_item.config()
+            self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
 

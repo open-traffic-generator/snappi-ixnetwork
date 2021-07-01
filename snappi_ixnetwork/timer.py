@@ -1,5 +1,7 @@
 import time
 
+timer_data = {}
+
 
 class Timer:
     def __init__(self, api, msg):
@@ -13,4 +15,6 @@ class Timer:
 
     def __exit__(self, *exc_info):
         """Stop the context manager timer"""
-        self._api.info(self._msg + " %.3fs" % (time.time() - self._start))
+        time_lapse = time.time() - self._start
+        self._api.info(self._msg + " %.3fs" % (time_lapse))
+        timer_data[self._msg] = "%.3fs" % (time_lapse)
