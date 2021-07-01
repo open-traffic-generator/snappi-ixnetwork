@@ -485,7 +485,6 @@ class TrafficItem(CustomField):
             # with Timer(self._api, "json processing for traffic"):
             for i, flow in enumerate(self._api._config.flows):
                 tr_item = {"xpath": ixn_traffic_item[i]["xpath"]}
-                tr_item.update(self._configure_tracking(ixn_traffic_item[i]))
                 ce_xpaths = [
                     {"xpath": ce["xpath"]}
                     for ce in ixn_traffic_item[i]["configElement"]
@@ -504,13 +503,11 @@ class TrafficItem(CustomField):
                     flow.get("duration"),
                 )
                 tr_type = ixn_traffic_item[i]["trafficType"]
-                for i, ce in enumerate(ixn_traffic_item[i]["configElement"]):
+                for ind, ce in enumerate(ixn_traffic_item[i]["configElement"]):
                     stack = self._configure_packet(
                         tr_type, ce["stack"], flow.packet
                     )
-                    tr_item["configElement"][i]["stack"] = stack
-
-                tr_json["traffic"]["trafficItem"].append(tr_item)
+                    tr_item["configElement"][ind]["stack"] = stack
                 metrics = flow.get("metrics")
                 if metrics is not None and metrics.enable is True:
                     tr_item.update(
@@ -526,6 +523,7 @@ class TrafficItem(CustomField):
                     loss = metrics.get("loss")
                     if loss is True:
                         self.flows_has_loss.append(flow.name)
+                tr_json["traffic"]["trafficItem"].append(tr_item)
             # with Timer(self._api, "Apply traffic json"):
             self._importconfig(tr_json)
 
