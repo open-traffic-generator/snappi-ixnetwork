@@ -31,6 +31,16 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
         lambda: is_traffic_running(cvg_api), "traffic in started state"
     )
 
+    # Validate bgpv4 metrics
+    req = cvg_api.convergence_request()
+    req.bgpv4.device_names = []
+    bgpv4_metrics = cvg_api.get_results(req).bgpv4_metrics
+    print(bgpv4_metrics)
+
+    for bgp_metric in bgpv4_metrics:
+        assert bgp_metric.sessions_total == 1
+        assert bgp_metric.sessions_up == 1
+
     # Withdraw routes from primary path
     cs = cvg_api.convergence_state()
     cs.route.names = [PRIMARY_ROUTES_NAME]
