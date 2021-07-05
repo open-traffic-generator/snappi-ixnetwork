@@ -19,6 +19,8 @@ def test_flow_rates(api, settings):
     l1.media = settings.media
     l1.speed = settings.speed
 
+    config.options.port_options.location_preemption = True
+
     rate_line, rate_pps, rate_bps, rate_kbps, rate_gbps = (
         config.flows.flow(name="rate_line")
         .flow(name="rate_pps")
