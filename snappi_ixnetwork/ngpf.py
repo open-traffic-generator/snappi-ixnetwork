@@ -64,20 +64,8 @@ class Ngpf(object):
         """One /topology for every unique device.container_name
         Topology name is device.container_name
         """
-        topologies = {}
+        self._api._topology.find().remove()
         devices = devices._items
-        for device in devices:
-            topology = lambda: None
-            if device.container_name is None:
-                raise NameError("container_name should not None")
-            topology.name = self._api._get_topology_name(device.container_name)
-            topologies[topology.name] = topology
-        self._api._remove(ixn_topology, topologies.values())
-        for device in devices:
-            name = self._api._get_topology_name(device.container_name)
-            ixn_topology.find(Name="^%s$" % self._api.special_char(name))
-            if len(ixn_topology) > 0:
-                self._api._remove(ixn_topology.DeviceGroup, [device])
         for device in devices:
             args = {
                 "Name": self._api._get_topology_name(device.container_name),
@@ -90,7 +78,7 @@ class Ngpf(object):
                 ixn_topology.add(**args)
             else:
                 self.update(ixn_topology, **args)
-            self._api.ixn_objects[ixn_topology.Name] = ixn_topology.href
+            # self._api.ixn_objects[ixn_topology.Name] = ixn_topology.href
             self._configure_device_group(ixn_topology.DeviceGroup, device)
 
     def _configure_device_group(self, ixn_device_group, device):
@@ -103,11 +91,9 @@ class Ngpf(object):
         )
         if len(ixn_device_group) == 0:
             ixn_device_group.add(**args)[-1]
-        else:
-            ixn_ng = ixn_device_group.NetworkGroup
-            self._api._remove(ixn_ng, [])
-            self.update(ixn_device_group, **args)
-        self._config_proto_stack(ixn_device_group, device, ixn_device_group)
+        dg_xpath = self.get_xpath(ixn_device_group.href)
+        self._configure_ethernet(dg_xpath, device.ethernet, ixn_device_group)
+        # self._config_proto_stack(ixn_device_group, device, ixn_device_group)
 
     def _config_proto_stack(self, ixn_obj, snappi_obj, ixn_dg):
         self._api.ixn_objects[snappi_obj.name] = ixn_obj.href
@@ -129,8 +115,8 @@ class Ngpf(object):
                     self._api._device_encap[
                         child.name
                     ] = Ngpf._DEVICE_ENCAP_MAP[prop_name]
-                new_ixn_obj = stack_class(ixn_obj, child, ixn_dg)
-                self._config_proto_stack(new_ixn_obj, child, ixn_dg)
+                # new_ixn_obj = stack_class(ixn_obj, child, ixn_dg)
+                self._config_proto_stack(ixn_obj, child, ixn_dg)
 
     def _configure_pattern(self, ixn_obj, pattern, enum_map=None):
         if pattern is None:
@@ -245,27 +231,50 @@ class Ngpf(object):
         except Exception:
             raise Exception("Problem to select %s" % href)
 
-    def _configure_ethernet(self, ixn_parent, ethernet, ixn_dg):
+    def _configure_ethernet(self, dg_xpath, ethernet, ixn_dg):
         """Transform Device.Ethernet to /topology/.../ethernet"""
-        ixn_ethernet = ixn_parent.Ethernet
-        self._api._remove(ixn_ethernet, [ethernet])
-        args = {}
-        ixn_ethernet.find(Name="^%s$" % self._api.special_char(ethernet.name))
-        if len(ixn_ethernet) == 0:
-            ixn_ethernet.add(**args)
-        else:
-            self.update(ixn_ethernet, **args)
-        if ethernet.name is not None:
-            self._api.ixn_objects[ethernet.name] = ixn_ethernet.href
-            ixn_ethernet.Name = ethernet.name
-        eth_xpath = self.get_xpath(ixn_ethernet.href)
-        self.configure_value(eth_xpath, "mac", ethernet.mac)
-        self.configure_value(eth_xpath, "mtu", ethernet.mtu)
-        if len(ethernet.vlans) > 0:
-            ixn_ethernet.VlanCount = len(ethernet.vlans)
-            ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
-            self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
-        return ixn_ethernet
+
+        eth_info = {
+            "xpath": (dg_xpath + "/ethernet[1]"),
+            "name": ethernet.name,
+        }
+        self.configure_value(eth_info["xpath"], "mac", ethernet.mac)
+        self.configure_value(eth_info["xpath"], "mtu", ethernet.mtu)
+        self.imports.append(eth_info)
+        # TODO: Add for vlans
+        if ethernet.get("ipv4") is not None:
+            self._configure_ipv4(eth_info, ethernet.ipv4)
+        if ethernet.get("ipv6") is not None:
+            self._configure_ipv6(eth_info, ethernet.ipv6)
+        # if ethernet.get("ipv4") is not None:
+        #     if ethernet.get("ipv4").get("bgpv4") is not None:
+        #         ixn_parent = ixn_dg.find().Ethernet.find().Ipv4.find()
+        #         bgpv4 = ethernet.get("ipv4").get("bgpv4")
+        #         self._configure_bgpv4(ixn_parent, bgpv4, ixn_dg)
+        # if ethernet.get("ipv6") is not None:
+        #     if ethernet.get("ipv6").get("bgpv6") is not None:
+        #         ixn_parent = ixn_dg.find().Ethernet.find().Ipv6.find()
+        #         bgpv6 = ethernet.get("ipv6").get("bgpv6")
+        #         self._configure_bgpv6(ixn_parent, bgpv6, ixn_dg)
+        # ixn_ethernet = ixn_parent.Ethernet
+        # self._api._remove(ixn_ethernet, [ethernet])
+        # args = {}
+        # ixn_ethernet.find(Name="^%s$" % self._api.special_char(ethernet.name))
+        # if len(ixn_ethernet) == 0:
+        #     ixn_ethernet.add(**args)
+        # else:
+        #     self.update(ixn_ethernet, **args)
+        # if ethernet.name is not None:
+        #     self._api.ixn_objects[ethernet.name] = ixn_ethernet.href
+        #     ixn_ethernet.Name = ethernet.name
+        # eth_xpath = self.get_xpath(ixn_ethernet.href)
+        # self.configure_value(eth_xpath, "mac", ethernet.mac)
+        # self.configure_value(eth_xpath, "mtu", ethernet.mtu)
+        # if len(ethernet.vlans) > 0:
+        #     ixn_ethernet.VlanCount = len(ethernet.vlans)
+        #     ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
+        #     self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
+        # return ixn_ethernet
 
     def _configure_vlan(self, ixn_vlans, vlans):
         """Transform Device.Vlan to /topology/.../vlan"""
@@ -282,48 +291,72 @@ class Ngpf(object):
                 vlan_xpath, "tpid", vlans[i].tpid, enum_map=Ngpf._TPID_MAP
             )
 
-    def _configure_ipv4(self, ixn_parent, ipv4, ixn_dg):
+    def _configure_ipv4(self, eth_info, ipv4):
         """Transform Device.Ipv4 to /topology/.../ipv4"""
-        ixn_ipv4 = ixn_parent.Ipv4
-        self._api._remove(ixn_ipv4, [ipv4])
-        args = {}
-        ixn_ipv4.find(Name="^%s$" % self._api.special_char(ipv4.name))
-        if len(ixn_ipv4) == 0:
-            ixn_ipv4.add(**args)[-1]
-        else:
-            self.update(ixn_ipv4, **args)
-        if ipv4.name is not None:
-            ixn_ipv4.Name = ipv4.name
-            self._api.ixn_objects[ipv4.name] = ixn_ipv4.href
-        ip_xpath = self.get_xpath(ixn_ipv4.href)
-        self.configure_value(ip_xpath, "address", ipv4.address)
-        self.configure_value(ip_xpath, "gatewayIp", ipv4.gateway)
-        self.configure_value(ip_xpath, "prefix", ipv4.prefix)
-        return ixn_ipv4
+        ipv4_info = {
+            "xpath": (eth_info["xpath"] + "/ipv4[1]"),
+            "name": ipv4.name,
+        }
+        self.configure_value(ipv4_info["xpath"], "address", ipv4.address)
+        self.configure_value(ipv4_info["xpath"], "gatewayIp", ipv4.gateway)
+        self.configure_value(ipv4_info["xpath"], "prefix", ipv4.prefix)
+        self.imports.append(ipv4_info)
+        if ipv4.get("bgpv4") is not None:
+            self._configure_bgpv4(ipv4_info, ipv4.bgpv4)
+        # self.configure_value(ip_xpath, "address", ipv4.address)
+        # self.configure_value(ip_xpath, "gatewayIp", ipv4.gateway)
+        # self.configure_value(ip_xpath, "prefix", ipv4.prefix)
+        # ixn_ipv4 = ixn_parent.Ipv4
+        # self._api._remove(ixn_ipv4, [ipv4])
+        # args = {}
+        # ixn_ipv4.find(Name="^%s$" % self._api.special_char(ipv4.name))
+        # if len(ixn_ipv4) == 0:
+        #     ixn_ipv4.add(**args)[-1]
+        # else:
+        #     self.update(ixn_ipv4, **args)
+        # if ipv4.name is not None:
+        #     ixn_ipv4.Name = ipv4.name
+        #     self._api.ixn_objects[ipv4.name] = ixn_ipv4.href
+        # ip_xpath = self.get_xpath(ixn_ipv4.href)
+        # self.configure_value(ip_xpath, "address", ipv4.address)
+        # self.configure_value(ip_xpath, "gatewayIp", ipv4.gateway)
+        # self.configure_value(ip_xpath, "prefix", ipv4.prefix)
+        # return ixn_ipv4
 
-    def _configure_bgpv4(self, ixn_parent, bgpv4, ixn_dg):
-        return self._conf_bgp.configure_bgpv4(ixn_parent, bgpv4, ixn_dg)
+    def _configure_bgpv4(self, ipv4_info, bgpv4):
+        return self._conf_bgp.configure_bgpv4(ipv4_info, bgpv4)
 
-    def _configure_ipv6(self, ixn_parent, ipv6, ixn_dg):
-        ixn_ipv6 = ixn_parent.Ipv6
-        self._api._remove(ixn_ipv6, [ipv6])
-        args = {}
-        ixn_ipv6.find(Name="^%s$" % self._api.special_char(ipv6.name))
-        if len(ixn_ipv6) == 0:
-            ixn_ipv6.add(**args)[-1]
-        else:
-            self.update(ixn_ipv6, **args)
-        if ipv6.name is not None:
-            ixn_ipv6.Name = ipv6.name
-            self._api.ixn_objects[ipv6.name] = ixn_ipv6.href
-        ip_xpath = self.get_xpath(ixn_ipv6.href)
-        self.configure_value(ip_xpath, "address", ipv6.address)
-        self.configure_value(ip_xpath, "gatewayIp", ipv6.gateway)
-        self.configure_value(ip_xpath, "prefix", ipv6.prefix)
-        return ixn_ipv6
+    def _configure_ipv6(self, eth_info, ipv6):
+        ipv6_info = {
+            "xpath": (eth_info["xpath"] + "/ipv6[1]"),
+            "name": ipv6.name,
+        }
+        self.configure_value(ipv6_info["xpath"], "address", ipv6.address)
+        self.configure_value(ipv6_info["xpath"], "gatewayIp", ipv6.gateway)
+        self.configure_value(ipv6_info["xpath"], "prefix", ipv6.prefix)
+        self.imports.append(ipv6_info)
+        if ipv6.get("bgpv6") is not None:
+            self._configure_bgpv6(ipv6_info, ipv6.bgpv6)
 
-    def _configure_bgpv6(self, ixn_parent, bgpv6, ixn_dg):
-        return self._conf_bgp.configure_bgpv6(ixn_parent, bgpv6, ixn_dg)
+        # ixn_ipv6 = ixn_parent.Ipv6
+        # self._api._remove(ixn_ipv6, [ipv6])
+        # args = {}
+        # ixn_ipv6.find(Name="^%s$" % self._api.special_char(ipv6.name))
+        # if len(ixn_ipv6) == 0:
+        #     ixn_ipv6.add(**args)[-1]
+        # else:
+        #     self.update(ixn_ipv6, **args)
+        # if ipv6.name is not None:
+        #     ixn_ipv6.Name = ipv6.name
+        #     self._api.ixn_objects[ipv6.name] = ixn_ipv6.href
+        # ip_xpath = self.get_xpath(ixn_ipv6.href)
+        # self.configure_value(ip_xpath, "address", ipv6.address)
+        # self.configure_value(ip_xpath, "gatewayIp", ipv6.gateway)
+        # self.configure_value(ip_xpath, "prefix", ipv6.prefix)
+        # return ixn_ipv6
+
+    def _configure_bgpv6(self, ipv6_info, bgpv6):
+        return self._conf_bgp.configure_bgpv6(ipv6_info, bgpv6)
 
     def set_route_state(self, payload):
         if payload.state is None:

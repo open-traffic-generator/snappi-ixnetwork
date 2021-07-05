@@ -163,23 +163,29 @@ class ConfigureBgp(object):
         self.select_node = ngpf.select_node
         self.select_child_node = ngpf.select_child_node
 
-    def configure_bgpv4(self, ixn_parent, bgpv4, ixn_dg):
-        ixn_bgpv4 = ixn_parent.BgpIpv4Peer
-        self._api._remove(ixn_bgpv4, [bgpv4])
-        name = self._api.special_char(bgpv4.name)
-        args = {
-            "Name": name,
+    def configure_bgpv4(self, ipv4_info, bgpv4):
+        bgpv4_info = {
+            "xpath": (ipv4_info["xpath"] + "/bgpIpv4Peer[1]"),
+            "name": bgpv4.name,
         }
-        ixn_bgpv4.find(Name="^%s$" % name)
-        if len(ixn_bgpv4) == 0:
-            ixn_bgpv4.add(**args)[-1]
-        else:
-            self.update(ixn_bgpv4, **args)
-        self._api.ixn_objects[bgpv4.name] = ixn_bgpv4.href
+        self._ngpf.imports.append(bgpv4_info)
+        bgp_xpath = bgpv4_info["xpath"]
+        # ixn_bgpv4 = ixn_parent.BgpIpv4Peer
+        # self._api._remove(ixn_bgpv4, [bgpv4])
+        # name = self._api.special_char(bgpv4.name)
+        # args = {
+        #     "Name": name,
+        # }
+        # ixn_bgpv4.find(Name="^%s$" % name)
+        # if len(ixn_bgpv4) == 0:
+        #     ixn_bgpv4.add(**args)[-1]
+        # else:
+        #     self.update(ixn_bgpv4, **args)
+        # self._api.ixn_objects[bgpv4.name] = ixn_bgpv4.href
         as_type = "internal"
         if bgpv4.get("as_type") is not None and bgpv4.get("as_type") == "ebgp":
             as_type = "external"
-        bgp_xpath = self.get_xpath(ixn_bgpv4.href)
+        # bgp_xpath = self.get_xpath(ixn_bgpv4.href)
         self.configure_value(bgp_xpath, "type", as_type)
         as_bytes = bgpv4.get("as_number_width")
         if bgpv4.get("as_number") is not None:
@@ -219,9 +225,15 @@ class ConfigureBgp(object):
             )
             self.configure_value(bgp_xpath, "ttl", advanced.time_to_live)
         if bgpv4.get("sr_te_policies") is not None:
-            self._configure_sr_te(ixn_bgpv4, bgp_xpath, bgpv4.sr_te_policies)
-        self._bgp_route_builder(ixn_dg, ixn_bgpv4, bgpv4)
-        return ixn_bgpv4
+            bgpv4_info = {
+                "xpath": (ipv4_info["xpath"] + "/bgpIpv4Peer[1]"),
+                "numberSRTEPolicies": len(bgpv4.sr_te_policies),
+            }
+            self._ngpf.imports.append(bgpv4_info)
+            self._configure_sr_te(bgp_xpath, bgpv4.sr_te_policies)
+        # TODO:
+        # self._bgp_route_builder(ixn_dg, ixn_bgpv4, bgpv4)
+        # return ixn_bgpv4
 
     def _bgp_route_builder(self, ixn_dg, ixn_bgp, bgp):
         bgpv4_routes = bgp.bgpv4_routes
@@ -314,23 +326,30 @@ class ConfigureBgp(object):
                 route_range.communities, ixn_bgp_property
             )
 
-    def configure_bgpv6(self, ixn_parent, bgpv6, ixn_dg):
-        ixn_bgpv6 = ixn_parent.BgpIpv6Peer
-        self._api._remove(ixn_bgpv6, [bgpv6])
-        name = self._api.special_char(bgpv6.name)
-        args = {
-            "Name": name,
+    def configure_bgpv6(self, ipv6_info, bgpv6):
+        bgpv6_info = {
+            "xpath": (ipv6_info["xpath"] + "/bgpIpv6Peer[1]"),
+            "name": bgpv6.name,
         }
-        ixn_bgpv6.find(Name="^%s$" % name)
-        if len(ixn_bgpv6) == 0:
-            ixn_bgpv6.add(**args)[-1]
-        else:
-            self.update(ixn_bgpv6, **args)
-        self._api.ixn_objects[bgpv6.name] = ixn_bgpv6.href
+        self._ngpf.imports.append(bgpv6_info)
+        bgp_xpath = bgpv6_info["xpath"]
+
+        # ixn_bgpv6 = ixn_parent.BgpIpv6Peer
+        # self._api._remove(ixn_bgpv6, [bgpv6])
+        # name = self._api.special_char(bgpv6.name)
+        # args = {
+        #     "Name": name,
+        # }
+        # ixn_bgpv6.find(Name="^%s$" % name)
+        # if len(ixn_bgpv6) == 0:
+        #     ixn_bgpv6.add(**args)[-1]
+        # else:
+        #     self.update(ixn_bgpv6, **args)
+        # self._api.ixn_objects[bgpv6.name] = ixn_bgpv6.href
         as_type = "internal"
         if bgpv6.get("as_type") is not None and bgpv6.get("as_type") == "ebgp":
             as_type = "external"
-        bgp_xpath = self.get_xpath(ixn_bgpv6.href)
+        # bgp_xpath = self.get_xpath(ixn_bgpv6.href)
         self.configure_value(bgp_xpath, "type", as_type)
         as_bytes = bgpv6.get("as_number_width")
         if as_bytes is None or as_bytes == "two":
@@ -366,8 +385,9 @@ class ConfigureBgp(object):
             self.configure_value(bgp_xpath, "ttl", advanced.time_to_live)
         if bgpv6.get("sr_te_policies"):
             self._configure_sr_te(ixn_bgpv6, bgp_xpath, bgpv6.sr_te_policies)
-        self._bgp_route_builder(ixn_dg, ixn_bgpv6, bgpv6)
-        return ixn_bgpv6
+        # TODO: Route
+        # self._bgp_route_builder(ixn_dg, ixn_bgpv6, bgpv6)
+        # return ixn_bgpv6
 
     def _configure_bgpv6_route(self, ixn_dg, ixn_bgp, route_range):
         ixn_ng = ixn_dg.NetworkGroup
@@ -516,12 +536,22 @@ class ConfigureBgp(object):
             return
         self.configure_value(bgp_xpath, "capabilitySRTEPoliciesV4", True)
         self.configure_value(bgp_xpath, "capabilitySRTEPoliciesV6", True)
-        ixn_bgp.NumberSRTEPolicies = len(sr_te_list)
+        # ixn_bgp.NumberSRTEPolicies = len(sr_te_list)
+        # if re.search("bgpIpv4Peer", ixn_bgp.href) is not None:
+        #     ixn_sr_te = ixn_bgp.BgpSRTEPoliciesListV4
+        # else:
+        #     ixn_sr_te = ixn_bgp.BgpSRTEPoliciesListV6
+        # sr_te_xpath = self.get_xpath(ixn_sr_te.href)
+
         if re.search("bgpIpv4Peer", ixn_bgp.href) is not None:
-            ixn_sr_te = ixn_bgp.BgpSRTEPoliciesListV4
+            srte_info = {
+                "xpath": (bgp_xpath + "/bgpSRTEPoliciesListV4"),
+            }
         else:
-            ixn_sr_te = ixn_bgp.BgpSRTEPoliciesListV6
-        sr_te_xpath = self.get_xpath(ixn_sr_te.href)
+            srte_info = {
+                "xpath": (bgp_xpath + "/bgpSRTEPoliciesListV6"),
+            }
+        sr_te_xpath = srte_info["xpath"]
         self._configure_attributes(
             ConfigureBgp._BGP_SR_TE, sr_te_list, sr_te_xpath
         )
