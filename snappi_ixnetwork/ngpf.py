@@ -265,6 +265,15 @@ class Ngpf(object):
             ixn_ethernet.VlanCount = len(ethernet.vlans)
             ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
             self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
+        if (
+            ethernet.get("ipv4") is not None
+            and ethernet.get("ipv6") is not None
+        ):
+            return ixn_ethernet
+        elif ethernet.get("ipv4") is not None:
+            ixn_ethernet.Ipv6.find().remove()
+        elif ethernet.get("ipv6") is not None:
+            ixn_ethernet.Ipv4.find().remove()
         return ixn_ethernet
 
     def _configure_vlan(self, ixn_vlans, vlans):
