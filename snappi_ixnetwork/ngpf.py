@@ -258,7 +258,10 @@ class Ngpf(object):
         if ethernet.name is not None:
             self._api.ixn_objects[ethernet.name] = ixn_ethernet.href
             ixn_ethernet.Name = ethernet.name
-        eth_xpath = self.get_xpath(ixn_ethernet.href)
+        eth_info = self.select_node(
+            ixn_ethernet.href, children=["ipv4", "ipv6"]
+        )
+        eth_xpath = eth_info["xpath"]
         self.configure_value(eth_xpath, "mac", ethernet.mac)
         self.configure_value(eth_xpath, "mtu", ethernet.mtu)
         if len(ethernet.vlans) > 0:
@@ -270,9 +273,15 @@ class Ngpf(object):
             and ethernet.get("ipv6") is not None
         ):
             return ixn_ethernet
-        elif ethernet.get("ipv4") is not None:
+        elif (
+            ethernet.get("ipv4") is not None
+            and eth_info.get("ipv6") is not None
+        ):
             ixn_ethernet.Ipv6.find().remove()
-        elif ethernet.get("ipv6") is not None:
+        elif (
+            ethernet.get("ipv6") is not None
+            and eth_info.get("ipv4") is not None
+        ):
             ixn_ethernet.Ipv4.find().remove()
         return ixn_ethernet
 
