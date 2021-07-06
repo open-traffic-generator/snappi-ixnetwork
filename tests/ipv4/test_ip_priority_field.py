@@ -7,9 +7,7 @@ def test_counter_ip_dscp(api, b2b_raw_config, utils):
     - Fetch the IPv4 header config via restpy and validate
       against expected
     """
-    f = b2b_raw_config.flows[0]
-    f.packet.ethernet().ipv4()
-    ipv4 = f.packet[1]
+    b2b_raw_config.flows.clear()
     phb = (
         ["DEFAULT"]
         + ["CS%d" % i for i in range(1, 8)]
@@ -34,9 +32,14 @@ def test_counter_ip_dscp(api, b2b_raw_config, utils):
     for i, p in enumerate(phb):
         # https://github.com/open-traffic-generator/snappi/issues/25
         # currently assigning the choice as work around
+        f = b2b_raw_config.flows.flow(name=p)[-1]
+        f.tx_rx.port.tx_name = b2b_raw_config.ports[0].name
+        f.tx_rx.port.rx_name = b2b_raw_config.ports[1].name
+        eth, ipv4 = f.packet.ethernet().ipv4()
         ipv4.priority.choice = ipv4.priority.DSCP
         ipv4.priority.dscp.phb.value = getattr(ipv4.priority.dscp.phb, p)
-        api.set_config(b2b_raw_config)
+    api.set_config(b2b_raw_config)
+    for i, p in enumerate(phb):
         if i == 0:
             attrs = {"Default PHB": str(i)}
         elif i > 0 and i < 8:
@@ -45,7 +48,7 @@ def test_counter_ip_dscp(api, b2b_raw_config, utils):
             attrs = {"Assured forwarding PHB": af_ef[i - 8]}
         else:
             attrs = {"Expedited forwarding PHB": af_ef[-1]}
-        utils.validate_config(api, "f1", "ipv4", **attrs)
+        utils.validate_config(api, p, "ipv4", **attrs)
 
 
 def test_ip_priority_tos(api, b2b_raw_config, utils):

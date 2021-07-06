@@ -551,7 +551,7 @@ class Api(snappi.Api):
         if response.status_code == 202:
             content = response.json()
             while content["state"] == "IN_PROGRESS":
-                time.sleep(1)
+                time.sleep(0.2)
                 response = self._request("GET", content["url"])
         if response.headers.get("Content-Type"):
             if response.headers["Content-Type"] == "application/json":

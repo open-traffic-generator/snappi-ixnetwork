@@ -58,6 +58,7 @@ class TrafficItem(CustomField):
     _HEADER_TO_TYPE = {
         "ethernet": "ethernet",
         "pfcpause": "pfcPause",
+        "ethernetpause": "ethernet",
         "vlan": "vlan",
         "ipv4": "ipv4",
         "ipv6": "ipv6",
@@ -106,6 +107,19 @@ class TrafficItem(CustomField):
             "pause_class_6",
             "pause_class_7",
         ],
+        "convert_int_to_hex": [
+            "ether_type",
+            "control_op_code",
+            "class_enable_vector",
+            "pause_class_0",
+            "pause_class_1",
+            "pause_class_2",
+            "pause_class_3",
+            "pause_class_4",
+            "pause_class_5",
+            "pause_class_6",
+            "pause_class_7",
+        ],
     }
 
     _ETHERNET = {
@@ -114,6 +128,16 @@ class TrafficItem(CustomField):
         "ether_type": "ethernet.header.etherType",
         "pfc_queue": "ethernet.header.pfcQueue",
         "order": ["dst", "src", "ether_type", "pfc_queue"],
+        "convert_int_to_hex": ["ether_type"],
+    }
+
+    _ETHERNETPAUSE = {
+        "dst": "ethernet.header.destinationAddress",
+        "src": "ethernet.header.sourceAddress",
+        "ether_type": "ethernet.header.etherType",
+        "control_op_code": CustomField._process_ethernet_pause,
+        "order": ["dst", "src", "ether_type"],
+        "convert_int_to_hex": ["ether_type"],
     }
 
     _VLAN = {
@@ -127,7 +151,22 @@ class TrafficItem(CustomField):
     _IPV4 = {
         "version": "ipv4.header.version",
         "header_length": "ipv4.header.headerLength",
-        "priority": "_ipv4_priority",
+        "priority": CustomField._process_ipv4_priority,
+        "raw": "ipv4.header.priority.raw",
+        "precedence": "ipv4.header.priority.tos.precedence",
+        "delay": "ipv4.header.priority.tos.delay",
+        "throughput": "ipv4.header.priority.tos.throughput",
+        "reliability": "ipv4.header.priority.tos.reliability",
+        "monetary": "ipv4.header.priority.tos.monetary",
+        "unused": "ipv4.header.priority.tos.unused",
+        "default": "ipv4.header.priority.ds.phb.defaultPHB.defaultPHB",
+        "default-unused": "ipv4.header.priority.ds.phb.defaultPHB.unused",
+        "phb": "ipv4.header.priority.ds.phb.classSelectorPHB.classSelectorPHB",
+        "phb-unused": "ipv4.header.priority.ds.phb.classSelectorPHB.unused",
+        "af": "ipv4.header.priority.ds.phb.assuredForwardingPHB.assuredForwardingPHB",
+        "af-unused": "ipv4.header.priority.ds.phb.assuredForwardingPHB.unused",
+        "ef": "ipv4.header.priority.ds.phb.expeditedForwardingPHB.expeditedForwardingPHB",
+        "ef-unused": "ipv4.header.priority.ds.phb.expeditedForwardingPHB.unused",
         "total_length": "ipv4.header.totalLength",
         "identification": "ipv4.header.identification",
         "reserved": "ipv4.header.flags.reserved",
@@ -139,7 +178,36 @@ class TrafficItem(CustomField):
         "header_checksum": "ipv4.header.checksum",
         "src": "ipv4.header.srcIp",
         "dst": "ipv4.header.dstIp",
-        "order": ["version", "header_length"],
+        "order": [
+            "version",
+            "header_length",
+            "raw",
+            "precedence",
+            "delay",
+            "throughput",
+            "reliability",
+            "monetary",
+            "unused",
+            "default",
+            "default-unused",
+            "phb",
+            "phb-unused",
+            "af",
+            "af-unused",
+            "ef",
+            "ef-unused",
+            "total_length",
+            "identification",
+            "reserved",
+            "dont_fragment",
+            "more_fragments",
+            "fragment_offset",
+            "time_to_live",
+            "protocol",
+            "header_checksum",
+            "src",
+            "dst",
+        ],
     }
 
     _IPV6 = {
@@ -154,18 +222,13 @@ class TrafficItem(CustomField):
         "order": ["version", "traffic_class", "flow_label", "payload_length"],
     }
 
-    _TOS = {
-        "precedence": "ipv4.header.priority.tos.precedence",
-        "delay": "ipv4.header.priority.tos.delay",
-        "throughput": "ipv4.header.priority.tos.throughput",
-        "reliability": "ipv4.header.priority.tos.reliability",
-        "monetary": "ipv4.header.priority.tos.monetary",
-        "unused": "ipv4.header.priority.tos.unused",
-    }
-
     _TCP = {
         "src_port": "tcp.header.srcPort",
         "dst_port": "tcp.header.dstPort",
+        "seq_num": "tcp.header.sequenceNumber",
+        "ack_num": "tcp.header.acknowledgementNumber",
+        "data_offset": "tcp.header.dataOffset",
+        "reserved": "tcp.header.reserved",
         "ecn_ns": "tcp.header.ecn.nsBit",
         "ecn_cwr": "tcp.header.ecn.cwrBit",
         "ecn_echo": "tcp.header.ecn.ecnEchoBit",
@@ -175,9 +238,14 @@ class TrafficItem(CustomField):
         "ctl_rst": "tcp.header.controlBits.rstBit",
         "ctl_syn": "tcp.header.controlBits.synBit",
         "ctl_fin": "tcp.header.controlBits.finBit",
+        "window": "tcp.header.window",
         "order": [
             "src_port",
             "dst_port",
+            "seq_num",
+            "ack_num",
+            "data_offset",
+            "reserved",
             "ecn_ns",
             "ecn_cwr",
             "ecn_echo",
@@ -187,6 +255,7 @@ class TrafficItem(CustomField):
             "ctl_rst",
             "ctl_syn",
             "ctl_fin",
+            "window",
         ],
     }
 
@@ -216,7 +285,12 @@ class TrafficItem(CustomField):
         "next_extension_header_type": "gTPuOptionalFields.header.nextExtHdrField",
     }
 
-    _CUSTOM = "_custom_headers"
+    _CUSTOM = {
+        "length": "custom.header.length",
+        "data": "custom.header.data",
+        "bytes": CustomField._process_custom_header,
+        "order": ["length", "data"],
+    }
 
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
@@ -283,7 +357,7 @@ class TrafficItem(CustomField):
             return
         return
 
-    def get_ports_xpath(self, config):
+    def get_ports_encap(self, config):
         ixn = self._api.assistant._ixnetwork
         myfilter = [{"property": "name", "regex": ".*"}]
         url, payload = self._get_search_payload(
@@ -301,7 +375,7 @@ class TrafficItem(CustomField):
                 vports[v["name"]] = v["xpath"]
         return vports
 
-    def get_device_xpath(self, config):
+    def get_device_encap(self, config):
         if len(config.devices) == 0:
             return {}
         dev_names = []
@@ -323,9 +397,10 @@ class TrafficItem(CustomField):
                     "href is not found for device name {}".format(name)
                 )
             href = href.split("ixnetwork")[-1]
-            url, search = self._get_search_payload(
-                href, "^(xpath|ethernet|ipv4|ipv6|bgpv4|bgpv6)$", ["name"], []
-            )
+            query = "^(xpath|ethernet|ipv4|ipv6)$"
+            if "ipv4" in href or "ipv6" in href:
+                query = "^(xpath)$"
+            url, search = self._get_search_payload(href, query, ["name"], [])
             selects.extend(search["selects"])
         payload = {"selects": selects}
         ixn = self._api.assistant._ixnetwork
@@ -374,53 +449,58 @@ class TrafficItem(CustomField):
 
     def remove_ixn_traffic(self):
         if len(self._api._ixnetwork.Traffic.TrafficItem.find()) > 0:
-            with Timer(self._api, "Remove Flows"):
-                start_states = [
-                    "txStopWatchExpected",
-                    "locked",
-                    "started",
-                    "startedWaitingForStats",
-                    "startedWaitingForStreams",
-                    "stoppedWaitingForStats",
-                ]
-                state = self._api._ixnetwork.Traffic.State
-                if state in start_states:
-                    self._api._ixnetwork.Traffic.StopStatelessTrafficBlocking()
-                url = "%s/traffic/trafficItem" % self._api._ixnetwork.href
-                self._api._request("DELETE", url)
-                self._api._ixnetwork.Traffic.TrafficItem.find().refresh()
+            # with Timer(self._api, "Remove Flows"):
+            start_states = [
+                "txStopWatchExpected",
+                "locked",
+                "started",
+                "startedWaitingForStats",
+                "startedWaitingForStreams",
+                "stoppedWaitingForStats",
+            ]
+            state = self._api._ixnetwork.Traffic.State
+            if state in start_states:
+                self._api._ixnetwork.Traffic.StopStatelessTrafficBlocking()
+            url = "%s/traffic/trafficItem" % self._api._ixnetwork.href
+            self._api._request("DELETE", url)
+            self._api._ixnetwork.Traffic.TrafficItem.find().refresh()
         self.traffic_index = 1
 
     def create_traffic(self, config):
         flows = config.flows
         tr = {"xpath": "/traffic", "trafficItem": []}
-        ports = self.get_ports_xpath(config)
-        devices = self.get_device_xpath(config)
-        for i, f in enumerate(flows):
-            if f._properties.get("name") is None:
+        ports = self.get_ports_encap(config)
+        devices = self.get_device_encap(config)
+        for index, flow in enumerate(flows):
+            if flow._properties.get("name") is None:
                 raise Exception("name shall not be null for flows")
-            if f._properties.get("tx_rx") is None:
+            if flow._properties.get("tx_rx") is None:
                 msg = (
                     "Please configure the flow endpoint"
-                    "for flow indexed at %s" % i
+                    "for flow indexed at %s" % index
                 )
                 raise Exception(msg)
-            if f.tx_rx.choice is None:
+            self._endpoint_validation(flow)
+            if flow.tx_rx.choice is None:
                 msg = "Flow endpoint needs to be either port or device"
                 raise Exception(msg)
-            if f.tx_rx.choice == "port":
+            if flow.tx_rx.choice == "port":
                 tr_type = "raw"
-                ep = getattr(f.tx_rx, "port")
+                ep = getattr(flow.tx_rx, "port")
                 tx_objs = ["%s/protocols" % ports.get(ep.tx_name)]
                 rx_objs = ["%s/protocols" % ports.get(ep.rx_name)]
             else:
-                ep = getattr(f.tx_rx, "device")
+                ep = getattr(flow.tx_rx, "device")
                 tr_type = devices[ep.tx_names[0]]["type"]
                 tx_objs = [devices[n]["xpath"] for n in ep.tx_names]
                 rx_objs = [devices[n]["xpath"] for n in ep.rx_names]
             tr_xpath = "/traffic/trafficItem[%d]" % self.traffic_index
             tr["trafficItem"].append(
-                {"xpath": tr_xpath, "name": "%s" % f.name}
+                {
+                    "xpath": tr_xpath,
+                    "name": "%s" % flow.name,
+                    "SrcDestMesh": self._get_mesh_type(flow),
+                }
             )
 
             tr["trafficItem"][-1]["endpointSet"] = [
@@ -435,7 +515,7 @@ class TrafficItem(CustomField):
             tr["trafficItem"][-1]["trafficType"] = tr_type
             if tr_type == "raw":
                 tr["trafficItem"][-1]["configElement"] = self.config_raw_stack(
-                    tr_xpath, f.packet
+                    tr_xpath, flow.packet
                 )
             self.traffic_index += 1
         return tr
@@ -451,13 +531,49 @@ class TrafficItem(CustomField):
                 i + 1,
             )
             self._append_header(header, header_xpath, config_elem["stack"])
-        fcs_xpath = "%s/stack[@alias = '%s-%d']" % (
-            ce_path,
-            "fcs",
-            len(packet) + 1,
-        )
-        config_elem["stack"].append({"xpath": fcs_xpath, "field": []})
         return [config_elem]
+
+    def _get_mesh_type(self, flow):
+        if flow.tx_rx.choice == "port":
+            mesh_type = "oneToOne"
+        else:
+            device = flow.tx_rx.device
+            if device.mode == "mesh" or device.mode is None:
+                mesh_type = "manyToMany"
+            else:
+                mesh_type = "oneToOne"
+                if len(device.tx_names) != len(device.rx_names):
+                    raise ValueError(
+                        "Length of device tx_names and rx_names "
+                        "must be same for device mode ONE_TO_ONE in flow %s"
+                        % flow.name
+                    )
+        return mesh_type
+
+    def _endpoint_validation(self, flow):
+        if flow.tx_rx.choice is None:
+            raise ValueError(
+                "%s Flow.tx_rx property cannot be None" % flow.name
+            )
+        if flow.tx_rx.choice == "device":
+            device = flow.tx_rx.device
+            if not isinstance(device.tx_names, list) or not isinstance(
+                device.rx_names, list
+            ):
+                raise ValueError(
+                    "device tx_names and rx_names must be a list "
+                    "in flow %s" % flow.name
+                )
+            if len(device.tx_names) != len(set(device.tx_names)):
+                raise ValueError(
+                    "All names in device tx_names "
+                    "must be unique for flow %s" % flow.name
+                )
+            if len(device.rx_names) != len(set(device.rx_names)):
+                raise ValueError(
+                    "All names in device rx_names "
+                    "must be unique for flow %s" % flow.name
+                )
 
     def config(self):
         """Configure config.flows onto Ixnetwork.Traffic.TrafficItem
@@ -468,11 +584,12 @@ class TrafficItem(CustomField):
         - CREATE TrafficItem for any config.flows[*].name that does not exist
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
-        self.remove_ixn_traffic()
-        if len(self._api._config.flows) == 0:
+        if len(self._api.snappi_config.flows) == 0:
+            self.remove_ixn_traffic()
             return
         with Timer(self._api, "Flows configuration"):
-            ixn_traffic_item = self.get_ixn_config(self._api._config)[0]
+            self.remove_ixn_traffic()
+            ixn_traffic_item = self.get_ixn_config(self._api.snappi_config)[0]
             self.flows_has_latency = []
             self.flows_has_timestamp = []
             self.flows_has_loss = []
@@ -482,8 +599,7 @@ class TrafficItem(CustomField):
                 return
             ixn_traffic_item = ixn_traffic_item.get("trafficItem")
             tr_json = {"traffic": {"xpath": "/traffic", "trafficItem": []}}
-            # with Timer(self._api, "json processing for traffic"):
-            for i, flow in enumerate(self._api._config.flows):
+            for i, flow in enumerate(self._api.snappi_config.flows):
                 tr_item = {"xpath": ixn_traffic_item[i]["xpath"]}
                 if ixn_traffic_item[i].get("configElement") is None:
                     raise Exception(
@@ -507,11 +623,15 @@ class TrafficItem(CustomField):
                     flow.get("duration"),
                 )
                 tr_type = ixn_traffic_item[i]["trafficType"]
-                for ind, ce in enumerate(ixn_traffic_item[i]["configElement"]):
-                    stack = self._configure_packet(
-                        tr_type, ce["stack"], flow.packet
-                    )
-                    tr_item["configElement"][ind]["stack"] = stack
+                if flow.tx_rx.choice == "device":
+                    for ind, ce in enumerate(
+                        ixn_traffic_item[i]["configElement"]
+                    ):
+                        stack = self._configure_packet(
+                            tr_type, ce["stack"], flow.packet
+                        )
+                        tr_item["configElement"][ind]["stack"] = stack
+
                 metrics = flow.get("metrics")
                 if metrics is not None and metrics.enable is True:
                     tr_item.update(
@@ -528,7 +648,6 @@ class TrafficItem(CustomField):
                     if loss is True:
                         self.flows_has_loss.append(flow.name)
                 tr_json["traffic"]["trafficItem"].append(tr_item)
-            # with Timer(self._api, "Apply traffic json"):
             self._importconfig(tr_json)
 
             self._configure_options()
@@ -601,7 +720,7 @@ class TrafficItem(CustomField):
                 continue
             ind = stack_names.index(header._choice)
             ixn_fields = ixn_stack[ind]["field"]
-            fields = self._configure_stack_fields(ixn_fields, header)
+            fields = self._configure_stack_fields(ixn_fields, header, stacks)
             stacks[ind]["field"] = fields
         return stacks
 
@@ -613,53 +732,62 @@ class TrafficItem(CustomField):
                 "%s stack is not implemented" % snappi_header._choice
             )
         header = {"xpath": xpath}
+        index = len(stacks) if len(stacks) <= 1 else -1
+        stacks.insert(index, header)
         if field_map.get("order") is not None:
             fields = self._generate_fields(field_map, xpath)
             header["field"] = self._configure_stack_fields(
-                fields, snappi_header
+                fields, snappi_header, stacks
             )
             header["field"] = (
                 [] if header["field"] is None else header["field"]
             )
-        index = len(stacks) if len(stacks) <= 1 else -2
-        stacks.insert(index, header)
-        if index == -2 and add_trailer:
-            fcs = stacks[-1]["xpath"]
-            ce, n = fcs.split(" = ")
-            n = n.split("-")[0]
-            fcs = "%s = '%s-%s']" % (ce, n, len(stacks))
-            stacks[-1]["xpath"] = fcs
         return header
 
     def _generate_fields(self, field_map, xpath):
         fields = []
         for i, f in enumerate(field_map["order"]):
+            if not isinstance(field_map[f], str):
+                continue
             fmap = "%s-%s" % (field_map[f], i + 1)
             fields.append({"xpath": "%s/field[@alias = '%s']" % (xpath, fmap)})
         return fields
 
-    def _configure_stack_fields(self, ixn_fields, snappi_header):
-        # if len(snappi_header._properties) == 0:
-        #     return
+    def _configure_stack_fields(self, ixn_fields, snappi_header, stacks):
         fields = [{"xpath": f["xpath"]} for f in ixn_fields]
         field_names = [
             f["xpath"].split(" = ")[-1].strip("']").split("-")[0]
             for f in ixn_fields
         ]
         field_map = getattr(self, "_%s" % snappi_header._choice.upper())
-        for field in snappi_header._properties:
+        for field in snappi_header._TYPES:
             format_type = None
             try:
-                ind = field_names.index(field_map[field])
+                val = field_map[field]
+                if not isinstance(val, str):
+                    val(
+                        self,
+                        fields,
+                        field_names,
+                        snappi_header,
+                        field,
+                        stacks,
+                    )
+                    continue
+                ind = field_names.index(val)
             except Exception:
                 continue
-            format_type = ixn_fields[ind].get("valueFormat")
-            field = snappi_header.get(field)
+            if (
+                field_map.get("convert_int_to_hex") is not None
+                and field in field_map["convert_int_to_hex"]
+            ):
+                format_type = "hex"
+            field = snappi_header.get(field, True)
             self._config_field_pattern(field, fields[ind], format_type)
         return fields
 
     def _config_field_pattern(
-        self, snappi_field, field_json, format_type=None
+        self, snappi_field, field_json, format_type=None, active_field=False
     ):
         if snappi_field is None:
             return
@@ -669,6 +797,8 @@ class TrafficItem(CustomField):
             "increment": "increment",
             "decrement": "decrement",
             "random": "repeatableRandomRange",
+            "auto": "auto",
+            "generated": "auto",
         }
 
         def get_value(field_value):
@@ -698,8 +828,16 @@ class TrafficItem(CustomField):
             field_json["startValue"] = get_value(obj.start)
             field_json["stepValue"] = get_value(obj.step)
             field_json["countValue"] = obj.count
-        field_json["activeFieldChoice"] = False
-        field_json["auto"] = False
+        if choice == "generated":
+            value = snappi_field.get(choice)
+            if value == "good":
+                choice = "auto"
+            else:
+                # TODO currently added some dummy value for bad generated value
+                # Need to add some logic to generate bad value
+                field_json["value"] = "0001"
+        field_json["activeFieldChoice"] = active_field
+        field_json["auto"] = False if choice != "auto" else True
         return
 
     def _set_default(self, ixn_field, field_choice):
@@ -1111,7 +1249,6 @@ class TrafficItem(CustomField):
                 self._api.warning(
                     "Could not fetch latency metrics: %s" % exception_err
                 )
-                pass
         if len(latency_result) > 0:
             flow_row["latency"] = latency_result
 
@@ -1144,6 +1281,5 @@ class TrafficItem(CustomField):
                 self._api.warning(
                     "Could not fetch timestamp metrics: %s" % exception_err
                 )
-                pass
         if len(timestamp_result) > 0:
             flow_row["timestamps"] = timestamp_result
