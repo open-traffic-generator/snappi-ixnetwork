@@ -107,9 +107,14 @@ class Api(snappi_convergence.Api):
                 and payload.choice != "transmit"
             ):
                 if re.search(payload.choice, self._cvg_event_name) is None:
+                    state_obj = payload.get(payload.choice)
                     raise Exception(
-                        "set_state should not execute as %s is configured and want to performed %s"
-                        % (self._cvg_event_name, payload.choice)
+                        "%s_%s can't be performed as %s event is configured"
+                        % (
+                            payload.choice,
+                            state_obj.get("state"),
+                            self._cvg_event_name,
+                        )
                     )
             event_names = []
             event_state = None
@@ -292,7 +297,7 @@ class Api(snappi_convergence.Api):
 
     def _get_event(self, event_name, flow_result):
         event = {}
-        if re.search('remote_link', self._cvg_event_name) is not None:
+        if re.search("remote_link", self._cvg_event_name) is not None:
             # todo: extened it for cold and warm reboot if require
             if event_name != "":
                 event["type"] = "remote_link_failure"
