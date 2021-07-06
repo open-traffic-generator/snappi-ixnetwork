@@ -1,3 +1,4 @@
+import re
 import pytest
 from bgp_convergence_config import bgp_convergence_config
 
@@ -5,18 +6,17 @@ PRIMARY_ROUTES_NAME = "rx_rr"
 PRIMARY_PORT_NAME = "rx"
 
 
-def test_convergence(utils, cvg_api, bgp_convergence_config):
+def test_convergence_withdraw_event(utils, cvg_api, bgp_convergence_config):
     """
     1. set convergence config & start traffic
-    Scenario 1:
-    1. Start traffic
-    2. Withdraw Routes and see events are populated properly
-    Scenario 2:
-    1. Start traffic
-    2. Shutdown primary port and see events are populated properly
+    2. Start traffic
+    3. Withdraw Routes and see events are populated properly
     """
     # convergence config
     bgp_convergence_config.rx_rate_threshold = 90
+    bgp_convergence_config.convergence_event = (
+        bgp_convergence_config.ROUTE_WITHDRAW
+    )
 
     cvg_api.set_config(bgp_convergence_config)
 
@@ -62,7 +62,19 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
     cs.transmit.state = cs.transmit.STOP
     cvg_api.set_state(cs)
 
-    # Scenario 2: Link Up/Down
+
+def test_convergence_link_down_event(utils, cvg_api, bgp_convergence_config):
+    """
+    1. set convergence config & start traffic
+    2. Start traffic
+    3. Shutdown primary port and see events are populated properly
+    """
+    # convergence config
+    bgp_convergence_config.rx_rate_threshold = 90
+    bgp_convergence_config.convergence_event = bgp_convergence_config.LINK_DOWN
+
+    cvg_api.set_config(bgp_convergence_config)
+
     # Start traffic
     cs = cvg_api.convergence_state()
     cs.transmit.state = cs.transmit.START
@@ -103,6 +115,36 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
     cs = cvg_api.convergence_state()
     cs.transmit.state = cs.transmit.STOP
     cvg_api.set_state(cs)
+
+
+def test_convergence_event_exception(cvg_api, bgp_convergence_config):
+    """
+    1. set convergence config & start traffic
+    2. Start traffic
+    3. Shutdown primary port and check the exception as event configured
+       route_withdraw
+    """
+    # convergence config
+    bgp_convergence_config.rx_rate_threshold = 90
+    bgp_convergence_config.convergence_event = (
+        bgp_convergence_config.ROUTE_WITHDRAW
+    )
+
+    cvg_api.set_config(bgp_convergence_config)
+
+    # Link down the primary port
+    cs = cvg_api.convergence_state()
+    cs.link.port_names = [PRIMARY_PORT_NAME]
+    cs.link.state = cs.link.DOWN
+
+    try:
+        cvg_api.set_state(cs)
+    except Exception as e:
+        print(e)
+        assert re.search(
+            "link_down can't be performed as route_withdraw event is configured",
+            str(e),
+        )
 
 
 def is_traffic_running(cvg_api):
