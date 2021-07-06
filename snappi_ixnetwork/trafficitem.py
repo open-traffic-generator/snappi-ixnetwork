@@ -219,8 +219,7 @@ class TrafficItem(CustomField):
                     "SrcDestMesh": self._get_mesh_type(flow),
                 }
                 ixn_traffic_item.find(
-                    Name="^%s$" % self._api.special_char(flow.name),
-                    TrafficType=args["TrafficType"],
+                    Name="^%s$" % self._api.special_char(flow.name)
                 )
                 if len(ixn_traffic_item) == 0:
                     ixn_traffic_item.add(**args)
