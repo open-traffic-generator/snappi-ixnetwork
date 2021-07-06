@@ -31,7 +31,7 @@ class Api(snappi_convergence.Api):
         self._convergence_timeout = 10
         self._api = snappiApi(**kwargs)
         self._event_info = None
-        self._remote_link_failure = False
+        self._cvg_event_name = None
 
     def set_config(self, payload):
         try:
@@ -65,11 +65,10 @@ class Api(snappi_convergence.Api):
                     "destEndpoint0",
                     "destSessionDescription0",
                 ]
-            self._remote_link_failure = False
+            self._cvg_event_name = None
             cvg_event = payload.get("convergence_event")
             if cvg_event is not None:
-                if cvg_event == "remote_link_failure":
-                    self._remote_link_failure = True
+                self._cvg_event_name = cvg_event
         except Exception as err:
             raise SnappiIxnException(err)
         app_errors = self._api._globals.AppErrors.find()
@@ -103,10 +102,15 @@ class Api(snappi_convergence.Api):
             self._api._connect()
             if payload.choice is None:
                 raise Exception("state [transmit/ link/ route] must configure")
-            if self._remote_link_failure is True:
-                raise Exception(
-                    "set_state should not execute as remote_link_failure is configured"
-                )
+            if (
+                self._cvg_event_name is not None
+                and payload.choice != "transmit"
+            ):
+                if re.search(payload.choice, self._cvg_event_name) is None:
+                    raise Exception(
+                        "set_state should not execute as %s is configured and want to performed %s"
+                        % (self._cvg_event_name, payload.choice)
+                    )
             event_names = []
             event_state = None
             event_type = payload.choice
@@ -288,7 +292,7 @@ class Api(snappi_convergence.Api):
 
     def _get_event(self, event_name, flow_result):
         event = {}
-        if self._remote_link_failure is True:
+        if re.search('remote_link', self._cvg_event_name) is not None:
             # todo: extened it for cold and warm reboot if require
             if event_name != "":
                 event["type"] = "remote_link_failure"
