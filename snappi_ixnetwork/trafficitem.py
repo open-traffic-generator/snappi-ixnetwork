@@ -1,4 +1,5 @@
 import json
+from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.customfield import CustomField
 
@@ -343,8 +344,8 @@ class TrafficItem(CustomField):
             "arg1": href,
             "arg2": json.dumps(imports),
             "arg3": False,
-            # "arg4": "suppressNothing",
-            # "arg5": True,
+            "arg4": "suppressNothing",
+            "arg5": True,
         }
         try:
             # TODO for larger config rest api is throwing error,
@@ -352,10 +353,16 @@ class TrafficItem(CustomField):
             # its keep checking the status of the url with 1 sec sleep, and
             # after a while error is thrown. but could see the configuration
             # applied at Ixnetwork. (Need to check with Eng team)
-            self._api._request("POST", url=url, payload=payload)
+            response = self._api._request("POST", url=url, payload=payload)
         except Exception:
             return
-        return
+        if (
+            response["result"].get("errata") is not None
+            and response["result"]["errata"] != []
+        ):
+            raise SnappiIxnException(
+                400, "{}".format(response["result"]["errata"])
+            )
 
     def get_ports_encap(self, config):
         ixn = self._api.assistant._ixnetwork
@@ -499,7 +506,7 @@ class TrafficItem(CustomField):
                 {
                     "xpath": tr_xpath,
                     "name": "%s" % flow.name,
-                    "SrcDestMesh": self._get_mesh_type(flow),
+                    "srcDestMesh": self._get_mesh_type(flow),
                 }
             )
 
