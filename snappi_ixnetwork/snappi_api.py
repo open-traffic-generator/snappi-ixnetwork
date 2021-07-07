@@ -184,6 +184,14 @@ class Api(snappi.Api):
             self.config_ixnetwork(config)
         except Exception as err:
             raise SnappiIxnException(err)
+
+        bad_requests = self.get_json_import_errors()
+        if bad_requests != []:
+            bad_requests.insert(0, "bad request errors from Ixn:")
+            raise SnappiIxnException(400, bad_requests)
+        return self._request_detail()
+
+    def get_json_import_errors(self):
         app_errors = self._globals.AppErrors.find()
         bad_requests = []
         if len(app_errors) > 0:
@@ -200,10 +208,7 @@ class Api(snappi.Api):
                         # previous run and raising exception in the latest
                         # script run
                         self._previous_errors.append(instance.SourceValues)
-        if bad_requests != []:
-            bad_requests.insert(0, "bad request errors from Ixn:")
-            raise SnappiIxnException(400, bad_requests)
-        return self._request_detail()
+        return bad_requests
 
     def config_ixnetwork(self, config):
         self._config_objects = {}

@@ -146,7 +146,7 @@ class TrafficItem(CustomField):
         "cfi": "vlan.header.vlanTag.cfi",
         "priority": "vlan.header.vlanTag.vlanUserPriority",
         "protocol": "vlan.header.protocolID",
-        "order": ["id", "cfi", "priority", "protocol"],
+        "order": ["priority", "cfi", "id", "protocol"],
     }
 
     _IPV4 = {
@@ -360,6 +360,7 @@ class TrafficItem(CustomField):
             response["result"].get("errata") is not None
             and response["result"]["errata"] != []
         ):
+            self._api.get_json_import_errors()
             raise SnappiIxnException(
                 400, "{}".format(response["result"]["errata"])
             )
@@ -407,6 +408,8 @@ class TrafficItem(CustomField):
             query = "^(xpath|ethernet|ipv4|ipv6)$"
             if "ipv4" in href or "ipv6" in href:
                 query = "^(xpath)$"
+            elif "networkGroup" in href:
+                query = "^(xpath|networkGroup|ipv4PrefixPools|ipv6PrefixPools)"
             url, search = self._get_search_payload(href, query, ["name"], [])
             selects.extend(search["selects"])
         payload = {"selects": selects}
@@ -740,7 +743,7 @@ class TrafficItem(CustomField):
             )
         header = {"xpath": xpath}
         index = len(stacks) if len(stacks) <= 1 else -1
-        stacks.insert(index, header)
+        stacks.append(header)
         if field_map.get("order") is not None:
             fields = self._generate_fields(field_map, xpath)
             header["field"] = self._configure_stack_fields(
