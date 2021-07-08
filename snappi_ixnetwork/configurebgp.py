@@ -396,7 +396,7 @@ class ConfigureBgp(object):
         addresses = route_range.addresses
         if len(addresses) > 0:
             ixn_ng.Multiplier = len(addresses)
-            route_addresses = RouteAddresses()
+            route_addresses = RouteAddresses(addresses)
             for address in addresses:
                 route_addresses.address = address.address
                 route_addresses.step = address.step
