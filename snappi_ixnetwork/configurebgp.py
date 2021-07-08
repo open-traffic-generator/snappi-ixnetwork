@@ -1,4 +1,5 @@
 import re
+import socket, struct
 from collections import namedtuple
 
 
@@ -259,7 +260,7 @@ class ConfigureBgp(object):
         addresses = route_range.addresses
         if len(addresses) > 0:
             ixn_ng.Multiplier = len(addresses)
-            route_addresses = RouteAddresses()
+            route_addresses = RouteAddresses(addresses)
             for address in addresses:
                 # below properties will set to default when
                 # route_address is instantiated
@@ -858,11 +859,14 @@ class ConfigureBgp(object):
 
 
 class RouteAddresses(object):
-    def __init__(self):
+    IPv4 = "ipv4"
+    IPv6 = "ipv6"
+    def __init__(self, addresses):
         self._address = []
         self._count = []
         self._prefix = []
         self._step = []
+        self._ip_type =self._get_ip_type(addresses)
 
     @property
     def address(self):
@@ -894,4 +898,20 @@ class RouteAddresses(object):
 
     @step.setter
     def step(self, value):
-        self._step.append(value)
+        self._step.append(self._address_to_int(value))
+        
+    def _get_ip_type(self, addresses):
+        class_name = addresses[0].__class__.__name__
+        if re.search("v4", class_name) is not None:
+            return RouteAddresses.IPv4
+        else:
+            return RouteAddresses.IPv6
+    
+    def _address_to_int(self, addr):
+        if self._ip_type == RouteAddresses.IPv4:
+            return struct.unpack("!I", socket.inet_aton(addr))[0]
+        else:
+            hi, lo = struct.unpack('!QQ', socket.inet_pton(socket.AF_INET6,
+                                                           addr))
+            return (hi << 64) | lo
+        
