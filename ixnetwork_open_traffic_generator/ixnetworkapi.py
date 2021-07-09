@@ -328,10 +328,12 @@ class IxNetworkApi(Api):
     def _request(self, method, url, payload=None):
         connection, url = self._assistant.Session._connection._normalize_url(
             url)
-        headers = {}
+        headers = {
+            "Content-Type": "application/json",
+            "x-api-key": self._assistant.Session._connection.x_api_key,
+        }
         if payload is not None:
             payload = json.dumps(payload)
-            headers['Content-Type'] = 'application/json'
         response = self._assistant.Session._connection._session.request(
             method, url, headers=headers, data=payload, verify=False)
         response.raise_for_status()
