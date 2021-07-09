@@ -65,6 +65,7 @@ class Ngpf(object):
         Topology name is device.container_name
         """
         topologies = {}
+        devices_in_topos = {}
         devices = devices._items
         for device in devices:
             topology = lambda: None
@@ -72,12 +73,15 @@ class Ngpf(object):
                 raise NameError("container_name should not None")
             topology.name = self._api._get_topology_name(device.container_name)
             topologies[topology.name] = topology
+            if topology.name in devices_in_topos:
+                devices_in_topos[topology.name].append(device)
+            else:
+                devices_in_topos[topology.name] = [device]
         self._api._remove(ixn_topology, topologies.values())
-        for device in devices:
-            name = self._api._get_topology_name(device.container_name)
-            ixn_topology.find(Name="^%s$" % self._api.special_char(name))
+        for topo_name, devices_in_topo in devices_in_topos.items():
+            ixn_topology.find(Name="^%s$" % self._api.special_char(topo_name))
             if len(ixn_topology) > 0:
-                self._api._remove(ixn_topology.DeviceGroup, [device])
+                self._api._remove(ixn_topology.DeviceGroup, devices_in_topo)
         for device in devices:
             args = {
                 "Name": self._api._get_topology_name(device.container_name),
