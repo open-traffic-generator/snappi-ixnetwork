@@ -859,14 +859,16 @@ class ConfigureBgp(object):
 
 
 class RouteAddresses(object):
-    IPv4 = "ipv4"
-    IPv6 = "ipv6"
+
+    _IPv4 = "ipv4"
+    _IPv6 = "ipv6"
+
     def __init__(self, addresses):
         self._address = []
         self._count = []
         self._prefix = []
         self._step = []
-        self._ip_type =self._get_ip_type(addresses)
+        self._ip_type = self._get_ip_type(addresses)
 
     @property
     def address(self):
@@ -899,19 +901,19 @@ class RouteAddresses(object):
     @step.setter
     def step(self, value):
         self._step.append(self._address_to_int(value))
-        
+
     def _get_ip_type(self, addresses):
         class_name = addresses[0].__class__.__name__
         if re.search("v4", class_name) is not None:
-            return RouteAddresses.IPv4
+            return RouteAddresses._IPv4
         else:
-            return RouteAddresses.IPv6
-    
+            return RouteAddresses._IPv6
+
     def _address_to_int(self, addr):
-        if self._ip_type == RouteAddresses.IPv4:
+        if self._ip_type == RouteAddresses._IPv4:
             return struct.unpack("!I", socket.inet_aton(addr))[0]
         else:
-            hi, lo = struct.unpack('!QQ', socket.inet_pton(socket.AF_INET6,
-                                                           addr))
+            hi, lo = struct.unpack(
+                "!QQ", socket.inet_pton(socket.AF_INET6, addr)
+            )
             return (hi << 64) | lo
-        
