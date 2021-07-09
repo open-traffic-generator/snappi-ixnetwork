@@ -1,4 +1,6 @@
 import json
+
+import snappi
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.customfield import CustomField
@@ -269,6 +271,7 @@ class TrafficItem(CustomField):
     }
 
     _GTPV1 = {
+        # GTP header needs to be added
         "version": "gtpu.header.version",
         "protocol_type": "gtpu.header.pt",
         "reserved": "gtpu.header.reserved",
@@ -281,6 +284,7 @@ class TrafficItem(CustomField):
     }
 
     _GTPV1OPTION = {
+        # GTP header needs to be added
         "squence_number": "gTPuOptionalFields.header.sequenceNumber",
         "n_pdu_number": "gTPuOptionalFields.header.npduNumber",
         "next_extension_header_type": "gTPuOptionalFields.header.nextExtHdrField",
@@ -710,31 +714,50 @@ class TrafficItem(CustomField):
     def _configure_packet(self, tr_type, ixn_stack, snappi_packet):
         if len(snappi_packet) == 0:
             return
-        stacks = [{"xpath": s["xpath"]} for s in ixn_stack]
-        stack_names = [
-            s["xpath"].split(" = ")[-1].strip("']").split("-")[0]
-            for s in ixn_stack
-        ]
-        for i, header in enumerate(snappi_packet):
-            if header._choice not in stack_names:
-                ce_path = stacks[0]["xpath"].split(" = ")[0]
-                index = (
-                    stacks[-1]["xpath"]
-                    .split(" = ")[-1]
-                    .strip("']")
-                    .split("-")[-1]
-                )
-                index = "%s-%s" % (header._choice, index)
-                xpath = "%s = '%s']" % (ce_path, index)
-                self._append_header(header, xpath, stacks)
+        stacks = []
+        ce_path = ixn_stack[0]["xpath"].split(" = ")[0]
+        snappi_stack_names = [head.parent.choice for head in snappi_packet]
+        stack_names = []
+        for stack in ixn_stack:
+            name = stack["xpath"].split(" = ")[-1].strip("']").split("-")[0]
+            if name == "fcs":
                 continue
-            ind = stack_names.index(header._choice)
-            ixn_fields = ixn_stack[ind]["field"]
-            fields = self._configure_stack_fields(ixn_fields, header, stacks)
-            stacks[ind]["field"] = fields
+            if self._TYPE_TO_HEADER.get(name) is None:
+                msg = "%s snappi header is not mapped" % name
+                raise SnappiIxnException("400", msg)
+            stack_names.append(name)
+
+        for index, header in enumerate(snappi_packet):
+            choice = header.parent.choice
+            if choice not in stack_names:
+                if choice == "vlan":
+                    stack_names.insert(index, choice)
+                else:
+                    stack_names.append(choice)
+        for index, stack in enumerate(stack_names):
+            ixn_header_name = self._HEADER_TO_TYPE.get(stack)
+            if ixn_header_name is None:
+                msg = "%s ixia header is not mapped" % ixn_header_name
+                raise SnappiIxnException("400", msg)
+            index = "%s-%s" % (ixn_header_name, index + 1)
+            xpath = "%s = '%s']" % (ce_path, index)
+            if stack in snappi_stack_names:
+                ind = snappi_stack_names.index(stack)
+                snappi_packet[ind]
+                self._append_header(snappi_packet[ind], xpath, stacks)
+            else:
+                header = getattr(snappi.FlowHeader(), stack)
+                self._append_header(header, xpath, stacks)
         return stacks
 
-    def _append_header(self, snappi_header, xpath, stacks, add_trailer=True):
+    def _append_header(
+        self,
+        snappi_header,
+        xpath,
+        stacks,
+        insert_header=False,
+        header_index=None,
+    ):
         field_map = getattr(self, "_%s" % snappi_header._choice.upper())
         stack_name = self._HEADER_TO_TYPE.get(snappi_header._choice)
         if stack_name is None:
@@ -742,8 +765,10 @@ class TrafficItem(CustomField):
                 "%s stack is not implemented" % snappi_header._choice
             )
         header = {"xpath": xpath}
-        index = len(stacks) if len(stacks) <= 1 else -1
-        stacks.append(header)
+        if insert_header is True and header_index is not None:
+            stacks.insert(header_index, header)
+        else:
+            stacks.append(header)
         if field_map.get("order") is not None:
             fields = self._generate_fields(field_map, xpath)
             header["field"] = self._configure_stack_fields(
@@ -806,7 +831,6 @@ class TrafficItem(CustomField):
             "values": "valueList",
             "increment": "increment",
             "decrement": "decrement",
-            "random": "repeatableRandomRange",
             "auto": "auto",
             "generated": "auto",
         }
@@ -884,10 +908,6 @@ class TrafficItem(CustomField):
                 ce["frameSize"]["incrementFrom"] = size.increment.start
                 ce["frameSize"]["incrementTo"] = size.increment.end
                 ce["frameSize"]["incrementStep"] = size.increment.step
-            elif size.choice == "random":
-                ce["frameSize"]["type"] = "random"
-                ce["frameSize"]["randomMin"] = size.random.min
-                ce["frameSize"]["randomMax"] = size.random.max
             else:
                 print(
                     "Warning - We need to implement this %s choice"
