@@ -636,13 +636,13 @@ class TrafficItem(CustomField):
                     hl_stream_count,
                     flow.get("duration"),
                 )
-                tr_type = ixn_traffic_item[i]["trafficType"]
+                # tr_type = ixn_traffic_item[i]["trafficType"]
                 if flow.tx_rx.choice == "device":
                     for ind, ce in enumerate(
                         ixn_traffic_item[i]["configElement"]
                     ):
                         stack = self._configure_packet(
-                            tr_type, ce["stack"], flow.packet
+                            ce["stack"], flow.packet
                         )
                         tr_item["configElement"][ind]["stack"] = stack
 
@@ -711,7 +711,7 @@ class TrafficItem(CustomField):
         if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:
             self._api._traffic.EnableMinFrameSize = enable_min_frame_size
 
-    def _configure_packet(self, tr_type, ixn_stack, snappi_packet):
+    def _configure_packet(self, ixn_stack, snappi_packet):
         if len(snappi_packet) == 0:
             return
         stacks = []
