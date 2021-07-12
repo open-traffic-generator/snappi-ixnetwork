@@ -65,6 +65,7 @@ class Ngpf(object):
         Topology name is device.container_name
         """
         topologies = {}
+        devices_in_topos = {}
         devices = devices._items
         for device in devices:
             topology = lambda: None
@@ -72,12 +73,15 @@ class Ngpf(object):
                 raise NameError("container_name should not None")
             topology.name = self._api._get_topology_name(device.container_name)
             topologies[topology.name] = topology
+            if topology.name in devices_in_topos:
+                devices_in_topos[topology.name].append(device)
+            else:
+                devices_in_topos[topology.name] = [device]
         self._api._remove(ixn_topology, topologies.values())
-        for device in devices:
-            name = self._api._get_topology_name(device.container_name)
-            ixn_topology.find(Name="^%s$" % self._api.special_char(name))
+        for topo_name, devices_in_topo in devices_in_topos.items():
+            ixn_topology.find(Name="^%s$" % self._api.special_char(topo_name))
             if len(ixn_topology) > 0:
-                self._api._remove(ixn_topology.DeviceGroup, [device])
+                self._api._remove(ixn_topology.DeviceGroup, devices_in_topo)
         for device in devices:
             args = {
                 "Name": self._api._get_topology_name(device.container_name),
@@ -258,13 +262,31 @@ class Ngpf(object):
         if ethernet.name is not None:
             self._api.ixn_objects[ethernet.name] = ixn_ethernet.href
             ixn_ethernet.Name = ethernet.name
-        eth_xpath = self.get_xpath(ixn_ethernet.href)
+        eth_info = self.select_node(
+            ixn_ethernet.href, children=["ipv4", "ipv6"]
+        )
+        eth_xpath = eth_info["xpath"]
         self.configure_value(eth_xpath, "mac", ethernet.mac)
         self.configure_value(eth_xpath, "mtu", ethernet.mtu)
         if len(ethernet.vlans) > 0:
             ixn_ethernet.VlanCount = len(ethernet.vlans)
             ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
             self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
+        if (
+            ethernet.get("ipv4") is not None
+            and ethernet.get("ipv6") is not None
+        ):
+            return ixn_ethernet
+        elif (
+            ethernet.get("ipv4") is not None
+            and eth_info.get("ipv6") is not None
+        ):
+            ixn_ethernet.Ipv6.find().remove()
+        elif (
+            ethernet.get("ipv6") is not None
+            and eth_info.get("ipv4") is not None
+        ):
+            ixn_ethernet.Ipv4.find().remove()
         return ixn_ethernet
 
     def _configure_vlan(self, ixn_vlans, vlans):

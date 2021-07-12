@@ -23,6 +23,8 @@ def test_flow_sizes(api, settings):
     l1.media = settings.media
     l1.speed = settings.speed
 
+    config.options.port_options.location_preemption = True
+
     fixed_size, increment_size, random_size = (
         config.flows.flow(name="Fixed Size")
         .flow(name="Increment Size")

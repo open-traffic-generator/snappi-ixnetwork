@@ -3,6 +3,7 @@ def test_capture_overwrite(api, settings):
     config = api.config()
 
     (tx,) = config.ports.port(name="tx", location=settings.ports[0])
+    config.options.port_options.location_preemption = True
 
     cap = config.captures.capture(name="capture1")[-1]
     cap.port_names = [tx.name]

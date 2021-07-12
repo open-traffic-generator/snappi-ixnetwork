@@ -10,6 +10,7 @@ def test_ports(api, utils):
     config.ports.port(name="tx_port", location=tx_port).port(
         name="rx_port", location=rx_port
     ).port(name="port with no location")
+    config.options.port_options.location_preemption = True
     api.set_config(config)
     config = api.config()
     api.set_config(config)

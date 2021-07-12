@@ -28,6 +28,7 @@ def test_flow_duration(api, utils):
     l1.port_names, l2.port_names = [tx_port.name], [rx_port.name]
     l1.media, l1.media = utils.settings.media, utils.settings.media
     l1.speed, l2.speed = utils.settings.speed, utils.settings.speed
+    config.options.port_options.location_preemption = True
     c, fp, fs, b = config.flows.flow().flow().flow().flow()
 
     # Test for Continuous Flow

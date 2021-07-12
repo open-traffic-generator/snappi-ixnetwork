@@ -69,6 +69,7 @@ def test_static_lag(api, utils):
     f1, f2 = config.flows.flow(name="f1").flow(name="f2")
     f1.tx_rx.port.tx_name, f1.tx_rx.port.rx_name = p1.name, p2.name
     f2.tx_rx.port.tx_name, f2.tx_rx.port.rx_name = p3.name, p4.name
+    config.options.port_options.location_preemption = True
     f1.duration.fixed_packets.packets = packets
     f2.duration.fixed_packets.packets = packets
     f1.size.fixed = f1_size
@@ -131,6 +132,7 @@ def test_lacp_lag(api, utils):
     lag1, lag2 = config.lags.lag(name="lag1").lag(name="lag2")
     lp1, lp2 = lag1.ports.port(port_name=p1.name).port(port_name=p2.name)
     lp3, lp4 = lag2.ports.port(port_name=p3.name).port(port_name=p4.name)
+    config.options.port_options.location_preemption = True
     lp1.protocol.lacp.actor_system_id = "00:11:03:00:00:03"
     lp2.protocol.lacp.actor_system_id = "00:11:03:00:00:03"
     lp3.protocol.lacp.actor_system_id = "00:22:03:00:00:03"
