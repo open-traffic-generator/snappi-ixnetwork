@@ -36,15 +36,6 @@ def lint():
 
 
 def test():
-    pretest_args = [
-        '--location="https://10.39.71.97:443"',
-        (
-            '--ports="10.39.65.230;6;1 10.39.65.230;6;2 10.39.65.230;6;3'
-            ' 10.39.65.230;6;4"'
-        ),
-        '--media="fiber"',
-        "tests/test_pretest.py",
-    ]
     args = [
         '--location="https://10.39.71.97:443"',
         (
@@ -53,11 +44,10 @@ def test():
         ),
         '--media="fiber"',
         "tests",
-        '-m "not e2e and not l1_manual and not pretest"',
+        '-m "not e2e and not l1_manual"',
     ]
     run(
         [
-            py() + " -m pytest -sv {}".format(" ".join(pretest_args)),
             py() + " -m pytest -sv {}".format(" ".join(args)),
         ]
     )
