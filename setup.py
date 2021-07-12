@@ -40,6 +40,7 @@ setuptools.setup(
             "snappi==0.4.15",
             "snappi_convergence==0.0.18",
             "pytest",
+            "unittest",
             "dpkt==1.9.4",
         ]
     },
