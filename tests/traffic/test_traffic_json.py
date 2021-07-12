@@ -1,6 +1,6 @@
 import snappi
 import pytest
-from unittest.mock import MagicMock
+from mock import MagicMock
 from snappi_ixnetwork.trafficitem import TrafficItem
 
 expected_raw_type = {
