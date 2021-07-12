@@ -21,5 +21,8 @@ def test_pretest(api, utils):
 
     # ports cleanup
     api._ixnetwork.Vport.find().ResetPortCpuAndFactoryDefault()
-    # stale sessions cleanup
-    api.assistant.TestPlatform.Sessions.find().remove()
+
+    # remove stale sessions
+    for session in api.assistant.TestPlatform.Sessions.find():
+        if session.Id != api.assistant.Session.Id:
+            session.remove()
