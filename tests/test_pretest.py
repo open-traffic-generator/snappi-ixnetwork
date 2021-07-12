@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.pretest
 def test_pretest(api, utils):
     """
     This test does 2 things
