@@ -8,6 +8,20 @@ def test_bgp_attributes(api, utils):
     med = 50
     origin = "egp"
 
+    v4_rr_attr = {
+        "address": "200.1.0.1",
+        "prefix": "32",
+        "count": "1000",
+        "step": "2",
+    }
+
+    v6_rr_attr = {
+        "address": "4000::1",
+        "prefix": "64",
+        "count": "500",
+        "step": "3",
+    }
+
     (port,) = config.ports.port(name="tx", location=utils.settings.ports[0])
 
     config.options.port_options.location_preemption = True
@@ -38,7 +52,12 @@ def test_bgp_attributes(api, utils):
     bgpv4.as_number = 65200
 
     rr = bgpv4.bgpv4_routes.bgpv4route(name="rr")[-1]
-    rr.addresses.bgpv4routeaddress(address="200.1.0.1", prefix=32)
+    rr.addresses.bgpv4routeaddress(
+        address=v4_rr_attr["address"],
+        prefix=int(v4_rr_attr["prefix"]),
+        count=int(v4_rr_attr["count"]),
+        step=int(v4_rr_attr["step"]),
+    )
 
     # Community
     manual_as_community = rr.communities.bgpcommunity()[-1]
@@ -72,7 +91,12 @@ def test_bgp_attributes(api, utils):
     bgpv6.as_number = 65200
 
     rrv6 = bgpv6.bgpv6_routes.bgpv6route(name="rrv6")[-1]
-    rrv6.addresses.bgpv6routeaddress(address="4000::1", prefix=64)
+    rrv6.addresses.bgpv6routeaddress(
+        address=v6_rr_attr["address"],
+        prefix=int(v6_rr_attr["prefix"]),
+        count=int(v6_rr_attr["count"]),
+        step=int(v6_rr_attr["step"]),
+    )
 
     # Community
     manual_as_community = rrv6.communities.bgpcommunity()[-1]
@@ -94,7 +118,33 @@ def test_bgp_attributes(api, utils):
 
     api.set_config(config)
 
+    validate_route_range(api, v4_rr_attr, v6_rr_attr)
+
     validate_community_config(api, community, aspaths, med, origin)
+
+
+def validate_route_range(api, v4_rr_attr, v6_rr_attr):
+    v4_rr = (
+        api._ixnetwork.Topology.find()
+        .DeviceGroup.find()
+        .NetworkGroup.find()
+        .Ipv4PrefixPools.find()
+    )
+    assert v4_rr.NetworkAddress == v4_rr_attr["address"]
+    assert v4_rr.NumberOfAddressesAsy == v4_rr_attr["count"]
+    assert v4_rr.PrefixAddrStep == v4_rr_attr["step"]
+    assert v4_rr.PrefixLength == v4_rr_attr["prefix"]
+
+    v6_rr = (
+        api._ixnetwork.Topology.find()
+        .DeviceGroup.find()
+        .NetworkGroup.find()
+        .Ipv6PrefixPools.find()
+    )
+    assert v6_rr.NetworkAddress == v6_rr_attr["address"]
+    assert v6_rr.NumberOfAddressesAsy == v6_rr_attr["count"]
+    assert v6_rr.PrefixAddrStep == v6_rr_attr["step"]
+    assert v6_rr.PrefixLength == v6_rr_attr["prefix"]
 
 
 def validate_community_config(api, community, aspaths, med, origin):
