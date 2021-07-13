@@ -579,6 +579,17 @@ class Vport(object):
         flow_control = layer1.get("flow_control")
         if flow_control is None:
             return
+        directed_address = flow_control.get(
+            "directed_address", with_default=True
+        )
+        directed_address = "".join(directed_address.split(":"))
+        l1_xpath = "%s/l1Config/%s" % (
+            vport["xpath"],
+            vport["type"].replace("Fcoe", ""),
+        )
+        imports.append(
+            {"xpath": l1_xpath, "flowControlDirectedAddress": directed_address}
+        )
         xpath = "%s/l1Config/%s/fcoe" % (
             vport["xpath"],
             vport["type"].replace("Fcoe", ""),
