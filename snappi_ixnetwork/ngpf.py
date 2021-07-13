@@ -1,5 +1,7 @@
 import json
 from snappi_ixnetwork.configurebgp import ConfigureBgp
+from snappi_ixnetwork.deviceCompactor import DeviceCompactor
+from snappi_ixnetwork.timer import Timer
 
 
 class Ngpf(object):
@@ -82,29 +84,35 @@ class Ngpf(object):
             ixn_topology.find(Name="^%s$" % self._api.special_char(topo_name))
             if len(ixn_topology) > 0:
                 self._api._remove(ixn_topology.DeviceGroup, devices_in_topo)
-        for device in devices:
-            args = {
-                "Name": self._api._get_topology_name(device.container_name),
-                "Ports": [self._api.ixn_objects[device.container_name]],
-            }
-            ixn_topology.find(
-                Name="^%s$" % self._api.special_char(args["Name"])
-            )
-            if len(ixn_topology) == 0:
-                ixn_topology.add(**args)
-            else:
-                self.update(ixn_topology, **args)
-            self._api.ixn_objects[ixn_topology.Name] = ixn_topology.href
-            self._configure_device_group(ixn_topology.DeviceGroup, device)
+            with Timer(self._api, "Compacting snappi objects :"):
+                similar_dev_list = DeviceCompactor(devices_in_topo).compact()
+            for similar_devices in similar_dev_list:
+                device = similar_devices.compact_dev
+                multiplier = similar_devices.len
+                container_name = device.get("container_name")
+                args = {
+                    "Name": self._api._get_topology_name(container_name),
+                    "Ports": [self._api.ixn_objects[container_name]],
+                }
+                ixn_topology.find(
+                    Name="^%s$" % self._api.special_char(args["Name"])
+                )
+                if len(ixn_topology) == 0:
+                    ixn_topology.add(**args)
+                else:
+                    self.update(ixn_topology, **args)
+                self._api.ixn_objects[ixn_topology.Name] = ixn_topology.href
+                self._configure_device_group(
+                    ixn_topology.DeviceGroup, device, multiplier
+                )
 
-    def _configure_device_group(self, ixn_device_group, device):
+    def _configure_device_group(self, ixn_device_group, device, multiplier):
         """Transform /components/schemas/Device into /topology/deviceGroup
         One /topology/deviceGroup for every device in port.devices
         """
-        args = {"Name": device.name, "Multiplier": 1}
-        ixn_device_group.find(
-            Name="^%s$" % self._api.special_char(device.name)
-        )
+        name = device.get("name")
+        args = {"Name": name, "Multiplier": multiplier}
+        ixn_device_group.find(Name="^%s$" % self._api.special_char(name))
         if len(ixn_device_group) == 0:
             ixn_device_group.add(**args)[-1]
         else:
@@ -114,14 +122,13 @@ class Ngpf(object):
         self._config_proto_stack(ixn_device_group, device, ixn_device_group)
 
     def _config_proto_stack(self, ixn_obj, snappi_obj, ixn_dg):
-        self._api.ixn_objects[snappi_obj.name] = ixn_obj.href
-        properties = snappi_obj._properties
-        for prop_name in properties:
+        self._api.set_ixn_objects(snappi_obj, ixn_obj.href)
+        for prop_name in snappi_obj.keys():
             stack_class = getattr(
                 self, "_configure_{0}".format(prop_name), None
             )
             if stack_class is not None:
-                child = properties[prop_name]
+                child = snappi_obj[prop_name]
                 if prop_name not in Ngpf._DEVICE_ENCAP_MAP:
                     raise Exception(
                         "Mapping is missing for {0}".format(prop_name)
@@ -129,9 +136,10 @@ class Ngpf(object):
                 self._api._device_encap[ixn_dg.Name] = Ngpf._DEVICE_ENCAP_MAP[
                     prop_name
                 ]
-                if child.name is not None:
+                child_name = child["name"]
+                if child_name is not None:
                     self._api._device_encap[
-                        child.name
+                        child_name
                     ] = Ngpf._DEVICE_ENCAP_MAP[prop_name]
                 new_ixn_obj = stack_class(ixn_obj, child, ixn_dg)
                 self._config_proto_stack(new_ixn_obj, child, ixn_dg)
@@ -173,7 +181,10 @@ class Ngpf(object):
             return
         xpath = "/multivalue[@source = '{0} {1}']".format(source, attribute)
         if enum_map is not None:
-            value = enum_map[value]
+            if isinstance(value, list):
+                value = [enum_map[val] for val in value]
+            else:
+                value = enum_map[value]
         if isinstance(value, list):
             if len(set(value)) == 1:
                 ixn_value = {
@@ -254,24 +265,26 @@ class Ngpf(object):
         ixn_ethernet = ixn_parent.Ethernet
         self._api._remove(ixn_ethernet, [ethernet])
         args = {}
-        ixn_ethernet.find(Name="^%s$" % self._api.special_char(ethernet.name))
+        eth_name = ethernet.get("name")
+        ixn_ethernet.find(Name="^%s$" % self._api.special_char(eth_name))
         if len(ixn_ethernet) == 0:
             ixn_ethernet.add(**args)
         else:
             self.update(ixn_ethernet, **args)
-        if ethernet.name is not None:
-            self._api.ixn_objects[ethernet.name] = ixn_ethernet.href
-            ixn_ethernet.Name = ethernet.name
+        if eth_name is not None:
+            self._api.ixn_objects[eth_name] = ixn_ethernet.href
+            ixn_ethernet.Name = eth_name
         eth_info = self.select_node(
             ixn_ethernet.href, children=["ipv4", "ipv6"]
         )
         eth_xpath = eth_info["xpath"]
-        self.configure_value(eth_xpath, "mac", ethernet.mac)
-        self.configure_value(eth_xpath, "mtu", ethernet.mtu)
-        if len(ethernet.vlans) > 0:
-            ixn_ethernet.VlanCount = len(ethernet.vlans)
+        self.configure_value(eth_xpath, "mac", ethernet.get("mac"))
+        self.configure_value(eth_xpath, "mtu", ethernet.get("mtu"))
+        vlans = ethernet.get("vlans")
+        if vlans is not None and (vlans) > 0:
+            ixn_ethernet.VlanCount = len(vlans)
             ixn_ethernet.EnableVlans.Single(ixn_ethernet.VlanCount > 0)
-            self._configure_vlan(ixn_ethernet.Vlan, ethernet.vlans)
+            self._configure_vlan(ixn_ethernet.Vlan, vlans)
         if (
             ethernet.get("ipv4") is not None
             and ethernet.get("ipv6") is not None
@@ -309,18 +322,19 @@ class Ngpf(object):
         ixn_ipv4 = ixn_parent.Ipv4
         self._api._remove(ixn_ipv4, [ipv4])
         args = {}
-        ixn_ipv4.find(Name="^%s$" % self._api.special_char(ipv4.name))
+        name = ipv4.get("name")
+        ixn_ipv4.find(Name="^%s$" % self._api.special_char(name))
         if len(ixn_ipv4) == 0:
             ixn_ipv4.add(**args)[-1]
         else:
             self.update(ixn_ipv4, **args)
-        if ipv4.name is not None:
-            ixn_ipv4.Name = ipv4.name
-            self._api.ixn_objects[ipv4.name] = ixn_ipv4.href
+        if name is not None:
+            ixn_ipv4.Name = name
+            # self._api.ixn_objects[ipv4.name] = ixn_ipv4.href
         ip_xpath = self.get_xpath(ixn_ipv4.href)
-        self.configure_value(ip_xpath, "address", ipv4.address)
-        self.configure_value(ip_xpath, "gatewayIp", ipv4.gateway)
-        self.configure_value(ip_xpath, "prefix", ipv4.prefix)
+        self.configure_value(ip_xpath, "address", ipv4.get("address"))
+        self.configure_value(ip_xpath, "gatewayIp", ipv4.get("gateway"))
+        self.configure_value(ip_xpath, "prefix", ipv4.get("prefix"))
         return ixn_ipv4
 
     def _configure_bgpv4(self, ixn_parent, bgpv4, ixn_dg):
@@ -353,8 +367,33 @@ class Ngpf(object):
         names = payload.names
         if len(names) == 0:
             names = self._api.ixn_route_objects.keys()
+        ixn_obj_idx_list = {}
         for name in names:
             ixn_route = self._api.get_route_object(name)
-            ixn_route.Active.Single(Ngpf._ROUTE_STATE[payload.state])
+            ixn_obj = None
+            if isinstance(ixn_route, dict):
+                for obj, index_list in ixn_obj_idx_list.items():
+                    if obj.href == ixn_route["ixn_obj"].href:
+                        ixn_obj = obj
+                        break
+                if ixn_obj is None:
+                    ixn_obj_idx_list[ixn_route["ixn_obj"]] = [
+                        ixn_route["index"]
+                    ]
+                else:
+                    ixn_obj_idx_list[ixn_route["ixn_obj"]].append(
+                        ixn_route["index"]
+                    )
+            else:
+                ixn_route.Active.Single(Ngpf._ROUTE_STATE[payload.state])
+        for obj, index_list in ixn_obj_idx_list.items():
+            index_list = list(set(index_list))
+            if len(index_list) == obj.Count:
+                obj.Active.Single(Ngpf._ROUTE_STATE[payload.state])
+            else:
+                values = obj.Active.Values
+                for idx in index_list:
+                    values[idx] = Ngpf._ROUTE_STATE[payload.state]
+                obj.Active.ValueList(values)
         self._api._ixnetwork.Globals.Topology.ApplyOnTheFly()
         return names

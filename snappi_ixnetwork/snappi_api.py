@@ -100,10 +100,39 @@ class Api(snappi.Api):
         except KeyError:
             raise NameError("snappi object named {0} not found".format(name))
 
+    def set_device_encap(self, obj, type):
+        if isinstance(obj, str):
+            self._device_encap[obj] = type
+        names = obj.get("name_list")
+        if names is None:
+            name = obj.get("name")
+            if name is None:
+                raise Exception(
+                    "Problem at the time of parsing set_device_encap"
+                )
+            self._device_encap[name] = type
+        else:
+            for name in names:
+                self._device_encap[name] = type
+
     @property
     def ixn_objects(self):
         """A dict of all model unique names to ixn hrefs"""
         return self._ixn_objects
+
+    def set_ixn_objects(self, snappi_obj, ixn_href):
+        names = snappi_obj.get("name_list")
+        if names is None:
+            name = snappi_obj.get("name")
+            if name is None:
+                raise Exception(
+                    "Problem at the time of parsing set_ixn_objects"
+                )
+            self.ixn_objects[name] = ixn_href
+        else:
+            for index, name in enumerate(names):
+                ixn_obj = {"ixn_href": ixn_href, "index": index + 1}
+                self.ixn_objects[name] = ixn_obj
 
     def get_ixn_object(self, name):
         """Returns an ixnetwork_restpy object given a unique configuration name"""
@@ -122,6 +151,24 @@ class Api(snappi.Api):
         if name not in self._ixn_route_objects.keys():
             raise Exception("%s not within configure routes" % name)
         return self._ixn_route_objects[name]
+
+    def set_route_objects(self, ixn_bgp_property, route_obj):
+        if isinstance(route_obj, str):
+            self._ixn_route_objects[route_obj] = ixn_bgp_property
+        names = route_obj.get("name_list")
+        if names is None:
+            name = route_obj.get("name")
+            if name is None:
+                raise Exception(
+                    "Problem at the time of parsing set_route_objects"
+                )
+            self._ixn_route_objects[name] = ixn_bgp_property
+        else:
+            for index, name in enumerate(names):
+                self._ixn_route_objects[name] = {
+                    "ixn_obj": ixn_bgp_property,
+                    "index": index,
+                }
 
     @property
     def assistant(self):
@@ -564,7 +611,14 @@ class Api(snappi.Api):
         """Remove any ixnetwork objects that are not found in the items list.
         If the items list does not exist remove everything.
         """
-        valid_names = [item.name for item in items if item.name is not None]
+        valid_names = []
+        for item in items:
+            if isinstance(item, dict):
+                name = item.get("name")
+            else:
+                name = item.name
+            if name is not None:
+                valid_names.append(name)
         invalid_names = []
         for item in ixn_obj.find():
             if item.Name not in valid_names:

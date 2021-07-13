@@ -368,7 +368,12 @@ class TrafficItem(CustomField):
         """Transform flow.tx_rx to /trafficItem/endpointSet
         The model allows for only one endpointSet per traffic item
         """
-        args = {"Sources": [], "Destinations": []}
+        args = {
+            "Sources": [],
+            "ScalableSources": [],
+            "Destinations": [],
+            "ScalableDestinations": [],
+        }
         if endpoint.choice == "port":
             args["Sources"].append(
                 self._api.get_ixn_object(endpoint.port.tx_name)
@@ -383,11 +388,33 @@ class TrafficItem(CustomField):
                 )
         else:
             for device_name in endpoint.device.tx_names:
-                args["Sources"].append(self._api.get_ixn_href(device_name))
+                ixn_obj = self._api.get_ixn_href(device_name)
+                if isinstance(ixn_obj, dict):
+                    args["ScalableSources"].append(
+                        {
+                            "arg1": ixn_obj["ixn_href"],
+                            "arg2": 1,
+                            "arg3": 1,
+                            "arg4": ixn_obj["index"],
+                            "arg5": 1,
+                        }
+                    )
+                else:
+                    args["Sources"].append(ixn_obj)
             for device_name in endpoint.device.rx_names:
-                args["Destinations"].append(
-                    self._api.get_ixn_href(device_name)
-                )
+                ixn_obj = self._api.get_ixn_href(device_name)
+                if isinstance(ixn_obj, dict):
+                    args["ScalableDestinations"].append(
+                        {
+                            "arg1": ixn_obj["ixn_href"],
+                            "arg2": 1,
+                            "arg3": 1,
+                            "arg4": ixn_obj["index"],
+                            "arg5": 1,
+                        }
+                    )
+                else:
+                    args["Destinations"].append(ixn_obj)
         ixn_endpoint_set.find()
         if len(ixn_endpoint_set) > 1:
             ixn_endpoint_set.remove()
