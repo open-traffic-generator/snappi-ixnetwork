@@ -27,13 +27,16 @@ def pytest_collection_modifyitems(items):
     :param List[pytest.Item] items: List of item objects.
     """
 
-    pretest_index = [
-        index
-        for index, item in enumerate(items)
-        if item.name == "test_pretest"
-    ][0]
+    try:
+        pretest_index = [
+            index
+            for index, item in enumerate(items)
+            if item.name == "test_pretest"
+        ][0]
 
-    items[0], items[pretest_index] = items[pretest_index], items[0]
+        items[0], items[pretest_index] = items[pretest_index], items[0]
+    except:
+        print("skipping pretest as test_pretest is not part of the batch run")
 
 
 @pytest.fixture
