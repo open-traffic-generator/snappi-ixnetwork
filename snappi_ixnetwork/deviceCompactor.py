@@ -6,6 +6,7 @@ class DeviceCompactor(object):
     def __init__(self, devices):
         self._device_count = 0
         self._devices = devices
+        self._unsupported_nodes  = ["sr_te_policies"]
 
     def compact(self):
         same_dev_list = []
@@ -27,6 +28,8 @@ class DeviceCompactor(object):
         if type(src) != type(dst):
             raise Exception("comparision issue")
         for key, src_value in src.items():
+            if key in self._unsupported_nodes:
+                return False
             if isinstance(src_value, dict):
                 if key not in dst.keys():
                     return False

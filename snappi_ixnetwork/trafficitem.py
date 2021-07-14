@@ -416,16 +416,19 @@ class TrafficItem(CustomField):
                 else:
                     args["Destinations"].append(ixn_obj)
         ixn_endpoint_set.find()
-        if len(ixn_endpoint_set) > 1:
-            ixn_endpoint_set.remove()
-        if len(ixn_endpoint_set) == 0:
-            ixn_endpoint_set.add(**args)
-        elif (
-            ixn_endpoint_set.Sources != args["Sources"]
-            or ixn_endpoint_set.Destinations != args["Destinations"]
-            or len(ixn_endpoint_set.parent.ConfigElement.find()) == 0
-        ):
-            self._update(ixn_endpoint_set, **args)
+        ixn_endpoint_set.remove()
+        ixn_endpoint_set.add(**args)
+        
+        # if len(ixn_endpoint_set) > 1:
+        #     ixn_endpoint_set.remove()
+        # if len(ixn_endpoint_set) == 0:
+        #     ixn_endpoint_set.add(**args)
+        # elif (
+        #     ixn_endpoint_set.Sources != args["Sources"]
+        #     or ixn_endpoint_set.Destinations != args["Destinations"]
+        #     or len(ixn_endpoint_set.parent.ConfigElement.find()) == 0
+        # ):
+        #     self._update(ixn_endpoint_set, **args)
 
     def _update(self, ixn_object, **kwargs):
         from ixnetwork_restpy.base import Base
