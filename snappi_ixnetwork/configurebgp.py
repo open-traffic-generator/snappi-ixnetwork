@@ -210,12 +210,7 @@ class ConfigureBgp(object):
                 as_number_set_mode,
                 enum_map=ConfigureBgp._BGP_AS_SET_MODE,
             )
-        route_data_xpath = self.select_child_node(ixn_dg.href, "routerData")[
-            0
-        ]["xpath"]
-        self.configure_value(
-            route_data_xpath, "routerId", bgpv4.get("router_id")
-        )
+        # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
         advanced = bgpv4.get("advanced")
         if advanced is not None:
             self.configure_value(
@@ -320,7 +315,7 @@ class ConfigureBgp(object):
             self.configure_value(
                 property_xpath,
                 "multiExitDiscriminator",
-                advanced.get("multi_exit_discriminator,"),
+                advanced.get("multi_exit_discriminator"),
             )
         if advanced is not None:
             self.configure_value(
@@ -336,7 +331,8 @@ class ConfigureBgp(object):
     def configure_bgpv6(self, ixn_parent, bgpv6, ixn_dg):
         ixn_bgpv6 = ixn_parent.BgpIpv6Peer
         self._api._remove(ixn_bgpv6, [bgpv6])
-        name = self._api.special_char(bgpv6.name)
+        bgp_name = bgpv6.get("name")
+        name = self._api.special_char(bgp_name)
         args = {
             "Name": name,
         }
@@ -345,52 +341,63 @@ class ConfigureBgp(object):
             ixn_bgpv6.add(**args)[-1]
         else:
             self.update(ixn_bgpv6, **args)
-        self._api.ixn_objects[bgpv6.name] = ixn_bgpv6.href
+        self._api.set_ixn_objects(bgpv6, ixn_bgpv6.href)
         as_type = "internal"
         if bgpv6.get("as_type") is not None and bgpv6.get("as_type") == "ebgp":
             as_type = "external"
         bgp_xpath = self.get_xpath(ixn_bgpv6.href)
         self.configure_value(bgp_xpath, "type", as_type)
         as_bytes = bgpv6.get("as_number_width")
-        if as_bytes is None or as_bytes == "two":
-            self.configure_value(bgp_xpath, "localAs2Bytes", bgpv6.as_number)
-        elif as_bytes == "four":
-            self.configure_value(bgp_xpath, "enable4ByteAs", True)
-            self.configure_value(bgp_xpath, "localAs4Bytes", bgpv6.as_number)
-        else:
-            msg = "Please configure supported [two, four] as_number_width"
-            raise Exception(msg)
-        if bgpv6.get("dut_address") is not None:
-            self.configure_value(bgp_xpath, "dutIp", bgpv6.dut_address)
-        if bgpv6.get("as_number_set_mode") is not None:
+        as_bytes_list = [as_bytes] if not isinstance(as_bytes, list) else as_bytes
+        as_number = bgpv6.get("as_number")
+        as_number_list = (
+            [as_number] if not isinstance(as_number, list) else as_number
+        )
+        for index, as_number in enumerate(as_number_list):
+            as_byte = as_bytes_list[index]
+            if as_byte == "two":
+                self.configure_value(bgp_xpath, "localAs2Bytes", as_number)
+            elif as_byte == "four":
+                self.configure_value(bgp_xpath, "enable4ByteAs", True)
+                self.configure_value(bgp_xpath, "localAs4Bytes", as_number)
+            else:
+                msg = "Please configure supported [two, four] as_number_width"
+                raise Exception(msg)
+        dut_address = bgpv6.get("dut_address")
+        if dut_address is not None:
+            self.configure_value(bgp_xpath, "dutIp", dut_address)
+        as_number_set_mode = bgpv6.get("as_number_set_mode")
+        if as_number_set_mode is not None:
             self.configure_value(
                 bgp_xpath,
                 "asSetMode",
-                bgpv6.as_number_set_mode,
+                as_number_set_mode,
                 enum_map=ConfigureBgp._BGP_AS_SET_MODE,
             )
         # self._configure_pattern(ixn_dg.RouterData.RouterId, bgpv4.router_id)
-        if bgpv6.get("advanced") is not None:
-            advanced = bgpv6.advanced
+        advanced = bgpv6.get("advanced")
+        if advanced is not None:
             self.configure_value(
-                bgp_xpath, "holdTimer", advanced.hold_time_interval
+                bgp_xpath, "holdTimer", advanced.get("hold_time_interval")
             )
             self.configure_value(
-                bgp_xpath, "keepaliveTimer", advanced.keep_alive_interval
+                bgp_xpath, "keepaliveTimer", advanced.get("keep_alive_interval")
             )
-            self.configure_value(bgp_xpath, "md5Key", advanced.md5_key)
+            self.configure_value(bgp_xpath, "md5Key", advanced.get("md5_key"))
             self.configure_value(
-                bgp_xpath, "updateInterval", advanced.update_interval
+                bgp_xpath, "updateInterval", advanced.get("update_interval")
             )
-            self.configure_value(bgp_xpath, "ttl", advanced.time_to_live)
-        if bgpv6.get("sr_te_policies"):
-            self._configure_sr_te(ixn_bgpv6, bgp_xpath, bgpv6.sr_te_policies)
+            self.configure_value(bgp_xpath, "ttl", advanced.get("time_to_live"))
+        sr_te_policies = bgpv6.get("sr_te_policies")
+        if sr_te_policies:
+            self._configure_sr_te(ixn_bgpv6, bgp_xpath, sr_te_policies)
         self._bgp_route_builder(ixn_dg, ixn_bgpv6, bgpv6)
         return ixn_bgpv6
 
     def _configure_bgpv6_route(self, ixn_dg, ixn_bgp, route_range):
         ixn_ng = ixn_dg.NetworkGroup
-        name = self._api.special_char(route_range.name)
+        route_name = route_range.get("name")
+        name = self._api.special_char(route_name)
         args = {
             "Name": name,
         }
@@ -403,23 +410,23 @@ class ConfigureBgp(object):
             self.update(ixn_ng, **args)
             ixn_pool = ixn_ng.Ipv6PrefixPools.find()
         ixn_pool.Connector.find().ConnectedTo = ixn_bgp.href
-        if route_range.name is not None:
-            self._api.ixn_objects[route_range.name] = ixn_pool.href
-            self._api._device_encap[route_range.name] = "ipv6"
+        if route_name is not None:
+            self._api.set_ixn_objects(route_range, ixn_pool.href)
+            self._api.set_device_encap(route_range, "ipv6")
         pool_infos = self.select_node(
             ixn_pool.href,
             children=["bgpIPRouteProperty", "bgpV6IPRouteProperty"],
         )
         pool_xpath = pool_infos["xpath"]
-        addresses = route_range.addresses
+        addresses = route_range.get("addresses")
         if len(addresses) > 0:
             ixn_ng.Multiplier = len(addresses)
             route_addresses = RouteAddresses()
             for address in addresses:
-                route_addresses.address = address.address
-                route_addresses.step = address.step
-                route_addresses.prefix = address.prefix
-                route_addresses.count = address.count
+                route_addresses.address = address.get("address")
+                route_addresses.step = address.get("step")
+                route_addresses.prefix = address.get("prefix")
+                route_addresses.count = address.get("count")
             self.configure_value(
                 pool_xpath, "networkAddress", route_addresses.address
             )
@@ -438,13 +445,14 @@ class ConfigureBgp(object):
         else:
             ixn_bgp_property = ixn_pool.BgpV6IPRouteProperty.find()
             property_xpath = pool_infos["bgpV6IPRouteProperty"][0]["xpath"]
-        if route_range.get("next_hop_address") is not None:
+        next_hop_address = route_range.get("next_hop_address")
+        if next_hop_address is not None:
             self.configure_value(
-                property_xpath, "ipv6NextHop", route_range.next_hop_address
+                property_xpath, "ipv6NextHop", next_hop_address
             )
-        if route_range.name is not None:
-            ixn_bgp_property.Name = route_range.name
-            self._api.ixn_route_objects[route_range.name] = ixn_bgp_property
+        if route_name is not None:
+            ixn_bgp_property.Name = route_name
+            self._api.set_route_objects(ixn_bgp_property, route_range)
         advanced = route_range.get("advanced")
         if (
             advanced is not None
@@ -456,32 +464,35 @@ class ConfigureBgp(object):
             self.configure_value(
                 property_xpath,
                 "multiExitDiscriminator",
-                advanced.multi_exit_discriminator,
+                advanced.get("multi_exit_discriminator")
             )
         if advanced is not None:
-            self.configure_value(property_xpath, "origin", advanced.origin)
-        if route_range.get("as_path") is not None:
-            self._config_bgp_as_path(route_range.as_path, ixn_bgp_property)
-        if route_range.get("communities") is not None:
-            self._config_bgp_community(
-                route_range.communities, ixn_bgp_property
+            self.configure_value(
+                property_xpath, "origin", advanced.get("origin")
             )
+        as_path = route_range.get("as_path")
+        if as_path is not None:
+            self._config_bgp_as_path(as_path, ixn_bgp_property)
+        communities = route_range.get("communities")
+        if communities:
+            self._config_bgp_community(communities, ixn_bgp_property)
 
     def _config_bgp_as_path(self, as_path, ixn_bgp_property):
-        as_path_segments = as_path.as_path_segments
+        as_path_segments = as_path.get("as_path_segments")
         property_xpath = self.get_xpath(ixn_bgp_property.href)
-        if as_path.as_set_mode is not None or len(as_path_segments) > 0:
+        as_set_mode = as_path.get("as_set_mode")
+        if as_set_mode is not None or len(as_path_segments) > 0:
             self.configure_value(property_xpath, "enableAsPathSegments", True)
             self.configure_value(
                 property_xpath,
                 "asSetMode",
-                as_path.as_set_mode,
+                as_set_mode,
                 enum_map=ConfigureBgp._BGP_AS_MODE,
             )
             self.configure_value(
                 property_xpath,
                 "OverridePeerAsSetMode",
-                as_path.override_peer_as_set_mode,
+                as_path.get("override_peer_as_set_mode")
             )
             if len(as_path_segments) > 0:
                 ixn_bgp_property.NoOfASPathSegmentsPerRouteRange = len(
@@ -491,9 +502,9 @@ class ConfigureBgp(object):
                 for seg_index, segment in enumerate(as_path_segments):
                     ixn_segment = ixn_segments[seg_index]
                     ixn_segment.SegmentType.Single(
-                        ConfigureBgp._BGP_SEG_TYPE[segment.segment_type]
+                        ConfigureBgp._BGP_SEG_TYPE[segment.get("segment_type")]
                     )
-                    as_numbers = segment.as_numbers
+                    as_numbers = segment.get("as_numbers")
                     if as_numbers is not None:
                         ixn_segment.NumberOfAsNumberInSegment = len(as_numbers)
                         as_numbers_info = self.select_child_node(
@@ -516,18 +527,19 @@ class ConfigureBgp(object):
         )
         for index, community in enumerate(communities):
             community_xpath = communities_info[index]["xpath"]
-            if community.community_type is not None:
+            community_type= community.get("community_type")
+            if community_type is not None:
                 self.configure_value(
                     community_xpath,
                     "type",
-                    community.community_type,
+                    community_type,
                     enum_map=ConfigureBgp._BGP_COMMUNITY_TYPE,
                 )
             self.configure_value(
-                community_xpath, "asNumber", community.as_number
+                community_xpath, "asNumber", community.get("as_number")
             )
             self.configure_value(
-                community_xpath, "lastTwoOctets", community.as_custom
+                community_xpath, "lastTwoOctets", community.get("as_custom")
             )
 
     def _configure_sr_te(self, ixn_bgp, bgp_xpath, sr_te_list):
