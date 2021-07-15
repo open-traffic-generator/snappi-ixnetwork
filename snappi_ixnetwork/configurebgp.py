@@ -183,10 +183,10 @@ class ConfigureBgp(object):
         bgp_xpath = self.get_xpath(ixn_bgpv4.href)
         self.configure_value(bgp_xpath, "type", as_type)
         as_bytes = bgpv4.get("as_number_width")
-        as_bytes_list = [as_bytes] if isinstance(as_bytes, str) else as_bytes
+        as_bytes_list = [as_bytes] if not isinstance(as_bytes, list) else as_bytes
         as_number = bgpv4.get("as_number")
         as_number_list = (
-            [as_number] if isinstance(as_number, str) else as_number
+            [as_number] if not isinstance(as_number, list) else as_number
         )
         for index, as_number in enumerate(as_number_list):
             as_byte = as_bytes_list[index]

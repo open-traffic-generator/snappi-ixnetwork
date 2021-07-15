@@ -70,6 +70,8 @@ class Api(snappi.Api):
         self.capture = Capture(self)
         self.protocol_metrics = ProtocolMetrics(self)
         self.resource_group = ResourceGroup(self)
+        self.do_compact = True
+        self._dev_compacted = {}
 
     def _get_addr_port(self, host):
         items = host.split("/")
@@ -174,6 +176,14 @@ class Api(snappi.Api):
     def assistant(self):
         return self._assistant
 
+    def set_dev_compacted(self, device):
+        dev_name = device["name"]
+        for index, name in enumerate(device["name_list"]):
+            self._dev_compacted[name] = {
+                "dev_name" : dev_name,
+                "index" : index
+            }
+    
     def _dict_to_obj(self, source):
         """Returns an object given a dict"""
         if isinstance(source, list):

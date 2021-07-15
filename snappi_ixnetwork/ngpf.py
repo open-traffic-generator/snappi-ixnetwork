@@ -1,4 +1,5 @@
 import json
+from collections import namedtuple
 from snappi_ixnetwork.configurebgp import ConfigureBgp
 from snappi_ixnetwork.deviceCompactor import DeviceCompactor
 from snappi_ixnetwork.timer import Timer
@@ -62,6 +63,24 @@ class Ngpf(object):
             return len(errata) == 0
         return True
 
+    def _get_devices_info(self, devices_in_topo):
+        DeviceInfo = namedtuple(
+            "DeviceInfo", ["device", "multiplier"]
+        )
+        dev_info_list = []
+        if self._api.do_compact is True:
+            with Timer(self._api, "Compacting snappi objects :"):
+                sim_dev_list = DeviceCompactor(devices_in_topo).compact()
+                for sim_div in sim_dev_list:
+                    if sim_div.len > 1:
+                        self._api.set_dev_compacted(sim_div.compact_dev)
+                    dev_info_list.append(DeviceInfo(sim_div.compact_dev,
+                                         sim_div.len))
+        else:
+            for dev in devices_in_topo:
+                dev_info_list.append(DeviceInfo(dev, 1))
+        return dev_info_list
+
     def _configure_topology(self, ixn_topology, devices):
         """One /topology for every unique device.container_name
         Topology name is device.container_name
@@ -84,11 +103,11 @@ class Ngpf(object):
             ixn_topology.find(Name="^%s$" % self._api.special_char(topo_name))
             if len(ixn_topology) > 0:
                 self._api._remove(ixn_topology.DeviceGroup, devices_in_topo)
-            with Timer(self._api, "Compacting snappi objects :"):
-                similar_dev_list = DeviceCompactor(devices_in_topo).compact()
-            for similar_devices in similar_dev_list:
-                device = similar_devices.compact_dev
-                multiplier = similar_devices.len
+           
+            dev_info_list = self._get_devices_info(devices_in_topo)
+            for device_info in dev_info_list:
+                device = device_info.device
+                multiplier = device_info.multiplier
                 container_name = device.get("container_name")
                 args = {
                     "Name": self._api._get_topology_name(container_name),
@@ -123,6 +142,8 @@ class Ngpf(object):
 
     def _config_proto_stack(self, ixn_obj, snappi_obj, ixn_dg):
         self._api.set_ixn_objects(snappi_obj, ixn_obj.href)
+        if not isinstance(snappi_obj, dict):
+            snappi_obj = snappi_obj._properties
         for prop_name in snappi_obj.keys():
             stack_class = getattr(
                 self, "_configure_{0}".format(prop_name), None
@@ -136,7 +157,7 @@ class Ngpf(object):
                 self._api._device_encap[ixn_dg.Name] = Ngpf._DEVICE_ENCAP_MAP[
                     prop_name
                 ]
-                child_name = child["name"]
+                child_name = child.get("name")
                 if child_name is not None:
                     self._api._device_encap[
                         child_name
