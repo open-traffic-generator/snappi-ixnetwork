@@ -64,9 +64,7 @@ class Ngpf(object):
         return True
 
     def _get_devices_info(self, devices_in_topo):
-        DeviceInfo = namedtuple(
-            "DeviceInfo", ["device", "multiplier"]
-        )
+        DeviceInfo = namedtuple("DeviceInfo", ["device", "multiplier"])
         dev_info_list = []
         if self._api.do_compact is True:
             with Timer(self._api, "Compacting snappi objects :"):
@@ -74,8 +72,9 @@ class Ngpf(object):
                 for sim_div in sim_dev_list:
                     if sim_div.len > 1:
                         self._api.set_dev_compacted(sim_div.compact_dev)
-                    dev_info_list.append(DeviceInfo(sim_div.compact_dev,
-                                         sim_div.len))
+                    dev_info_list.append(
+                        DeviceInfo(sim_div.compact_dev, sim_div.len)
+                    )
         else:
             for dev in devices_in_topo:
                 dev_info_list.append(DeviceInfo(dev, 1))
@@ -103,7 +102,7 @@ class Ngpf(object):
             ixn_topology.find(Name="^%s$" % self._api.special_char(topo_name))
             if len(ixn_topology) > 0:
                 self._api._remove(ixn_topology.DeviceGroup, devices_in_topo)
-           
+
             dev_info_list = self._get_devices_info(devices_in_topo)
             for device_info in dev_info_list:
                 device = device_info.device
@@ -197,26 +196,29 @@ class Ngpf(object):
             elif pattern.get("choice") == "random":
                 pass
 
-    def configure_value(self, source, attribute, value, enum_map=None):
+    def configure_value(
+        self, source, attribute, value, enum_map=None, multiplier=1
+    ):
         if value is None:
             return
         xpath = "/multivalue[@source = '{0} {1}']".format(source, attribute)
+        if multiplier > 1 and isinstance(value, list):
+            val_list = []
+            for val in value:
+                val_list.extend([val] * multiplier)
+            value = val_list
+        if isinstance(value, list) and len(set(value)) == 1:
+            value = value[0]
         if enum_map is not None:
             if isinstance(value, list):
                 value = [enum_map[val] for val in value]
             else:
                 value = enum_map[value]
         if isinstance(value, list):
-            if len(set(value)) == 1:
-                ixn_value = {
-                    "xpath": "{0}/singleValue".format(xpath),
-                    "value": value[0],
-                }
-            else:
-                ixn_value = {
-                    "xpath": "{0}/valueList".format(xpath),
-                    "values": value,
-                }
+            ixn_value = {
+                "xpath": "{0}/valueList".format(xpath),
+                "values": value,
+            }
         else:
             ixn_value = {
                 "xpath": "{0}/singleValue".format(xpath),

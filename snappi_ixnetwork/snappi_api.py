@@ -122,7 +122,7 @@ class Api(snappi.Api):
         """A dict of all model unique names to ixn hrefs"""
         return self._ixn_objects
 
-    def set_ixn_objects(self, snappi_obj, ixn_href):
+    def set_ixn_objects(self, snappi_obj, ixn_href, multiplier=1):
         names = snappi_obj.get("name_list")
         if names is None:
             name = snappi_obj.get("name")
@@ -133,7 +133,11 @@ class Api(snappi.Api):
             self.ixn_objects[name] = ixn_href
         else:
             for index, name in enumerate(names):
-                ixn_obj = {"ixn_href": ixn_href, "index": index + 1}
+                ixn_obj = {
+                    "ixn_href": ixn_href,
+                    "index": multiplier * index + 1,
+                    "multiplier": multiplier,
+                }
                 self.ixn_objects[name] = ixn_obj
 
     def get_ixn_object(self, name):
@@ -179,11 +183,8 @@ class Api(snappi.Api):
     def set_dev_compacted(self, device):
         dev_name = device["name"]
         for index, name in enumerate(device["name_list"]):
-            self._dev_compacted[name] = {
-                "dev_name" : dev_name,
-                "index" : index
-            }
-    
+            self._dev_compacted[name] = {"dev_name": dev_name, "index": index}
+
     def _dict_to_obj(self, source):
         """Returns an object given a dict"""
         if isinstance(source, list):

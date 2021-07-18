@@ -6,7 +6,7 @@ class DeviceCompactor(object):
     def __init__(self, devices):
         self._device_count = 0
         self._devices = devices
-        self._unsupported_nodes  = ["sr_te_policies"]
+        self._unsupported_nodes = ["sr_te_policies"]
 
     def compact(self):
         same_dev_list = []

@@ -396,7 +396,7 @@ class TrafficItem(CustomField):
                             "arg2": 1,
                             "arg3": 1,
                             "arg4": ixn_obj["index"],
-                            "arg5": 1,
+                            "arg5": ixn_obj["multiplier"],
                         }
                     )
                 else:
@@ -410,7 +410,7 @@ class TrafficItem(CustomField):
                             "arg2": 1,
                             "arg3": 1,
                             "arg4": ixn_obj["index"],
-                            "arg5": 1,
+                            "arg5": ixn_obj["multiplier"],
                         }
                     )
                 else:
@@ -418,7 +418,7 @@ class TrafficItem(CustomField):
         ixn_endpoint_set.find()
         ixn_endpoint_set.remove()
         ixn_endpoint_set.add(**args)
-        
+
         # if len(ixn_endpoint_set) > 1:
         #     ixn_endpoint_set.remove()
         # if len(ixn_endpoint_set) == 0:
