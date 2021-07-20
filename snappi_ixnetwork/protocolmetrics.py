@@ -215,6 +215,9 @@ class ProtocolMetrics(object):
             ports.index(p) for p in list(set(config_ports)) if p in ports
         ]
         drill_option = self._PROTO_NAME_MAP_[protocol]["drill_down_options"][0]
+        drill_option2 = self._PROTO_NAME_MAP_[protocol]["drill_down_options"][
+            1
+        ]
         drill_name = self._PROTO_NAME_MAP_[protocol]["drill_down"]
         per_port = self._PROTO_NAME_MAP_[protocol]["per_port"]
         column_names = self._RESULT_COLUMNS.get(protocol)
@@ -223,6 +226,7 @@ class ProtocolMetrics(object):
             try:
                 drill = self.ixn.Statistics.View.find(Caption=drill_name)
                 self._do_drill_down(v, per_port, i, drill_option)
+                self._do_drill_down(v, per_port, i, drill_option2)
                 self._check_if_page_ready(drill)
             except Exception as e:
                 msg = """
@@ -231,31 +235,57 @@ class ProtocolMetrics(object):
                     i, e
                 )
                 raise Exception(msg)
-            dev_names = self._get_column_values(drill.href, "Device Group")
-            for index, dev_name in enumerate(dev_names):
-                if (
-                    len(self.device_names) > 0
-                    and dev_name not in self.device_names
-                ):
-                    continue
+            columns = drill.Data.ColumnCaptions
+            values = drill.Data.PageValues
+            for value in values:
                 row_dt = dict()
+                data = dict(zip(columns, value[0]))
                 for sn, ixn, typ in column_names:
-                    try:
-                        value = self._get_value(drill.href, dev_name, ixn)
-                    except Exception:
-                        value = "NA"
-                    self._set_result_value(row_dt, sn, value, typ)
-                row_lst.append(row_dt)
+                    self._set_result_value(row_dt, data, sn, ixn, typ)
+                if row_dt != {}:
+                    row_lst.append(row_dt)
         return row_lst
 
-    def _set_result_value(self, row_dt, stat_name, stat_value, stat_type=str):
-        if len(self.columns) == 0 or stat_name in self.columns:
-            try:
-                row_dt[stat_name] = stat_type(stat_value)
-            except Exception:
-                row_dt[stat_name] = (
-                    0 if stat_type.__name__ in ["float", "int"] else stat_value
-                )
+    def _update_actual_dev_name(self, data):
+        keys = self._api._dev_compacted.keys()
+        if data["Device Group"] in keys:
+            for k, v in self._api._dev_compacted.items():
+                if (
+                    data["Device Group"] == v["dev_name"]
+                    and int(data["Device#"]) == v["index"] + 1
+                ):
+                    data["Device Group"] = k
+        return data
+
+    def _set_result_value(
+        self, row_dt, data, stat_name, ix_name, stat_type=str
+    ):
+        data = self._update_actual_dev_name(data)
+        if self.device_names == []:
+            self.device_names = [
+                d.name for d in self._api.snappi_config.devices
+            ]
+        if data["Device Group"] in self.device_names:
+            if data["Status"] == "Up" and stat_name in [
+                "sessions_total",
+                "sessions_up",
+            ]:
+                row_dt[stat_name] = 1
+            elif data["Status"] in ["Down", "Not Started"] and stat_name in [
+                "sessions_down",
+                "sessions_not_started",
+            ]:
+                row_dt[stat_name] = 1
+            else:
+                if len(self.columns) == 0 or stat_name in self.columns:
+                    try:
+                        row_dt[stat_name] = stat_type(data[ix_name])
+                    except Exception:
+                        row_dt[stat_name] = (
+                            0
+                            if stat_type.__name__ in ["float", "int"]
+                            else data[ix_name]
+                        )
 
     def _topo_stats(self, protocol):
         url = "%s/operations/gettopologystatus" % self.ixn.href
