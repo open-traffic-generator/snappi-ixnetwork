@@ -1,4 +1,5 @@
 import re
+import socket, struct
 from collections import namedtuple
 
 
@@ -930,11 +931,16 @@ class ConfigureBgp(object):
 
 
 class RouteAddresses(object):
+    
+    _IPv4 = "ipv4"
+    _IPv6 = "ipv6"
+    
     def __init__(self):
         self._address = []
         self._count = []
         self._prefix = []
         self._step = []
+        self._ip_type = None
 
     def _comp_value(self, values):
         com_values = []
@@ -984,3 +990,19 @@ class RouteAddresses(object):
     @step.setter
     def step(self, value):
         self._step.append(value)
+
+    def _get_ip_type(self, addresses):
+        class_name = addresses[0].__class__.__name__
+        if re.search("v4", class_name) is not None:
+            return RouteAddresses._IPv4
+        else:
+            return RouteAddresses._IPv6
+
+    def _address_to_int(self, addr):
+        if self._ip_type == RouteAddresses._IPv4:
+            return struct.unpack("!I", socket.inet_aton(addr))[0]
+        else:
+            hi, lo = struct.unpack(
+                "!QQ", socket.inet_pton(socket.AF_INET6, addr)
+            )
+            return (hi << 64) | lo

@@ -7,7 +7,7 @@ def test_layer1_flow_control_8021qbb(api, utils):
     """
     port1_delay = 3
     port1_pfc_priority_groups = [1, 0, 2, 3, 7, 5, 6, 7]
-    directed_address = "01 80 C2 00 00 01"
+    directed_address = "01:80:C2:00:00:01"
     config = api.config()
     config.ports.port().port()
     tx_port = config.ports[0]
@@ -37,14 +37,10 @@ def test_layer1_flow_control_8021qbb(api, utils):
     fcoe2.flow_control.directed_address = directed_address
     fcoe2.flow_control.ieee_802_1qbb.pfc_delay = 0
     api.set_config(config)
-    validate_8021qbb_config(
-        api, port1_delay, port1_pfc_priority_groups, directed_address
-    )
+    validate_8021qbb_config(api, port1_delay, port1_pfc_priority_groups)
 
 
-def validate_8021qbb_config(
-    api, port1_delay, port1_pfc_priority_groups, directed_address
-):
+def validate_8021qbb_config(api, port1_delay, port1_pfc_priority_groups):
     """
     Validate 8021qbb config using Restpy
     """
@@ -55,7 +51,7 @@ def validate_8021qbb_config(
     type = type[0].upper() + type[1:]
     assert (
         getattr(port1.L1Config, type).FlowControlDirectedAddress
-        == directed_address
+        == "0180C2000001"
     )
     assert getattr(port1.L1Config, type).Fcoe.PfcPauseDelay == port1_delay
     assert (

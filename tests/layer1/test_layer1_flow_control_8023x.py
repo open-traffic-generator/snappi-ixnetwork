@@ -6,7 +6,7 @@ def test_layer1_flow_control_8023x(api, utils):
     Validation: Validate the layer1 properties applied using Restpy
     """
 
-    directed_address = "01 80 C2 00 00 01"
+    directed_address = "01:80:C2:00:00:02"
 
     config = api.config()
     config.ports.port().port()
@@ -27,10 +27,10 @@ def test_layer1_flow_control_8023x(api, utils):
     fcoe1.flow_control.choice = "ieee_802_3x"
     fcoe2.flow_control.choice = "ieee_802_3x"
     api.set_config(config)
-    validate_8023x_config(api, directed_address)
+    validate_8023x_config(api)
 
 
-def validate_8023x_config(api, directed_address):
+def validate_8023x_config(api):
     """
     Validate 8023x config using Restpy
     """
@@ -41,7 +41,7 @@ def validate_8023x_config(api, directed_address):
     type = type[0].upper() + type[1:]
     assert (
         getattr(port1.L1Config, type).FlowControlDirectedAddress
-        == directed_address
+        == "0180C2000002"
     )
     assert getattr(port1.L1Config, type).Fcoe.FlowControlType == "ieee802.3x"
     assert getattr(port2.L1Config, type).Fcoe.FlowControlType == "ieee802.3x"
