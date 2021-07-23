@@ -523,7 +523,6 @@ class TrafficItem(CustomField):
                 {
                     "xpath": tr["trafficItem"][-1]["xpath"]
                     + "/endpointSet[1]",
-                    "allowEmptyTopologySets": False,
                 }
             ]
             tr["trafficItem"][-1]["endpointSet"][0]["sources"] = [
