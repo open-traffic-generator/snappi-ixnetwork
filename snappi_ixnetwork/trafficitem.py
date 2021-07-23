@@ -1,4 +1,5 @@
 import json
+import copy
 
 import snappi
 from snappi_ixnetwork.exceptions import SnappiIxnException
@@ -603,12 +604,13 @@ class TrafficItem(CustomField):
         - CREATE TrafficItem for any config.flows[*].name that does not exist
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
-        if len(self._api.snappi_config.flows) == 0:
+        self._config = copy.deepcopy(self._api.snappi_config)
+        if len(self._config.flows) == 0:
             self.remove_ixn_traffic()
             return
         with Timer(self._api, "Flows configuration"):
             self.remove_ixn_traffic()
-            ixn_traffic_item = self.get_ixn_config(self._api.snappi_config)[0]
+            ixn_traffic_item = self.get_ixn_config(self._config)[0]
             self.flows_has_latency = []
             self.flows_has_timestamp = []
             self.flows_has_loss = []
@@ -618,7 +620,7 @@ class TrafficItem(CustomField):
                 return
             ixn_traffic_item = ixn_traffic_item.get("trafficItem")
             tr_json = {"traffic": {"xpath": "/traffic", "trafficItem": []}}
-            for i, flow in enumerate(self._api.snappi_config.flows):
+            for i, flow in enumerate(self._config.flows):
                 tr_item = {"xpath": ixn_traffic_item[i]["xpath"]}
                 if ixn_traffic_item[i].get("configElement") is None:
                     raise Exception(
@@ -706,7 +708,7 @@ class TrafficItem(CustomField):
 
     def _configure_options(self):
         enable_min_frame_size = False
-        for flow in self._api.snappi_config.flows:
+        for flow in self._config.flows:
             if (
                 len(flow.packet) == 1
                 and flow.packet[0].parent.choice == "pfcpause"
