@@ -409,11 +409,12 @@ class TrafficItem(CustomField):
                     "href is not found for device name {}".format(name)
                 )
             href = href.split("ixnetwork")[-1]
-            query = "^(xpath|ethernet|ipv4|ipv6)$"
-            if "ipv4" in href or "ipv6" in href:
-                query = "^(xpath)$"
-            elif "networkGroup" in href:
-                query = "^(xpath|networkGroup|ipv4PrefixPools|ipv6PrefixPools)"
+            # query = "^(xpath|ethernet|ipv4|ipv6)$"
+            # if "ipv4" in href or "ipv6" in href:
+            #     query = "^(xpath)$"
+            # elif "networkGroup" in href:
+            #     query = "^(xpath|networkGroup|ipv4PrefixPools|ipv6PrefixPools)"
+            query = "^(xpath)$"
             url, search = self._get_search_payload(href, query, ["name"], [])
             selects.extend(search["selects"])
         payload = {"selects": selects}
@@ -425,14 +426,14 @@ class TrafficItem(CustomField):
         paths = {}
         for i, d in enumerate(dev_names):
             paths[d] = {"xpath": result[i]["xpath"]}
-            string = str(result[i])
-            if "ipv4" in string:
-                tr_type = "ipv4"
-            elif "ipv6" in string:
-                tr_type = "ipv6"
-            else:
-                tr_type = "ethernetVlan"
-            paths[d]["type"] = tr_type
+            # string = str(result[i])
+            # if "ipv4" in string:
+            #     tr_type = "ipv4"
+            # elif "ipv6" in string:
+            #     tr_type = "ipv6"
+            # else:
+            #     tr_type = "ethernetVlan"
+            paths[d]["type"] = self._api.get_device_encap(d)
         return paths
 
     def get_ixn_config(self, config):
@@ -518,7 +519,11 @@ class TrafficItem(CustomField):
             )
 
             tr["trafficItem"][-1]["endpointSet"] = [
-                {"xpath": tr["trafficItem"][-1]["xpath"] + "/endpointSet[1]"}
+                {
+                    "xpath": tr["trafficItem"][-1]["xpath"]
+                    + "/endpointSet[1]",
+                    "allowEmptyTopologySets": False,
+                }
             ]
             tr["trafficItem"][-1]["endpointSet"][0]["sources"] = [
                 o for o in tx_objs
@@ -625,16 +630,16 @@ class TrafficItem(CustomField):
                 ]
                 tr_item["configElement"] = ce_xpaths
                 self._configure_size(
-                    tr_item["configElement"], flow.get("size")
+                    tr_item["configElement"], flow.get("size", True)
                 )
                 self._configure_rate(
-                    tr_item["configElement"], flow.get("rate")
+                    tr_item["configElement"], flow.get("rate", True)
                 )
                 hl_stream_count = len(ixn_traffic_item[i]["highLevelStream"])
                 self._configure_duration(
                     tr_item["configElement"],
                     hl_stream_count,
-                    flow.get("duration"),
+                    flow.get("duration", True),
                 )
                 # tr_type = ixn_traffic_item[i]["trafficType"]
                 if flow.tx_rx.choice == "device":
