@@ -11,35 +11,42 @@ class DeviceCompactor(object):
     def compact(self):
         same_dev_list = []
         for device in self._devices:
-            dev_dict = json.loads(device.serialize("json"))
             is_match = False
             for same_devs in same_dev_list:
+                dev_dict = json.loads(device.serialize("json"))
                 if self._comparator(same_devs.dev_schema, dev_dict) is True:
                     same_devs.append(device, dev_dict)
                     is_match = True
                     break
             if len(same_dev_list) == 0 or is_match is False:
                 same_dev = SimilarDevices()
-                same_dev.append(device, dev_dict)
+                same_dev.append(device)
                 same_dev_list.append(same_dev)
         return same_dev_list
 
     def _comparator(self, src, dst):
         if type(src) != type(dst):
             raise Exception("comparision issue")
-        for key, src_value in src.items():
+        src_node_keys = [
+            k for k, v in src.items() if isinstance(v, (dict, list))
+        ]
+        dst_node_keys = [
+            k for k, v in dst.items() if isinstance(v, (dict, list))
+        ]
+        src_node_keys.sort()
+        dst_node_keys.sort()
+        if set(src_node_keys) != set(dst_node_keys):
+            return False
+        for key in src_node_keys:
             if key in self._unsupported_nodes:
                 return False
+            src_value = src.get(key)
             if isinstance(src_value, dict):
-                if key not in dst.keys():
-                    return False
                 dst_value = dst[key]
                 if self._comparator(src_value, dst_value) is False:
                     return False
             # todo: we need to restructure if same element in different position
             if isinstance(src_value, list):
-                if key not in dst.keys():
-                    return False
                 dst_value = dst[key]
                 if len(src_value) != len(dst_value):
                     return False
@@ -59,6 +66,10 @@ class SimilarDevices(object):
 
     @property
     def dev_schema(self):
+        if self._dev_schema is None:
+            dev_dict = json.loads(self._dev_obj.serialize("json"))
+            self._dev_schema = deepcopy(dev_dict)
+            self._dev_compact = dev_dict
         return self._dev_schema
 
     @property
@@ -71,12 +82,10 @@ class SimilarDevices(object):
             return self._dev_obj
         return self._dev_compact
 
-    def append(self, dev_obj, dev_dict):
+    def append(self, dev_obj, dev_dict=None):
         self._index += 1
         if self._index == 0:
             self._dev_obj = dev_obj
-            self._dev_schema = deepcopy(dev_dict)
-            self._dev_compact = dev_dict
             # self._fill_comp_dev(self._dev_compact, self._dev_obj)
         else:
             self._value_compactor(self._dev_compact, dev_dict, self._dev_obj)

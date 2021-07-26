@@ -931,10 +931,10 @@ class ConfigureBgp(object):
 
 
 class RouteAddresses(object):
-    
+
     _IPv4 = "ipv4"
     _IPv6 = "ipv6"
-    
+
     def __init__(self):
         self._address = []
         self._count = []
