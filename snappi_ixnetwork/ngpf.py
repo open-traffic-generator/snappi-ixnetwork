@@ -100,10 +100,10 @@ class Ngpf(object):
         self._api._remove(ixn_topology, topologies.values())
         for topo_name, devices_in_topo in devices_in_topos.items():
             ixn_topology.find(Name="^%s$" % self._api.special_char(topo_name))
-            if len(ixn_topology) > 0:
-                self._api._remove(ixn_topology.DeviceGroup, devices_in_topo)
-
             dev_info_list = self._get_devices_info(devices_in_topo)
+            cmt_devices = [dev_inf.device for dev_inf in dev_info_list]
+            if len(ixn_topology) > 0:
+                self._api._remove(ixn_topology.DeviceGroup, cmt_devices)
             for device_info in dev_info_list:
                 device = device_info.device
                 multiplier = device_info.multiplier

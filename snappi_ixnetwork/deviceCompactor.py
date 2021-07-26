@@ -35,7 +35,7 @@ class DeviceCompactor(object):
         ]
         src_node_keys.sort()
         dst_node_keys.sort()
-        if set(src_node_keys) != set(dst_node_keys):
+        if src_node_keys != dst_node_keys:
             return False
         for key in src_node_keys:
             if key in self._unsupported_nodes:
