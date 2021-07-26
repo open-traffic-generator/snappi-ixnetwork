@@ -22,4 +22,4 @@ Then as per below diagram we will check the relevant information which can be cl
 
 ### Compactor Diagram
 
-# ![diagram](compactor_diagram.png)
+# ![diagram](./compactor_diagram.png)
