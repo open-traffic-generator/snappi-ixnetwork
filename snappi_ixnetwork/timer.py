@@ -1,4 +1,7 @@
 import time
+from collections import OrderedDict
+
+timer_data = OrderedDict()
 
 
 class Timer:
@@ -13,4 +16,6 @@ class Timer:
 
     def __exit__(self, *exc_info):
         """Stop the context manager timer"""
-        self._api.info(self._msg + " %.3fs" % (time.time() - self._start))
+        time_lapse = time.time() - self._start
+        self._api.info(self._msg + " %.3fs" % (time_lapse))
+        timer_data[self._msg] = time_lapse

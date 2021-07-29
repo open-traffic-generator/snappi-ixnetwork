@@ -36,15 +36,25 @@ def test_counter_ip_dscp(api, b2b_raw_config, utils):
         # currently assigning the choice as work around
         ipv4.priority.choice = ipv4.priority.DSCP
         ipv4.priority.dscp.phb.value = getattr(ipv4.priority.dscp.phb, p)
+        ipv4.priority.dscp.ecn.value = 3
         api.set_config(b2b_raw_config)
         if i == 0:
             attrs = {"Default PHB": str(i)}
+            attrs["ipv4.header.priority.ds.phb.defaultPHB.unused"] = "3"
         elif i > 0 and i < 8:
             attrs = {"Class selector PHB": str(i * 8)}
+            attrs["ipv4.header.priority.ds.phb.classSelectorPHB.unused"] = "3"
         elif i > 7 and i < (len(phb) - 1):
             attrs = {"Assured forwarding PHB": af_ef[i - 8]}
+            attrs[
+                "ipv4.header.priority.ds.phb.assuredForwardingPHB.unused"
+            ] = "3"
         else:
             attrs = {"Expedited forwarding PHB": af_ef[-1]}
+            attrs[
+                "ipv4.header.priority.ds.phb.expeditedForwardingPHB.unused"
+            ] = "3"
+
         utils.validate_config(api, "f1", "ipv4", **attrs)
 
 
