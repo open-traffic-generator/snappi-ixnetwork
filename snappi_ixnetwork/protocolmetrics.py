@@ -260,16 +260,11 @@ class ProtocolMetrics(object):
                 d.name for d in self._api.snappi_config.devices
             ]
         if data["Device Group"] in self.device_names:
-            if data["Status"] == "Up" and stat_name in [
-                "sessions_total",
-                "sessions_up",
-            ]:
-                row_dt[stat_name] = 1
-            elif data["Status"] in ["Down", "Not Started"] and stat_name in [
-                "sessions_down",
-                "sessions_not_started",
-            ]:
-                row_dt[stat_name] = 1
+            if stat_name == "session_state":
+                if data["Status"] == "Up":
+                    row_dt[stat_name] = "up"
+                else:
+                    row_dt[stat_name] = "down"
             else:
                 if len(self.columns) == 0 or stat_name in self.columns:
                     try:

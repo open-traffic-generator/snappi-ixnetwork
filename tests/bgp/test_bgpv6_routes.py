@@ -16,7 +16,7 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     d1.container_name, d2.container_name = p1.name, p2.name
     eth1, eth2 = d1.ethernet, d2.ethernet
     eth1.name, eth2.name = "eth1", "eth2"
-    eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
+    eth1.mac, eth2.mac = "11:11:11:11:11:11", "11:11:11:11:11:22"
     ip1, ip2 = eth1.ipv6, eth2.ipv6
     bgp1, bgp2 = ip1.bgpv6, ip2.bgpv6
 
@@ -57,9 +57,6 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
 
     flow_bgp.tx_rx.device.tx_names = [bgp1_rr.name]
     flow_bgp.tx_rx.device.rx_names = [bgp2_rr.name]
-
-    flow_bgp.metrics.enable = True
-    flow_bgp.metrics.loss = True
 
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
 
