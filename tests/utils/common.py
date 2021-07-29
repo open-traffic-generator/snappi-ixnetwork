@@ -353,7 +353,9 @@ def get_packet_information(api, flow_name, packet_header):
     else:
         stack = configElement.Stack.find(StackTypeId=packet_header)
     for field in stack.Field.find():
-        pckt_info[field.DisplayName] = get_value(field)
+        value = get_value(field)
+        pckt_info[field.DisplayName] = value
+        pckt_info[field.FieldTypeId] = value
     return pckt_info
 
 
