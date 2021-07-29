@@ -240,36 +240,19 @@ class ProtocolMetrics(object):
                     row_lst.append(row_dt)
         return row_lst
 
-    def _update_actual_dev_name(self, data):
-        keys = self._api._dev_compacted.keys()
-        if data["Device Group"] in keys:
-            for k, v in self._api._dev_compacted.items():
-                if (
-                    data["Device Group"] == v["dev_name"]
-                    and int(data["Device#"]) == v["index"] + 1
-                ):
-                    data["Device Group"] = k
-        return data
-
     def _set_result_value(
         self, row_dt, data, stat_name, ix_name, stat_type=str
     ):
-        data = self._update_actual_dev_name(data)
         if self.device_names == []:
             self.device_names = [
                 d.name for d in self._api.snappi_config.devices
             ]
         if data["Device Group"] in self.device_names:
-            if data["Status"] == "Up" and stat_name in [
-                "sessions_total",
-                "sessions_up",
-            ]:
-                row_dt[stat_name] = 1
-            elif data["Status"] in ["Down", "Not Started"] and stat_name in [
-                "sessions_down",
-                "sessions_not_started",
-            ]:
-                row_dt[stat_name] = 1
+            if stat_name == "session_state":
+                if data["Status"] == "Up":
+                    row_dt[stat_name] = "up"
+                else:
+                    row_dt[stat_name] = "down"
             else:
                 if len(self.columns) == 0 or stat_name in self.columns:
                     try:
