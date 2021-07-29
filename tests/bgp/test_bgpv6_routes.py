@@ -1,3 +1,7 @@
+import pytest
+
+
+@pytest.mark.skip(reason="Test covered in test_device_bgp_ep")
 def test_bgpv6_routes(api, b2b_raw_config, utils):
     """
     Test for the bgpv6 routes

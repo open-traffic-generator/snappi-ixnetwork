@@ -72,6 +72,7 @@ class Api(snappi.Api):
         self.resource_group = ResourceGroup(self)
         self.do_compact = True
         self._dev_compacted = {}
+        self._previous_errors = []
 
     def _get_addr_port(self, host):
         items = host.split("/")
@@ -241,24 +242,31 @@ class Api(snappi.Api):
             self.config_ixnetwork(config)
         except Exception as err:
             raise SnappiIxnException(err)
+
+        bad_requests = self.get_json_import_errors()
+        if bad_requests != []:
+            bad_requests.insert(0, "bad request errors from Ixn:")
+            raise SnappiIxnException(400, bad_requests)
+        return self._request_detail()
+
+    def get_json_import_errors(self):
         app_errors = self._globals.AppErrors.find()
         bad_requests = []
         if len(app_errors) > 0:
             current_errors = app_errors[0].Error.find()
             if len(current_errors) > 0:
                 for error in current_errors:
-                    if error.Name == "JSON Import Issues":
-                        bad_requests = [
-                            instance.SourceValues[0]
-                            for instance in error.Instance.find()
-                        ]
-        if bad_requests:
-            if len(bad_requests) == 1:
-                raise SnappiIxnException(
-                    400, "Bad request error: {}".format(bad_requests[0])
-                )
-            raise SnappiIxnException(400, "Bad request errors:", bad_requests)
-        return self._request_detail()
+                    if error.Name != "JSON Import Issues":
+                        continue
+                    for instance in error.Instance.find():
+                        if instance.SourceValues in self._previous_errors:
+                            continue
+                        bad_requests.append(instance.SourceValues[0])
+                        # this is for linux as it is retaining errors from
+                        # previous run and raising exception in the latest
+                        # script run
+                        self._previous_errors.append(instance.SourceValues)
+        return bad_requests
 
     def config_ixnetwork(self, config):
         self._config_objects = {}
@@ -277,8 +285,7 @@ class Api(snappi.Api):
             self.lag.config()
             with Timer(self, "Devices configuration"):
                 self.ngpf.config()
-            with Timer(self, "Flows configuration"):
-                self.traffic_item.config()
+            self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
 
@@ -609,7 +616,7 @@ class Api(snappi.Api):
         if response.status_code == 202:
             content = response.json()
             while content["state"] == "IN_PROGRESS":
-                time.sleep(1)
+                time.sleep(0.2)
                 response = self._request("GET", content["url"])
         if response.headers.get("Content-Type"):
             if response.headers["Content-Type"] == "application/json":

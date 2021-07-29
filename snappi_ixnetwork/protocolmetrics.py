@@ -20,19 +20,13 @@ class ProtocolMetrics(object):
     _RESULT_COLUMNS = {
         "bgpv4": [
             ("name", "Device Group", str),
-            ("sessions_total", "Sessions Total", int),
-            ("sessions_up", "Sessions Up", int),
-            ("sessions_down", "Sessions Down", int),
-            ("sessions_not_started", "Sessions Not Started", int),
+            ("session_state", "Status", str),
             ("routes_advertised", "Routes Advertised", int),
             ("routes_withdrawn", "Routes Withdrawn", int),
         ],
         "bgpv6": [
             ("name", "Device Group", str),
-            ("sessions_total", "Sessions Total", int),
-            ("sessions_up", "Sessions Up", int),
-            ("sessions_down", "Sessions Down", int),
-            ("sessions_not_started", "Sessions Not Started", int),
+            ("session_state", "Status", str),
             ("routes_advertised", "Routes Advertised", int),
             ("routes_withdrawn", "Routes Withdrawn", int),
         ],
