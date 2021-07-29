@@ -73,6 +73,9 @@ class Api(snappi.Api):
         self.do_compact = True
         self._dev_compacted = {}
         self._previous_errors = []
+        self._ixn_obj_info =  namedtuple(
+            "IxNobjInfo", ["xpath", "href", "index", "multiplier", "compacted"]
+        )
 
     def _get_addr_port(self, host):
         items = host.split("/")
@@ -90,13 +93,57 @@ class Api(snappi.Api):
     @property
     def snappi_config(self):
         return self._config
-
+    
     def get_config_object(self, name):
         try:
             return self._config_objects[name]
         except KeyError:
             raise NameError("snappi object named {0} not found".format(name))
 
+    def get_ixn_href(self, name):
+        """Returns an href given a unique configuration name"""
+        return self._ixn_objects[name].href
+
+    def get_ixn_object(self, name):
+        try:
+            return self._ixn_objects[name]
+        except KeyError:
+            raise NameError("snappi object named {0} not found in get_ixn_object".format(name))
+    
+    def set_ixn_object(self, name, href, xpath=None):
+        self._ixn_objects[name] = self._ixn_obj_info(
+            xpath=xpath,
+            href=href,
+            index=1,
+            multiplier=1,
+            compacted=False
+        )
+        
+    def set_ixn_cmp_object(self, snappi_obj, href, xpath=None, multiplier=1):
+        names = snappi_obj.get("name_list")
+        if names is None:
+            name = snappi_obj.get("name")
+            if name is None:
+                raise Exception(
+                    "Problem at the time of parsing set_ixn_cmp_object"
+                )
+            self._ixn_objects[name] = self._ixn_obj_info(
+                xpath=xpath,
+                href=href,
+                index=1,
+                multiplier=multiplier,
+                compacted=False
+            )
+        else:
+            for index, name in enumerate(names):
+                self._ixn_objects[name] = self._ixn_obj_info(
+                    xpath=xpath,
+                    href=href,
+                    index=multiplier * index + 1,
+                    multiplier=multiplier,
+                    compacted=True
+                )
+    
     def get_device_encap(self, name):
         try:
             return self._device_encap[name]
@@ -117,38 +164,6 @@ class Api(snappi.Api):
         else:
             for name in names:
                 self._device_encap[name] = type
-
-    @property
-    def ixn_objects(self):
-        """A dict of all model unique names to ixn hrefs"""
-        return self._ixn_objects
-
-    def set_ixn_objects(self, snappi_obj, ixn_href, multiplier=1):
-        names = snappi_obj.get("name_list")
-        if names is None:
-            name = snappi_obj.get("name")
-            if name is None:
-                raise Exception(
-                    "Problem at the time of parsing set_ixn_objects"
-                )
-            self.ixn_objects[name] = ixn_href
-        else:
-            for index, name in enumerate(names):
-                ixn_obj = {
-                    "ixn_href": ixn_href,
-                    "index": multiplier * index + 1,
-                    "multiplier": multiplier,
-                }
-                self.ixn_objects[name] = ixn_obj
-
-    def get_ixn_object(self, name):
-        """Returns an ixnetwork_restpy object given a unique configuration name"""
-        href = self.get_ixn_href(name)
-        return self._assistant.Session.GetObjectFromHref(href)
-
-    def get_ixn_href(self, name):
-        """Returns an href given a unique configuration name"""
-        return self._ixn_objects[name]
 
     @property
     def ixn_route_objects(self):

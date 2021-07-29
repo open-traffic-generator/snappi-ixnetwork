@@ -177,11 +177,11 @@ class ConfigureBgp(object):
             ixn_bgpv4.add(**args)[-1]
         else:
             self.update(ixn_bgpv4, **args)
-        self._api.set_ixn_objects(bgpv4, ixn_bgpv4.href)
         as_type = "internal"
         if bgpv4.get("as_type") is not None and bgpv4.get("as_type") == "ebgp":
             as_type = "external"
         bgp_xpath = self.get_xpath(ixn_bgpv4.href)
+        self._api.set_ixn_cmp_object(bgpv4, ixn_bgpv4.href, bgp_xpath)
         self.configure_value(bgp_xpath, "type", as_type)
         as_bytes = bgpv4.get("as_number_width")
         as_bytes_list = (
@@ -306,8 +306,8 @@ class ConfigureBgp(object):
             )
         if route_name is not None:
             ixn_bgp_property.Name = route_name
-            self._api.set_ixn_objects(
-                route_range, ixn_pool.href, multiplier=route_len
+            self._api.set_ixn_cmp_object(
+                route_range, ixn_pool.href, pool_xpath, multiplier=route_len
             )
             self._api.set_device_encap(route_range, "ipv4")
             self._api.set_route_objects(ixn_bgp_property, route_range)
@@ -354,11 +354,11 @@ class ConfigureBgp(object):
             ixn_bgpv6.add(**args)[-1]
         else:
             self.update(ixn_bgpv6, **args)
-        self._api.set_ixn_objects(bgpv6, ixn_bgpv6.href)
         as_type = "internal"
         if bgpv6.get("as_type") is not None and bgpv6.get("as_type") == "ebgp":
             as_type = "external"
         bgp_xpath = self.get_xpath(ixn_bgpv6.href)
+        self._api.set_ixn_cmp_object(bgpv6, ixn_bgpv6.href, bgp_xpath)
         self.configure_value(bgp_xpath, "type", as_type)
         as_bytes = bgpv6.get("as_number_width")
         as_bytes_list = (
@@ -472,8 +472,8 @@ class ConfigureBgp(object):
             )
         if route_name is not None:
             ixn_bgp_property.Name = route_name
-            self._api.set_ixn_objects(
-                route_range, ixn_pool.href, multiplier=route_len
+            self._api.set_ixn_cmp_object(
+                route_range, ixn_pool.href, pool_xpath, multiplier=route_len
             )
             self._api.set_device_encap(route_range, "ipv6")
             self._api.set_route_objects(ixn_bgp_property, route_range)

@@ -192,7 +192,7 @@ class Vport(object):
                 imports.append(vport_import)
         self._import(imports)
         for name, vport in self._api.select_vports().items():
-            self._api.ixn_objects[name] = vport["href"]
+            self._api.set_ixn_object(name, vport["href"], vport["xpath"])
 
     def _add_hosts(self, HostReadyTimeout):
         chassis = self._api._ixnetwork.AvailableHardware.Chassis
@@ -267,7 +267,7 @@ class Vport(object):
                 ].startswith("connectedLink"):
                     continue
 
-            self._api.ixn_objects[port.name] = vport["href"]
+            self._api.set_ixn_object(port.name, vport["href"], vport["xpath"])
             vport = {"xpath": vports[port.name]["xpath"]}
             if location_supported is True:
                 vport["location"] = location
