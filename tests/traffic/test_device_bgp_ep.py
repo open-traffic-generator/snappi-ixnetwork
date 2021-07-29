@@ -74,16 +74,13 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     req.bgpv6.device_names = []
     results = api.get_metrics(req)
     enums = [
-        "sessions_total",
-        "sessions_up",
-        "sessions_down",
-        "sessions_not_started",
+        "session_state",
         "routes_advertised",
         "routes_withdrawn",
     ]
     expected_results = {
-        "tx_bgp": [1, 1, 0, 0, 0, 0],
-        "rx_bgp": [1, 1, 0, 0, 0, 0],
+        "tx_bgp": ["up", 0, 0],
+        "rx_bgp": ["up", 0, 0],
     }
 
     assert len(results.bgpv6_metrics) == 2
@@ -106,13 +103,11 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
 
     req = api.metrics_request()
     req.choice = "bgpv6"
-    req.bgpv6.column_names = ["sessions_total", "sessions_up"]
+    req.bgpv6.column_names = ["session_state"]
     results = api.get_metrics(req)
     assert len(results.bgpv6_metrics) == 2
-    assert results.bgpv6_metrics[0].sessions_total == 1
-    assert results.bgpv6_metrics[0].sessions_up == 1
-    assert results.bgpv6_metrics[1].sessions_total == 1
-    assert results.bgpv6_metrics[1].sessions_up == 1
+    assert results.bgpv6_metrics[0].session_state == "up"
+    assert results.bgpv6_metrics[1].session_state == "up"
 
     utils.wait_for(
         lambda: results_ok(api, ["flow_bgp"], packets),

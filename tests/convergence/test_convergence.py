@@ -38,8 +38,7 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
     print(bgpv4_metrics)
 
     for bgp_metric in bgpv4_metrics:
-        assert bgp_metric.sessions_total == 1
-        assert bgp_metric.sessions_up == 1
+        assert bgp_metric.session_state == "up"
 
     # Withdraw routes from primary path
     cs = cvg_api.convergence_state()
