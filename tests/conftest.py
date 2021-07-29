@@ -20,6 +20,25 @@ def pytest_configure(config):
     utl.settings.load_from_pytest_command_line(config)
 
 
+def pytest_collection_modifyitems(items):
+    """Called after collection has been performed. May filter or re-order
+    the items in-place.
+
+    :param List[pytest.Item] items: List of item objects.
+    """
+
+    try:
+        pretest_index = [
+            index
+            for index, item in enumerate(items)
+            if item.name == "test_pretest"
+        ][0]
+
+        items[0], items[pretest_index] = items[pretest_index], items[0]
+    except:
+        print("skipping pretest as test_pretest is not part of the batch run")
+
+
 @pytest.fixture
 def settings():
     # global settings
