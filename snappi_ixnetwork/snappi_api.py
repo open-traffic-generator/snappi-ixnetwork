@@ -77,6 +77,9 @@ class Api(snappi.Api):
         self._ixn_obj_info =  namedtuple(
             "IxNobjInfo", ["xpath", "href", "index", "multiplier", "compacted"]
         )
+        self._ixn_route_info = namedtuple(
+            "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
+        )
 
     def _get_addr_port(self, host):
         items = host.split("/")
@@ -176,9 +179,7 @@ class Api(snappi.Api):
             raise Exception("%s not within configure routes" % name)
         return self._ixn_route_objects[name]
 
-    def set_route_objects(self, ixn_bgp_property, route_obj):
-        if isinstance(route_obj, str):
-            self._ixn_route_objects[route_obj] = ixn_bgp_property
+    def set_route_objects(self, ixn_bgp_property, route_obj, multiplier=1):
         names = route_obj.get("name_list")
         if names is None:
             name = route_obj.get("name")
@@ -186,13 +187,18 @@ class Api(snappi.Api):
                 raise Exception(
                     "Problem at the time of parsing set_route_objects"
                 )
-            self._ixn_route_objects[name] = ixn_bgp_property
+            self._ixn_route_objects[name] = self._ixn_route_info(
+                ixn_obj=ixn_bgp_property,
+                index=1,
+                multiplier=multiplier
+            )
         else:
             for index, name in enumerate(names):
-                self._ixn_route_objects[name] = {
-                    "ixn_obj": ixn_bgp_property,
-                    "index": index,
-                }
+                self._ixn_route_objects[name] = self._ixn_route_info(
+                    ixn_obj=ixn_bgp_property,
+                    index=index * multiplier,
+                    multiplier=multiplier
+                )
 
     @property
     def assistant(self):
@@ -289,6 +295,7 @@ class Api(snappi.Api):
         self._config_objects = {}
         self._device_encap = {}
         self._ixn_objects = {}
+        self._ixn_route_objects = {}
         self._dev_compacted = {}
         self.compacted_ref = {}
         self._connect()

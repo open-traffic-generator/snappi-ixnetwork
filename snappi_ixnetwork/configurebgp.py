@@ -310,7 +310,9 @@ class ConfigureBgp(object):
                 route_range, ixn_pool.href, pool_xpath, multiplier=route_len
             )
             self._api.set_device_encap(route_range, "ipv4")
-            self._api.set_route_objects(ixn_bgp_property, route_range)
+            self._api.set_route_objects(
+                ixn_bgp_property, route_range, multiplier=route_len
+            )
         advanced = route_range.get("advanced")
         if (
             advanced is not None
@@ -476,7 +478,9 @@ class ConfigureBgp(object):
                 route_range, ixn_pool.href, pool_xpath, multiplier=route_len
             )
             self._api.set_device_encap(route_range, "ipv6")
-            self._api.set_route_objects(ixn_bgp_property, route_range)
+            self._api.set_route_objects(
+                ixn_bgp_property, route_range, multiplier=route_len
+            )
         advanced = route_range.get("advanced")
         if (
             advanced is not None

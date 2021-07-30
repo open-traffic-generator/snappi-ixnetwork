@@ -618,11 +618,11 @@ class TrafficItem(CustomField):
         - CREATE TrafficItem for any config.flows[*].name that does not exist
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
-        self._config = copy.deepcopy(self._api.snappi_config)
-        if len(self._config.flows) == 0:
-            self.remove_ixn_traffic()
-            return
         with Timer(self._api, "Flows configuration"):
+            self._config = copy.deepcopy(self._api.snappi_config)
+            if len(self._config.flows) == 0:
+                self.remove_ixn_traffic()
+                return
             self.remove_ixn_traffic()
             ixn_traffic_item = self.get_ixn_config(self._config)[0]
             self.flows_has_latency = []

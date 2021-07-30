@@ -391,24 +391,22 @@ class Ngpf(object):
         if len(names) == 0:
             names = self._api.ixn_route_objects.keys()
         ixn_obj_idx_list = {}
+        names = list(set(names))
         for name in names:
-            ixn_route = self._api.get_route_object(name)
+            route_info = self._api.get_route_object(name)
             ixn_obj = None
-            if isinstance(ixn_route, dict):
-                for obj, index_list in ixn_obj_idx_list.items():
-                    if obj.href == ixn_route["ixn_obj"].href:
-                        ixn_obj = obj
-                        break
-                if ixn_obj is None:
-                    ixn_obj_idx_list[ixn_route["ixn_obj"]] = [
-                        ixn_route["index"]
-                    ]
-                else:
-                    ixn_obj_idx_list[ixn_route["ixn_obj"]].append(
-                        ixn_route["index"]
-                    )
+            for obj, index_list in ixn_obj_idx_list.items():
+                if obj.href == route_info.ixn_obj.href:
+                    ixn_obj = obj
+                    break
+            if ixn_obj is None:
+                ixn_obj_idx_list[route_info.ixn_obj] = list(range(
+                    route_info.index, route_info.index + route_info.multiplier
+                ))
             else:
-                ixn_route.Active.Single(Ngpf._ROUTE_STATE[payload.state])
+                ixn_obj_idx_list[ixn_obj].extend(list(range(
+                    route_info.index, route_info.index + route_info.multiplier
+                )))
         for obj, index_list in ixn_obj_idx_list.items():
             index_list = list(set(index_list))
             if len(index_list) == obj.Count:
