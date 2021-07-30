@@ -1,4 +1,4 @@
 mock
-ipaddr
+ipaddr==2.2.0
 flake8
 black; python_version > '3.6'
