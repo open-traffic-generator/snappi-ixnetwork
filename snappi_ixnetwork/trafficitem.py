@@ -451,6 +451,34 @@ class TrafficItem(CustomField):
             self._api._ixnetwork.Traffic.TrafficItem.find().refresh()
         self.traffic_index = 1
 
+    def _gen_dev_endpoint(self, devices, names, endpoints, scalable_endpoints):
+        while len(names) > 0:
+            gen_name = None
+            name = names[0]
+            dev_info = devices[name]["dev_info"]
+            xpath = dev_info.xpath
+            if xpath in self._api.compacted_ref:
+                cmp_names = set(self._api.compacted_ref[xpath])
+                inter_names = cmp_names.intersection(set(names))
+                # todo: optimize within scalable
+                if len(inter_names) == len(cmp_names):
+                    endpoints.append(xpath)
+                    gen_name = inter_names
+                else:
+                    gen_name = set([name])
+                    scalable_endpoints.append({
+                        "arg1": dev_info.xpath,
+                        "arg2": 1,
+                        "arg3": 1,
+                        "arg4": dev_info.index,
+                        "arg5": dev_info.multiplier,
+                    })
+                
+            else:
+                gen_name = set([name])
+                endpoints.append(xpath)
+            names = list(set(names).difference(gen_name))
+    
     def create_traffic(self, config):
         flows = config.flows
         tr = {"xpath": "/traffic", "trafficItem": []}
@@ -503,30 +531,12 @@ class TrafficItem(CustomField):
                 destinations = []
                 scalable_sources = []
                 scalable_destinations = []
-                for tx_name in ep.tx_names:
-                    dev_info = devices[tx_name]["dev_info"]
-                    if dev_info.compacted is True:
-                        scalable_sources.append({
-                            "arg1": dev_info.xpath,
-                            "arg2": 1,
-                            "arg3": 1,
-                            "arg4": dev_info.index,
-                            "arg5": dev_info.multiplier,
-                        })
-                    else:
-                        source.append(dev_info.xpath)
-                for rx_name in ep.rx_names:
-                    dev_info = devices[rx_name]["dev_info"]
-                    if dev_info.compacted is True:
-                        scalable_destinations.append({
-                            "arg1": dev_info.xpath,
-                            "arg2": 1,
-                            "arg3": 1,
-                            "arg4": dev_info.index,
-                            "arg5": dev_info.multiplier,
-                        })
-                    else:
-                        destinations.append(dev_info.xpath)
+                self._gen_dev_endpoint(
+                    devices, ep.tx_names, source, scalable_sources
+                )
+                self._gen_dev_endpoint(
+                    devices, ep.rx_names, destinations, scalable_destinations
+                )
                 if len(source) > 0:
                     tr["trafficItem"][-1]["endpointSet"][0]["sources"] = source
                 if len(destinations) > 0:

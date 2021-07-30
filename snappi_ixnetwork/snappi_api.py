@@ -72,6 +72,7 @@ class Api(snappi.Api):
         self.resource_group = ResourceGroup(self)
         self.do_compact = True
         self._dev_compacted = {}
+        self.compacted_ref = {}
         self._previous_errors = []
         self._ixn_obj_info =  namedtuple(
             "IxNobjInfo", ["xpath", "href", "index", "multiplier", "compacted"]
@@ -135,6 +136,7 @@ class Api(snappi.Api):
                 compacted=False
             )
         else:
+            self.compacted_ref[xpath] = names
             for index, name in enumerate(names):
                 self._ixn_objects[name] = self._ixn_obj_info(
                     xpath=xpath,
@@ -287,6 +289,8 @@ class Api(snappi.Api):
         self._config_objects = {}
         self._device_encap = {}
         self._ixn_objects = {}
+        self._dev_compacted = {}
+        self.compacted_ref = {}
         self._connect()
         self.capture.reset_capture_request()
         self._config = self._validate_instance(config)
