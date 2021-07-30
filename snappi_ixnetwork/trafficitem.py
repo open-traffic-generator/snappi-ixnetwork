@@ -527,10 +527,14 @@ class TrafficItem(CustomField):
                         })
                     else:
                         destinations.append(dev_info.xpath)
-                tr["trafficItem"][-1]["endpointSet"][0]["sources"] = source
-                tr["trafficItem"][-1]["endpointSet"][0]["destinations"] = destinations
-                tr["trafficItem"][-1]["endpointSet"][0]["scalableSources"] = scalable_sources
-                tr["trafficItem"][-1]["endpointSet"][0]["scalableDestinations"] = scalable_destinations
+                if len(source) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0]["sources"] = source
+                if len(destinations) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0]["destinations"] = destinations
+                if len(scalable_sources) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0]["scalableSources"] = scalable_sources
+                if len(scalable_destinations) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0]["scalableDestinations"] = scalable_destinations
                 
             tr["trafficItem"][-1]["trafficType"] = tr_type
             if tr_type == "raw":

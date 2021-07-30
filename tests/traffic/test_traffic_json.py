@@ -1,6 +1,7 @@
 import snappi
 import pytest
 from mock import MagicMock
+from collections import namedtuple
 from snappi_ixnetwork.trafficitem import TrafficItem
 
 expected_raw_type = {
@@ -249,25 +250,40 @@ def test_create_traffic_device(v4_or_v6):
     api = MagicMock()
     tr_obj = TrafficItem(api)
     ports = {"p1": "/vport[1]", "p2": "/vport[2]"}
+    ixn_obj_info = namedtuple(
+        "IxNobjInfo", ["xpath", "compacted"]
+    )
     devices = {
-        "d1": {"xpath": "/topology[1]/deviceGroup[1]", "type": "ipv4"},
-        "d2": {"xpath": "/topology[1]/deviceGroup[2]", "type": "ipv6"},
-        "d3": {"xpath": "/topology[2]/deviceGroup[1]", "type": "ipv4"},
-        "d4": {"xpath": "/topology[2]/deviceGroup[2]", "type": "ipv6"},
+        "d1": {
+            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[1]", False),
+            "type": "ipv4"
+        },
+        "d2": {
+            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[2]", False),
+            "type": "ipv6"
+        },
+        "d3": {
+            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[1]", False),
+            "type": "ipv4"
+        },
+        "d4": {
+            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[2]", False),
+            "type": "ipv6"
+        },
     }
     tr_obj.get_ports_encap = MagicMock(return_value=ports)
-    tr_obj.get_device_encap = MagicMock(return_value=devices)
+    tr_obj.get_device_info = MagicMock(return_value=devices)
     f1 = config.flows.flow(name="f1")[-1]
     f1.tx_rx.device.tx_names = ["d1" if v4_or_v6 == 4 else "d2"]
     f1.tx_rx.device.rx_names = ["d3" if v4_or_v6 == 4 else "d4"]
     f1.packet.ethernet().ipv4()
     tr_device = tr_obj.create_traffic(config)
     expected_device_type["trafficItem"][0]["endpointSet"][0]["sources"] = [
-        devices[f1.tx_rx.device.tx_names[0]]["xpath"]
+        devices[f1.tx_rx.device.tx_names[0]]["dev_info"].xpath
     ]
     expected_device_type["trafficItem"][0]["endpointSet"][0][
         "destinations"
-    ] = [devices[f1.tx_rx.device.rx_names[0]]["xpath"]]
+    ] = [devices[f1.tx_rx.device.rx_names[0]]["dev_info"].xpath]
     expected_device_type["trafficItem"][0]["trafficType"] = "ipv%s" % v4_or_v6
     assert tr_device == expected_device_type
     ixn_stack = expected_raw_type["trafficItem"][0]["configElement"][0][
@@ -336,3 +352,7 @@ def test_configure_duration():
     assert config_elem[0]["transmissionControl"]["minGapBytes"] == 12
     assert config_elem[0]["transmissionControl"]["startDelay"] == 0.0
     assert config_elem[0]["transmissionControl"]["startDelayUnits"] == "bytes"
+
+import pytest
+if __name__ == "__main__":
+    pytest.main(["-s", __file__])
