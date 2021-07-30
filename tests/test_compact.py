@@ -9,7 +9,7 @@ def get_macs(mac, count, offset=1):
     for i in range(count):
         mac_address = "{:012X}".format(int(mac, 16) + offset * i)
         mac_address = ":".join(
-            format(s, "02x") for s in bytes.fromhex(mac_address)
+            format(s, "02x") for s in bytearray.fromhex(mac_address)
         )
         mac_list.append(mac_address)
     return mac_list
@@ -54,6 +54,7 @@ def test_compact(api, utils):
     num_of_routes = 1000
     config_values["d1_name"] = "Tx Device 1"
     config_values["d2_name"] = "Rx Device 1"
+    config_values["d3_name"] = "Rx Device 3"
     config_values["Multiplier"] = num_of_devices
     rx_device_with_rr = 3
 
@@ -211,7 +212,7 @@ def test_compact(api, utils):
     rs.state = rs.WITHDRAW
     api.set_route_state(rs)
 
-    validate_route_withdraw(api)
+    validate_route_withdraw(api, config_values)
 
 
 def compare(actual, expected):
@@ -223,9 +224,17 @@ def validate_compact_config(api, config_values, rx_device_with_rr):
     Validate attributes using RestPy
     """
     ixnetwork = api._ixnetwork
-    d1, d2, d3 = ixnetwork.Topology.find().DeviceGroup.find()
-    assert d1.Name == config_values["d1_name"]
-    assert d2.Name == config_values["d2_name"]
+
+    d1 = ixnetwork.Topology.find().DeviceGroup.find(
+        Name=config_values["d1_name"]
+    )
+    d2 = ixnetwork.Topology.find().DeviceGroup.find(
+        Name=config_values["d2_name"]
+    )
+    d3 = ixnetwork.Topology.find().DeviceGroup.find(
+        Name=config_values["d3_name"]
+    )
+
     assert d1.Multiplier == config_values["Multiplier"]
     # assert Macs
     d3_mac = config_values["rx_macs"].pop(rx_device_with_rr - 1)
@@ -340,9 +349,14 @@ def validate_compact_config(api, config_values, rx_device_with_rr):
     assert f3_ixn_endpoint.Sources[0] == d1.href + "/ethernet/1/ipv4/1"
 
 
-def validate_route_withdraw(api):
+def validate_route_withdraw(api, config_values):
     ixnetwork = api._ixnetwork
-    d1, _, d3 = ixnetwork.Topology.find().DeviceGroup.find()
+    d1 = ixnetwork.Topology.find().DeviceGroup.find(
+        Name=config_values["d1_name"]
+    )
+    d3 = ixnetwork.Topology.find().DeviceGroup.find(
+        Name=config_values["d3_name"]
+    )
     d1_ixn_pool = d1.NetworkGroup.find().Ipv4PrefixPools.find()
     d3_ixn_pool = d3.NetworkGroup.find().Ipv4PrefixPools.find()
     assert (d1_ixn_pool.BgpIPRouteProperty.find().Active.Values)[6] == "false"
