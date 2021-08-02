@@ -230,6 +230,7 @@ class ProtocolMetrics(object):
                 )
                 raise Exception(msg)
             columns = drill.Data.ColumnCaptions
+            drill.Data.PageSize = drill.Data.TotalRows
             values = drill.Data.PageValues
             for value in values:
                 row_dt = dict()
