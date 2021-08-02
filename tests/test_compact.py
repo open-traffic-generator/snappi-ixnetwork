@@ -59,6 +59,7 @@ def test_compact(api, utils):
     rx_device_with_rr = 3
 
     config = api.config()
+    api.enable_scaling(True)
 
     tx_port, rx_port = config.ports.port(
         name="Tx Port", location=utils.settings.ports[0]
@@ -362,3 +363,8 @@ def validate_route_withdraw(api, config_values):
     assert (d1_ixn_pool.BgpIPRouteProperty.find().Active.Values)[6] == "false"
     assert (d1_ixn_pool.BgpIPRouteProperty.find().Active.Values)[7] == "false"
     assert (d3_ixn_pool.BgpIPRouteProperty.find().Active.Values)[0] == "false"
+
+
+import pytest
+if __name__ == "__main__":
+    pytest.main(["-s", __file__])

@@ -70,7 +70,7 @@ class Api(snappi.Api):
         self.capture = Capture(self)
         self.protocol_metrics = ProtocolMetrics(self)
         self.resource_group = ResourceGroup(self)
-        self.do_compact = True
+        self.do_compact = False
         self._dev_compacted = {}
         self.compacted_ref = {}
         self._previous_errors = []
@@ -94,6 +94,9 @@ class Api(snappi.Api):
             else:
                 return addr, "80"
 
+    def enable_scaling(self, do_compact = False):
+        self.do_compact = do_compact
+    
     @property
     def snappi_config(self):
         return self._config
