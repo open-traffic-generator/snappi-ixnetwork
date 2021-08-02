@@ -388,7 +388,7 @@ class TrafficItem(CustomField):
                 vports[v["name"]] = v["xpath"]
         return vports
 
-    def get_device_encap(self, config):
+    def get_device_info(self, config):
         if len(config.devices) == 0:
             return {}
         dev_names = []
@@ -400,41 +400,10 @@ class TrafficItem(CustomField):
         dev_names = list(set(dev_names))
         if dev_names == []:
             return {}
-        selects = []
-        url = None
-        for name in dev_names:
-            href = self._api.get_ixn_href(name)
-            if href is None:
-                # TODO change to more detailed message
-                raise Exception(
-                    "href is not found for device name {}".format(name)
-                )
-            href = href.split("ixnetwork")[-1]
-            # query = "^(xpath|ethernet|ipv4|ipv6)$"
-            # if "ipv4" in href or "ipv6" in href:
-            #     query = "^(xpath)$"
-            # elif "networkGroup" in href:
-            #     query = "^(xpath|networkGroup|ipv4PrefixPools|ipv6PrefixPools)"
-            query = "^(xpath)$"
-            url, search = self._get_search_payload(href, query, ["name"], [])
-            selects.extend(search["selects"])
-        payload = {"selects": selects}
-        ixn = self._api.assistant._ixnetwork
-        result = ixn._connection._execute(url, payload)
-        if len(dev_names) != len(result):
-            # TODO change to more detailed message
-            raise Exception("search query result miss match with device names")
         paths = {}
-        for i, d in enumerate(dev_names):
-            paths[d] = {"xpath": result[i]["xpath"]}
-            # string = str(result[i])
-            # if "ipv4" in string:
-            #     tr_type = "ipv4"
-            # elif "ipv6" in string:
-            #     tr_type = "ipv6"
-            # else:
-            #     tr_type = "ethernetVlan"
-            paths[d]["type"] = self._api.get_device_encap(d)
+        for i, dev_name in enumerate(dev_names):
+            paths[dev_name] = {"dev_info": self._api.get_ixn_object(dev_name)}
+            paths[dev_name]["type"] = self._api.get_device_encap(dev_name)
         return paths
 
     def get_ixn_config(self, config):
@@ -482,11 +451,39 @@ class TrafficItem(CustomField):
             self._api._ixnetwork.Traffic.TrafficItem.find().refresh()
         self.traffic_index = 1
 
+    def _gen_dev_endpoint(self, devices, names, endpoints, scalable_endpoints):
+        while len(names) > 0:
+            gen_name = None
+            name = names[0]
+            dev_info = devices[name]["dev_info"]
+            xpath = dev_info.xpath
+            if xpath in self._api.compacted_ref:
+                cmp_names = set(self._api.compacted_ref[xpath])
+                inter_names = cmp_names.intersection(set(names))
+                # todo: optimize within scalable
+                if len(inter_names) == len(cmp_names):
+                    endpoints.append(xpath)
+                    gen_name = inter_names
+                else:
+                    gen_name = set([name])
+                    scalable_endpoints.append({
+                        "arg1": dev_info.xpath,
+                        "arg2": 1,
+                        "arg3": 1,
+                        "arg4": dev_info.index,
+                        "arg5": dev_info.multiplier,
+                    })
+                
+            else:
+                gen_name = set([name])
+                endpoints.append(xpath)
+            names = list(set(names).difference(gen_name))
+    
     def create_traffic(self, config):
         flows = config.flows
         tr = {"xpath": "/traffic", "trafficItem": []}
         ports = self.get_ports_encap(config)
-        devices = self.get_device_encap(config)
+        devices = self.get_device_info(config)
         for index, flow in enumerate(flows):
             if flow._properties.get("name") is None:
                 raise Exception("name shall not be null for flows")
@@ -500,16 +497,7 @@ class TrafficItem(CustomField):
             if flow.tx_rx.choice is None:
                 msg = "Flow endpoint needs to be either port or device"
                 raise Exception(msg)
-            if flow.tx_rx.choice == "port":
-                tr_type = "raw"
-                ep = getattr(flow.tx_rx, "port")
-                tx_objs = ["%s/protocols" % ports.get(ep.tx_name)]
-                rx_objs = ["%s/protocols" % ports.get(ep.rx_name)]
-            else:
-                ep = getattr(flow.tx_rx, "device")
-                tr_type = devices[ep.tx_names[0]]["type"]
-                tx_objs = [devices[n]["xpath"] for n in ep.tx_names]
-                rx_objs = [devices[n]["xpath"] for n in ep.rx_names]
+            
             tr_xpath = "/traffic/trafficItem[%d]" % self.traffic_index
             tr["trafficItem"].append(
                 {
@@ -522,15 +510,42 @@ class TrafficItem(CustomField):
             tr["trafficItem"][-1]["endpointSet"] = [
                 {
                     "xpath": tr["trafficItem"][-1]["xpath"]
-                    + "/endpointSet[1]",
+                             + "/endpointSet[1]",
                 }
             ]
-            tr["trafficItem"][-1]["endpointSet"][0]["sources"] = [
-                o for o in tx_objs
-            ]
-            tr["trafficItem"][-1]["endpointSet"][0]["destinations"] = [
-                o for o in rx_objs
-            ]
+            if flow.tx_rx.choice == "port":
+                tr_type = "raw"
+                ep = getattr(flow.tx_rx, "port")
+                tx_objs = ["%s/protocols" % ports.get(ep.tx_name)]
+                rx_objs = ["%s/protocols" % ports.get(ep.rx_name)]
+                tr["trafficItem"][-1]["endpointSet"][0]["sources"] = [
+                    o for o in tx_objs
+                ]
+                tr["trafficItem"][-1]["endpointSet"][0]["destinations"] = [
+                    o for o in rx_objs
+                ]
+            else:
+                ep = getattr(flow.tx_rx, "device")
+                tr_type = devices[ep.tx_names[0]]["type"]
+                source = []
+                destinations = []
+                scalable_sources = []
+                scalable_destinations = []
+                self._gen_dev_endpoint(
+                    devices, ep.tx_names, source, scalable_sources
+                )
+                self._gen_dev_endpoint(
+                    devices, ep.rx_names, destinations, scalable_destinations
+                )
+                if len(source) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0]["sources"] = source
+                if len(destinations) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0]["destinations"] = destinations
+                if len(scalable_sources) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0]["scalableSources"] = scalable_sources
+                if len(scalable_destinations) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0]["scalableDestinations"] = scalable_destinations
+                
             tr["trafficItem"][-1]["trafficType"] = tr_type
             if tr_type == "raw":
                 tr["trafficItem"][-1]["configElement"] = self.config_raw_stack(
@@ -603,11 +618,11 @@ class TrafficItem(CustomField):
         - CREATE TrafficItem for any config.flows[*].name that does not exist
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
-        self._config = copy.deepcopy(self._api.snappi_config)
-        if len(self._config.flows) == 0:
-            self.remove_ixn_traffic()
-            return
         with Timer(self._api, "Flows configuration"):
+            self._config = copy.deepcopy(self._api.snappi_config)
+            if len(self._config.flows) == 0:
+                self.remove_ixn_traffic()
+                return
             self.remove_ixn_traffic()
             ixn_traffic_item = self.get_ixn_config(self._config)[0]
             self.flows_has_latency = []

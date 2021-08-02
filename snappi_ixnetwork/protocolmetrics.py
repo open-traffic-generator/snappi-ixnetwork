@@ -230,6 +230,7 @@ class ProtocolMetrics(object):
                 )
                 raise Exception(msg)
             columns = drill.Data.ColumnCaptions
+            drill.Data.PageSize = drill.Data.TotalRows
             values = drill.Data.PageValues
             for value in values:
                 row_dt = dict()
@@ -240,9 +241,21 @@ class ProtocolMetrics(object):
                     row_lst.append(row_dt)
         return row_lst
 
+    def _update_actual_dev_name(self, data):
+        keys = self._api._dev_compacted.keys()
+        if data["Device Group"] in keys:
+            for k, v in self._api._dev_compacted.items():
+                if (
+                    data["Device Group"] == v["dev_name"]
+                    and int(data["Device#"]) == v["index"] + 1
+                ):
+                    data["Device Group"] = k
+        return data
+
     def _set_result_value(
         self, row_dt, data, stat_name, ix_name, stat_type=str
     ):
+        data = self._update_actual_dev_name(data)
         if self.device_names == []:
             self.device_names = [
                 d.name for d in self._api.snappi_config.devices

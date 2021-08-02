@@ -32,6 +32,7 @@ jobs:
           rm -rf .env
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py install
+          ${{steps.path.outputs.pythonv}} do.py init
       - name: Run tests
         run: |
           ${{steps.path.outputs.pythonv}} do.py test

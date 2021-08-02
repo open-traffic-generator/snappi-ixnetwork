@@ -70,7 +70,16 @@ class Api(snappi.Api):
         self.capture = Capture(self)
         self.protocol_metrics = ProtocolMetrics(self)
         self.resource_group = ResourceGroup(self)
+        self.do_compact = False
+        self._dev_compacted = {}
+        self.compacted_ref = {}
         self._previous_errors = []
+        self._ixn_obj_info =  namedtuple(
+            "IxNobjInfo", ["xpath", "href", "index", "multiplier", "compacted"]
+        )
+        self._ixn_route_info = namedtuple(
+            "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
+        )
 
     def _get_addr_port(self, host):
         items = host.split("/")
@@ -85,35 +94,84 @@ class Api(snappi.Api):
             else:
                 return addr, "80"
 
+    def enable_scaling(self, do_compact = False):
+        self.do_compact = do_compact
+    
     @property
     def snappi_config(self):
         return self._config
-
+    
     def get_config_object(self, name):
         try:
             return self._config_objects[name]
         except KeyError:
             raise NameError("snappi object named {0} not found".format(name))
 
+    def get_ixn_href(self, name):
+        """Returns an href given a unique configuration name"""
+        return self._ixn_objects[name].href
+
+    def get_ixn_object(self, name):
+        try:
+            return self._ixn_objects[name]
+        except KeyError:
+            raise NameError("snappi object named {0} not found in get_ixn_object".format(name))
+    
+    def set_ixn_object(self, name, href, xpath=None):
+        self._ixn_objects[name] = self._ixn_obj_info(
+            xpath=xpath,
+            href=href,
+            index=1,
+            multiplier=1,
+            compacted=False
+        )
+        
+    def set_ixn_cmp_object(self, snappi_obj, href, xpath=None, multiplier=1):
+        names = snappi_obj.get("name_list")
+        if names is None:
+            name = snappi_obj.get("name")
+            if name is None:
+                raise Exception(
+                    "Problem at the time of parsing set_ixn_cmp_object"
+                )
+            self._ixn_objects[name] = self._ixn_obj_info(
+                xpath=xpath,
+                href=href,
+                index=1,
+                multiplier=multiplier,
+                compacted=False
+            )
+        else:
+            self.compacted_ref[xpath] = names
+            for index, name in enumerate(names):
+                self._ixn_objects[name] = self._ixn_obj_info(
+                    xpath=xpath,
+                    href=href,
+                    index=multiplier * index + 1,
+                    multiplier=multiplier,
+                    compacted=True
+                )
+    
     def get_device_encap(self, name):
         try:
             return self._device_encap[name]
         except KeyError:
             raise NameError("snappi object named {0} not found".format(name))
 
-    @property
-    def ixn_objects(self):
-        """A dict of all model unique names to ixn hrefs"""
-        return self._ixn_objects
-
-    def get_ixn_object(self, name):
-        """Returns an ixnetwork_restpy object given a unique configuration name"""
-        href = self.get_ixn_href(name)
-        return self._assistant.Session.GetObjectFromHref(href)
-
-    def get_ixn_href(self, name):
-        """Returns an href given a unique configuration name"""
-        return self._ixn_objects[name]
+    def set_device_encap(self, obj, type):
+        if isinstance(obj, str):
+            self._device_encap[obj] = type
+        names = obj.get("name_list")
+        if names is None:
+            name = obj.get("name")
+            if name is None:
+                raise Exception(
+                    "Problem at the time of parsing set_device_encap"
+                )
+            self._device_encap[name] = type
+        else:
+            for name in names:
+                self._device_encap[name] = type
 
     @property
     def ixn_route_objects(self):
@@ -124,9 +182,35 @@ class Api(snappi.Api):
             raise Exception("%s not within configure routes" % name)
         return self._ixn_route_objects[name]
 
+    def set_route_objects(self, ixn_bgp_property, route_obj, multiplier=1):
+        names = route_obj.get("name_list")
+        if names is None:
+            name = route_obj.get("name")
+            if name is None:
+                raise Exception(
+                    "Problem at the time of parsing set_route_objects"
+                )
+            self._ixn_route_objects[name] = self._ixn_route_info(
+                ixn_obj=ixn_bgp_property,
+                index=1,
+                multiplier=multiplier
+            )
+        else:
+            for index, name in enumerate(names):
+                self._ixn_route_objects[name] = self._ixn_route_info(
+                    ixn_obj=ixn_bgp_property,
+                    index=index * multiplier,
+                    multiplier=multiplier
+                )
+
     @property
     def assistant(self):
         return self._assistant
+
+    def set_dev_compacted(self, device):
+        dev_name = device["name"]
+        for index, name in enumerate(device["name_list"]):
+            self._dev_compacted[name] = {"dev_name": dev_name, "index": index}
 
     def _dict_to_obj(self, source):
         """Returns an object given a dict"""
@@ -214,6 +298,9 @@ class Api(snappi.Api):
         self._config_objects = {}
         self._device_encap = {}
         self._ixn_objects = {}
+        self._ixn_route_objects = {}
+        self._dev_compacted = {}
+        self.compacted_ref = {}
         self._connect()
         self.capture.reset_capture_request()
         self._config = self._validate_instance(config)
@@ -573,7 +660,14 @@ class Api(snappi.Api):
         """Remove any ixnetwork objects that are not found in the items list.
         If the items list does not exist remove everything.
         """
-        valid_names = [item.name for item in items if item.name is not None]
+        valid_names = []
+        for item in items:
+            if isinstance(item, dict):
+                name = item.get("name")
+            else:
+                name = item.name
+            if name is not None:
+                valid_names.append(name)
         invalid_names = []
         for item in ixn_obj.find():
             if item.Name not in valid_names:
