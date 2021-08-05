@@ -6,6 +6,7 @@ import setuptools
 
 pkg_name = "snappi_ixnetwork"
 version = "0.4.11"
+coverage_threshold = "80%"
 
 # read long description from readme.md
 base_dir = os.path.abspath(os.path.dirname(__file__))
