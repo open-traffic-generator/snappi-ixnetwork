@@ -36,6 +36,7 @@ def lint():
 
 
 def test():
+    coverage_threshold = 80
     args = [
         '--location="https://10.39.71.97:443"',
         (
@@ -54,14 +55,10 @@ def test():
         ]
     )
     import re
-    with open("setup.py") as f:
-        out = f.read()
-        coverage_threshold = re.findall(r"coverage_threshold = \"(\d+)\b", out)[0]
-    
     with open("./cov_report/index.html") as fp:
         out = fp.read()
         result = re.findall(r'data-ratio.*?[>](\d+)\b', out)[0]
-        if int(result) < int(coverage_threshold):
+        if int(result) < coverage_threshold:
             raise Exception("Coverage thresold[{0}] is NOT achieved[{1}]".format(
                 coverage_threshold, result
             ))
