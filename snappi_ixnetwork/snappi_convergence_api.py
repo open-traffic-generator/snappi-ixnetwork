@@ -32,7 +32,7 @@ class Api(snappi_convergence.Api):
         self._api = snappiApi(**kwargs)
         self._event_info = None
 
-    def enable_scaling(self, do_compact = False):
+    def enable_scaling(self, do_compact=False):
         self._api.do_compact = do_compact
 
     def set_config(self, payload):
@@ -340,6 +340,23 @@ class Api(snappi_convergence.Api):
         count = 0
         sleep_time = 0.5
         flow_stat = self._api.assistant.StatViewAssistant("Flow Statistics")
+        if "Show Physical Ports in LAG" in flow_stat.DrillDownOptions():
+            flow_index = {}
+            drill_down_option = "Show Physical Ports in LAG"
+            for index, row in enumerate(
+                self._get_traffic_rows(flow_stat, drill_down_option)
+            ):
+                flow_index[row["Traffic Item"]] = index
+            drill_down_options = flow_stat.DrillDownOptions()
+            drilldown_index = drill_down_options.index(drill_down_option)
+            flow_stat.Drilldown(
+                0,
+                drill_down_option,
+                flow_stat.TargetRowFilters()[drilldown_index],
+            )
+            flow_stat = self._api.assistant.StatViewAssistant(
+                "Flow Statistics"
+            )
         has_flow = False
         while True:
             flow_rows = flow_stat.Rows
