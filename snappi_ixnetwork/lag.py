@@ -10,6 +10,18 @@ class Lag(object):
     - ixnetworkapi (Api): instance of the Api class
     """
 
+    """
+    These are supported keys to defined field (_ETHERNET/ _VLAN/ _LACP/ new one...)
+    <stack_name> = {
+        <key> : {
+            "ixn_attr" : name in IxNetwork SDM
+            "default" : default IxNetwork value. Consider snappi default already taken care.
+            "translate" : translate snappi value to ixnetwork value help of self method 
+            "enum_map" : enum map with snappi with ixnetwork
+        }
+    }
+    """
+
     _ETHERNET = {
         "mac": {"ixn_attr": "mac", "default": "_default_mac"},
         "mtu": {"ixn_attr": "mtu", "default": "1500"},
@@ -42,7 +54,8 @@ class Lag(object):
         },
         "actor_system_id": {
             "ixn_attr": "actorSystemId",
-            "default": "_default_system_id",
+            "default": "00 00 00 00 00 01",
+            "translate": "_translate_actor_system_id"
         },
         "actor_system_priority": {
             "ixn_attr": "actorSystemPriority",
@@ -257,10 +270,6 @@ class Lag(object):
                         "Please configure same protocol "
                         "[static, lacp] within same Lag ports"
                     )
-                if choice == "lacp":
-                    protocol.lacp.actor_system_id = (
-                        protocol.lacp.actor_system_id.replace(":", " ")
-                    )
                 protocols.append(protocol)
             if choice is None:
                 if len(ixn_static) > 0:
@@ -337,6 +346,7 @@ class Lag(object):
         ixn_attr = attr_mapper["ixn_attr"]
         default_value = attr_mapper["default"]
         enum_map = attr_mapper.get("enum_map")
+        translate = attr_mapper.get("translate")
         default_obj = getattr(self, default_value, None)
         attr_values.ixn_attribute = ixn_attr
         for parent in parent_list:
@@ -344,6 +354,8 @@ class Lag(object):
                 parent = getattr(parent, obj_name, None)
             config_value = getattr(parent, attr, None)
             if config_value is not None:
+                if translate is not None:
+                    config_value = getattr(self, translate)(config_value)
                 if enum_map is None:
                     attr_values.config_value = str(config_value)
                 else:
@@ -353,6 +365,9 @@ class Lag(object):
             else:
                 attr_values.config_value = default_obj()
         return attr_values
+
+    def _translate_actor_system_id(self, config_value):
+        return config_value.replace(":", " ")
 
     def _select_protcols(self, lag_href):
         payload = {
