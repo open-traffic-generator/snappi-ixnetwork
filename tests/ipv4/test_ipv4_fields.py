@@ -54,15 +54,15 @@ def test_ipv4_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
 
     r = Random()
 
-    header_length = [str(r.randint(5, 15)) for i in range(10)]
-    total_length = [str(r.randint(0, 65535)) for i in range(10)]
-    identification = [str(r.randint(0, 65535)) for i in range(10)]
-    reserved = [str(r.randint(0, 1)) for i in range(10)]
-    dont_fragment = [str(r.randint(0, 1)) for i in range(10)]
-    more_fragments = [str(r.randint(0, 1)) for i in range(10)]
-    fragment_offset = [str(r.randint(0, 8191)) for i in range(10)]
-    time_to_live = [str(r.randint(0, 255)) for i in range(10)]
-    protocol = [str(r.randint(0, 255)) for i in range(10)]
+    header_length = [r.randint(5, 15) for i in range(10)]
+    total_length = [r.randint(0, 65535) for i in range(10)]
+    identification = [r.randint(0, 65535) for i in range(10)]
+    reserved = [r.randint(0, 1) for i in range(10)]
+    dont_fragment = [r.randint(0, 1) for i in range(10)]
+    more_fragments = [r.randint(0, 1) for i in range(10)]
+    fragment_offset = [r.randint(0, 31) for i in range(10)]
+    time_to_live = [r.randint(0, 255) for i in range(10)]
+    protocol = [r.randint(0, 255) for i in range(10)]
     flow2.packet.ethernet().ipv4()
     eth = flow2.packet[0]
     ipv4 = flow2.packet[1]
@@ -96,7 +96,7 @@ def test_ipv4_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
         "protocol",
     ]
     start = [5, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    step = [1, 2, 1000, 1, 1, 1, 100, 10, 1, 10]
+    step = [1, 2, 1000, 1, 1, 1, 10, 10, 1, 10]
     count = [11, 10000, 65, 10, 10, 10, 1000, 10000, 1000, 1000]
 
     flow3.packet.ethernet().ipv4()
@@ -130,15 +130,15 @@ def test_ipv4_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
 
     # list validation
     f2_attrs = {
-        "Header Length": header_length,
-        "Total Length (octets)": total_length,
-        "Identification": identification,
-        "Reserved": reserved,
-        "Fragment": dont_fragment,
-        "Last Fragment": more_fragments,
-        "Fragment offset": fragment_offset,
-        "TTL (Time to live)": time_to_live,
-        "Protocol": protocol,
+        "Header Length": [str(h) for h in header_length],
+        "Total Length (octets)": [str(t) for t in total_length],
+        "Identification": [str(i) for i in identification],
+        "Reserved": [str(r) for r in reserved],
+        "Fragment": [str(df) for df in dont_fragment],
+        "Last Fragment": [str(mf) for mf in more_fragments],
+        "Fragment offset": [str(fo) for fo in fragment_offset],
+        "TTL (Time to live)": [str(ttl) for ttl in time_to_live],
+        "Protocol": [str(pro) for pro in protocol],
     }
     utils.validate_config(api, "f2", "ipv4", **f2_attrs)
 

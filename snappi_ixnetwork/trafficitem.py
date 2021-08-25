@@ -466,19 +466,21 @@ class TrafficItem(CustomField):
                     gen_name = inter_names
                 else:
                     gen_name = set([name])
-                    scalable_endpoints.append({
-                        "arg1": dev_info.xpath,
-                        "arg2": 1,
-                        "arg3": 1,
-                        "arg4": dev_info.index,
-                        "arg5": dev_info.multiplier,
-                    })
-                
+                    scalable_endpoints.append(
+                        {
+                            "arg1": dev_info.xpath,
+                            "arg2": 1,
+                            "arg3": 1,
+                            "arg4": dev_info.index,
+                            "arg5": dev_info.multiplier,
+                        }
+                    )
+
             else:
                 gen_name = set([name])
                 endpoints.append(xpath)
             names = list(set(names).difference(gen_name))
-    
+
     def create_traffic(self, config):
         flows = config.flows
         tr = {"xpath": "/traffic", "trafficItem": []}
@@ -497,7 +499,7 @@ class TrafficItem(CustomField):
             if flow.tx_rx.choice is None:
                 msg = "Flow endpoint needs to be either port or device"
                 raise Exception(msg)
-            
+
             tr_xpath = "/traffic/trafficItem[%d]" % self.traffic_index
             tr["trafficItem"].append(
                 {
@@ -510,7 +512,7 @@ class TrafficItem(CustomField):
             tr["trafficItem"][-1]["endpointSet"] = [
                 {
                     "xpath": tr["trafficItem"][-1]["xpath"]
-                             + "/endpointSet[1]",
+                    + "/endpointSet[1]",
                 }
             ]
             if flow.tx_rx.choice == "port":
@@ -540,16 +542,22 @@ class TrafficItem(CustomField):
                 if len(source) > 0:
                     tr["trafficItem"][-1]["endpointSet"][0]["sources"] = source
                 if len(destinations) > 0:
-                    tr["trafficItem"][-1]["endpointSet"][0]["destinations"] = destinations
+                    tr["trafficItem"][-1]["endpointSet"][0][
+                        "destinations"
+                    ] = destinations
                 if len(scalable_sources) > 0:
-                    tr["trafficItem"][-1]["endpointSet"][0]["scalableSources"] = scalable_sources
+                    tr["trafficItem"][-1]["endpointSet"][0][
+                        "scalableSources"
+                    ] = scalable_sources
                 if len(scalable_destinations) > 0:
-                    tr["trafficItem"][-1]["endpointSet"][0]["scalableDestinations"] = scalable_destinations
-                
+                    tr["trafficItem"][-1]["endpointSet"][0][
+                        "scalableDestinations"
+                    ] = scalable_destinations
+
             tr["trafficItem"][-1]["trafficType"] = tr_type
             if tr_type == "raw":
                 tr["trafficItem"][-1]["configElement"] = self.config_raw_stack(
-                    tr_xpath, flow.packet
+                    tr_xpath, self._flows_packet[index]
                 )
             self.traffic_index += 1
         return tr
@@ -558,7 +566,7 @@ class TrafficItem(CustomField):
         ce_path = "%s/configElement[1]" % xpath
         config_elem = {"xpath": ce_path, "stack": []}
         for i, header in enumerate(packet):
-            stack_name = self._HEADER_TO_TYPE.get(header._choice)
+            stack_name = self._HEADER_TO_TYPE.get(header.parent.choice)
             header_xpath = "%s/stack[@alias = '%s-%d']" % (
                 ce_path,
                 stack_name,
@@ -609,6 +617,18 @@ class TrafficItem(CustomField):
                     "must be unique for flow %s" % flow.name
                 )
 
+    def copy_flow_packet(self, config):
+        self._flows_packet = []
+        for flow in config.flows:
+            flow_packet = []
+            for pkt in flow.packet:
+                parent = pkt.parent.__deepcopy__(None)
+                head = parent.get(parent.choice)
+                head._parent = parent
+                flow_packet.append(head)
+            self._flows_packet.append(flow_packet)
+        return
+
     def config(self):
         """Configure config.flows onto Ixnetwork.Traffic.TrafficItem
 
@@ -619,11 +639,12 @@ class TrafficItem(CustomField):
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
         with Timer(self._api, "Flows configuration"):
-            self._config = copy.deepcopy(self._api.snappi_config)
+            self._config = self._api.snappi_config
             if len(self._config.flows) == 0:
                 self.remove_ixn_traffic()
                 return
             self.remove_ixn_traffic()
+            self.copy_flow_packet(self._config)
             ixn_traffic_item = self.get_ixn_config(self._config)[0]
             self.flows_has_latency = []
             self.flows_has_timestamp = []
@@ -663,7 +684,7 @@ class TrafficItem(CustomField):
                         ixn_traffic_item[i]["configElement"]
                     ):
                         stack = self._configure_packet(
-                            ce["stack"], flow.packet
+                            ce["stack"], self._flows_packet[i]
                         )
                         tr_item["configElement"][ind]["stack"] = stack
 
@@ -779,11 +800,11 @@ class TrafficItem(CustomField):
         insert_header=False,
         header_index=None,
     ):
-        field_map = getattr(self, "_%s" % snappi_header._choice.upper())
-        stack_name = self._HEADER_TO_TYPE.get(snappi_header._choice)
+        field_map = getattr(self, "_%s" % snappi_header.parent.choice.upper())
+        stack_name = self._HEADER_TO_TYPE.get(snappi_header.parent.choice)
         if stack_name is None:
             raise NotImplementedError(
-                "%s stack is not implemented" % snappi_header._choice
+                "%s stack is not implemented" % snappi_header.parent.choice
             )
         header = {"xpath": xpath}
         if insert_header is True and header_index is not None:
@@ -815,7 +836,7 @@ class TrafficItem(CustomField):
             f["xpath"].split(" = ")[-1].strip("']").split("-")[0]
             for f in ixn_fields
         ]
-        field_map = getattr(self, "_%s" % snappi_header._choice.upper())
+        field_map = getattr(self, "_%s" % snappi_header.parent.choice.upper())
         for field in snappi_header._TYPES:
             format_type = None
             try:

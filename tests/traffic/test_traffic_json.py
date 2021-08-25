@@ -240,6 +240,7 @@ def test_create_traffic_raw():
     f1.tx_rx.port.tx_name = "p1"
     f1.tx_rx.port.rx_name = "p2"
     f1.packet.ethernet().ipv4()
+    tr_obj.copy_flow_packet(config)
     tr_raw = tr_obj.create_traffic(config)
     assert tr_raw == expected_raw_type
 
@@ -250,25 +251,23 @@ def test_create_traffic_device(v4_or_v6):
     api = MagicMock()
     tr_obj = TrafficItem(api)
     ports = {"p1": "/vport[1]", "p2": "/vport[2]"}
-    ixn_obj_info = namedtuple(
-        "IxNobjInfo", ["xpath", "compacted"]
-    )
+    ixn_obj_info = namedtuple("IxNobjInfo", ["xpath", "compacted"])
     devices = {
         "d1": {
             "dev_info": ixn_obj_info("/topology[1]/deviceGroup[1]", False),
-            "type": "ipv4"
+            "type": "ipv4",
         },
         "d2": {
             "dev_info": ixn_obj_info("/topology[1]/deviceGroup[2]", False),
-            "type": "ipv6"
+            "type": "ipv6",
         },
         "d3": {
             "dev_info": ixn_obj_info("/topology[1]/deviceGroup[1]", False),
-            "type": "ipv4"
+            "type": "ipv4",
         },
         "d4": {
             "dev_info": ixn_obj_info("/topology[1]/deviceGroup[2]", False),
-            "type": "ipv6"
+            "type": "ipv6",
         },
     }
     tr_obj.get_ports_encap = MagicMock(return_value=ports)
@@ -353,6 +352,8 @@ def test_configure_duration():
     assert config_elem[0]["transmissionControl"]["startDelay"] == 0.0
     assert config_elem[0]["transmissionControl"]["startDelayUnits"] == "bytes"
 
+
 import pytest
+
 if __name__ == "__main__":
     pytest.main(["-s", __file__])
