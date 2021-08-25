@@ -466,19 +466,21 @@ class TrafficItem(CustomField):
                     gen_name = inter_names
                 else:
                     gen_name = set([name])
-                    scalable_endpoints.append({
-                        "arg1": dev_info.xpath,
-                        "arg2": 1,
-                        "arg3": 1,
-                        "arg4": dev_info.index,
-                        "arg5": dev_info.multiplier,
-                    })
-                
+                    scalable_endpoints.append(
+                        {
+                            "arg1": dev_info.xpath,
+                            "arg2": 1,
+                            "arg3": 1,
+                            "arg4": dev_info.index,
+                            "arg5": dev_info.multiplier,
+                        }
+                    )
+
             else:
                 gen_name = set([name])
                 endpoints.append(xpath)
             names = list(set(names).difference(gen_name))
-    
+
     def create_traffic(self, config):
         flows = config.flows
         tr = {"xpath": "/traffic", "trafficItem": []}
@@ -497,7 +499,7 @@ class TrafficItem(CustomField):
             if flow.tx_rx.choice is None:
                 msg = "Flow endpoint needs to be either port or device"
                 raise Exception(msg)
-            
+
             tr_xpath = "/traffic/trafficItem[%d]" % self.traffic_index
             tr["trafficItem"].append(
                 {
@@ -510,7 +512,7 @@ class TrafficItem(CustomField):
             tr["trafficItem"][-1]["endpointSet"] = [
                 {
                     "xpath": tr["trafficItem"][-1]["xpath"]
-                             + "/endpointSet[1]",
+                    + "/endpointSet[1]",
                 }
             ]
             if flow.tx_rx.choice == "port":
@@ -540,12 +542,18 @@ class TrafficItem(CustomField):
                 if len(source) > 0:
                     tr["trafficItem"][-1]["endpointSet"][0]["sources"] = source
                 if len(destinations) > 0:
-                    tr["trafficItem"][-1]["endpointSet"][0]["destinations"] = destinations
+                    tr["trafficItem"][-1]["endpointSet"][0][
+                        "destinations"
+                    ] = destinations
                 if len(scalable_sources) > 0:
-                    tr["trafficItem"][-1]["endpointSet"][0]["scalableSources"] = scalable_sources
+                    tr["trafficItem"][-1]["endpointSet"][0][
+                        "scalableSources"
+                    ] = scalable_sources
                 if len(scalable_destinations) > 0:
-                    tr["trafficItem"][-1]["endpointSet"][0]["scalableDestinations"] = scalable_destinations
-                
+                    tr["trafficItem"][-1]["endpointSet"][0][
+                        "scalableDestinations"
+                    ] = scalable_destinations
+
             tr["trafficItem"][-1]["trafficType"] = tr_type
             if tr_type == "raw":
                 tr["trafficItem"][-1]["configElement"] = self.config_raw_stack(
@@ -558,7 +566,7 @@ class TrafficItem(CustomField):
         ce_path = "%s/configElement[1]" % xpath
         config_elem = {"xpath": ce_path, "stack": []}
         for i, header in enumerate(packet):
-            stack_name = self._HEADER_TO_TYPE.get(header._choice)
+            stack_name = self._HEADER_TO_TYPE.get(header.parent.choice)
             header_xpath = "%s/stack[@alias = '%s-%d']" % (
                 ce_path,
                 stack_name,
