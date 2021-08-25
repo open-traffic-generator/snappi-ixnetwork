@@ -549,7 +549,7 @@ class TrafficItem(CustomField):
             tr["trafficItem"][-1]["trafficType"] = tr_type
             if tr_type == "raw":
                 tr["trafficItem"][-1]["configElement"] = self.config_raw_stack(
-                    tr_xpath, flow.packet
+                    tr_xpath, self._flows_packet[index]
                 )
             self.traffic_index += 1
         return tr
@@ -609,6 +609,18 @@ class TrafficItem(CustomField):
                     "must be unique for flow %s" % flow.name
                 )
 
+    def copy_flow_packet(self, config):
+        self._flows_packet = []
+        for flow in config.flows:
+            flow_packet = []
+            for pkt in flow.packet:
+                parent = pkt.parent.__deepcopy__(None)
+                head = parent.get(parent.choice)
+                head._parent = parent
+                flow_packet.append(head)
+            self._flows_packet.append(flow_packet)
+        return
+
     def config(self):
         """Configure config.flows onto Ixnetwork.Traffic.TrafficItem
 
@@ -619,11 +631,12 @@ class TrafficItem(CustomField):
         - UPDATE TrafficItem for any config.flows[*].name that exists
         """
         with Timer(self._api, "Flows configuration"):
-            self._config = copy.deepcopy(self._api.snappi_config)
+            self._config = self._api.snappi_config
             if len(self._config.flows) == 0:
                 self.remove_ixn_traffic()
                 return
             self.remove_ixn_traffic()
+            self.copy_flow_packet(self._config)
             ixn_traffic_item = self.get_ixn_config(self._config)[0]
             self.flows_has_latency = []
             self.flows_has_timestamp = []
@@ -663,7 +676,7 @@ class TrafficItem(CustomField):
                         ixn_traffic_item[i]["configElement"]
                     ):
                         stack = self._configure_packet(
-                            ce["stack"], flow.packet
+                            ce["stack"], self._flows_packet[i]
                         )
                         tr_item["configElement"][ind]["stack"] = stack
 
@@ -779,11 +792,11 @@ class TrafficItem(CustomField):
         insert_header=False,
         header_index=None,
     ):
-        field_map = getattr(self, "_%s" % snappi_header._choice.upper())
-        stack_name = self._HEADER_TO_TYPE.get(snappi_header._choice)
+        field_map = getattr(self, "_%s" % snappi_header.parent.choice.upper())
+        stack_name = self._HEADER_TO_TYPE.get(snappi_header.parent.choice)
         if stack_name is None:
             raise NotImplementedError(
-                "%s stack is not implemented" % snappi_header._choice
+                "%s stack is not implemented" % snappi_header.parent.choice
             )
         header = {"xpath": xpath}
         if insert_header is True and header_index is not None:
@@ -815,7 +828,7 @@ class TrafficItem(CustomField):
             f["xpath"].split(" = ")[-1].strip("']").split("-")[0]
             for f in ixn_fields
         ]
-        field_map = getattr(self, "_%s" % snappi_header._choice.upper())
+        field_map = getattr(self, "_%s" % snappi_header.parent.choice.upper())
         for field in snappi_header._TYPES:
             format_type = None
             try:
