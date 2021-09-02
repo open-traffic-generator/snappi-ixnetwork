@@ -37,16 +37,29 @@ def lint():
 
 def test():
     coverage_threshold = 80
+#     args = [
+#         '--location="https://10.39.71.97:443"',
+#         (
+#             '--ports="10.39.65.230;6;1 10.39.65.230;6;2 10.39.65.230;6;3'
+#             ' 10.39.65.230;6;4"'
+#         ),
+#         '--media="fiber"',
+#         "tests",
+#         '-m "not e2e and not l1_manual"',
+#         '--cov=./snappi_ixnetwork --cov-report term --cov-report html:cov_report',
+#     ]
     args = [
-        '--location="https://10.39.71.97:443"',
+        '--location="https://otg-novus100g.lbj.is.keysight.com:5000"',
         (
-            '--ports="10.39.65.230;6;1 10.39.65.230;6;2 10.39.65.230;6;3'
-            ' 10.39.65.230;6;4"'
+            '--ports="otg-novus100g.lbj.is.keysight.com;1;1'
+            " otg-novus100g.lbj.is.keysight.com;1;2"
+            " otg-novus100g.lbj.is.keysight.com;1;3"
+            ' otg-novus100g.lbj.is.keysight.com;1;4"'
         ),
-        '--media="fiber"',
+        "--ext=ixnetwork",
+        "--speed=speed_100_gbps",
         "tests",
-        '-m "not e2e and not l1_manual"',
-        '--cov=./snappi_ixnetwork --cov-report term --cov-report html:cov_report',
+        '-m "not dut and not l1_manual"',
     ]
     run(
         [
