@@ -58,8 +58,8 @@ def test():
         ),
         "--ext=ixnetwork",
         "--speed=speed_100_gbps",
-        "tests",
-        '-m "not dut and not l1_manual"',
+        '-m "not e2e and not l1_manual"',
+        '--cov=./snappi_ixnetwork --cov-report term --cov-report html:cov_report',
     ]
     run(
         [
