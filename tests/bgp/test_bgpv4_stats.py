@@ -59,8 +59,8 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
         "notifications_received",
     ]
     expected_results = {
-        "tx_bgp": ["up", 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-        "rx_bgp": ["up", 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+        "tx_bgp": ["up", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "rx_bgp": ["up", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     }
     req = api.metrics_request()
     req.bgpv4.peer_names = []
@@ -71,7 +71,10 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     for bgp_res in results.bgpv4_metrics:
         for i, enum in enumerate(enums[:3]):
             val = expected_results[bgp_res.name][i]
-            assert getattr(bgp_res, enum) == val
+            if "session_state" in enum:
+                assert getattr(bgp_res, enum) == val
+            else:
+                assert getattr(bgp_res, enum) >= val
 
     req = api.metrics_request()
     req.bgpv4.peer_names = []
@@ -82,10 +85,10 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     for bgp_res in results.bgpv4_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[bgp_res.name][i]
-            if "keepalives" in enum:
-                assert getattr(bgp_res, enum) > 0
-            else:
+            if "session_state" in enum:
                 assert getattr(bgp_res, enum) == val
+            else:
+                assert getattr(bgp_res, enum) >= val
 
     req = api.metrics_request()
     req.bgpv4.peer_names = ["rx_bgp"]
@@ -96,10 +99,10 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     for bgp_res in results.bgpv4_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[bgp_res.name][i]
-            if "keepalives" in enum:
-                assert getattr(bgp_res, enum) > 0
-            else:
+            if "session_state" in enum:
                 assert getattr(bgp_res, enum) == val
+            else:
+                assert getattr(bgp_res, enum) >= val
 
     req = api.metrics_request()
     req.bgpv4.column_names = ["session_state"]
