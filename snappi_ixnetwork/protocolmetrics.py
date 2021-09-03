@@ -292,9 +292,10 @@ class ProtocolMetrics(object):
         if data["Device Group"] not in self.device_names:
             return
         if skip:
+            warn = stat_name in self.columns
             self._api.warning(
                 "{} metric is has no implementation".format(stat_name)
-            )
+            ) if warn else None
             row_dt[stat_name] = (
                 0 if stat_type.__name__ in ["float", "int"] else "na"
             )
