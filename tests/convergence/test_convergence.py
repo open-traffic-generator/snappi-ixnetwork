@@ -33,7 +33,7 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
 
     # Validate bgpv4 metrics
     req = cvg_api.convergence_request()
-    req.bgpv4.device_names = []
+    req.bgpv4.peer_names = []
     bgpv4_metrics = cvg_api.get_results(req).bgpv4_metrics
     print(bgpv4_metrics)
 

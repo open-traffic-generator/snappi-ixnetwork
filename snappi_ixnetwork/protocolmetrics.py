@@ -8,6 +8,7 @@ class ProtocolMetrics(object):
     # more than one page.
 
     _SUPPORTED_PROTOCOLS_ = ["bgpv4", "bgpv6"]
+    _SKIP = True
 
     _TOPO_STATS = {
         "name": "name",
@@ -21,14 +22,40 @@ class ProtocolMetrics(object):
         "bgpv4": [
             ("name", "Device Group", str),
             ("session_state", "Status", str),
+            # TODO session_flap_count can't be added now
+            # it needs to be added by creating new view.
+            # currently facing an issue in protocol view creation.
+            ("session_flap_count", "Session Flap Count", int, _SKIP),
             ("routes_advertised", "Routes Advertised", int),
-            ("routes_withdrawn", "Routes Withdrawn", int),
+            ("routes_received", "Routes Rx", int),
+            ("route_withdraws_sent", "Routes Withdrawn", int),
+            ("route_withdraws_received", "Route Withdraws Rx", int),
+            ("updates_sent", "Updates Tx", int),
+            ("updates_received", "Updates Rx", int),
+            ("opens_sent", "Opens Tx", int),
+            ("opens_received", "Opens Rx", int),
+            ("keepalives_sent", "KeepAlives Tx", int),
+            ("keepalives_received", "KeepAlives Rx", int),
+            ("notifications_sent", "Notifications Tx", int),
+            ("notifications_received", "Notifications Rx", int),
         ],
         "bgpv6": [
             ("name", "Device Group", str),
             ("session_state", "Status", str),
+            # TODO session_flap_count can't be added now
+            ("session_flap_count", "Session Flap Count", int, _SKIP),
             ("routes_advertised", "Routes Advertised", int),
-            ("routes_withdrawn", "Routes Withdrawn", int),
+            ("routes_received", "Routes Rx", int),
+            ("route_withdraws_sent", "Routes Withdrawn", int),
+            ("route_withdraws_received", "Route Withdraws Rx", int),
+            ("updates_sent", "Updates Tx", int),
+            ("updates_received", "Updates Rx", int),
+            ("opens_sent", "Opens Tx", int),
+            ("opens_received", "Opens Rx", int),
+            ("keepalives_sent", "KeepAlives Tx", int),
+            ("keepalives_received", "KeepAlives Rx", int),
+            ("notifications_sent", "Notifications Tx", int),
+            ("notifications_received", "Notifications Rx", int),
         ],
     }
 
@@ -205,16 +232,16 @@ class ProtocolMetrics(object):
     def _get_per_device_group_stats(self, protocol):
         ports, v = self._port_list_in_per_port(protocol)
         config_ports = self._port_names_from_devices()
-        indices = [
-            ports.index(p) for p in list(set(config_ports)) if p in ports
-        ]
+        indices = set(
+            [ports.index(p) for p in list(set(config_ports)) if p in ports]
+        )
         drill_option = self._PROTO_NAME_MAP_[protocol]["drill_down_options"][0]
         drill_option2 = self._PROTO_NAME_MAP_[protocol]["drill_down_options"][
             1
         ]
         drill_name = self._PROTO_NAME_MAP_[protocol]["drill_down"]
         per_port = self._PROTO_NAME_MAP_[protocol]["per_port"]
-        column_names = self._RESULT_COLUMNS.get(protocol)
+        column_names = self._RESULT_COLUMNS.get(protocol, [])
         row_lst = list()
         for i in indices:
             try:
@@ -235,8 +262,10 @@ class ProtocolMetrics(object):
             for value in values:
                 row_dt = dict()
                 data = dict(zip(columns, value[0]))
-                for sn, ixn, typ in column_names:
-                    self._set_result_value(row_dt, data, sn, ixn, typ)
+                for col in column_names:
+                    sn, ixn, typ = col[:3]
+                    skip = False if len(col) <= 3 else col[-1]
+                    self._set_result_value(row_dt, data, sn, ixn, typ, skip)
                 if row_dt != {}:
                     row_lst.append(row_dt)
         return row_lst
@@ -253,29 +282,34 @@ class ProtocolMetrics(object):
         return data
 
     def _set_result_value(
-        self, row_dt, data, stat_name, ix_name, stat_type=str
+        self, row_dt, data, stat_name, ix_name, stat_type=str, skip=False
     ):
         data = self._update_actual_dev_name(data)
         if self.device_names == []:
             self.device_names = [
                 d.name for d in self._api.snappi_config.devices
             ]
-        if data["Device Group"] in self.device_names:
-            if stat_name == "session_state":
-                if data["Status"] == "Up":
-                    row_dt[stat_name] = "up"
-                else:
-                    row_dt[stat_name] = "down"
-            else:
-                if len(self.columns) == 0 or stat_name in self.columns:
-                    try:
-                        row_dt[stat_name] = stat_type(data[ix_name])
-                    except Exception:
-                        row_dt[stat_name] = (
-                            0
-                            if stat_type.__name__ in ["float", "int"]
-                            else data[ix_name]
-                        )
+        if data["Device Group"] not in self.device_names:
+            return
+        if skip:
+            warn = stat_name in self.columns
+            self._api.warning(
+                "{} metric has no implementation".format(stat_name)
+            ) if warn else None
+            row_dt[stat_name] = (
+                0 if stat_type.__name__ in ["float", "int"] else "na"
+            )
+        if len(self.columns) == 0 or stat_name in self.columns:
+            try:
+                row_dt[stat_name] = stat_type(data[ix_name])
+                if isinstance(row_dt[stat_name], str):
+                    row_dt[stat_name] = row_dt[stat_name].lower()
+            except Exception:
+                row_dt[stat_name] = (
+                    0
+                    if stat_type.__name__ in ["float", "int"]
+                    else data[ix_name]
+                )
 
     def _topo_stats(self, protocol):
         url = "%s/operations/gettopologystatus" % self.ixn.href
@@ -340,14 +374,14 @@ class ProtocolMetrics(object):
         """
         protocol = request.choice
         request = getattr(request, protocol)
-        self.device_names = request.get("device_names")
+        self.device_names = request.get("peer_names")
         if self.device_names is None:
             self.device_names = []
         self.columns = request.get("column_names")
         if self.columns is None or self.columns == []:
             self.columns = self._PROTO_NAME_MAP_[protocol]["supported_stats"]
         if len(self.columns) > 0:
-            self.columns.append("name")
+            self.columns.append("name") if "name" not in self.columns else None
             self.columns = list(set(self.columns))
         with Timer(self._api, "Fetching {} Metrics".format(protocol)):
             return self._filter_stats(protocol)

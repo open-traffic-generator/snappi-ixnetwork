@@ -46,25 +46,38 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     enums = [
         "session_state",
         "routes_advertised",
-        "routes_withdrawn",
+        "routes_received",
+        "route_withdraws_sent",
+        "route_withdraws_received",
+        "updates_sent",
+        "updates_received",
+        "opens_sent",
+        "opens_received",
+        "keepalives_sent",
+        "keepalives_received",
+        "notifications_sent",
+        "notifications_received",
     ]
     expected_results = {
-        "tx_bgp": ["up", 0, 0],
-        "rx_bgp": ["up", 0, 0],
+        "tx_bgp": ["up", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "rx_bgp": ["up", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     }
     req = api.metrics_request()
-    req.bgpv4.device_names = []
-    req.bgpv4.column_names = enums[:-2]
+    req.bgpv4.peer_names = []
+    req.bgpv4.column_names = enums[:3]
     results = api.get_metrics(req)
 
     assert len(results.bgpv4_metrics) == 2
     for bgp_res in results.bgpv4_metrics:
-        for i, enum in enumerate(enums[:-2]):
+        for i, enum in enumerate(enums[:3]):
             val = expected_results[bgp_res.name][i]
-            assert getattr(bgp_res, enum) == val
+            if "session_state" in enum:
+                assert getattr(bgp_res, enum) == val
+            else:
+                assert getattr(bgp_res, enum) >= val
 
     req = api.metrics_request()
-    req.bgpv4.device_names = []
+    req.bgpv4.peer_names = []
     req.bgpv4.column_names = []
     results = api.get_metrics(req)
 
@@ -72,10 +85,13 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     for bgp_res in results.bgpv4_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[bgp_res.name][i]
-            assert getattr(bgp_res, enum) == val
+            if "session_state" in enum:
+                assert getattr(bgp_res, enum) == val
+            else:
+                assert getattr(bgp_res, enum) >= val
 
     req = api.metrics_request()
-    req.bgpv4.device_names = ["rx_bgp"]
+    req.bgpv4.peer_names = ["rx_bgp"]
     results = api.get_metrics(req)
 
     assert len(results.bgpv4_metrics) == 1
@@ -83,7 +99,10 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     for bgp_res in results.bgpv4_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[bgp_res.name][i]
-            assert getattr(bgp_res, enum) == val
+            if "session_state" in enum:
+                assert getattr(bgp_res, enum) == val
+            else:
+                assert getattr(bgp_res, enum) >= val
 
     req = api.metrics_request()
     req.bgpv4.column_names = ["session_state"]
