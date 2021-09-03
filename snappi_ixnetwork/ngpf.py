@@ -367,18 +367,19 @@ class Ngpf(object):
         ixn_ipv6 = ixn_parent.Ipv6
         self._api._remove(ixn_ipv6, [ipv6])
         args = {}
-        ixn_ipv6.find(Name="^%s$" % self._api.special_char(ipv6.name))
+        name = ipv6.get("name")
+        ixn_ipv6.find(Name="^%s$" % self._api.special_char(name))
         if len(ixn_ipv6) == 0:
             ixn_ipv6.add(**args)[-1]
         else:
             self.update(ixn_ipv6, **args)
-        if ipv6.name is not None:
-            ixn_ipv6.Name = ipv6.name
+        if name is not None:
+            ixn_ipv6.Name = name
         ip_xpath = self.get_xpath(ixn_ipv6.href)
         self._api.set_ixn_cmp_object(ipv6, ixn_ipv6.href, ip_xpath)
-        self.configure_value(ip_xpath, "address", ipv6.address)
-        self.configure_value(ip_xpath, "gatewayIp", ipv6.gateway)
-        self.configure_value(ip_xpath, "prefix", ipv6.prefix)
+        self.configure_value(ip_xpath, "address", ipv6.get("address"))
+        self.configure_value(ip_xpath, "gatewayIp", ipv6.get("gateway"))
+        self.configure_value(ip_xpath, "prefix", ipv6.get("prefix"))
         return ixn_ipv6
 
     def _configure_bgpv6(self, ixn_parent, bgpv6, ixn_dg):

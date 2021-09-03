@@ -375,7 +375,8 @@ class Api(snappi_convergence.Api):
                         "flow_names must present within in config.flows"
                     )
                 else:
-                    raise Exception("Somehow event is not reflected in stat")
+                    self._api.info("event is not reflected in stat")
+                    break
             time.sleep(sleep_time)
             count += 1
         return flow_rows

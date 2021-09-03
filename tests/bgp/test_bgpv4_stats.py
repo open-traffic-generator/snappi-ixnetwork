@@ -1,6 +1,7 @@
 import pytest
 
 
+@pytest.mark.skip(reason="will be updating the test with new snappi version")
 def test_bgpv4_stats(api, b2b_raw_config, utils):
     """
     Test for the bgpv4 metrics
