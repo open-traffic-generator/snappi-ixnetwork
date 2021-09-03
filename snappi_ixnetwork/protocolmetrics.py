@@ -232,9 +232,9 @@ class ProtocolMetrics(object):
     def _get_per_device_group_stats(self, protocol):
         ports, v = self._port_list_in_per_port(protocol)
         config_ports = self._port_names_from_devices()
-        indices = [
-            ports.index(p) for p in list(set(config_ports)) if p in ports
-        ]
+        indices = set(
+            [ports.index(p) for p in list(set(config_ports)) if p in ports]
+        )
         drill_option = self._PROTO_NAME_MAP_[protocol]["drill_down_options"][0]
         drill_option2 = self._PROTO_NAME_MAP_[protocol]["drill_down_options"][
             1
