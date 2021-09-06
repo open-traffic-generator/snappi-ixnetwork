@@ -2,6 +2,7 @@ import ipaddr
 from netaddr import IPNetwork
 from ipaddress import IPv6Network, IPv6Address
 from random import getrandbits
+import sys
 
 
 def get_macs(mac, count, offset=1):
@@ -41,6 +42,8 @@ def get_ipv6_addrs(ip, count):
         Return n IPv6 addresses in this subnet in a list.
     """
     subnet = str(IPNetwork(ip).network) + "/" + str(ip.split("/")[1])
+    if sys.version_info[0] == 2:
+        subnet = unicode(subnet, "utf-8")
     ipv6_list = []
     for i in range(count):
         network = IPv6Network(subnet)
@@ -246,17 +249,17 @@ def test_compact(api, utils):
 
     validate_compact_config(api, config_values, rx_device_with_rr)
 
-    # utils.start_traffic(api, config, start_capture=False)
-    # utils.wait_for(
-    #     lambda: stats_ok(api, PACKETS * 3, utils), "stats to be as expected"
-    # )
+    utils.start_traffic(api, config, start_capture=False)
+    utils.wait_for(
+        lambda: stats_ok(api, PACKETS * 3, utils), "stats to be as expected"
+    )
 
-    # rs = api.route_state()
-    # rs.names = ["Tx RR 4", "Rx RR 3"]
-    # rs.state = rs.WITHDRAW
-    # api.set_route_state(rs)
+    rs = api.route_state()
+    rs.names = ["Tx RR 4", "Rx RR 3"]
+    rs.state = rs.WITHDRAW
+    api.set_route_state(rs)
 
-    # validate_route_withdraw(api, config_values)
+    validate_route_withdraw(api, config_values)
 
 
 def compare(actual, expected):
