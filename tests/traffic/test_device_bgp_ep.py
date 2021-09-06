@@ -1,4 +1,8 @@
-def test_device_bgp_ep(api, b2b_raw_config, utils):
+import pytest
+
+
+@pytest.mark.skip(reason="will be updating the test with new snappi version")
+def test_bgpv6_routes(api, b2b_raw_config, utils):
     """
     Test for the bgpv6 routes
     """
@@ -71,40 +75,27 @@ def test_device_bgp_ep(api, b2b_raw_config, utils):
 
     req = api.metrics_request()
     req.choice = "bgpv6"
-    req.bgpv6.peer_names = []
+    req.bgpv6.device_names = []
     results = api.get_metrics(req)
     enums = [
         "session_state",
         "routes_advertised",
-        "routes_received",
-        "route_withdraws_sent",
-        "route_withdraws_received",
-        "updates_sent",
-        "updates_received",
-        "opens_sent",
-        "opens_received",
-        "keepalives_sent",
-        "keepalives_received",
-        "notifications_sent",
-        "notifications_received",
+        "routes_withdrawn",
     ]
     expected_results = {
-        "tx_bgp": ["up", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "rx_bgp": ["up", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "tx_bgp": ["up", 0, 0],
+        "rx_bgp": ["up", 0, 0],
     }
 
     assert len(results.bgpv6_metrics) == 2
     for bgp_res in results.bgpv6_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[bgp_res.name][i]
-            if "session_state" in enum:
-                assert getattr(bgp_res, enum) == val
-            else:
-                assert getattr(bgp_res, enum) >= val
+            assert getattr(bgp_res, enum) == val
 
     req = api.metrics_request()
     req.choice = "bgpv6"
-    req.bgpv6.peer_names = ["rx_bgp"]
+    req.bgpv6.device_names = ["rx_bgp"]
     results = api.get_metrics(req)
 
     assert len(results.bgpv6_metrics) == 1
@@ -112,10 +103,7 @@ def test_device_bgp_ep(api, b2b_raw_config, utils):
     for bgp_res in results.bgpv6_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[bgp_res.name][i]
-            if "session_state" in enum:
-                assert getattr(bgp_res, enum) == val
-            else:
-                assert getattr(bgp_res, enum) >= val
+            assert getattr(bgp_res, enum) == val
 
     req = api.metrics_request()
     req.choice = "bgpv6"
