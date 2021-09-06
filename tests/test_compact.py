@@ -1,4 +1,7 @@
 import ipaddr
+from netaddr import IPNetwork
+from ipaddress import IPv6Network, IPv6Address
+from random import getrandbits
 
 
 def get_macs(mac, count, offset=1):
@@ -26,6 +29,28 @@ def get_ip_addresses(ip, count):
         value = ipaddress._string_from_ip_int(ipaddress._ip)
         ip_list.append(value)
     return ip_list
+
+
+def get_ipv6_addrs(ip, count):
+    """
+    Get N IPv6 addresses in a subnet.
+    Args:
+        subnet (str): IPv6 subnet, e.g., '2001::1/64'
+        number_of_ip (int): Number of IP addresses to get
+    Return:
+        Return n IPv6 addresses in this subnet in a list.
+    """
+    subnet = str(IPNetwork(ip).network) + "/" + str(ip.split("/")[1])
+    ipv6_list = []
+    for i in range(count):
+        network = IPv6Network(subnet)
+        address = IPv6Address(
+            network.network_address
+            + getrandbits(network.max_prefixlen - network.prefixlen)
+        )
+        ipv6_list.append(str(address))
+
+    return ipv6_list
 
 
 def stats_ok(api, packets, utils):
@@ -77,11 +102,17 @@ def test_compact(api, utils):
     config_values["vlan_ids"] = [str(i) for i in range(1, num_of_devices + 1)]
 
     ip_adds = get_ip_addresses("10.10.2.1", 2 * num_of_devices)
+    ipv6_adds = get_ipv6_addrs("2001::1/64", 2 * num_of_devices)
+
     config_values["tx_adds"], config_values["rx_adds"] = (
         ip_adds[::2],
         ip_adds[1::2],
     )
 
+    config_values["tx_ipv6_adds"], config_values["rx_ipv6_adds"] = (
+        ipv6_adds[::2],
+        ipv6_adds[1::2],
+    )
     config_values["tx_rr_add1"] = get_ip_addresses("200.1.0.0", num_of_routes)
     config_values["tx_rr_add2"] = get_ip_addresses("201.1.0.0", num_of_routes)
     next_hop_addr = get_ip_addresses("4.4.4.1", num_of_routes)
@@ -103,6 +134,12 @@ def test_compact(api, utils):
         tx_ip.address = config_values["tx_adds"][i - 1]
         tx_ip.gateway = config_values["rx_adds"][i - 1]
         tx_ip.prefix = 24
+
+        tx_ipv6 = tx_eth.ipv6
+        tx_ipv6.name = "Tx IP v6{0}".format(i)
+        tx_ipv6.address = config_values["tx_ipv6_adds"][i - 1]
+        tx_ipv6.gateway = config_values["rx_ipv6_adds"][i - 1]
+        tx_ipv6.prefix = 64
 
         tx_bgp = tx_ip.bgpv4
         tx_bgp.name = "Tx Bgp {0}".format(i)
@@ -135,6 +172,12 @@ def test_compact(api, utils):
         rx_ip.address = config_values["rx_adds"][i - 1]
         rx_ip.gateway = config_values["tx_adds"][i - 1]
         rx_ip.prefix = 24
+
+        rx_ipv6 = rx_eth.ipv6
+        rx_ipv6.name = "Rx IP v6{0}".format(i)
+        rx_ipv6.address = config_values["rx_ipv6_adds"][i - 1]
+        rx_ipv6.gateway = config_values["tx_ipv6_adds"][i - 1]
+        rx_ipv6.prefix = 64
 
         rx_bgp = rx_ip.bgpv4
         rx_bgp.name = "Rx Bgp {0}".format(i)
@@ -259,10 +302,20 @@ def validate_compact_config(api, config_values, rx_device_with_rr):
         d1.Ethernet.find().Ipv4.find().BgpIpv4Peer.find().DutIp.Values,
         config_values["rx_adds"],
     )
+    assert compare(
+        d1.Ethernet.find().Ipv6.find().Address.Values,
+        config_values["tx_ipv6_adds"],
+    )
+    assert compare(
+        d1.Ethernet.find().Ipv6.find().GatewayIp.Values,
+        config_values["rx_ipv6_adds"],
+    )
 
     # Assert values for d2
     d3_ip = config_values["rx_adds"].pop(rx_device_with_rr - 1)
     d3_gateway = config_values["tx_adds"].pop(rx_device_with_rr - 1)
+    d3_ipv6 = config_values["rx_ipv6_adds"].pop(rx_device_with_rr - 1)
+    d3_ipv6_gateway = config_values["tx_ipv6_adds"].pop(rx_device_with_rr - 1)
     assert compare(
         d2.Ethernet.find().Ipv4.find().Address.Values, config_values["rx_adds"]
     )
@@ -274,10 +327,22 @@ def validate_compact_config(api, config_values, rx_device_with_rr):
         d2.Ethernet.find().Ipv4.find().BgpIpv4Peer.find().DutIp.Values,
         config_values["tx_adds"],
     )
+    assert compare(
+        d2.Ethernet.find().Ipv6.find().Address.Values,
+        config_values["rx_ipv6_adds"],
+    )
+    assert compare(
+        d2.Ethernet.find().Ipv6.find().GatewayIp.Values,
+        config_values["tx_ipv6_adds"],
+    )
 
     # Assert values for d3
     assert d3.Ethernet.find().Ipv4.find().Address.Values[0] == d3_ip
     assert d3.Ethernet.find().Ipv4.find().GatewayIp.Values[0] == d3_gateway
+    assert d3.Ethernet.find().Ipv6.find().Address.Values[0] == d3_ipv6
+    assert (
+        d3.Ethernet.find().Ipv6.find().GatewayIp.Values[0] == d3_ipv6_gateway
+    )
     assert (
         d3.Ethernet.find().Ipv4.find().BgpIpv4Peer.find().DutIp.Values[0]
         == d3_gateway
@@ -366,5 +431,6 @@ def validate_route_withdraw(api, config_values):
 
 
 import pytest
+
 if __name__ == "__main__":
     pytest.main(["-s", __file__])
