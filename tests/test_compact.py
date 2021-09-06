@@ -24,9 +24,9 @@ def get_ip_addresses(ip, count):
     """
     ip_list = list()
     for i in range(count):
-        ipaddress = ipaddr.IPv4Address(ip)
-        ipaddress = ipaddress + i
-        value = ipaddress._string_from_ip_int(ipaddress._ip)
+        ipv4address = ipaddr.IPv4Address(ip)
+        ipv4address = ipv4address + i
+        value = ipv4address._string_from_ip_int(ipv4address._ip)
         ip_list.append(value)
     return ip_list
 
@@ -246,17 +246,17 @@ def test_compact(api, utils):
 
     validate_compact_config(api, config_values, rx_device_with_rr)
 
-    utils.start_traffic(api, config, start_capture=False)
-    utils.wait_for(
-        lambda: stats_ok(api, PACKETS * 3, utils), "stats to be as expected"
-    )
+    # utils.start_traffic(api, config, start_capture=False)
+    # utils.wait_for(
+    #     lambda: stats_ok(api, PACKETS * 3, utils), "stats to be as expected"
+    # )
 
-    rs = api.route_state()
-    rs.names = ["Tx RR 4", "Rx RR 3"]
-    rs.state = rs.WITHDRAW
-    api.set_route_state(rs)
+    # rs = api.route_state()
+    # rs.names = ["Tx RR 4", "Rx RR 3"]
+    # rs.state = rs.WITHDRAW
+    # api.set_route_state(rs)
 
-    validate_route_withdraw(api, config_values)
+    # validate_route_withdraw(api, config_values)
 
 
 def compare(actual, expected):
