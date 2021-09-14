@@ -9,6 +9,7 @@ from snappi_ixnetwork.lag import Lag
 from snappi_ixnetwork.ngpf import Ngpf
 from snappi_ixnetwork.trafficitem import TrafficItem
 from snappi_ixnetwork.capture import Capture
+from snappi_ixnetwork.ping import Ping
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.protocolmetrics import ProtocolMetrics
 from snappi_ixnetwork.resourcegroup import ResourceGroup
@@ -61,6 +62,7 @@ class Api(snappi.Api):
         self._link_state = self.link_state()
         self._capture_state = self.capture_state()
         self._capture_request = self.capture_request()
+        self._ping_request = self.ping_request()
         self._ixn_route_objects = {}
         self.validation = Validation(self)
         self.vport = Vport(self)
@@ -68,6 +70,7 @@ class Api(snappi.Api):
         self.ngpf = Ngpf(self)
         self.traffic_item = TrafficItem(self)
         self.capture = Capture(self)
+        self.ping = Ping(self)
         self.protocol_metrics = ProtocolMetrics(self)
         self.resource_group = ResourceGroup(self)
         self.do_compact = False
@@ -376,6 +379,22 @@ class Api(snappi.Api):
             with Timer(self, "Setting route state"):
                 self.ngpf.set_route_state(payload)
             return self._request_detail()
+        except Exception as err:
+            raise SnappiIxnException(err)
+
+    def send_ping(self, ping_request):
+        try:
+            if isinstance(ping_request, (type(self._ping_request), str)) is False:
+                raise TypeError(
+                    "The content must be of type Union[PingRequest, str]"
+                )
+            if isinstance(ping_request, str):
+                ping_request = self._ping_request.deserialize(ping_request)
+            self._connect()
+            ping_request.serialize()
+            ping_res = self.ping_response()
+            ping_res.responses.deserialize(self.ping.results(ping_request))
+            return ping_res
         except Exception as err:
             raise SnappiIxnException(err)
 
