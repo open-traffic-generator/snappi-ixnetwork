@@ -68,7 +68,7 @@ class Ping(object):
                         if reply["arg2"]:
                             response["result"] = "success"
                         else:
-                            response["result"] = "failed"
+                            response["result"] = "failure"
                 response["src_name"] = src_name
                 response["dst_ip"] = dst_ip
                 responses.append(response)

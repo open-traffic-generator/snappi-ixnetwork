@@ -53,11 +53,12 @@ def test_ping(api, b2b_raw_config, utils):
             if resp.src_name == ip1.name and resp.dst_ip == "10.1.1.2":
                 assert resp.result == "success"
             elif resp.src_name == ip1.name and resp.dst_ip == "10.1.1.3":
-                assert resp.result == "failed"
+                assert resp.result == "failure"
             elif resp.src_name == ipv62.name and resp.dst_ip == "3000::1":
                 assert resp.result == "success"
             elif resp.src_name == ipv62.name and resp.dst_ip == "3000::9":
-                assert resp.result == "failed"
+                assert resp.result == "failure"
+        utils.stop_traffic(api, b2b_raw_config)
     except Exception as e:
         utils.stop_traffic(api, b2b_raw_config)
-        raise Exception
+        raise Exception(e)
