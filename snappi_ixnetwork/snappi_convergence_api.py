@@ -35,6 +35,9 @@ class Api(snappi_convergence.Api):
     def enable_scaling(self, do_compact=False):
         self._api.do_compact = do_compact
 
+    def send_ping(self, ping_request):
+        return self._api.send_ping(ping_request, self)
+
     def set_config(self, payload):
         try:
             cvg_config = self.convergence_config()

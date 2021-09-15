@@ -77,7 +77,7 @@ class Api(snappi.Api):
         self._dev_compacted = {}
         self.compacted_ref = {}
         self._previous_errors = []
-        self._ixn_obj_info =  namedtuple(
+        self._ixn_obj_info = namedtuple(
             "IxNobjInfo", ["xpath", "href", "index", "multiplier", "compacted"]
         )
         self._ixn_route_info = namedtuple(
@@ -97,13 +97,13 @@ class Api(snappi.Api):
             else:
                 return addr, "80"
 
-    def enable_scaling(self, do_compact = False):
+    def enable_scaling(self, do_compact=False):
         self.do_compact = do_compact
-    
+
     @property
     def snappi_config(self):
         return self._config
-    
+
     def get_config_object(self, name):
         try:
             return self._config_objects[name]
@@ -118,17 +118,17 @@ class Api(snappi.Api):
         try:
             return self._ixn_objects[name]
         except KeyError:
-            raise NameError("snappi object named {0} not found in get_ixn_object".format(name))
-    
+            raise NameError(
+                "snappi object named {0} not found in get_ixn_object".format(
+                    name
+                )
+            )
+
     def set_ixn_object(self, name, href, xpath=None):
         self._ixn_objects[name] = self._ixn_obj_info(
-            xpath=xpath,
-            href=href,
-            index=1,
-            multiplier=1,
-            compacted=False
+            xpath=xpath, href=href, index=1, multiplier=1, compacted=False
         )
-        
+
     def set_ixn_cmp_object(self, snappi_obj, href, xpath=None, multiplier=1):
         names = snappi_obj.get("name_list")
         if names is None:
@@ -142,7 +142,7 @@ class Api(snappi.Api):
                 href=href,
                 index=1,
                 multiplier=multiplier,
-                compacted=False
+                compacted=False,
             )
         else:
             self.compacted_ref[xpath] = names
@@ -152,9 +152,9 @@ class Api(snappi.Api):
                     href=href,
                     index=multiplier * index + 1,
                     multiplier=multiplier,
-                    compacted=True
+                    compacted=True,
                 )
-    
+
     def get_device_encap(self, name):
         try:
             return self._device_encap[name]
@@ -194,16 +194,14 @@ class Api(snappi.Api):
                     "Problem at the time of parsing set_route_objects"
                 )
             self._ixn_route_objects[name] = self._ixn_route_info(
-                ixn_obj=ixn_bgp_property,
-                index=1,
-                multiplier=multiplier
+                ixn_obj=ixn_bgp_property, index=1, multiplier=multiplier
             )
         else:
             for index, name in enumerate(names):
                 self._ixn_route_objects[name] = self._ixn_route_info(
                     ixn_obj=ixn_bgp_property,
                     index=index * multiplier,
-                    multiplier=multiplier
+                    multiplier=multiplier,
                 )
 
     @property
@@ -382,17 +380,38 @@ class Api(snappi.Api):
         except Exception as err:
             raise SnappiIxnException(err)
 
-    def send_ping(self, ping_request):
+    def send_ping(self, ping_request, cvg_api=None):
         try:
-            if isinstance(ping_request, (type(self._ping_request), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[PingRequest, str]"
-                )
-            if isinstance(ping_request, str):
-                ping_request = self._ping_request.deserialize(ping_request)
+            if cvg_api:
+                if isinstance(ping_request, type(cvg_api.ping_request())):
+                    if (
+                        isinstance(
+                            ping_request, (type(cvg_api.ping_request()), str)
+                        )
+                        is False
+                    ):
+                        raise TypeError(
+                            "The content must be of type Union[PingRequest, str]"
+                        )
+                    if isinstance(ping_request, str):
+                        ping_request = cvg_api.ping_request().deserialize(
+                            ping_request
+                        )
+                    ping_res = cvg_api.ping_response()
+                    cvg_api.ping_request().serialize()
+            else:
+                if (
+                    isinstance(ping_request, (type(self._ping_request), str))
+                    is False
+                ):
+                    raise TypeError(
+                        "The content must be of type Union[PingRequest, str]"
+                    )
+                if isinstance(ping_request, str):
+                    ping_request = self._ping_request.deserialize(ping_request)
+                ping_res = self.ping_response()
+                ping_request.serialize()
             self._connect()
-            ping_request.serialize()
-            ping_res = self.ping_response()
             ping_res.responses.deserialize(self.ping.results(ping_request))
             return ping_res
         except Exception as err:
