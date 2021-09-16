@@ -28,7 +28,7 @@ class Api(snappi_convergence.Api):
 
     def __init__(self, **kwargs):
 
-        self._convergence_timeout = 10
+        self._convergence_timeout = 3
         self._api = snappiApi(**kwargs)
         self._event_info = None
 
@@ -251,7 +251,7 @@ class Api(snappi_convergence.Api):
                 drill_down_option,
                 traffic_stat.TargetRowFilters()[traffic_index[flow_name]],
             )
-            drill_down_result =  self._get_max_convergence(drill_down.Rows)
+            drill_down_result = self._get_max_convergence(drill_down.Rows)
             for (
                 external_name,
                 internal_name,
