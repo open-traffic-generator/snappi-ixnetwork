@@ -1253,19 +1253,15 @@ class TrafficItem(CustomField):
                         )
                     flow_rows[
                         traffic_item["name"]
-                        + stream["txPortName"]
-                        + rx_port_name
                     ] = flow_row
 
-        flow_stat = self._api.assistant.StatViewAssistant("Flow Statistics")
+        flow_stat = self._api.assistant.StatViewAssistant("Traffic Item Statistics")
         for row in flow_stat.Rows:
             name = row["Traffic Item"]
             if len(flow_names) > 0 and name not in flow_names:
                 continue
-            tx_port = row["Tx Port"]
-            rx_port = row["Rx Port"]
-            if name + tx_port + rx_port in flow_rows:
-                flow_row = flow_rows[name + tx_port + rx_port]
+            if name in flow_rows:
+                flow_row = flow_rows[name]
                 if (
                     float(row["Tx Frame Rate"]) > 0
                     or int(row["Tx Frames"]) == 0

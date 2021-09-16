@@ -28,7 +28,7 @@ class Api(snappi_convergence.Api):
 
     def __init__(self, **kwargs):
 
-        self._convergence_timeout = 10
+        self._convergence_timeout = 3
         self._api = snappiApi(**kwargs)
         self._event_info = None
 
@@ -199,6 +199,25 @@ class Api(snappi_convergence.Api):
         request_detail.warnings = warnings
         return request_detail
 
+    def _get_max_convergence(self, rows):
+        # We are extracting max value for multiple destination
+        rows_len = len(rows)
+        if rows_len > 1:
+            for (
+                _,
+                internal_name,
+                external_type,
+            ) in self._CONVERGENCE:
+                if external_type not in ["float", "int"]:
+                    continue
+                max_value = rows[0][internal_name]
+                for idx in range(1, rows_len):
+                    tmp_value = rows[idx][internal_name]
+                    if max_value < tmp_value:
+                        max_value = tmp_value
+                rows[0][internal_name] = max_value
+        return rows[0]
+
     def _result(self, request):
         flow_names = request.get("flow_names")
         if not isinstance(flow_names, list):
@@ -221,6 +240,9 @@ class Api(snappi_convergence.Api):
             traffic_index[row["Traffic Item"]] = index
         response = []
         for flow_name in flow_names:
+            traffic_stat = self._api.assistant.StatViewAssistant(
+                "Traffic Item Statistics"
+            )
             convergence = {"name": flow_name}
             if flow_name not in traffic_index.keys():
                 raise Exception("Somehow flow %s is missing" % flow_name)
@@ -228,11 +250,11 @@ class Api(snappi_convergence.Api):
             drill_down_options = traffic_stat.DrillDownOptions()
             drilldown_index = drill_down_options.index(drill_down_option)
             drill_down = traffic_stat.Drilldown(
-                traffic_index[flow_name],
+                drilldown_index,
                 drill_down_option,
-                traffic_stat.TargetRowFilters()[drilldown_index],
+                traffic_stat.TargetRowFilters()[traffic_index[flow_name]],
             )
-            drill_down_result = drill_down.Rows[0]
+            drill_down_result = self._get_max_convergence(drill_down.Rows)
             for (
                 external_name,
                 internal_name,
