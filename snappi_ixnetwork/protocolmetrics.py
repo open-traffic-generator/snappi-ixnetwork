@@ -184,6 +184,8 @@ class ProtocolMetrics(object):
         config = self._api.snappi_config
         if len(self.device_names) == 0:
             port_list = [p.name for p in config.ports]
+            lag_list = [lag.name for lag in config.lags]
+            port_list = port_list + lag_list
             return port_list
         port_list = [
             d.container_name
