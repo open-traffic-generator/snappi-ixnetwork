@@ -16,7 +16,7 @@ v4_routes.addresses.add(address="20.20.0.0")
 - Single BGP map with IPv4(“ip1”)
 - Two v4_route configure on that bgp_peer
 ## IxNetwork Mapping
-<img src="scr_bgp_1.PNG" alt="drawing" width="500"/>
+<img src="scr_bgp_1.png" alt="drawing" width="500"/>
 
 - Create topology per port
 - Ether, IP and BGP can map one to one
@@ -42,7 +42,7 @@ v4_routes.addresses.add(address="20.20.0.0")
 - Single Ethernet and IP
 - Two BGP peers map to single IP
 ## IxNetwork Mapping
-<img src="scr_bgp_2.PNG" alt="drawing" width="500"/>
+<img src="scr_bgp_2.png" alt="drawing" width="500"/>
 
 - Device multiplier set to 1
 - IP stack Multiplier set to 1
@@ -70,7 +70,7 @@ v4_routes.addresses.add(address="20.20.0.0")
 - Two IP configure on top of single ethernet
 - Two BGP peers map with Two IP
 ## IxNetwork Mapping
-<img src="scr_bgp_3.PNG" alt="drawing" width="500"/>
+<img src="scr_bgp_3.png" alt="drawing" width="500"/>
 
 - Device multiplier set to 1
 - IP stack Multiplier should set according to the number of IP address (here it is 2)
@@ -98,7 +98,7 @@ v4_routes.addresses.add(address="20.20.0.0")
 - Two interfaces on top of single port
 - Two BGP peers map with Two interface 
 ## IxNetwork Mapping
-<img src="scr_bgp_4.PNG" alt="drawing" width="500"/>
+<img src="scr_bgp_4.png" alt="drawing" width="500"/>
 
 - Add device multiplier (say 2 in this example) according to the number of interfaces
 - Compact all values related to Ethernet, IP and BGP. And configure those in respective rows
@@ -129,7 +129,7 @@ bgp_int4.peers.add(name="bgp23")
 bgp_int4.peers.add(name="bgp24")
 ```
 ## IxNetwork Mapping
-<img src="scr_bgp_5.PNG" alt="drawing" width="500"/>
+<img src="scr_bgp_5.png" alt="drawing" width="500"/>
 
 - DG Multiplier(2) 
 - IP stack Multiplier (3) 
@@ -151,7 +151,7 @@ bgp_int3 = bgp.ipv4_interfaces.add(ipv4_name="ip21")
 bgp_int3.peers.add(name="bgp21")
 ```
 ## IxNetwork Mapping
-<img src="scr_bgp_6.PNG" alt="drawing" width="500"/>
+<img src="scr_bgp_6.png" alt="drawing" width="500"/>
 
 - IxNetwork: DG Multiplier(2) 
 - IP stack Multiplier (1) 
@@ -173,7 +173,7 @@ bgp_int2 = bgp.ipv4_interfaces.add(ipv4_name="ip2")
 bgp_int2.peers.add(name="bgp2")
 ```
 ## IxNetwork Mapping
-<img src="scr_bgp_7.PNG" alt="drawing" width="500"/>
+<img src="scr_bgp_7.png" alt="drawing" width="500"/>
 
 - Plan to put same router ID ("1.1.1.1") within two DG present in two ports
 
