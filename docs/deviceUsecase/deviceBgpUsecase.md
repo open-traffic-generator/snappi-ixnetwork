@@ -5,11 +5,15 @@ eth = device.ethernets.ethernet(name='eth1', port_name="p1")[-1]
 eth.ipv4_addresses.ipv4(name="ip1")
 
 bgp = device.bgp
-bgp.router_id = "1.1.1.1"
+bgp.router_id = "10.10.0.1"
 bgp_int = bgp.ipv4_interfaces.add(ipv4_name="ip1")
 bgp_peer = bgp_int.peers.add(name="bgp1")
+bgp_peer.peer_address = "10.10.0.2"
+bgp_peer.as_type = bgp_peer.IBGP
+bgp_peer.as_number = 2
 v4_routes = bgp_peer.v4_routes.add(name="route1")
 v4_routes.addresses.add(address="10.10.0.0")
+v4_routes = bgp_peer.v4_routes.add(name="route2")
 v4_routes.addresses.add(address="20.20.0.0")
 ```
 - Single ethernet(“eth1”) configurate on top of port “p1”
@@ -86,7 +90,9 @@ device1 = config.devices.device(name="d1")[-1]
 device2 = config.devices.device(name="d2")[-1]
 
 eth1 = device1.ethernets.ethernet(name='eth1', port_name="p1")[-1]
+eth1.vlans.add(name="vlan1", id=1)
 eth2 = device2.ethernets.ethernet(name='eth2', port_name="p1")[-1]
+eth2.vlans.add(name="vlan2", id=2)
 eth1.ipv4_addresses.ipv4(name="ip1")
 eth2.ipv4_addresses.ipv4(name="ip2")
 
@@ -234,8 +240,9 @@ bgp_int3.peers.add(name="bgp21")
 - IP stack Multiplier (1) 
 - BGP stack Multiplier (2) 
 - Max within Two BGP Peer. And disable one Peer within another set
+- <span style="color:red">Error when add multiple IPv4 on a Ethernet </span>
 
-# Scenario-9: Single BGP run on top of two interface present in two different ports
+# Scenario-9: (Not Supported) Single BGP run on two different ports
 ```python
 device = config.devices.device(name="d1")[-1]
 eth1 = device.ethernets.ethernet(name='eth1', port_name="p1")[-1]
@@ -250,11 +257,23 @@ bgp_int1.peers.add(name="bgp1")
 bgp_int2 = bgp.ipv4_interfaces.add(ipv4_name="ip2")
 bgp_int2.peers.add(name="bgp2")
 ```
-## IxNetwork Mapping
-<img src="scr_bgp_7.png" alt="drawing" width="500"/>
+- <span style="color:red">This should not be a valid use case and we will raise error </span>
 
-- Plan to put same router ID ("1.1.1.1") within two DG present in two ports
+# Scenario-10: (Not Supported) BGP configure top of different device interface
+```python
+device1 = config.devices.device(name="d1")[-1]
+device2 = config.devices.device(name="d2")[-1]
 
-Note: Not sure this is a valid case/ this assumption also true. It will better to raise error
+eth1 = device1.ethernets.ethernet(name='eth1', port_name="p1")[-1]
+eth2 = device2.ethernets.ethernet(name='eth2', port_name="p1")[-1]
+eth1.ipv4_addresses.ipv4(name="ip1")
+eth2.ipv4_addresses.ipv4(name="ip2")
 
-
+bgp1 = device1.bgp
+bgp1.router_id = "1.1.1.1"
+bgp_int1 = bgp1.ipv4_interfaces.add(ipv4_name="ip2")
+```
+- "bgp1" configured on top of "device1"
+- It is trying to add interface "ip2" configured in different device ("device2")
+- <span style="color:red">We will raise error </span>
+- <span style="color:red">Same also true for loopback interafce </span>
