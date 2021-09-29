@@ -240,7 +240,9 @@ bgp_int3.peers.add(name="bgp21")
 - IP stack Multiplier (1) 
 - BGP stack Multiplier (2) 
 - Max within Two BGP Peer. And disable one Peer within another set
-- <span style="color:red">Error when add multiple IPv4 on a Ethernet </span>
+```diff
+- Error when add multiple IPv4 on top of Ethernet
+```
 
 # Scenario-9: (Not Supported) Single BGP run on two different ports
 ```python
@@ -257,7 +259,9 @@ bgp_int1.peers.add(name="bgp1")
 bgp_int2 = bgp.ipv4_interfaces.add(ipv4_name="ip2")
 bgp_int2.peers.add(name="bgp2")
 ```
-- <span style="color:red">This should not be a valid use case and we will raise error </span>
+```diff
+- This should not be a valid use case and we will raise error
+```
 
 # Scenario-10: (Not Supported) BGP configure top of different device interface
 ```python
@@ -275,5 +279,7 @@ bgp_int1 = bgp1.ipv4_interfaces.add(ipv4_name="ip2")
 ```
 - "bgp1" configured on top of "device1"
 - It is trying to add interface "ip2" configured in different device ("device2")
-- <span style="color:red">We will raise error </span>
-- <span style="color:red">Same also true for loopback interafce </span>
+```diff
+- We will raise error
+- Same also true for loopback interafce
+```
