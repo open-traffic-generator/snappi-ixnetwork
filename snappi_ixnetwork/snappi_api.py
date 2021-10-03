@@ -14,7 +14,7 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.protocolmetrics import ProtocolMetrics
 from snappi_ixnetwork.resourcegroup import ResourceGroup
 from snappi_ixnetwork.exceptions import SnappiIxnException
-
+from snappi_ixnetwork.device.ngpf_new import New
 
 class Api(snappi.Api):
     """IxNetwork implementation of the abstract-open-traffic-generator package
@@ -68,6 +68,7 @@ class Api(snappi.Api):
         self.vport = Vport(self)
         self.lag = Lag(self)
         self.ngpf = Ngpf(self)
+        self.new_ngpf = New(self)
         self.traffic_item = TrafficItem(self)
         self.capture = Capture(self)
         self.ping = Ping(self)
@@ -78,7 +79,7 @@ class Api(snappi.Api):
         self.compacted_ref = {}
         self._previous_errors = []
         self._ixn_obj_info = namedtuple(
-            "IxNobjInfo", ["xpath", "href", "index", "multiplier", "compacted"]
+            "IxNobjInfo", ["xpath", "href", "index", "multiplier", "compacted", "object"]
         )
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
@@ -124,9 +125,16 @@ class Api(snappi.Api):
                 )
             )
 
-    def set_ixn_object(self, name, href, xpath=None):
+    def set_ixn_object(self, name, object):
+        href = object.get("object")
+        xpath = object.get("xpath")
         self._ixn_objects[name] = self._ixn_obj_info(
-            xpath=xpath, href=href, index=1, multiplier=1, compacted=False
+            xpath=xpath,
+            href=href,
+            index=1,
+            multiplier=1,
+            compacted=False,
+            object=object
         )
 
     def set_ixn_cmp_object(self, snappi_obj, href, xpath=None, multiplier=1):
@@ -161,20 +169,8 @@ class Api(snappi.Api):
         except KeyError:
             raise NameError("snappi object named {0} not found".format(name))
 
-    def set_device_encap(self, obj, type):
-        if isinstance(obj, str):
-            self._device_encap[obj] = type
-        names = obj.get("name_list")
-        if names is None:
-            name = obj.get("name")
-            if name is None:
-                raise Exception(
-                    "Problem at the time of parsing set_device_encap"
-                )
-            self._device_encap[name] = type
-        else:
-            for name in names:
-                self._device_encap[name] = type
+    def set_device_encap(self, name, type):
+        self._device_encap[name] = type
 
     @property
     def ixn_route_objects(self):
@@ -314,8 +310,9 @@ class Api(snappi.Api):
             self.vport.config()
             self.lag.config()
             with Timer(self, "Devices configuration"):
-                self.ngpf.config()
-            self.traffic_item.config()
+                # self.ngpf.config()
+                self.new_ngpf.config()
+            # self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
 
@@ -743,8 +740,8 @@ class Api(snappi.Api):
             if len(ixn_obj) > 0:
                 ixn_obj.remove()
 
-    def _get_topology_name(self, port_name):
-        return "Topology %s" % port_name
+    # def _get_topology_name(self, port_name):
+    #     return "Topology %s" % port_name
 
     def select_card_aggregation(self, location):
         (hostname, cardid, portid) = location.split(";")

@@ -204,7 +204,37 @@ bgp_int3.peers.add(name="bgp21")
 - BGP stack Multiplier (2) 
 - Max within Two BGP Peer. And disable one Peer within another set
 
-# Scenario-8: (Not Supported) Add multiple IPv4 on top of an Ethernet
+# Scenario-8: BGP and interface top of Lag
+```python
+device = config.devices.device(name="d1")[-1]
+eth = device.ethernets.ethernet(name='eth1', port_name="lag1")[-1]
+eth.ipv4_addresses.ipv4(name="ip1")
+
+bgp = device.bgp
+bgp.router_id = "10.10.0.1"
+bgp_int = bgp.ipv4_interfaces.add(ipv4_name="ip1")
+bgp_peer = bgp_int.peers.add(name="bgp1")
+bgp_peer.peer_address = "10.10.0.2"
+bgp_peer.as_type = bgp_peer.IBGP
+bgp_peer.as_number = 2
+v4_routes = bgp_peer.v4_routes.add(name="route1")
+v4_routes.addresses.add(address="10.10.0.0")
+v4_routes = bgp_peer.v4_routes.add(name="route2")
+v4_routes.addresses.add(address="20.20.0.0")
+```
+- Single ethernet(“eth1”) configurate on top of lag “lag1”
+- Single IPv4(“ip1”) present on top of ethernet(“eth1”)
+- Single BGP map with IPv4(“ip1”)
+- Two v4_route configure on that bgp_peer
+## IxNetwork Mapping
+<img src="scr_bgp_1.png" alt="drawing" width="500"/>
+
+- Create topology per Lag
+- Ether, IP and BGP can map one to one
+- Create network group (NG) according to v4_routes
+- Use NG multiplier to accommodate number of address
+
+# Scenario-9: (Not Supported) Add multiple IPv4 on top of an Ethernet
 ```python
 device = config.devices.device(name="d1")[-1]
 eth1 = device.ethernets.ethernet(name='eth1', port_name="p1")[-1]
@@ -228,7 +258,7 @@ v4_routes.addresses.add(address="20.20.0.0")
 - Error when add multiple IPv4 on top of an Ethernet
 ```
 
-# Scenario-9: (Not Supported) Single BGP run on two different ports
+# Scenario-10: (Not Supported) Single BGP run on two different ports
 ```python
 device = config.devices.device(name="d1")[-1]
 eth1 = device.ethernets.ethernet(name='eth1', port_name="p1")[-1]
@@ -249,7 +279,7 @@ bgp_int2.peers.add(name="bgp2")
 - This should not be a valid use case and we will raise error
 ```
 
-# Scenario-10: (Not Supported) BGP configure top of different device interface
+# Scenario-11: (Not Supported) BGP configure top of different device interface
 ```python
 device1 = config.devices.device(name="d1")[-1]
 device2 = config.devices.device(name="d2")[-1]

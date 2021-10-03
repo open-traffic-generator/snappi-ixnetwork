@@ -182,7 +182,7 @@ class Lag(object):
         ixn_vports = self._select_vports()
         ixn_lags = self._select_lags()
         for name, ixn_lag in ixn_lags.items():
-            self._api.set_ixn_object(name, ixn_lag["href"])
+            self._api.set_ixn_object(name, ixn_lag)
             lag_import = {
                 "xpath": ixn_lag["xpath"],
                 "vports": self._get_vports(ixn_vports, self._lag_ports[name]),
