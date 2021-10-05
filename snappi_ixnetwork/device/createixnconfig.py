@@ -1,4 +1,4 @@
-from snappi_ixnetwork.device.base import Base, AttDict, MultiValue
+from snappi_ixnetwork.device.base import *
 
 class CreateIxnConfig(Base):
     def __init__(self, ngpf):
@@ -26,18 +26,18 @@ class CreateIxnConfig(Base):
                 child_name=child_name
             )
             element["xpath"] = child_xpath
-            if "connectedTo" in element:
-                element["connectedTo"] = element["connectedTo"]["xpath"]
         key_to_remove = []
         for key, value in element.items():
             if key == "name":
-                element[key] = self._get_name(value)
+                element["name"] = self.get_name(element)
             elif isinstance(value, MultiValue):
                 value = self._get_ixn_multivalue(value, key, parent_xpath)
                 if value is None:
                     key_to_remove.append(key)
                 else:
                     element[key] = value
+            elif isinstance(value, PostCalculated):
+                element[key] = value.value
             elif isinstance(value, AttDict):
                 self._process_element(value, parent_xpath, key)
             elif isinstance(value, list) and len(value) > 0 and \
@@ -49,15 +49,8 @@ class CreateIxnConfig(Base):
         for key in key_to_remove:
             element.pop(key)
 
-    def _get_name(self, value):
-        if isinstance(value, MultiValue):
-            value = value.get_value()
-            if isinstance(value, list):
-                value = value[0]
-        return value
-
     def _get_ixn_multivalue(self, value, att_name, xpath):
-        value = value.get_value()
+        value = value.value
         ixn_value = {
             "xpath": "/multivalue[@source = '{xpath} {att_name}']".format(
                 xpath=xpath,

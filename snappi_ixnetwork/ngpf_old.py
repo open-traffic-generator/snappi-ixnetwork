@@ -5,7 +5,7 @@ from snappi_ixnetwork.deviceCompactor import DeviceCompactor
 from snappi_ixnetwork.timer import Timer
 
 
-class Ngpf(object):
+class Ngpf_old(object):
     """Ngpf configuration
 
     Args
@@ -119,7 +119,7 @@ class Ngpf(object):
                     ixn_topology.add(**args)
                 else:
                     self.update(ixn_topology, **args)
-                self._api.set_ixn_object(ixn_topology.Name, ixn_topology.href)
+                self._api.ixn_objects.set(ixn_topology.Name, ixn_topology.href)
                 self._configure_device_group(
                     ixn_topology.DeviceGroup, device, multiplier
                 )
@@ -150,16 +150,16 @@ class Ngpf(object):
             )
             if stack_class is not None:
                 child = snappi_obj[prop_name]
-                if prop_name not in Ngpf._DEVICE_ENCAP_MAP:
+                if prop_name not in Ngpf_old._DEVICE_ENCAP_MAP:
                     raise Exception(
                         "Mapping is missing for {0}".format(prop_name)
                     )
-                self._api._device_encap[ixn_dg.Name] = Ngpf._DEVICE_ENCAP_MAP[
+                self._api._device_encap[ixn_dg.Name] = Ngpf_old._DEVICE_ENCAP_MAP[
                     prop_name
                 ]
                 child_name = child.get("name")
                 if child_name is not None:
-                    self._api.set_device_encap(child, Ngpf._DEVICE_ENCAP_MAP[prop_name])
+                    self._api.set_device_encap(child, Ngpf_old._DEVICE_ENCAP_MAP[prop_name])
                 new_ixn_obj = stack_class(ixn_obj, child, ixn_dg)
                 self._config_proto_stack(new_ixn_obj, child, ixn_dg)
 
@@ -337,7 +337,7 @@ class Ngpf(object):
             self.configure_value(vlan_xpath, "vlanId", vlans[i].get("id"))
             self.configure_value(vlan_xpath, "priority", vlans[i].get("priority"))
             self.configure_value(
-                vlan_xpath, "tpid", vlans[i].get("tpid"), enum_map=Ngpf._TPID_MAP
+                vlan_xpath, "tpid", vlans[i].get("tpid"), enum_map=Ngpf_old._TPID_MAP
             )
 
     def _configure_ipv4(self, ixn_parent, ipv4, ixn_dg):
@@ -390,7 +390,7 @@ class Ngpf(object):
             return
         names = payload.names
         if len(names) == 0:
-            names = self._api.ixn_route_objects.keys()
+            names = self._api.ixn_routes
         ixn_obj_idx_list = {}
         names = list(set(names))
         for name in names:
@@ -411,11 +411,11 @@ class Ngpf(object):
         for obj, index_list in ixn_obj_idx_list.items():
             index_list = list(set(index_list))
             if len(index_list) == obj.Count:
-                obj.Active.Single(Ngpf._ROUTE_STATE[payload.state])
+                obj.Active.Single(Ngpf_old._ROUTE_STATE[payload.state])
             else:
                 values = obj.Active.Values
                 for idx in index_list:
-                    values[idx] = Ngpf._ROUTE_STATE[payload.state]
+                    values[idx] = Ngpf_old._ROUTE_STATE[payload.state]
                 obj.Active.ValueList(values)
         self._api._ixnetwork.Globals.Topology.ApplyOnTheFly()
         return names

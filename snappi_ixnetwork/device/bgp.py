@@ -2,7 +2,6 @@ from snappi_ixnetwork.device.base import Base
 
 class Bgp(Base):
     _BGP = {
-        "name": "name",
         "peer_address": "dutIp",
         "as_type": {
             "ixn_attr": "type",
@@ -117,7 +116,7 @@ class Bgp(Base):
         ipv4_interfaces = bgp.get("ipv4_interfaces")
         for ipv4_interface in ipv4_interfaces:
             ipv4_name = ipv4_interface.get("ipv4_name")
-            ixn_ipv4 = self._ngpf._api.get_ixn_object(ipv4_name).object
+            ixn_ipv4 = self._ngpf._api.ixn_objects.get_object(ipv4_name)
             self._config_bgpv4(ipv4_interface.get("peers"),
                                ixn_ipv4)
 
@@ -135,6 +134,7 @@ class Bgp(Base):
             ixn_bgpv4 = self.create_node_elemet(
                 ixn_ipv4, "bgpIpv4Peer", bgp_peer.get("name")
             )
+            self._ngpf.set_device_info(bgp_peer, ixn_bgpv4, "ipv4")
             self.configure_multivalues(bgp_peer, ixn_bgpv4, Bgp._BGP)
             self._config_as_number(bgp_peer, ixn_bgpv4)
             advanced = bgp_peer.get("advanced")
@@ -159,14 +159,19 @@ class Bgp(Base):
             addresses = route.get("addresses")
             for addresse in addresses:
                 ixn_ng = self.create_node_elemet(
-                    self._ngpf.working_dg, "networkGroup", route.get("name")
+                    self._ngpf.working_dg, "networkGroup"
                 )
                 ixn_ng["multiplier"] = 1
-                ixn_ip_pool = self.create_node_elemet(ixn_ng, "ipv4PrefixPools")
+                ixn_ip_pool = self.create_node_elemet(
+                    ixn_ng, "ipv4PrefixPools", route.get("name")
+                )
                 ixn_connector = self.create_property(ixn_ip_pool, "connector")
-                ixn_connector["connectedTo"] = ixn_bgpv4
+                ixn_connector["connectedTo"] = self.post_calculated(
+                    "connectedTo", ref_ixnobj=ixn_bgpv4
+                )
                 self.configure_multivalues(addresse, ixn_ip_pool, Bgp._IP_POOL)
                 ixn_route = self.create_node_elemet(ixn_ip_pool, "bgpIPRouteProperty")
+                self._ngpf.set_device_info(route, ixn_ip_pool)
                 self._configure_route(route, ixn_route)
 
     def _configure_route(self, route, ixn_route):

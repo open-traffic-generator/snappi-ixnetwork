@@ -8,16 +8,27 @@ class AttDict(defaultdict):
     def __setitem__(self, key, value):
         super(AttDict, self).__setitem__(key, value)
 
+
 class MultiValue(object):
-    def __init__(self):
-        self.value = None
+    def __init__(self, value):
+        self._value = value
 
-    def set_value(self, value):
-        self.value = value
-        return self
+    @property
+    def value(self):
+        return self._value
 
-    def get_value(self):
-        return self.value
+
+class PostCalculated(object):
+    def __init__(self, key, ref_ixnobj=None, ixnobj=None):
+        self._key = key
+        self._ref_obj = ref_ixnobj
+        self._parent_obj = ixnobj
+
+    @property
+    def value(self):
+        if self._key == "connectedTo":
+            return self._ref_obj.get("xpath")
+
 
 class Base(object):
     def __init__(self):
@@ -60,7 +71,20 @@ class Base(object):
     def multivalue(self, value, enum=None):
         if value is not None and enum is not None:
             value = enum[value]
-        return MultiValue().set_value(value)
+        return MultiValue(value)
+
+    def post_calculated(self, key, ref_ixnobj=None, ixnobj=None):
+        return PostCalculated(
+            key, ref_ixnobj, ixnobj
+        )
+
+    def get_name(self, object):
+        name = object.get("name")
+        if isinstance(name, MultiValue):
+            name = name.value
+        if isinstance(name, list):
+            name = name[0]
+        return name
 
     def configure_multivalues(self, snappi_obj, ixn_obj, attr_map):
         """attr_map contains snappi_key : ixn_key/ ixn_info in dict format"""

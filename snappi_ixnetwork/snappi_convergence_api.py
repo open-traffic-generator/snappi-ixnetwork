@@ -319,7 +319,7 @@ class Api(snappi_convergence.Api):
             else:
                 event["type"] = "link_down"
         else:
-            for route_name in self._api.ixn_route_objects.keys():
+            for route_name in self._api.ixn_routes:
                 if re.search(route_name, event_name) is not None:
                     event["source"] = route_name
                     event_type = event_name.split(route_name)[-1]

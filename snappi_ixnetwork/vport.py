@@ -154,7 +154,9 @@ class Vport(object):
                 "arg2": link_state.state,
             }
             for port_name in link_state.port_names:
-                payload["arg1"].append(self._api.get_ixn_href(port_name))
+                payload["arg1"].append(
+                    self._api.ixn_objects.get_href(port_name)
+                )
             url = "%s/vport/operations/linkupdn" % self._api._ixnetwork.href
             self._api._request("POST", url, payload)
 
@@ -192,7 +194,7 @@ class Vport(object):
                 imports.append(vport_import)
         self._import(imports)
         for name, vport in self._api.select_vports().items():
-            self._api.set_ixn_object(name, vport)
+            self._api.ixn_objects.set(name, vport)
 
     def _add_hosts(self, HostReadyTimeout):
         chassis = self._api._ixnetwork.AvailableHardware.Chassis
@@ -267,7 +269,7 @@ class Vport(object):
                 ].startswith("connectedLink"):
                     continue
 
-            self._api.set_ixn_object(port.name, vport)
+            self._api.ixn_objects.set(port.name, vport)
             vport = {"xpath": vports[port.name]["xpath"]}
             if location_supported is True:
                 vport["location"] = location

@@ -6,7 +6,6 @@ import snappi
 from snappi_ixnetwork.validation import Validation
 from snappi_ixnetwork.vport import Vport
 from snappi_ixnetwork.lag import Lag
-from snappi_ixnetwork.ngpf import Ngpf
 from snappi_ixnetwork.trafficitem import TrafficItem
 from snappi_ixnetwork.capture import Capture
 from snappi_ixnetwork.ping import Ping
@@ -14,7 +13,8 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.protocolmetrics import ProtocolMetrics
 from snappi_ixnetwork.resourcegroup import ResourceGroup
 from snappi_ixnetwork.exceptions import SnappiIxnException
-from snappi_ixnetwork.device.ngpf_new import New
+from snappi_ixnetwork.device.ngpf import Ngpf
+from snappi_ixnetwork.objectdb import IxNetObjects
 
 class Api(snappi.Api):
     """IxNetwork implementation of the abstract-open-traffic-generator package
@@ -57,18 +57,18 @@ class Api(snappi.Api):
         self._ixn_errors = list()
         self._config_objects = {}
         self._device_encap = {}
+        self.ixn_objects = None
         self._config_type = self.config()
         self._transmit_state = self.transmit_state()
         self._link_state = self.link_state()
         self._capture_state = self.capture_state()
         self._capture_request = self.capture_request()
         self._ping_request = self.ping_request()
-        self._ixn_route_objects = {}
+        self._ixn_routes = []
         self.validation = Validation(self)
         self.vport = Vport(self)
         self.lag = Lag(self)
         self.ngpf = Ngpf(self)
-        self.new_ngpf = New(self)
         self.traffic_item = TrafficItem(self)
         self.capture = Capture(self)
         self.ping = Ping(self)
@@ -76,11 +76,8 @@ class Api(snappi.Api):
         self.resource_group = ResourceGroup(self)
         self.do_compact = False
         self._dev_compacted = {}
-        self.compacted_ref = {}
         self._previous_errors = []
-        self._ixn_obj_info = namedtuple(
-            "IxNobjInfo", ["xpath", "href", "index", "multiplier", "compacted", "object"]
-        )
+
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
         )
@@ -111,58 +108,6 @@ class Api(snappi.Api):
         except KeyError:
             raise NameError("snappi object named {0} not found".format(name))
 
-    def get_ixn_href(self, name):
-        """Returns an href given a unique configuration name"""
-        return self._ixn_objects[name].href
-
-    def get_ixn_object(self, name):
-        try:
-            return self._ixn_objects[name]
-        except KeyError:
-            raise NameError(
-                "snappi object named {0} not found in get_ixn_object".format(
-                    name
-                )
-            )
-
-    def set_ixn_object(self, name, object):
-        href = object.get("object")
-        xpath = object.get("xpath")
-        self._ixn_objects[name] = self._ixn_obj_info(
-            xpath=xpath,
-            href=href,
-            index=1,
-            multiplier=1,
-            compacted=False,
-            object=object
-        )
-
-    def set_ixn_cmp_object(self, snappi_obj, href, xpath=None, multiplier=1):
-        names = snappi_obj.get("name_list")
-        if names is None:
-            name = snappi_obj.get("name")
-            if name is None:
-                raise Exception(
-                    "Problem at the time of parsing set_ixn_cmp_object"
-                )
-            self._ixn_objects[name] = self._ixn_obj_info(
-                xpath=xpath,
-                href=href,
-                index=1,
-                multiplier=multiplier,
-                compacted=False,
-            )
-        else:
-            self.compacted_ref[xpath] = names
-            for index, name in enumerate(names):
-                self._ixn_objects[name] = self._ixn_obj_info(
-                    xpath=xpath,
-                    href=href,
-                    index=multiplier * index + 1,
-                    multiplier=multiplier,
-                    compacted=True,
-                )
-
     def get_device_encap(self, name):
         try:
             return self._device_encap[name]
@@ -173,32 +118,13 @@ class Api(snappi.Api):
         self._device_encap[name] = type
 
     @property
-    def ixn_route_objects(self):
-        return self._ixn_route_objects
+    def ixn_routes(self):
+        return self._ixn_routes
 
     def get_route_object(self, name):
-        if name not in self._ixn_route_objects.keys():
+        if name not in self._ixn_routes:
             raise Exception("%s not within configure routes" % name)
-        return self._ixn_route_objects[name]
-
-    def set_route_objects(self, ixn_bgp_property, route_obj, multiplier=1):
-        names = route_obj.get("name_list")
-        if names is None:
-            name = route_obj.get("name")
-            if name is None:
-                raise Exception(
-                    "Problem at the time of parsing set_route_objects"
-                )
-            self._ixn_route_objects[name] = self._ixn_route_info(
-                ixn_obj=ixn_bgp_property, index=1, multiplier=multiplier
-            )
-        else:
-            for index, name in enumerate(names):
-                self._ixn_route_objects[name] = self._ixn_route_info(
-                    ixn_obj=ixn_bgp_property,
-                    index=index * multiplier,
-                    multiplier=multiplier,
-                )
+        return self.ixn_objects.get(name)
 
     @property
     def assistant(self):
@@ -294,10 +220,9 @@ class Api(snappi.Api):
     def config_ixnetwork(self, config):
         self._config_objects = {}
         self._device_encap = {}
-        self._ixn_objects = {}
-        self._ixn_route_objects = {}
+        self.ixn_objects = IxNetObjects()
+        self._ixn_routes = []
         self._dev_compacted = {}
-        self.compacted_ref = {}
         self._connect()
         self.capture.reset_capture_request()
         self._config = self._validate_instance(config)
@@ -310,9 +235,8 @@ class Api(snappi.Api):
             self.vport.config()
             self.lag.config()
             with Timer(self, "Devices configuration"):
-                # self.ngpf.config()
-                self.new_ngpf.config()
-            # self.traffic_item.config()
+                self.ngpf.config()
+            self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
 

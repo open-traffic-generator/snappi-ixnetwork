@@ -402,7 +402,7 @@ class TrafficItem(CustomField):
             return {}
         paths = {}
         for i, dev_name in enumerate(dev_names):
-            paths[dev_name] = {"dev_info": self._api.get_ixn_object(dev_name)}
+            paths[dev_name] = {"dev_info": self._api.ixn_objects.get(dev_name)}
             paths[dev_name]["type"] = self._api.get_device_encap(dev_name)
         return paths
 
@@ -457,28 +457,29 @@ class TrafficItem(CustomField):
             name = names[0]
             dev_info = devices[name]["dev_info"]
             xpath = dev_info.xpath
-            if xpath in self._api.compacted_ref:
-                cmp_names = set(self._api.compacted_ref[xpath])
+            cmp_names = set(dev_info.names)
+            if len(cmp_names) > 0:
                 inter_names = cmp_names.intersection(set(names))
                 # todo: optimize within scalable
                 if len(inter_names) == len(cmp_names):
                     endpoints.append(xpath)
                     gen_name = inter_names
                 else:
-                    gen_name = set([name])
+                    gen_name = name
                     scalable_endpoints.append(
                         {
-                            "arg1": dev_info.xpath,
+                            "arg1": xpath,
                             "arg2": 1,
                             "arg3": 1,
-                            "arg4": dev_info.index,
+                            "arg4": dev_info.index + 1,
                             "arg5": dev_info.multiplier,
                         }
                     )
-
             else:
-                gen_name = set([name])
+                gen_name = name
                 endpoints.append(xpath)
+            if not isinstance(gen_name, set):
+                gen_name = {gen_name}
             names = list(set(names).difference(gen_name))
 
     def create_traffic(self, config):
