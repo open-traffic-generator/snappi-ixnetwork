@@ -14,6 +14,8 @@ class Ngpf(Base):
         "DeviceEthernet": "ethernetVlan",
         "DeviceIpv4": "ipv4",
         "DeviceIpv6": "ipv6",
+        "BgpV4Peer": "ipv4",
+        "BgpV6Peer": "ipv6",
         "BgpV4RouteRange": "ipv4",
         "BgpV6RouteRange": "ipv4"
     }
@@ -52,16 +54,15 @@ class Ngpf(Base):
         with Timer(self._api, "Push IxNetwork config :"):
             self._pushixnconfig()
 
-    def set_device_info(self, snappi_obj, ixn_obj, encap=None):
+    def set_device_info(self, snappi_obj, ixn_obj):
         name = snappi_obj.get("name")
         class_name = snappi_obj.__class__.__name__
-        if encap is None:
-            try:
-                encap = Ngpf._DEVICE_ENCAP_MAP[class_name]
-            except KeyError:
-                raise NameError(
-                    "Mapping is missing for {0}".format(class_name)
-                )
+        try:
+            encap = Ngpf._DEVICE_ENCAP_MAP[class_name]
+        except KeyError:
+            raise NameError(
+                "Mapping is missing for {0}".format(class_name)
+            )
         self._api.set_device_encap(name, encap)
         self._api.set_device_encap(
             self.get_name(self.working_dg), encap
@@ -107,7 +108,7 @@ class Ngpf(Base):
 
     def _pushixnconfig(self):
         ixn_cnf = json.dumps(self._ixn_config, indent=2)
-        # print(ixn_cnf)
+        print(ixn_cnf)
         errata = self._resource_manager.ImportConfig(
             ixn_cnf, False
         )
@@ -148,7 +149,7 @@ class Ngpf(Base):
             if re.search("ipv4PrefixPools", xpath):
                 xpath += "/bgpIPRouteProperty[1]"
             else:
-                xpath += "/bgpIP6RouteProperty[1]"
+                xpath += "/bgpV6IPRouteProperty[1]"
             active = "active"
             index_list = list(set(index_list))
             object_info = self.select_properties(

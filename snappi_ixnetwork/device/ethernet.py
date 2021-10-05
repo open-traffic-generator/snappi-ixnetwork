@@ -68,7 +68,7 @@ class Ethernet(Base):
             return
         for ipv6_address in ipv6_addresses:
             ixn_ip = self.create_node_elemet(
-                ixn_eth, "ipv4", ipv6_address.get("name")
+                ixn_eth, "ipv6", ipv6_address.get("name")
             )
             self._ngpf.set_device_info(ipv6_address, ixn_ip)
             self.configure_multivalues(ipv6_address, ixn_ip, Ethernet._IP)

@@ -138,12 +138,12 @@ def test_compact(api, utils):
         tx_ip.gateway = config_values["rx_adds"][i - 1]
         tx_ip.prefix = 24
 
-        # tx_ipv6 = tx_eth.ipv6
-        # tx_ipv6.name = "Tx IP v6{0}".format(i)
-        # tx_ipv6.address = config_values["tx_ipv6_adds"][i - 1]
-        # tx_ipv6.gateway = config_values["rx_ipv6_adds"][i - 1]
-        # tx_ipv6.prefix = 64
-        #
+        tx_ipv6 = tx_eth.ipv6_addresses.add()
+        tx_ipv6.name = "Tx IP v6{0}".format(i)
+        tx_ipv6.address = config_values["tx_ipv6_adds"][i - 1]
+        tx_ipv6.gateway = config_values["rx_ipv6_adds"][i - 1]
+        tx_ipv6.prefix = 64
+
         tx_bgp = tx_device.bgp
         tx_bgp.router_id = config_values["tx_adds"][i - 1]
         tx_bgp_int = tx_bgp.ipv4_interfaces.add()
@@ -178,13 +178,13 @@ def test_compact(api, utils):
         rx_ip.address = config_values["rx_adds"][i - 1]
         rx_ip.gateway = config_values["tx_adds"][i - 1]
         rx_ip.prefix = 24
-    #
-    #     rx_ipv6 = rx_eth.ipv6
-    #     rx_ipv6.name = "Rx IP v6{0}".format(i)
-    #     rx_ipv6.address = config_values["rx_ipv6_adds"][i - 1]
-    #     rx_ipv6.gateway = config_values["tx_ipv6_adds"][i - 1]
-    #     rx_ipv6.prefix = 64
-    #
+
+        rx_ipv6 = rx_eth.ipv6_addresses.add()
+        rx_ipv6.name = "Rx IP v6{0}".format(i)
+        rx_ipv6.address = config_values["rx_ipv6_adds"][i - 1]
+        rx_ipv6.gateway = config_values["tx_ipv6_adds"][i - 1]
+        rx_ipv6.prefix = 64
+
         rx_bgp = rx_device.bgp
         rx_bgp.router_id = config_values["rx_adds"][i - 1]
         rx_bgp_int = rx_bgp.ipv4_interfaces.add()
@@ -193,7 +193,6 @@ def test_compact(api, utils):
         rx_peer.name = "Rx Bgp {0}".format(i)
         rx_peer.as_type = "ibgp"
         rx_peer.peer_address = config_values["tx_adds"][i - 1]
-        # rx_bgp.local_address = config_values["rx_adds"][i - 1]
         rx_peer.as_number = 65200
 
 
@@ -307,24 +306,24 @@ def validate_compact_config(api, config_values, rx_device_with_rr):
         d1.Ethernet.find().Ipv4.find().GatewayIp.Values,
         config_values["rx_adds"],
     )
-    # assert compare(
-    #     d1.Ethernet.find().Ipv4.find().BgpIpv4Peer.find().DutIp.Values,
-    #     config_values["rx_adds"],
-    # )
-    # assert compare(
-    #     d1.Ethernet.find().Ipv6.find().Address.Values,
-    #     config_values["tx_ipv6_adds"],
-    # )
-    # assert compare(
-    #     d1.Ethernet.find().Ipv6.find().GatewayIp.Values,
-    #     config_values["rx_ipv6_adds"],
-    # )
+    assert compare(
+        d1.Ethernet.find().Ipv4.find().BgpIpv4Peer.find().DutIp.Values,
+        config_values["rx_adds"],
+    )
+    assert compare(
+        d1.Ethernet.find().Ipv6.find().Address.Values,
+        config_values["tx_ipv6_adds"],
+    )
+    assert compare(
+        d1.Ethernet.find().Ipv6.find().GatewayIp.Values,
+        config_values["rx_ipv6_adds"],
+    )
 
     # Assert values for d2
     d3_ip = config_values["rx_adds"].pop(rx_device_with_rr - 1)
     d3_gateway = config_values["tx_adds"].pop(rx_device_with_rr - 1)
-    # d3_ipv6 = config_values["rx_ipv6_adds"].pop(rx_device_with_rr - 1)
-    # d3_ipv6_gateway = config_values["tx_ipv6_adds"].pop(rx_device_with_rr - 1)
+    d3_ipv6 = config_values["rx_ipv6_adds"].pop(rx_device_with_rr - 1)
+    d3_ipv6_gateway = config_values["tx_ipv6_adds"].pop(rx_device_with_rr - 1)
     assert compare(
         d2.Ethernet.find().Ipv4.find().Address.Values, config_values["rx_adds"]
     )
@@ -336,22 +335,22 @@ def validate_compact_config(api, config_values, rx_device_with_rr):
         d2.Ethernet.find().Ipv4.find().BgpIpv4Peer.find().DutIp.Values,
         config_values["tx_adds"],
     )
-    # assert compare(
-    #     d2.Ethernet.find().Ipv6.find().Address.Values,
-    #     config_values["rx_ipv6_adds"],
-    # )
-    # assert compare(
-    #     d2.Ethernet.find().Ipv6.find().GatewayIp.Values,
-    #     config_values["tx_ipv6_adds"],
-    # )
+    assert compare(
+        d2.Ethernet.find().Ipv6.find().Address.Values,
+        config_values["rx_ipv6_adds"],
+    )
+    assert compare(
+        d2.Ethernet.find().Ipv6.find().GatewayIp.Values,
+        config_values["tx_ipv6_adds"],
+    )
 
     # Assert values for d3
     assert d3.Ethernet.find().Ipv4.find().Address.Values[0] == d3_ip
     assert d3.Ethernet.find().Ipv4.find().GatewayIp.Values[0] == d3_gateway
-    # assert d3.Ethernet.find().Ipv6.find().Address.Values[0] == d3_ipv6
-    # assert (
-    #     d3.Ethernet.find().Ipv6.find().GatewayIp.Values[0] == d3_ipv6_gateway
-    # )
+    assert d3.Ethernet.find().Ipv6.find().Address.Values[0] == d3_ipv6
+    assert (
+        d3.Ethernet.find().Ipv6.find().GatewayIp.Values[0] == d3_ipv6_gateway
+    )
     assert (
         d3.Ethernet.find().Ipv4.find().BgpIpv4Peer.find().DutIp.Values[0]
         == d3_gateway

@@ -31,7 +31,6 @@ class Bgp(Base):
         "ink_state_non_vpn": "capabilityLinkStateNonVpn",
         "link_state_vpn": "capabilityLinkStateVpn",
         "evpn": "evpn",
-        # "extended_next_hop_encoding": "",
         "ipv4_multicast_vpn": "capabilityIpV4MulticastVpn",
         "ipv4_mpls_vpn": "capabilityIpV4MplsVpn",
         "ipv4_mdt": "capabilityIpV4Mdt",
@@ -41,11 +40,15 @@ class Bgp(Base):
         "ipv4_unicast_add_path": "capabilityIpv4UnicastAddPath",
         "ipv6_multicast_vpn": "capabilityIpV6MulticastVpn",
         "ipv6_mpls_vpn": "capabilityIpV6MplsVpn",
-        # "ipv6_mdt": "",
         "ipv6_multicast_mpls_vpn": "ipv6MulticastBgpMplsVpn",
         "ipv6_unicast_flow_spec": "capabilityipv6UnicastFlowSpec",
         "ipv6_sr_te_policy": "capabilitySRTEPoliciesV6",
         "ipv6_unicast_add_path": "capabilityIpv6UnicastAddPath"
+    }
+
+    _CAPABILITY_IPv6 = {
+        "extended_next_hop_encoding": "capabilityNHEncodingCapabilities",
+        # "ipv6_mdt": "",
     }
 
     _IP_POOL = {
@@ -114,11 +117,20 @@ class Bgp(Base):
 
     def _config_ipv4_interfaces(self, bgp):
         ipv4_interfaces = bgp.get("ipv4_interfaces")
-        for ipv4_interface in ipv4_interfaces:
-            ipv4_name = ipv4_interface.get("ipv4_name")
-            ixn_ipv4 = self._ngpf._api.ixn_objects.get_object(ipv4_name)
-            self._config_bgpv4(ipv4_interface.get("peers"),
-                               ixn_ipv4)
+        if ipv4_interfaces is not None:
+            for ipv4_interface in ipv4_interfaces:
+                ipv4_name = ipv4_interface.get("ipv4_name")
+                ixn_ipv4 = self._ngpf._api.ixn_objects.get_object(ipv4_name)
+                self._config_bgpv4(ipv4_interface.get("peers"),
+                                   ixn_ipv4)
+
+        ipv6_interfaces = bgp.get("ipv6_interfaces")
+        if ipv6_interfaces is not None:
+            for ipv6_interface in ipv6_interfaces:
+                ipv6_name = ipv6_interface.get("ipv6_name")
+                ixn_ipv6 = self._ngpf._api.ixn_objects.get_object(ipv6_name)
+                self._config_bgpv6(ipv6_interface.get("peers"),
+                                   ixn_ipv6)
 
     def _config_as_number(self, bgp_peer, ixn_bgp):
         as_number_width = bgp_peer.get("as_number_width")
@@ -130,11 +142,13 @@ class Bgp(Base):
             ixn_bgp["localAs4Bytes"] = self.multivalue(as_number)
 
     def _config_bgpv4(self, bgp_peers, ixn_ipv4):
+        if bgp_peers is None:
+            return
         for bgp_peer in bgp_peers:
             ixn_bgpv4 = self.create_node_elemet(
                 ixn_ipv4, "bgpIpv4Peer", bgp_peer.get("name")
             )
-            self._ngpf.set_device_info(bgp_peer, ixn_bgpv4, "ipv4")
+            self._ngpf.set_device_info(bgp_peer, ixn_bgpv4)
             self.configure_multivalues(bgp_peer, ixn_bgpv4, Bgp._BGP)
             self._config_as_number(bgp_peer, ixn_bgpv4)
             advanced = bgp_peer.get("advanced")
@@ -145,16 +159,41 @@ class Bgp(Base):
                 self.configure_multivalues(capability, ixn_bgpv4, Bgp._CAPABILITY)
             self._bgp_route_builder(bgp_peer, ixn_bgpv4)
 
-    def _bgp_route_builder(self, bgp_peer, ixn_bgpv4):
+    def _config_bgpv6(self, bgp_peers, ixn_ipv6):
+        if bgp_peers is None:
+            return
+        for bgp_peer in bgp_peers:
+            ixn_bgpv6 = self.create_node_elemet(
+                ixn_ipv6, "bgpIpv6Peer", bgp_peer.get("name")
+            )
+            self._ngpf.set_device_info(bgp_peer, ixn_bgpv6, "ipv6")
+            self.configure_multivalues(bgp_peer, ixn_bgpv6, Bgp._BGP)
+            self._config_as_number(bgp_peer, ixn_bgpv6)
+            advanced = bgp_peer.get("advanced")
+            if advanced is not None:
+                self.configure_multivalues(advanced, ixn_bgpv6, Bgp._ADVANCED)
+            capability = bgp_peer.get("capability")
+            if capability is not None:
+                self.configure_multivalues(capability, ixn_bgpv6, Bgp._CAPABILITY)
+                self.configure_multivalues(
+                    capability, ixn_bgpv6, Bgp._CAPABILITY_IPv6
+                )
+            self._bgp_route_builder(bgp_peer, ixn_bgpv6)
+
+    def _bgp_route_builder(self, bgp_peer, ixn_bgp):
         v4_routes = bgp_peer.get("v4_routes")
         if v4_routes is not None:
-            self._configure_bgpv4_route(v4_routes, ixn_bgpv4)
-
+            self._configure_bgpv4_route(v4_routes, ixn_bgp)
+        v6_routes = bgp_peer.get("v6_routes")
+        if v6_routes is not None:
+            self._configure_bgpv6_route(v6_routes, ixn_bgp)
         self._ngpf.compactor.compact(self._ngpf.working_dg.get(
             "networkGroup"
         ))
 
-    def _configure_bgpv4_route(self, v4_routes, ixn_bgpv4):
+    def _configure_bgpv4_route(self, v4_routes, ixn_bgp):
+        if v4_routes is None:
+            return
         for route in v4_routes:
             addresses = route.get("addresses")
             for addresse in addresses:
@@ -167,10 +206,32 @@ class Bgp(Base):
                 )
                 ixn_connector = self.create_property(ixn_ip_pool, "connector")
                 ixn_connector["connectedTo"] = self.post_calculated(
-                    "connectedTo", ref_ixnobj=ixn_bgpv4
+                    "connectedTo", ref_ixnobj=ixn_bgp
                 )
                 self.configure_multivalues(addresse, ixn_ip_pool, Bgp._IP_POOL)
                 ixn_route = self.create_node_elemet(ixn_ip_pool, "bgpIPRouteProperty")
+                self._ngpf.set_device_info(route, ixn_ip_pool)
+                self._configure_route(route, ixn_route)
+
+    def _configure_bgpv6_route(self, v6_routes, ixn_bgp):
+        if v6_routes is None:
+            return
+        for route in v6_routes:
+            addresses = route.get("addresses")
+            for addresse in addresses:
+                ixn_ng = self.create_node_elemet(
+                    self._ngpf.working_dg, "networkGroup"
+                )
+                ixn_ng["multiplier"] = 1
+                ixn_ip_pool = self.create_node_elemet(
+                    ixn_ng, "ipv6PrefixPools", route.get("name")
+                )
+                ixn_connector = self.create_property(ixn_ip_pool, "connector")
+                ixn_connector["connectedTo"] = self.post_calculated(
+                    "connectedTo", ref_ixnobj=ixn_bgp
+                )
+                self.configure_multivalues(addresse, ixn_ip_pool, Bgp._IP_POOL)
+                ixn_route = self.create_node_elemet(ixn_ip_pool, "bgpV6IPRouteProperty")
                 self._ngpf.set_device_info(route, ixn_ip_pool)
                 self._configure_route(route, ixn_route)
 
