@@ -2,7 +2,7 @@ import re
 import json
 
 from snappi_ixnetwork.timer import Timer
-from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.device.base import *
 from snappi_ixnetwork.device.bgp import Bgp
 from snappi_ixnetwork.device.ethernet import Ethernet
 from snappi_ixnetwork.device.compactor import Compactor
@@ -42,7 +42,7 @@ class Ngpf(Base):
     def config(self):
         self._ixn_topo_objects = {}
         self.working_dg = None
-        self._ixn_config = self.att_dict()
+        self._ixn_config = dict()
         self._ixn_config["xpath"] = "/"
         self._resource_manager = self._api._ixnetwork.ResourceManager
         with Timer(self._api, "Convert device config :"):
@@ -74,6 +74,14 @@ class Ngpf(Base):
     def _get_topology_name(self, port_name):
         return "Topology %s" % port_name
 
+    def _set_dev_compacted(self, dgs):
+        if dgs is None:
+            return
+        for dg in dgs:
+            names = dg.get("name")
+            if isinstance(names, list) and len(names) > 1:
+                self._api.set_dev_compacted(names[0], names)
+
     def _configure_topology(self):
         self.stop_topology()
         self._api._remove(self._api._topology, [])
@@ -85,6 +93,10 @@ class Ngpf(Base):
             self.compactor.compact(ixn_topo.get(
                 "deviceGroup"
             ))
+            self._set_dev_compacted(ixn_topo.get(
+                "deviceGroup"
+            ))
+
 
     def _configure_device_group(self, device, ixn_topos):
         """map ethernet with a ixn deviceGroup with multiplier = 1"""

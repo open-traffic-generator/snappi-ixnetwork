@@ -45,6 +45,11 @@ class IxNetObjects(object):
         obj = self.get(name)
         return obj.ixnobject
 
+    def get_names(self, name):
+        """Returns names ob objects got compacted to given a unique configuration name"""
+        obj = self.get(name)
+        return obj.names
+
     def get(self, name):
         try:
             return self._ixn_objects[name]

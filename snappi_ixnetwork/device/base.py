@@ -1,12 +1,3 @@
-from collections import defaultdict
-
-
-class AttDict(defaultdict):
-    def __init__(self):
-        super(AttDict, self).__init__(list)
-
-    def __setitem__(self, key, value):
-        super(AttDict, self).__setitem__(key, value)
 
 
 class MultiValue(object):
@@ -43,7 +34,7 @@ class Base(object):
             return ixn_obj[name]
 
     def add_element(self, ixn_obj, name=None):
-        ixn_obj.append(self.att_dict())
+        ixn_obj.append(dict())
         new_element = ixn_obj[-1]
         new_element["xpath"] = ""
         if name is not None:
@@ -60,13 +51,13 @@ class Base(object):
         return self.add_element(node, name)
 
     def create_property(self, ixn_obj, name):
-        ixn_obj[name] = self.att_dict()
+        ixn_obj[name] = dict()
         ixn_property = ixn_obj[name]
         ixn_property["xpath"] = ""
         return ixn_property
 
     def att_dict(self):
-        return AttDict()
+        return dict()
 
     def multivalue(self, value, enum=None):
         if value is not None and enum is not None:

@@ -9,8 +9,8 @@ class CreateIxnConfig(Base):
         if not isinstance(node, list):
             raise TypeError("Expecting list to loop through it")
         for idx, element in enumerate(node, start=1):
-            if not isinstance(element, AttDict):
-                raise TypeError("Expecting internal AttDict()")
+            if not isinstance(element, dict):
+                raise TypeError("Expecting dict")
             xpath = """{parent_xpath}/{node_name}[{index}]""".format(
                 parent_xpath=parent_xpath,
                 node_name=node_name,
@@ -38,10 +38,10 @@ class CreateIxnConfig(Base):
                     element[key] = value
             elif isinstance(value, PostCalculated):
                 element[key] = value.value
-            elif isinstance(value, AttDict):
+            elif isinstance(value, dict):
                 self._process_element(value, parent_xpath, key)
             elif isinstance(value, list) and len(value) > 0 and \
-                    isinstance(value[0], AttDict):
+                    isinstance(value[0], dict):
                 if child_name is not None:
                     raise Exception("Add support node within element")
                 self.create(value, key, parent_xpath)

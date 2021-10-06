@@ -50,7 +50,7 @@ class Compactor(object):
             if key in self._unsupported_nodes:
                 return False
             src_value = src.get(key)
-            if isinstance(src_value, AttDict):
+            if isinstance(src_value, dict):
                 dst_value = dst[key]
                 if self._comparator(src_value, dst_value) is False:
                     return False
@@ -60,6 +60,8 @@ class Compactor(object):
                 if len(src_value) != len(dst_value):
                     return False
                 for index, src_dict in enumerate(src_value):
+                    if not isinstance(src_dict, dict):
+                        continue
                     if self._comparator(src_dict, dst_value[index]) is False:
                         return False
             # todo: Add scalar comparison
@@ -83,9 +85,9 @@ class Compactor(object):
                 continue
             if isinstance(value, list):
                 for val in value:
-                    if isinstance(val, AttDict):
+                    if isinstance(val, dict):
                         self.set_scalable(val)
-            elif isinstance(value, AttDict):
+            elif isinstance(value, dict):
                 self.set_scalable(value)
 
 
@@ -132,10 +134,12 @@ class SimilarObjects(Base):
             #     dst_value = obj.get(key, with_default=True)
             if isinstance(dst_value, list):
                 for index, dst_dict in enumerate(dst_value):
+                    if not isinstance(dst_dict, dict):
+                        continue
                     self._value_compactor(
                         src_value[index], dst_dict
                     )
-            elif isinstance(dst_value, AttDict):
+            elif isinstance(dst_value, dict):
                 self._value_compactor(src_value, dst_value)
             elif isinstance(src_value, MultiValue):
                 src_value = src_value.value

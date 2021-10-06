@@ -273,9 +273,9 @@ class ProtocolMetrics(object):
         return row_lst
 
     def _update_actual_dev_name(self, data):
-        keys = self._api._dev_compacted.keys()
+        keys = self._api.dev_compacted.keys()
         if data["Device Group"] in keys:
-            for k, v in self._api._dev_compacted.items():
+            for k, v in self._api.dev_compacted.items():
                 if (
                     data["Device Group"] == v["dev_name"]
                     and int(data["Device#"]) == v["index"] + 1

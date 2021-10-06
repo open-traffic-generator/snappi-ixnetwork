@@ -130,9 +130,12 @@ class Api(snappi.Api):
     def assistant(self):
         return self._assistant
 
-    def set_dev_compacted(self, device):
-        dev_name = device["name"]
-        for index, name in enumerate(device["name_list"]):
+    @property
+    def dev_compacted(self):
+        return self._dev_compacted
+
+    def set_dev_compacted(self, dev_name, name_list):
+        for index, name in enumerate(name_list):
             self._dev_compacted[name] = {"dev_name": dev_name, "index": index}
 
     def _dict_to_obj(self, source):
