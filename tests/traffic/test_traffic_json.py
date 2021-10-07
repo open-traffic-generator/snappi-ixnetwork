@@ -174,10 +174,9 @@ expected_raw_type = {
                                 },
                                 {
                                     "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.protocol-25']",
-                                    "valueType": "singleValue",
-                                    "singleValue": 61,
-                                    "activeFieldChoice": False,
-                                    "auto": False,
+                                    'valueType': 'auto',
+                                    'activeFieldChoice': False,
+                                    'auto': True
                                 },
                                 {
                                     "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.checksum-26']",
@@ -251,22 +250,22 @@ def test_create_traffic_device(v4_or_v6):
     api = MagicMock()
     tr_obj = TrafficItem(api)
     ports = {"p1": "/vport[1]", "p2": "/vport[2]"}
-    ixn_obj_info = namedtuple("IxNobjInfo", ["xpath", "compacted"])
+    ixn_obj_info = namedtuple("IxNobjInfo", ["xpath", "names"])
     devices = {
         "d1": {
-            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[1]", False),
+            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[1]", []),
             "type": "ipv4",
         },
         "d2": {
-            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[2]", False),
+            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[2]", []),
             "type": "ipv6",
         },
         "d3": {
-            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[1]", False),
+            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[1]", []),
             "type": "ipv4",
         },
         "d4": {
-            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[2]", False),
+            "dev_info": ixn_obj_info("/topology[1]/deviceGroup[2]", []),
             "type": "ipv6",
         },
     }
