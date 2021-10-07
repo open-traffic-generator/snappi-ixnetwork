@@ -64,6 +64,7 @@ def test():
     ]
     run(
         [
+            py() + " -m pip install pytest",
             py() + " -m pip install pytest-cov",
             py() + " -m pytest -sv {}".format(" ".join(args)),
         ]
