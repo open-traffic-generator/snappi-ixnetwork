@@ -122,7 +122,6 @@ class Ngpf(Base):
 
     def _pushixnconfig(self):
         ixn_cnf = json.dumps(self._ixn_config, indent=2)
-        print(ixn_cnf)
         errata = self._resource_manager.ImportConfig(
             ixn_cnf, False
         )
