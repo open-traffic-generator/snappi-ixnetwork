@@ -13,7 +13,7 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.protocolmetrics import ProtocolMetrics
 from snappi_ixnetwork.resourcegroup import ResourceGroup
 from snappi_ixnetwork.exceptions import SnappiIxnException
-from snappi_ixnetwork.device.ngpf import Ngpf
+from snappi_ixnetwork.ngpf import Ngpf
 from snappi_ixnetwork.objectdb import IxNetObjects
 
 class Api(snappi.Api):
