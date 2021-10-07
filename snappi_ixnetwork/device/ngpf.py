@@ -11,13 +11,14 @@ from snappi_ixnetwork.device.createixnconfig import CreateIxnConfig
 
 class Ngpf(Base):
     _DEVICE_ENCAP_MAP = {
+        "Device": "",
         "DeviceEthernet": "ethernetVlan",
         "DeviceIpv4": "ipv4",
         "DeviceIpv6": "ipv6",
         "BgpV4Peer": "ipv4",
         "BgpV6Peer": "ipv6",
         "BgpV4RouteRange": "ipv4",
-        "BgpV6RouteRange": "ipv4"
+        "BgpV6RouteRange": "ipv6"
     }
 
     _ROUTE_OBJECTS = [
@@ -114,6 +115,7 @@ class Ngpf(Base):
             )
             ixn_dg["multiplier"] = 1
             self.working_dg = ixn_dg
+            self.set_device_info(device, ixn_dg)
             self._ethernet.config(ethernet, ixn_dg)
         self._bgp.config(device)
 

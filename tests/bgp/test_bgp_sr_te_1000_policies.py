@@ -1,7 +1,7 @@
 import pytest
 from functools import reduce
 
-
+@pytest.mark.skip("New SR TE model is not available")
 def test_bgp_sr_te_1000_policies(api):
     """
     Test BGP SRTE Policy configuration applied properly for 1000 policies

@@ -13,15 +13,14 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
 
     p1, p2 = b2b_raw_config.ports
     d1, d2 = b2b_raw_config.devices.device(name="tx_bgp").device(name="rx_bgp")
-    d1.container_name, d2.container_name = p1.name, p2.name
-    eth1, eth2 = d1.ethernet, d2.ethernet
+    eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
+    eth1.port_name, eth2.port_name = p1.name, p2.name
     eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
-    ip1, ip2 = eth1.ipv6, eth2.ipv6
-    bgp1, bgp2 = ip1.bgpv6, ip2.bgpv6
+    ip1, ip2 = eth1.ipv6_addresses.add(), eth2.ipv6_addresses.add()
+    bgp1, bgp2 = d1.bgp, d2.bgp
 
     eth1.name, eth2.name = "eth1", "eth2"
     ip1.name, ip2.name = "ip1", "ip2"
-    bgp1.name, bgp2.name = "bgp1", "bpg2"
 
     ip1.address = "2000::1"
     ip1.gateway = "3000::1"
@@ -31,26 +30,30 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     ip2.gateway = "2000::1"
     ip2.prefix = 64
 
-    bgp1.dut_address = "3000::1"
-    bgp1.local_address = "2000::1"
-    bgp1.as_type = "ibgp"
-    bgp1.as_number = 10
+    bgp1.router_id, bgp2.router_id = "192.0.0.1", "192.0.0.2"
+    bgp1_int, bgp2_int = bgp1.ipv6_interfaces.add(), bgp2.ipv6_interfaces.add()
+    bgp1_int.ipv6_name, bgp2_int.ipv6_name = ip1.name, ip2.name
+    bgp1_peer, bgp2_peer = bgp1_int.peers.add(), bgp2_int.peers.add()
+    bgp1_peer.name, bgp2_peer.name = "bgp1", "bpg2"
 
-    bgp2.dut_address = "2000::1"
-    bgp2.local_address = "3000::1"
-    bgp2.as_type = "ibgp"
-    bgp2.as_number = 10
+    bgp1_peer.peer_address = "3000::1"
+    bgp1_peer.as_type = "ibgp"
+    bgp1_peer.as_number = 10
 
-    bgp1_rr1 = bgp1.bgpv6_routes.bgpv6route(name="bgp1_rr1")[-1]
-    bgp1_rr2 = bgp1.bgpv6_routes.bgpv6route(name="bgp1_rr2")[-1]
-    bgp2_rr1 = bgp2.bgpv6_routes.bgpv6route(name="bgp2_rr1")[-1]
-    bgp2_rr2 = bgp2.bgpv6_routes.bgpv6route(name="bgp2_rr2")[-1]
+    bgp2_peer.peer_address = "2000::1"
+    bgp2_peer.as_type = "ibgp"
+    bgp2_peer.as_number = 10
 
-    bgp1_rr1.addresses.bgpv6routeaddress(address="4000::1", prefix=64)
-    bgp1_rr2.addresses.bgpv6routeaddress(address="5000::1", prefix=64)
+    bgp1_rr1 = bgp1_peer.v6_routes.add(name="bgp1_rr1")
+    bgp1_rr2 = bgp1_peer.v6_routes.add(name="bgp1_rr2")
+    bgp2_rr1 = bgp2_peer.v6_routes.add(name="bgp2_rr1")
+    bgp2_rr2 = bgp2_peer.v6_routes.add(name="bgp2_rr2")
 
-    bgp2_rr1.addresses.bgpv6routeaddress(address="4000::1", prefix=64)
-    bgp2_rr2.addresses.bgpv6routeaddress(address="5000::1", prefix=64)
+    bgp1_rr1.addresses.add(address="4000::1", prefix=64)
+    bgp1_rr2.addresses.add(address="5000::1", prefix=64)
+
+    bgp2_rr1.addresses.add(address="4000::1", prefix=64)
+    bgp2_rr2.addresses.add(address="5000::1", prefix=64)
 
     flow_bgp = b2b_raw_config.flows.flow(name="flow_bgp")[-1]
 
@@ -60,12 +63,8 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     flow_bgp.tx_rx.device.tx_names = [
         bgp1_rr1.name,
         bgp1_rr2.name,
-        bgp2_rr1.name,
-        bgp2_rr2.name,
     ]
     flow_bgp.tx_rx.device.rx_names = [
-        bgp1_rr1.name,
-        bgp1_rr2.name,
         bgp2_rr1.name,
         bgp2_rr2.name,
     ]
@@ -74,8 +73,7 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
 
     req = api.metrics_request()
-    req.choice = "bgpv6"
-    req.bgpv6.device_names = []
+    req.bgpv6.peer_names = []
     results = api.get_metrics(req)
     enums = [
         "session_state",
@@ -94,8 +92,7 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
             assert getattr(bgp_res, enum) == val
 
     req = api.metrics_request()
-    req.choice = "bgpv6"
-    req.bgpv6.device_names = ["rx_bgp"]
+    req.bgpv6.peer_names = ["rx_bgp"]
     results = api.get_metrics(req)
 
     assert len(results.bgpv6_metrics) == 1
@@ -106,7 +103,6 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
             assert getattr(bgp_res, enum) == val
 
     req = api.metrics_request()
-    req.choice = "bgpv6"
     req.bgpv6.column_names = ["session_state"]
     results = api.get_metrics(req)
     assert len(results.bgpv6_metrics) == 2

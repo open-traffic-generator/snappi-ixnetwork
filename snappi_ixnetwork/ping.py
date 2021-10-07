@@ -21,12 +21,17 @@ class Ping(object):
 
     def results(self, ping_request):
         responses = []
-        v4_names = [
-            device.ethernet.ipv4.name for device in self._api._config.devices
-        ]
-        v6_names = [
-            device.ethernet.ipv6.name for device in self._api._config.devices
-        ]
+        v4_names = []
+        for device in self._api._config.devices:
+            for eth in device.ethernets:
+                for ip in eth.ipv4_addresses:
+                    v4_names.append(ip.name)
+        v6_names = []
+        for device in self._api._config.devices:
+            for eth in device.ethernets:
+                for ip in eth.ipv6_addresses:
+                    v6_names.append(ip.name)
+
         with Timer(self._api, "Ping requests completed in"):
             for endpoint in ping_request.endpoints:
                 response = {}

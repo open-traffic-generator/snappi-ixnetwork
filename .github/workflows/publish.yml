@@ -33,9 +33,9 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py install
           ${{steps.path.outputs.pythonv}} do.py init
-#      - name: Run tests
-#        run: |
-#          ${{steps.path.outputs.pythonv}} do.py test
+      - name: Run tests
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py test
       - name: Get package version
         id: get_version
         run: |

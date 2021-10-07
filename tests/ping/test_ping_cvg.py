@@ -1,3 +1,4 @@
+@pytest.mark.skip(reason="We will revisit after pull new model in snappi_convergence")
 def test_ping_cvg(cvg_api, utils):
     """
     Demonstrates test to send ipv4 and ipv6 pings
@@ -21,11 +22,11 @@ def test_ping_cvg(cvg_api, utils):
 
     d1, d2 = config.devices.device(
         name="tx_bgp").device(name="rx_bgp")
-    d1.container_name, d2.container_name = port1.name, port2.name
-    eth1, eth2 = d1.ethernet, d2.ethernet
+    eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
+    eth1.port_name, eth2.port_name = port1.name, port2.name
     eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
-    ip1, ip2 = eth1.ipv4, eth2.ipv4
-    ipv61, ipv62 = eth1.ipv6, eth2.ipv6
+    ip1, ip2 = eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
+    ipv61, ipv62 = eth1.ipv6_addresses.add(), eth2.ipv6_addresses.add()
     eth1.name, eth2.name = "eth1", "eth2"
     ip1.name, ip2.name = "ip1", "ip2"
     ipv61.name, ipv62.name = "ipv6-1", "ipv6-2"

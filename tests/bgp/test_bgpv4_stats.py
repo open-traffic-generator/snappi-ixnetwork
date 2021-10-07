@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.skip(reason="will be updating the test with new snappi version")
+# @pytest.mark.skip(reason="will be updating the test with new snappi version")
 def test_bgpv4_stats(api, b2b_raw_config, utils):
     """
     Test for the bgpv4 metrics
@@ -11,16 +11,20 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
 
     p1, p2 = b2b_raw_config.ports
     d1, d2 = b2b_raw_config.devices.device(name="tx_bgp").device(name="rx_bgp")
-    d1.container_name, d2.container_name = p1.name, p2.name
-    # d1.device_count, d2.device_count = 10, 10
-    eth1, eth2 = d1.ethernet, d2.ethernet
+
+    eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
+    eth1.port_name, eth2.port_name = p1.name, p2.name
     eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
-    ip1, ip2 = eth1.ipv4, eth2.ipv4
-    bgp1, bgp2 = ip1.bgpv4, ip2.bgpv4
+    ip1, ip2 = eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
+    bgp1, bgp2 = d1.bgp, d2.bgp
+
     eth1.name, eth2.name = "eth1", "eth2"
     ip1.name, ip2.name = "ip1", "ip2"
-    bgp1.name, bgp2.name = "bgp1", "bpg2"
-
+    bgp1.router_id, bgp2.router_id = "192.0.0.1", "192.0.0.2"
+    bgp1_int, bgp2_int = bgp1.ipv4_interfaces.add(), bgp2.ipv4_interfaces.add()
+    bgp1_int.ipv4_name, bgp2_int.ipv4_name = ip1.name, ip2.name
+    bgp1_peer, bgp2_peer = bgp1_int.peers.add(), bgp2_int.peers.add()
+    bgp1_peer.name, bgp2_peer.name = "bgp1", "bpg2"
     ip1.address = "10.1.1.1"
     ip1.gateway = "10.1.1.2"
     ip1.prefix = 24
@@ -29,15 +33,13 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     ip2.gateway = "10.1.1.1"
     ip2.prefix = 24
 
-    bgp1.dut_address = "10.1.1.2"
-    bgp1.local_address = "10.1.1.1"
-    bgp1.as_type = "ibgp"
-    bgp1.as_number = 10
+    bgp1_peer.peer_address = "10.1.1.2"
+    bgp1_peer.as_type = "ibgp"
+    bgp1_peer.as_number = 10
 
-    bgp2.dut_address = "10.1.1.1"
-    bgp2.local_address = "10.1.1.2"
-    bgp2.as_type = "ibgp"
-    bgp2.as_number = 10
+    bgp2_peer.peer_address = "10.1.1.1"
+    bgp2_peer.as_type = "ibgp"
+    bgp2_peer.as_number = 10
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(

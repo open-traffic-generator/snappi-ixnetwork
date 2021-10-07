@@ -166,7 +166,7 @@ class Bgp(Base):
             ixn_bgpv6 = self.create_node_elemet(
                 ixn_ipv6, "bgpIpv6Peer", bgp_peer.get("name")
             )
-            self._ngpf.set_device_info(bgp_peer, ixn_bgpv6, "ipv6")
+            self._ngpf.set_device_info(bgp_peer, ixn_bgpv6)
             self.configure_multivalues(bgp_peer, ixn_bgpv6, Bgp._BGP)
             self._config_as_number(bgp_peer, ixn_bgpv6)
             advanced = bgp_peer.get("advanced")
@@ -243,8 +243,10 @@ class Bgp(Base):
             multi_exit_discriminator = advanced.get("multi_exit_discriminator")
             if multi_exit_discriminator is not None:
                 ixn_route["enableMultiExitDiscriminator"] = self.multivalue(True)
-                ixn_route["multiExitDiscriminator"] = multi_exit_discriminator
-            ixn_route["origin"] = self.multivalue(advanced["origin"])
+                ixn_route["multiExitDiscriminator"] = self.multivalue(
+                    multi_exit_discriminator
+                )
+            ixn_route["origin"] = self.multivalue(advanced.get("origin"))
 
         communities = route.get("communities")
         if communities is not None and len(communities) > 0:
