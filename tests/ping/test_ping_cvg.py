@@ -1,3 +1,5 @@
+import pytest
+
 @pytest.mark.skip(reason="We will revisit after pull new model in snappi_convergence")
 def test_ping_cvg(cvg_api, utils):
     """
