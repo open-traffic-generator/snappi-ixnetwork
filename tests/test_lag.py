@@ -1,6 +1,5 @@
 import pytest
 
-@pytest.mark.skip(reason="We will revisit after adding of Ethernet and VLAN stack")
 def test_static_lag(api, utils):
     """Demonstrates the following:
     1) Creating a lag comprised of multiple ports

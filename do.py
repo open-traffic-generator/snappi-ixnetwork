@@ -36,7 +36,7 @@ def lint():
 
 
 def test():
-    coverage_threshold = 60
+    coverage_threshold = 70
 #     args = [
 #         '--location="https://10.39.71.97:443"',
 #         (
