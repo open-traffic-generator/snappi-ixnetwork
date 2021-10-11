@@ -37,17 +37,17 @@ def lint():
 
 def test():
     coverage_threshold = 67
-#     args = [
-#         '--location="https://10.39.71.97:443"',
-#         (
-#             '--ports="10.39.65.230;6;1 10.39.65.230;6;2 10.39.65.230;6;3'
-#             ' 10.39.65.230;6;4"'
-#         ),
-#         '--media="fiber"',
-#         "tests",
-#         '-m "not e2e and not l1_manual"',
-#         '--cov=./snappi_ixnetwork --cov-report term --cov-report html:cov_report',
-#     ]
+    #     args = [
+    #         '--location="https://10.39.71.97:443"',
+    #         (
+    #             '--ports="10.39.65.230;6;1 10.39.65.230;6;2 10.39.65.230;6;3'
+    #             ' 10.39.65.230;6;4"'
+    #         ),
+    #         '--media="fiber"',
+    #         "tests",
+    #         '-m "not e2e and not l1_manual"',
+    #         '--cov=./snappi_ixnetwork --cov-report term --cov-report html:cov_report',
+    #     ]
     args = [
         '--location="https://otg-novus100g.lbj.is.keysight.com:5000"',
         (
@@ -60,7 +60,7 @@ def test():
         "--speed=speed_100_gbps",
         "tests",
         '-m "not e2e and not l1_manual"',
-        '--cov=./snappi_ixnetwork --cov-report term --cov-report html:cov_report',
+        "--cov=./snappi_ixnetwork --cov-report term --cov-report html:cov_report",
     ]
     run(
         [
@@ -69,17 +69,23 @@ def test():
         ]
     )
     import re
+
     with open("./cov_report/index.html") as fp:
         out = fp.read()
-        result = re.findall(r'data-ratio.*?[>](\d+)\b', out)[0]
+        result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[0]
         if int(result) < coverage_threshold:
-            raise Exception("Coverage thresold[{0}] is NOT achieved[{1}]".format(
-                coverage_threshold, result
-            ))
+            raise Exception(
+                "Coverage thresold[{0}] is NOT achieved[{1}]".format(
+                    coverage_threshold, result
+                )
+            )
         else:
-            print("Coverage thresold[{0}] is achieved[{1}]".format(
-                coverage_threshold, result
-            ))
+            print(
+                "Coverage thresold[{0}] is achieved[{1}]".format(
+                    coverage_threshold, result
+                )
+            )
+
 
 def dist():
     clean()
