@@ -8,7 +8,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        python-version: [python27, python36]
+        python-version: [python27, python38]
 
     steps:
       - name: Checkout source
