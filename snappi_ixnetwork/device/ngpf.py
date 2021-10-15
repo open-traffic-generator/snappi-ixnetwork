@@ -98,7 +98,6 @@ class Ngpf(Base):
                 "deviceGroup"
             ))
 
-
     def _configure_device_group(self, device, ixn_topos):
         """map ethernet with a ixn deviceGroup with multiplier = 1"""
         for ethernet in device.get("ethernets"):
@@ -119,8 +118,10 @@ class Ngpf(Base):
             self._ethernet.config(ethernet, ixn_dg)
         self._bgp.config(device)
 
-
     def _pushixnconfig(self):
+        erros = self._api.get_errors()
+        if len(erros) > 0:
+            return
         ixn_cnf = json.dumps(self._ixn_config, indent=2)
         errata = self._resource_manager.ImportConfig(
             ixn_cnf, False
@@ -166,7 +167,7 @@ class Ngpf(Base):
             active = "active"
             index_list = list(set(index_list))
             object_info = self.select_properties(
-                xpath , properties=[active]
+                xpath, properties=[active]
             )
             values = object_info[active]["values"]
             for idx in index_list:
@@ -238,3 +239,5 @@ class Ngpf(Base):
                 "value": value,
             }
         return ixn_value
+
+

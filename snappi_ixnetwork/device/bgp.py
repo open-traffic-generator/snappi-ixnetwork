@@ -107,30 +107,74 @@ class Bgp(Base):
         super(Bgp, self).__init__()
         self._ngpf = ngpf
         self._router_id = None
+        self._invalid_ips = []
+        self._same_dg_ips = []
 
     def config(self, device):
+        self._same_dg_ips, self._invalid_ips = self._get_interface_info()
         bgp = device.get("bgp")
         if bgp is None:
             return
         self._router_id = bgp.get("router_id")
         self._config_ipv4_interfaces(bgp)
+        self._config_ipv6_interfaces(bgp)
+
+    def _get_interface_info(self):
+        ip_types = ["ipv4", "ipv6"]
+        same_dg_ips = []
+        invalid_ips = []
+        ethernets = self._ngpf.working_dg.get("ethernet")
+        for ethernet in ethernets:
+            for ip_type in ip_types:
+                ips = ethernet.get(ip_type)
+                if ips is not None:
+                    ip_names = [ip.get("name").value for ip in ips]
+                    same_dg_ips.extend(ip_names)
+                    if len(ips) > 1:
+                        invalid_ips.extend(ip_names)
+        return same_dg_ips, invalid_ips
 
     def _config_ipv4_interfaces(self, bgp):
         ipv4_interfaces = bgp.get("ipv4_interfaces")
-        if ipv4_interfaces is not None:
-            for ipv4_interface in ipv4_interfaces:
-                ipv4_name = ipv4_interface.get("ipv4_name")
-                ixn_ipv4 = self._ngpf._api.ixn_objects.get_object(ipv4_name)
-                self._config_bgpv4(ipv4_interface.get("peers"),
-                                   ixn_ipv4)
+        if ipv4_interfaces is None:
+            return
+        for ipv4_interface in ipv4_interfaces:
+            is_invalid = False
+            ipv4_name = ipv4_interface.get("ipv4_name")
+            if ipv4_name in self._invalid_ips:
+                self._ngpf._api.add_error("Multiple IP {name} on top of name Ethernet".format(
+                    name=ipv4_name
+                ))
+                is_invalid = True
+            if ipv4_name not in self._same_dg_ips:
+                self._ngpf._api.add_error("BGP should not configured on top of different device")
+                is_invalid = True
+            if is_invalid:
+                continue
+            ixn_ipv4 = self._ngpf._api.ixn_objects.get_object(ipv4_name)
+            self._config_bgpv4(ipv4_interface.get("peers"),
+                               ixn_ipv4)
 
+    def _config_ipv6_interfaces(self, bgp):
         ipv6_interfaces = bgp.get("ipv6_interfaces")
-        if ipv6_interfaces is not None:
-            for ipv6_interface in ipv6_interfaces:
-                ipv6_name = ipv6_interface.get("ipv6_name")
-                ixn_ipv6 = self._ngpf._api.ixn_objects.get_object(ipv6_name)
-                self._config_bgpv6(ipv6_interface.get("peers"),
-                                   ixn_ipv6)
+        if ipv6_interfaces is None:
+            return
+        for ipv6_interface in ipv6_interfaces:
+            is_invalid = False
+            ipv6_name = ipv6_interface.get("ipv6_name")
+            if ipv6_name in self._invalid_ips:
+                self._ngpf._api.add_error("Multiple IP {name} on top of name Ethernet".format(
+                    name=ipv6_name
+                ))
+                is_invalid = True
+            if ipv6_name not in self._same_dg_ips:
+                self._ngpf._api.add_error("BGP should not configured on top of different device")
+                is_invalid = True
+            if is_invalid:
+                continue
+            ixn_ipv6 = self._ngpf._api.ixn_objects.get_object(ipv6_name)
+            self._config_bgpv6(ipv6_interface.get("peers"),
+                               ixn_ipv6)
 
     def _config_as_number(self, bgp_peer, ixn_bgp):
         as_number_width = bgp_peer.get("as_number_width")

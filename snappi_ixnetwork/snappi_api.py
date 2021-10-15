@@ -417,6 +417,9 @@ class Api(snappi.Api):
         else:
             self._errors.append(error)
 
+    def get_errors(self):
+        return self._errors
+
     def parse_location_info(self, location):
         """It will return (chassis,card,port)
         set card as 0 where that is not applicable"""
