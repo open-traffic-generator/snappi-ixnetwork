@@ -50,13 +50,12 @@ class Compactor(object):
             if key in self._unsupported_nodes:
                 return False
             src_value = src.get(key)
+            dst_value = dst[key]
             if isinstance(src_value, dict):
-                dst_value = dst[key]
                 if self._comparator(src_value, dst_value) is False:
                     return False
             # todo: we need to restructure if same element in different position
             elif isinstance(src_value, list):
-                dst_value = dst[key]
                 if len(src_value) != len(dst_value):
                     return False
                 for index, src_dict in enumerate(src_value):
@@ -64,9 +63,12 @@ class Compactor(object):
                         continue
                     if self._comparator(src_dict, dst_value[index]) is False:
                         return False
-            # todo: Add scalar comparison
-            else:
-                pass
+            # Scalar comparison
+            elif isinstance(src_value, PostCalculated):
+                if src_value.value != dst_value.value:
+                    return False
+            elif src_value != dst_value:
+                return False
         return True
 
     def _get_names(self, ixnobject):
