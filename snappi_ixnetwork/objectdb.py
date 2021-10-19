@@ -67,7 +67,14 @@ class IxNetObjects(object):
         names = ixnobject.get("name")
         set_names = []
         for index, name in enumerate(names):
+            if name not in self._ixn_objects:
+                continue
             if name is None or name in set_names:
+                continue
+            # Same name may present within different object structure
+            old_keys = sorted(self._ixn_objects[name].ixnobject)
+            keys = sorted(ixnobject)
+            if old_keys != keys:
                 continue
             set_names.append(name)
             self._ixn_objects[name] = IxNetInfo(

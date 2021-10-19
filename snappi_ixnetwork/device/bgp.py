@@ -242,7 +242,7 @@ class Bgp(Base):
             addresses = route.get("addresses")
             for addresse in addresses:
                 ixn_ng = self.create_node_elemet(
-                    self._ngpf.working_dg, "networkGroup"
+                    self._ngpf.working_dg, "networkGroup", route.get("name")
                 )
                 ixn_ng["multiplier"] = 1
                 ixn_ip_pool = self.create_node_elemet(
@@ -253,7 +253,9 @@ class Bgp(Base):
                     "connectedTo", ref_ixnobj=ixn_bgp
                 )
                 self.configure_multivalues(addresse, ixn_ip_pool, Bgp._IP_POOL)
-                ixn_route = self.create_node_elemet(ixn_ip_pool, "bgpIPRouteProperty")
+                ixn_route = self.create_node_elemet(
+                    ixn_ip_pool, "bgpIPRouteProperty", route.get("name")
+                )
                 self._ngpf.set_device_info(route, ixn_ip_pool)
                 self._configure_route(route, ixn_route)
 
