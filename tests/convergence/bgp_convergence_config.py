@@ -56,7 +56,7 @@ def bgp_convergence_config(utils, cvg_api):
     rx_ipv4.address = "21.1.1.1"
     rx_ipv4.prefix = 24
     rx_ipv4.gateway = "21.1.1.2"
-    rx_bgpv4 = rx_ipv4.bgp
+    rx_bgpv4 = rx_device.bgp
     rx_bgpv4.router_id = "192.0.0.2"
     rx_bgpv4_int = rx_bgpv4.ipv4_interfaces.add()
     rx_bgpv4_int.ipv4_name = rx_ipv4.name
@@ -80,8 +80,8 @@ def bgp_convergence_config(utils, cvg_api):
     flow.metrics.enable = True
 
     # flow2 config
-    rx1_rr = rx_bgpv4.bgpv4_routes.bgpv4route(name="rx1_rr")[-1]
-    rx1_rr.addresses.bgpv4routeaddress(
+    rx1_rr = rx_bgpv4_peer.v4_routes.add(name="rx1_rr")
+    rx1_rr.addresses.add(
         count=1000, address="200.1.0.1", prefix=32
     )
 
