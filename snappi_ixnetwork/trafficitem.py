@@ -1,6 +1,4 @@
 import json
-import copy
-
 import snappi
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.timer import Timer
@@ -343,7 +341,6 @@ class TrafficItem(CustomField):
         imports["xpath"] = "/"
         href = "%sresourceManager" % self._api._ixnetwork.href
         url = "%s/operations/importconfig" % href
-        import json
 
         payload = {
             "arg1": href,

@@ -1,8 +1,7 @@
-import re
 import json
 
 from snappi_ixnetwork.timer import Timer
-from snappi_ixnetwork.device.base import *
+from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.device.bgp import Bgp
 from snappi_ixnetwork.device.ethernet import Ethernet
 from snappi_ixnetwork.device.compactor import Compactor

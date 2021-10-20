@@ -346,12 +346,8 @@ class Api(snappi_convergence.Api):
         count = 0
         sleep_time = 0.5
         while True:
-            has_event = False
             drill_down_options = traffic_stat.DrillDownOptions()
             if drill_down_option in drill_down_options:
-                has_event = True
-                break
-            if has_event is True:
                 break
             if count * sleep_time > self._convergence_timeout:
                 raise Exception(
