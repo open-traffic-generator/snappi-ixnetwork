@@ -84,6 +84,7 @@ class Compactor(object):
             if key == "name":
                 parent[key] = self._get_names(parent)
                 self._api.ixn_objects.set_scalable(parent)
+                self._api.ixn_routes.set_scalable(parent)
                 continue
             if isinstance(value, list):
                 for val in value:

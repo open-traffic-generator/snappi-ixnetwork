@@ -21,10 +21,6 @@ class Ngpf(Base):
         "BgpV6RouteRange": "ipv6"
     }
 
-    _ROUTE_OBJECTS = [
-        "BgpV4RouteRange", "BgpV6RouteRange"
-    ]
-
     _ROUTE_STATE = {
         "advertise": True,
         "withdraw": False
@@ -69,8 +65,10 @@ class Ngpf(Base):
             self.get_name(self.working_dg), encap
         )
         self._api.ixn_objects.set(name, ixn_obj)
-        if class_name in Ngpf._ROUTE_OBJECTS:
-            self._api.ixn_routes.append(name)
+
+    def set_ixn_routes(self, snappi_obj, ixn_obj):
+        name = snappi_obj.get("name")
+        self._api.ixn_routes.set(name, ixn_obj)
 
     def _get_topology_name(self, port_name):
         return "Topology %s" % port_name
@@ -139,11 +137,11 @@ class Ngpf(Base):
             return
         names = payload.names
         if len(names) == 0:
-            names = self._api.ixn_routes
+            names = self._api.ixn_routes.names
         ixn_obj_idx_list = {}
         names = list(set(names))
         for name in names:
-            route_info = self._api.get_route_object(name)
+            route_info = self._api.ixn_routes.get(name)
             ixn_obj = None
             for obj in ixn_obj_idx_list.keys():
                 if obj.xpath == route_info.xpath:
@@ -160,10 +158,6 @@ class Ngpf(Base):
         imports = []
         for obj, index_list in ixn_obj_idx_list.items():
             xpath = obj.xpath
-            if re.search("ipv4PrefixPools", xpath):
-                xpath += "/bgpIPRouteProperty[1]"
-            else:
-                xpath += "/bgpV6IPRouteProperty[1]"
             active = "active"
             index_list = list(set(index_list))
             object_info = self.select_properties(

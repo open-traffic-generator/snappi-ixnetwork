@@ -64,7 +64,7 @@ class Api(snappi.Api):
         self._capture_state = self.capture_state()
         self._capture_request = self.capture_request()
         self._ping_request = self.ping_request()
-        self._ixn_routes = []
+        self.ixn_routes = []
         self.validation = Validation(self)
         self.vport = Vport(self)
         self.lag = Lag(self)
@@ -116,15 +116,6 @@ class Api(snappi.Api):
 
     def set_device_encap(self, name, type):
         self._device_encap[name] = type
-
-    @property
-    def ixn_routes(self):
-        return self._ixn_routes
-
-    def get_route_object(self, name):
-        if name not in self._ixn_routes:
-            raise Exception("%s not within configure routes" % name)
-        return self.ixn_objects.get(name)
 
     @property
     def assistant(self):
@@ -224,7 +215,7 @@ class Api(snappi.Api):
         self._config_objects = {}
         self._device_encap = {}
         self.ixn_objects = IxNetObjects()
-        self._ixn_routes = []
+        self.ixn_routes = IxNetObjects()
         self._dev_compacted = {}
         self._connect()
         self.capture.reset_capture_request()

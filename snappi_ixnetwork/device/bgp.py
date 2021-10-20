@@ -282,6 +282,7 @@ class Bgp(Base):
                 self._configure_route(route, ixn_route)
 
     def _configure_route(self, route, ixn_route):
+        self._ngpf.set_ixn_routes(route, ixn_route)
         self.configure_multivalues(route, ixn_route, Bgp._ROUTE)
 
         advanced = route.get("advanced")

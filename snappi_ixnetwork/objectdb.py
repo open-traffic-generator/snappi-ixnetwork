@@ -1,28 +1,3 @@
-#
-# class DeviceObjects(Base):
-#     def __init__(self):
-#         super(DeviceObjects, self).__init__()
-#         self._dev_map = {}
-#
-#     def set(self, object):
-#         object_id = id(object)
-#         name = self.get_name(object)
-#         if object_id in self._dev_map:
-#             self._dev_map[object_id].append(name)
-#         else:
-#             self._dev_map[object_id] = [name]
-#
-#     def get(self, object):
-#         object_id = id(object)
-#         if object_id not in self._dev_map:
-#             raise NameError(
-#                 "Somehow this object not stored"
-#             )
-#         return self._dev_map[object_id]
-#
-#     def pop(self, object_id):
-#         if object_id in self._dev_map:
-#             self._dev_map.pop(object_id)
 
 
 class IxNetObjects(object):
@@ -45,10 +20,10 @@ class IxNetObjects(object):
         obj = self.get(name)
         return obj.ixnobject
 
-    def get_names(self, name):
-        """Returns names ob objects got compacted to given a unique configuration name"""
-        obj = self.get(name)
-        return obj.names
+    @property
+    def names(self):
+        """Returns all names stored as keys"""
+        return self._ixn_objects.keys()
 
     def get(self, name):
         try:
@@ -67,9 +42,9 @@ class IxNetObjects(object):
         names = ixnobject.get("name")
         set_names = []
         for index, name in enumerate(names):
-            if name not in self._ixn_objects:
-                continue
             if name is None or name in set_names:
+                continue
+            if name not in self._ixn_objects:
                 continue
             # Same name may present within different object structure
             old_keys = sorted(self._ixn_objects[name].ixnobject)
