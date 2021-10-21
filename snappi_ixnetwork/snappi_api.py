@@ -59,6 +59,7 @@ class Api(snappi.Api):
         self._device_encap = {}
         self.ixn_objects = None
         self._config_type = self.config()
+        self._protocol_state = self.protocol_state()
         self._transmit_state = self.transmit_state()
         self._link_state = self.link_state()
         self._capture_state = self.capture_state()
@@ -233,6 +234,22 @@ class Api(snappi.Api):
             self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
+
+    def set_protocol_state(self, payload):
+        """Set the transmit state of flows"""
+        try:
+            if isinstance(payload, (type(self._protocol_state), str)) is False:
+                raise TypeError(
+                    "The content must be of type Union[TransmitState, str]"
+                )
+            if isinstance(payload, str) is True:
+                payload = self._protocol_state.deserialize(payload)
+            self._connect()
+            with Timer(self, "Setting Protocol state"):
+                self.ngpf.set_protocol_state(payload)
+        except Exception as err:
+            raise SnappiIxnException(err)
+        return self._request_detail()
 
     def set_transmit_state(self, payload):
         """Set the transmit state of flows"""

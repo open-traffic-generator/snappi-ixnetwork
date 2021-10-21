@@ -1064,7 +1064,7 @@ class TrafficItem(CustomField):
 
     def transmit(self, request):
         """Set flow transmit
-        1) If start then start any device protocols that are traffic dependent
+        1) check set_protocol_state for device protocols
         2) If start then generate and apply traffic
         3) Execute requested transmit action (start|stop|pause|resume)
         """
@@ -1079,9 +1079,10 @@ class TrafficItem(CustomField):
 
         if request.state == "start":
             if len(self._api._topology.find()) > 0:
-                with Timer(self._api, "Devices start"):
-                    self._api._ixnetwork.StartAllProtocols("sync")
-                    self._api.check_protocol_statistics()
+                glob_topo = self._api._globals.Topology.refresh()
+                if glob_topo.Status == "notStarted":
+                    raise Exception("Please start protocols using set_protocol_state "
+                                    "before start traffic")
             if len(self._api._traffic_item.find()) == 0:
                 return
             self._api._traffic_item.find(State="^unapplied$")
@@ -1122,10 +1123,6 @@ class TrafficItem(CustomField):
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, "Flows pause"):
                         self._api._traffic_item.PauseStatelessTraffic(True)
-        if request.state == "stop":
-            if len(self._api._topology.find()) > 0:
-                with Timer(self._api, "Devices stop"):
-                    self._api._ixnetwork.StopAllProtocols("sync")
 
     def _set_result_value(
         self, row, column_name, column_value, column_type=str

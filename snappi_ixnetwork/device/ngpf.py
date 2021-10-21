@@ -131,6 +131,17 @@ class Ngpf(Base):
         if glob_topo.Status == "started":
             self._api._ixnetwork.StopAllProtocols("sync")
 
+    def set_protocol_state(self,request):
+        if request.state is None:
+            raise Exception("state is None within set_protocol_state")
+        if request.state == "start":
+            if len(self._api._topology.find()) > 0:
+                self._api._ixnetwork.StartAllProtocols("sync")
+                self._api.check_protocol_statistics()
+        else:
+            if len(self._api._topology.find()) > 0:
+                self._api._ixnetwork.StopAllProtocols("sync")
+
     def set_route_state(self, payload):
         if payload.state is None:
             return
