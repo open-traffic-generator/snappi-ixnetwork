@@ -38,7 +38,7 @@ setuptools.setup(
     extras_require={
         "testing": [
             "snappi==0.6.4",
-            "snappi_convergence==0.2.1",
+            "snappi_convergence==0.2.2",
             "pytest",
             "mock",
             "dpkt==1.9.4",
