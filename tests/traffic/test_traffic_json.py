@@ -177,7 +177,8 @@ expected_raw_type = {
                                     "valueType": "singleValue",
                                     "singleValue": 61,
                                     "activeFieldChoice": False,
-                                    "auto": False,
+                                    # TODO: Revert auto to False for 6.x
+                                    "auto": True,
                                 },
                                 {
                                     "xpath": "/traffic/trafficItem[1]/configElement[1]/stack[@alias = 'ipv4-2']/field[@alias = 'ipv4.header.checksum-26']",

@@ -914,6 +914,7 @@ class TrafficItem(CustomField):
                 field_json["value"] = "0001"
         field_json["activeFieldChoice"] = active_field
         field_json["auto"] = False if choice != "auto" else True
+        # TODO: Remove the below for snappi 6.x
         if snappi_field.__class__.__name__ == "PatternFlowIpv4Protocol":
             field_json["auto"] = True
         return
