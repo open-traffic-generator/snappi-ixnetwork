@@ -914,6 +914,8 @@ class TrafficItem(CustomField):
                 field_json["value"] = "0001"
         field_json["activeFieldChoice"] = active_field
         field_json["auto"] = False if choice != "auto" else True
+        if snappi_field.__class__.__name__ == "PatternFlowIpv4Protocol":
+            field_json["auto"] = True
         return
 
     def _set_default(self, ixn_field, field_choice):
@@ -1251,11 +1253,11 @@ class TrafficItem(CustomField):
                         self._set_result_value(
                             flow_row, external_name, 0, external_type
                         )
-                    flow_rows[
-                        traffic_item["name"]
-                    ] = flow_row
+                    flow_rows[traffic_item["name"]] = flow_row
 
-        flow_stat = self._api.assistant.StatViewAssistant("Traffic Item Statistics")
+        flow_stat = self._api.assistant.StatViewAssistant(
+            "Traffic Item Statistics"
+        )
         for row in flow_stat.Rows:
             name = row["Traffic Item"]
             if len(flow_names) > 0 and name not in flow_names:
