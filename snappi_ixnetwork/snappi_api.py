@@ -234,6 +234,7 @@ class Api(snappi.Api):
             self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
+        self._start_interface()
 
     def set_protocol_state(self, payload):
         """Set the transmit state of flows"""
@@ -600,6 +601,18 @@ class Api(snappi.Api):
                 self._request("POST", url, payload)
             except Exception:
                 pass
+
+    def _start_interface(self):
+        eth_list = self._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find()
+        ip4_list = eth_list.Ipv4.find()
+        ip6_list = eth_list.Ipv6.find()
+        if len(eth_list) == max(len(ip4_list), len(ip6_list)):
+            ip4_list.Start(async_operation=True)
+            ip6_list.Start(async_operation=True)
+        else:
+            eth_list.Start(async_operation=True)
+            ip4_list.Start(async_operation=True)
+            ip6_list.Start(async_operation=True)
 
     def _request(self, method, url, payload=None):
         connection, url = self._assistant.Session._connection._normalize_url(
