@@ -1,5 +1,4 @@
-
-def test_mulliple_ips_on_ethernet(b2b_raw_config, api):
+def test_multiple_ips_on_ethernet(b2b_raw_config, api):
     """Validate Multiple IPv4 or IPv6 configured on top of single Etherent"""
     b2b_raw_config.flows.clear()
 
@@ -10,7 +9,7 @@ def test_mulliple_ips_on_ethernet(b2b_raw_config, api):
     eth1.port_name, eth2.port_name = p1.name, p2.name
     eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
     ip1, ip2 = eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
-    ip3, ip4 =eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
+    ip3, ip4 = eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
     bgp1, bgp2 = d1.bgp, d2.bgp
 
     eth1.name, eth2.name = "eth1", "eth2"
@@ -49,7 +48,7 @@ def test_mulliple_ips_on_ethernet(b2b_raw_config, api):
     except Exception as e:
         print(str(e))
         result = "Multiple IP ip1 on top of name Ethernet" in str(e)
-        assert result == True
+        assert result is True
 
 
 def test_bgp_on_different_dg(b2b_raw_config, api):
@@ -88,5 +87,7 @@ def test_bgp_on_different_dg(b2b_raw_config, api):
         api.set_config(b2b_raw_config)
     except Exception as e:
         print(str(e))
-        result = "BGP should not configured on top of different device" in str(e)
-        assert result == True
+        result = "BGP should not configured on top of different device" in str(
+            e
+        )
+        assert result is True

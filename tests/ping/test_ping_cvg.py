@@ -1,5 +1,6 @@
 import pytest
 
+
 def test_ping_cvg(cvg_api, utils):
     """
     Demonstrates test to send ipv4 and ipv6 pings
@@ -21,8 +22,7 @@ def test_ping_cvg(cvg_api, utils):
     ly.speed = utils.settings.speed
     ly.media = utils.settings.media
 
-    d1, d2 = config.devices.device(
-        name="tx_bgp").device(name="rx_bgp")
+    d1, d2 = config.devices.device(name="tx_bgp").device(name="rx_bgp")
     eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
     eth1.port_name, eth2.port_name = port1.name, port2.name
     eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
@@ -49,6 +49,11 @@ def test_ping_cvg(cvg_api, utils):
     ipv62.prefix = 64
 
     cvg_api.set_config(conv_config)
+
+    print("Starting all protocols ...")
+    cs = cvg_api.convergence_state()
+    cs.protocol.state = cs.protocol.START
+    cvg_api.set_state(cs)
 
     cs = cvg_api.convergence_state()
     cs.transmit.state = cs.transmit.START

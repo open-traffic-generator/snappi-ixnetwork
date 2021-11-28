@@ -4,6 +4,7 @@ from bgp_convergence_config import bgp_convergence_config
 PRIMARY_ROUTES_NAME = "rx_rr"
 PRIMARY_PORT_NAME = "rx"
 
+
 def test_convergence(utils, cvg_api, bgp_convergence_config):
     """
     1. set convergence config & start traffic
@@ -18,6 +19,11 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
     bgp_convergence_config.rx_rate_threshold = 90
 
     cvg_api.set_config(bgp_convergence_config)
+
+    print("Starting all protocols ...")
+    cs = cvg_api.convergence_state()
+    cs.protocol.state = cs.protocol.START
+    cvg_api.set_state(cs)
 
     # Scenario 1: Route withdraw/Advertise
     # Start traffic

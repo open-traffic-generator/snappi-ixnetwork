@@ -123,6 +123,9 @@ class Api(snappi_convergence.Api):
                 event_state = route.state
                 with Timer(self._api, "Setting route state"):
                     event_names = self._api.ngpf.set_route_state(route)
+            elif payload.choice == "protocol":
+                with Timer(self._api, "Setting protocol state"):
+                    self._api.ngpf.set_protocol_state(payload.protocol)
             else:
                 raise Exception(
                     "These[transmit/ link/ route] are valid convergence_state"

@@ -525,13 +525,14 @@ class Vport(object):
         if re.search("novustengiglan", vport["type"].lower()) is not None:
             auto_field_name = "autoNegotiate"
         # Due to ieeeL1Defaults dependency
+        ieee_l1_defaults = layer1.get("ieee_media_defaults", with_default=True)
+        if ieee_l1_defaults is None:
+            ieee_l1_defaults = "True"
         ieee_media_defaults = {
             "xpath": vport["xpath"]
             + "/l1Config/"
             + vport["type"].replace("Fcoe", ""),
-            "ieeeL1Defaults": layer1.get(
-                "ieee_media_defaults", with_default=True
-            ),
+            "ieeeL1Defaults": ieee_l1_defaults,
         }
         self._add_l1config_import(vport, ieee_media_defaults, imports)
         auto_negotiation = layer1.get("auto_negotiation", with_default=True)
@@ -540,6 +541,8 @@ class Vport(object):
             "link_training", with_default=True
         )
         auto_negotiate = layer1.get("auto_negotiate", with_default=True)
+        if auto_negotiate is None:
+            auto_negotiate = "True"
         proposed_import = {
             "xpath": vport["xpath"]
             + "/l1Config/"
