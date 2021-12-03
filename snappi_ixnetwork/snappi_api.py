@@ -74,6 +74,7 @@ class Api(snappi.Api):
         self.protocol_metrics = ProtocolMetrics(self)
         self.resource_group = ResourceGroup(self)
         self.do_compact = False
+        self._flow_tracking = False
         self._dev_compacted = {}
         self.compacted_ref = {}
         self._previous_errors = []
@@ -99,6 +100,9 @@ class Api(snappi.Api):
 
     def enable_scaling(self, do_compact=False):
         self.do_compact = do_compact
+
+    def _enable_flow_tracking(self, _flow_tracking=False):
+        self._flow_tracking = _flow_tracking
 
     @property
     def snappi_config(self):

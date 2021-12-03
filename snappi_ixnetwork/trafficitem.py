@@ -1254,47 +1254,100 @@ class TrafficItem(CustomField):
                         self._set_result_value(
                             flow_row, external_name, 0, external_type
                         )
-                    flow_rows[traffic_item["name"]] = flow_row
-
-        flow_stat = self._api.assistant.StatViewAssistant(
-            "Traffic Item Statistics"
-        )
-        for row in flow_stat.Rows:
-            name = row["Traffic Item"]
-            if len(flow_names) > 0 and name not in flow_names:
-                continue
-            if name in flow_rows:
-                flow_row = flow_rows[name]
+                    if self._api._flow_tracking:
+                        flow_rows[
+                            traffic_item["name"]
+                            + stream["txPortName"]
+                            + rx_port_name
+                        ] = flow_row
+                    else:
+                        flow_rows[traffic_item["name"]] = flow_row
+        if self._api._flow_tracking:
+            table = self._api.assistant.StatViewAssistant("Flow Statistics")
+            for row in table.Rows:
+                name = row["Traffic Item"]
                 if (
-                    float(row["Tx Frame Rate"]) > 0
-                    or int(row["Tx Frames"]) == 0
+                    len(flow_names) > 0
+                    and row["Traffic Item"] not in flow_names
                 ):
-                    flow_row["transmit"] = "started"
-                else:
-                    flow_row["transmit"] = "stopped"
-                for (
-                    external_name,
-                    internal_name,
-                    external_type,
-                ) in self._RESULT_COLUMNS:
-                    # keep plugging values for next columns even if the
-                    # current one raises exception
-                    try:
-                        self._set_result_value(
-                            flow_row,
-                            external_name,
-                            row[internal_name],
-                            external_type,
-                        )
-                    except Exception:
-                        # TODO print a warning maybe ?
-                        pass
-                if name in self.flows_has_latency:
-                    self._construct_latency(flow_row, row)
-                if name in self.flows_has_timestamp:
-                    self._construct_timestamp(flow_row, row)
-                if name not in self.flows_has_loss:
-                    flow_row.pop("loss")
+                    continue
+                if (
+                    row["Traffic Item"] + row["Tx Port"] + row["Rx Port"]
+                    in flow_rows
+                ):
+                    flow_row = flow_rows[
+                        row["Traffic Item"] + row["Tx Port"] + row["Rx Port"]
+                    ]
+                    if (
+                        float(row["Tx Frame Rate"]) > 0
+                        or int(row["Tx Frames"]) == 0
+                    ):
+                        flow_row["transmit"] = "started"
+                    else:
+                        flow_row["transmit"] = "stopped"
+                    for (
+                        external_name,
+                        internal_name,
+                        external_type,
+                    ) in self._RESULT_COLUMNS:
+                        # keep plugging values for next columns even if the
+                        # current one raises exception
+                        try:
+                            self._set_result_value(
+                                flow_row,
+                                external_name,
+                                row[internal_name],
+                                external_type,
+                            )
+                        except Exception:
+                            # TODO print a warning maybe ?
+                            pass
+                    if name in self.flows_has_latency:
+                        self._construct_latency(flow_row, row)
+                    if name in self.flows_has_timestamp:
+                        self._construct_timestamp(flow_row, row)
+                    if name not in self.flows_has_loss:
+                        flow_row.pop("loss")
+        else:
+            flow_stat = self._api.assistant.StatViewAssistant(
+                "Traffic Item Statistics"
+            )
+            for row in flow_stat.Rows:
+                name = row["Traffic Item"]
+                if len(flow_names) > 0 and name not in flow_names:
+                    continue
+                if name in flow_rows:
+                    flow_row = flow_rows[name]
+                    if (
+                        float(row["Tx Frame Rate"]) > 0
+                        or int(row["Tx Frames"]) == 0
+                    ):
+                        flow_row["transmit"] = "started"
+                    else:
+                        flow_row["transmit"] = "stopped"
+                    for (
+                        external_name,
+                        internal_name,
+                        external_type,
+                    ) in self._RESULT_COLUMNS:
+                        # keep plugging values for next columns even if the
+                        # current one raises exception
+                        try:
+                            self._set_result_value(
+                                flow_row,
+                                external_name,
+                                row[internal_name],
+                                external_type,
+                            )
+                        except Exception:
+                            # TODO print a warning maybe ?
+                            pass
+                    if name in self.flows_has_latency:
+                        self._construct_latency(flow_row, row)
+                    if name in self.flows_has_timestamp:
+                        self._construct_timestamp(flow_row, row)
+                    if name not in self.flows_has_loss:
+                        flow_row.pop("loss")
         return list(flow_rows.values())
 
     def _construct_latency(self, flow_row, row):
