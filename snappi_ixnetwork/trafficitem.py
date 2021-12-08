@@ -55,6 +55,7 @@ class TrafficItem(CustomField):
         "gtpu": "gtpv1",
         "gTPuOptionalFields": "gtpv1option",
         "custom": "custom",
+        "vxlan": "vxlan",
     }
 
     _HEADER_TO_TYPE = {
@@ -69,6 +70,7 @@ class TrafficItem(CustomField):
         "gtpv1": "gtpu",
         "gtpv1option": "gTPuOptionalFields",
         "custom": "custom",
+        "vxlan": "vxlan",
     }
 
     _BIT_RATE_UNITS_TYPE = {
@@ -294,6 +296,14 @@ class TrafficItem(CustomField):
         "data": "custom.header.data",
         "bytes": CustomField._process_custom_header,
         "order": ["length", "data"],
+    }
+
+    _VXLAN = {
+        "flags": "vxlan.header.flags",
+        "reserved0": "vxlan.header.reserved",
+        "vni": "vxlan.header.vni",
+        "reserved1": "vxlan.header.reserved8",
+        "order": ["flags", "reserved0", "vni", "reserved1"],
     }
 
     def __init__(self, ixnetworkapi):
