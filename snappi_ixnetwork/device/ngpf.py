@@ -1,4 +1,4 @@
-import json
+import json, re
 
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.device.base import Base
@@ -30,6 +30,8 @@ class Ngpf(Base):
         self._api = ixnetworkapi
         self._ixn_config = {}
         self._ixn_topo_objects = {}
+        self.ether_v4gateway_map = {}
+        self.ether_v6gateway_map = {}
         self._ethernet = Ethernet(self)
         self._bgp = Bgp(self)
         self.compactor = Compactor(self._api)
@@ -39,6 +41,8 @@ class Ngpf(Base):
         self._ixn_topo_objects = {}
         self.working_dg = None
         self._ixn_config = dict()
+        self.ether_v4gateway_map = {}
+        self.ether_v6gateway_map = {}
         self._ixn_config["xpath"] = "/"
         self._resource_manager = self._api._ixnetwork.ResourceManager
         with Timer(self._api, "Convert device config :"):
@@ -182,6 +186,53 @@ class Ngpf(Base):
         self.imports(imports)
         self._api._ixnetwork.Globals.Topology.ApplyOnTheFly()
         return names
+
+    def get_states(self, request):
+        if request.choice == "ipv4_neighbors":
+            ip_objs = self._api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv4.find()
+            return self._get_ether_resolved_mac(
+                ip_objs, self.ether_v4gateway_map, request.ipv4_neighbors
+            )
+        elif request.choice == "ipv6_neighbors":
+            ip_objs = self._api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv6.find()
+            return self._get_ether_resolved_mac(
+                ip_objs, self.ether_v4gateway_map, request.ipv6_neighbors
+            )
+        else:
+            raise TypeError("get_states only accept ipv4_neighbors or ipv6_neighbors")
+
+        # return {
+        #     "choice": request.choice,
+        #     request.choice: resolved_mac_list
+        # }
+
+    def _get_ether_resolved_mac(self, ip_objs, ether_gateway_map, ip_neighbors):
+        arp_entries = {}
+        for ip_obj in ip_objs:
+            resolved_mac_list = ip_obj.ResolvedGatewayMac
+            for index, gateway in enumerate(ip_obj.GatewayIp.Values):
+                resolved_mac = resolved_mac_list[index]
+                if re.search("unresolved", resolved_mac.lower()) is not None:
+                    resolved_mac = ""
+                arp_entries[gateway] = resolved_mac
+
+        ethernet_names = ip_neighbors.ethernet_names
+        if ethernet_names is None:
+            ethernet_names = ether_gateway_map.keys()
+        resolved_mac_list = []
+        for ethernet_name in ethernet_names:
+            gateway_ips = ether_gateway_map[ethernet_name]
+            for gateway_ip in gateway_ips:
+                if gateway_ip not in arp_entries:
+                    raise Exception("{} not found within current configured gateway ips".format(
+                        gateway_ip
+                    ))
+                resolved_mac_list.append({
+                    "ethernet_name": ethernet_name,
+                    "ipv4_address": gateway_ip,
+                    "link_layer_address": arp_entries[gateway_ip]
+                })
+        return resolved_mac_list
 
     def _get_href(self, xpath):
         return xpath.replace('[', '/').\

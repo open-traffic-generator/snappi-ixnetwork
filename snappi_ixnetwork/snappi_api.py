@@ -234,7 +234,8 @@ class Api(snappi.Api):
             self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
-        self._start_interface()
+        with Timer(self, "Start interfaces"):
+            self._start_interface()
 
     def set_protocol_state(self, payload):
         """Set the transmit state of flows"""
@@ -366,6 +367,30 @@ class Api(snappi.Api):
         except Exception as err:
             raise SnappiIxnException(err)
         return self.capture.results(request)
+
+    def get_states(self, request):
+        try:
+            states_request = self.states_request()
+            if (
+                isinstance(request, (type(states_request), str))
+                is False
+            ):
+                raise TypeError(
+                    "The content must be of type Union[StatesRequest, str]"
+                )
+            if isinstance(request, str) is True:
+                request = states_request.deserialize(request)
+            self._connect()
+            response = self.ngpf.get_states(request)
+            states_response = self.states_response()
+            if request.choice == "ipv4_neighbors":
+                ip_neighbors = states_response.ipv4_neighbors
+            else:
+                ip_neighbors = states_response.ipv6_neighbors
+            ip_neighbors.deserialize(response)
+            return states_response
+        except Exception as err:
+            raise SnappiIxnException(err)
 
     def get_metrics(self, request):
         """

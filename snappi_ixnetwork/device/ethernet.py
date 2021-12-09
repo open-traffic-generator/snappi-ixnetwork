@@ -55,7 +55,15 @@ class Ethernet(Base):
         ipv4_addresses = ethernet.get("ipv4_addresses")
         if ipv4_addresses is None:
             return
+
+        eth_name = ethernet.name
+        if eth_name not in self._ngpf.ether_v4gateway_map:
+            self._ngpf.ether_v4gateway_map[eth_name] = []
+
         for ipv4_address in ipv4_addresses:
+            self._ngpf.ether_v4gateway_map[eth_name].append(
+                ipv4_address.gateway
+            )
             ixn_ip = self.create_node_elemet(
                 ixn_eth, "ipv4", ipv4_address.get("name")
             )
@@ -66,7 +74,15 @@ class Ethernet(Base):
         ipv6_addresses = ethernet.get("ipv6_addresses")
         if ipv6_addresses is None:
             return
+
+        eth_name = ethernet.name
+        if eth_name not in self._ngpf.ether_v6gateway_map:
+            self._ngpf.ether_v6gateway_map[eth_name] = []
+
         for ipv6_address in ipv6_addresses:
+            self._ngpf.ether_v6gateway_map[eth_name].append(
+                ipv6_address.gateway
+            )
             ixn_ip = self.create_node_elemet(
                 ixn_eth, "ipv6", ipv6_address.get("name")
             )
