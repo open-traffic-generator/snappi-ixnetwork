@@ -383,11 +383,12 @@ class Api(snappi.Api):
             self._connect()
             response = self.ngpf.get_states(request)
             states_response = self.states_response()
-            if request.choice == "ipv4_neighbors":
-                ip_neighbors = states_response.ipv4_neighbors
-            else:
-                ip_neighbors = states_response.ipv6_neighbors
-            ip_neighbors.deserialize(response)
+            # if request.choice == "ipv4_neighbors":
+            #     ip_neighbors = states_response.ipv4_neighbors
+            # else:
+            #     ip_neighbors = states_response.ipv6_neighbors
+            # ip_neighbors.deserialize(response)
+            states_response.deserialize(response)
             return states_response
         except Exception as err:
             raise SnappiIxnException(err)

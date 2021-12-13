@@ -190,21 +190,21 @@ class Ngpf(Base):
     def get_states(self, request):
         if request.choice == "ipv4_neighbors":
             ip_objs = self._api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv4.find()
-            return self._get_ether_resolved_mac(
+            resolved_mac_list = self._get_ether_resolved_mac(
                 ip_objs, self.ether_v4gateway_map, request.ipv4_neighbors
             )
         elif request.choice == "ipv6_neighbors":
             ip_objs = self._api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv6.find()
-            return self._get_ether_resolved_mac(
+            resolved_mac_list = self._get_ether_resolved_mac(
                 ip_objs, self.ether_v4gateway_map, request.ipv6_neighbors
             )
         else:
             raise TypeError("get_states only accept ipv4_neighbors or ipv6_neighbors")
 
-        # return {
-        #     "choice": request.choice,
-        #     request.choice: resolved_mac_list
-        # }
+        return {
+            "choice": request.choice,
+            request.choice: resolved_mac_list
+        }
 
     def _get_ether_resolved_mac(self, ip_objs, ether_gateway_map, ip_neighbors):
         arp_entries = {}
@@ -213,7 +213,7 @@ class Ngpf(Base):
             for index, gateway in enumerate(ip_obj.GatewayIp.Values):
                 resolved_mac = resolved_mac_list[index]
                 if re.search("unresolved", resolved_mac.lower()) is not None:
-                    resolved_mac = ""
+                    resolved_mac = None
                 arp_entries[gateway] = resolved_mac
 
         ethernet_names = ip_neighbors.ethernet_names
