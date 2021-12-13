@@ -191,12 +191,12 @@ class Ngpf(Base):
         if request.choice == "ipv4_neighbors":
             ip_objs = self._api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv4.find()
             resolved_mac_list = self._get_ether_resolved_mac(
-                ip_objs, self.ether_v4gateway_map, request.ipv4_neighbors
+                ip_objs, self.ether_v4gateway_map, request.ipv4_neighbors, "ipv4"
             )
         elif request.choice == "ipv6_neighbors":
             ip_objs = self._api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv6.find()
             resolved_mac_list = self._get_ether_resolved_mac(
-                ip_objs, self.ether_v4gateway_map, request.ipv6_neighbors
+                ip_objs, self.ether_v6gateway_map, request.ipv6_neighbors, "ipv6"
             )
         else:
             raise TypeError("get_states only accept ipv4_neighbors or ipv6_neighbors")
@@ -206,7 +206,7 @@ class Ngpf(Base):
             request.choice: resolved_mac_list
         }
 
-    def _get_ether_resolved_mac(self, ip_objs, ether_gateway_map, ip_neighbors):
+    def _get_ether_resolved_mac(self, ip_objs, ether_gateway_map, ip_neighbors, choice):
         arp_entries = {}
         for ip_obj in ip_objs:
             resolved_mac_list = ip_obj.ResolvedGatewayMac
@@ -227,11 +227,18 @@ class Ngpf(Base):
                     raise Exception("{} not found within current configured gateway ips".format(
                         gateway_ip
                     ))
-                resolved_mac_list.append({
-                    "ethernet_name": ethernet_name,
-                    "ipv4_address": gateway_ip,
-                    "link_layer_address": arp_entries[gateway_ip]
-                })
+                if choice == "ipv4":
+                    resolved_mac_list.append({
+                        "ethernet_name": ethernet_name,
+                        "ipv4_address": gateway_ip,
+                        "link_layer_address": arp_entries[gateway_ip]
+                    })
+                elif choice == "ipv6":
+                    resolved_mac_list.append({
+                        "ethernet_name": ethernet_name,
+                        "ipv6_address": gateway_ip,
+                        "link_layer_address": arp_entries[gateway_ip]
+                    })
         return resolved_mac_list
 
     def _get_href(self, xpath):
