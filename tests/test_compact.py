@@ -253,8 +253,16 @@ def test_compact(api, utils):
     api.set_config(config)
 
     validate_compact_config(api, config_values, rx_device_with_rr)
+    print("Starting all protocols ...")
+    ps = api.protocol_state()
+    ps.state = ps.START
+    api.set_protocol_state(ps)
 
-    utils.start_traffic(api, config, start_capture=False)
+    print("Starting transmit on all flows ...")
+    ts = api.transmit_state()
+    ts.state = ts.START
+    api.set_transmit_state(ts)
+    # utils.start_traffic(api, config, start_capture=False)
     utils.wait_for(
         lambda: stats_ok(api, PACKETS * 3, utils), "stats to be as expected"
     )
