@@ -28,12 +28,12 @@ def port_configs(api, utils):
             l1.flow_control.ieee_802_1qbb.pfc_class_5 = 5
             l1.flow_control.ieee_802_1qbb.pfc_class_6 = 6
             l1.flow_control.ieee_802_1qbb.pfc_class_7 = 7
-            devices[i].container_name = ports[i].name
             devices[i].name = "Device %s" % (i)
-            eth = devices[i].ethernet
+            eth = devices[i].ethernets.add()
+            eth.port_name = ports[i].name
             eth.name = "Ethernet %s" % (i)
             eth.mac = "00:00:00:00:00:{:02x}".format(i)
-            ip = eth.ipv4
+            ip = eth.ipv4_addresses.add()
             ip.name = "Ipv4 %s" % (i)
             ip.gateway = "1.1.1.2"
             ip.address = "1.1.1.1"

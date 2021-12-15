@@ -187,11 +187,13 @@ class ProtocolMetrics(object):
             lag_list = [lag.name for lag in config.lags]
             port_list = port_list + lag_list
             return port_list
-        port_list = [
-            d.container_name
-            for d in config.devices
-            if d.name in self.device_names
-        ]
+        port_list = []
+        for dev in config.devices:
+            ethernets = dev.get("ethernets")
+            if ethernets is None:
+                continue
+            for eth in ethernets:
+                port_list.append(eth.get("port_name"))
         return port_list
 
     def _do_drill_down(self, view, per_port, row_index, drill_option):
@@ -273,9 +275,9 @@ class ProtocolMetrics(object):
         return row_lst
 
     def _update_actual_dev_name(self, data):
-        keys = self._api._dev_compacted.keys()
+        keys = self._api.dev_compacted.keys()
         if data["Device Group"] in keys:
-            for k, v in self._api._dev_compacted.items():
+            for k, v in self._api.dev_compacted.items():
                 if (
                     data["Device Group"] == v["dev_name"]
                     and int(data["Device#"]) == v["index"] + 1

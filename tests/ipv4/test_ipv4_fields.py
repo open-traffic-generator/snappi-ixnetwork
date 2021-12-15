@@ -124,8 +124,7 @@ def test_ipv4_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
         "Last Fragment": "1",
         "Fragment offset": "0",
         "TTL (Time to live)": "50",
-        # TODO: Revert the comment for snappi 6.x
-        # "Protocol": "200",
+        "Protocol": "200",
     }
     utils.validate_config(api, "f1", "ipv4", **f1_attrs)
 
@@ -139,8 +138,7 @@ def test_ipv4_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
         "Last Fragment": [str(mf) for mf in more_fragments],
         "Fragment offset": [str(fo) for fo in fragment_offset],
         "TTL (Time to live)": [str(ttl) for ttl in time_to_live],
-        # TODO: Revert the comment for snappi 6.x
-        # "Protocol": [str(pro) for pro in protocol],
+        "Protocol": [str(pro) for pro in protocol],
     }
     utils.validate_config(api, "f2", "ipv4", **f2_attrs)
 
@@ -154,8 +152,7 @@ def test_ipv4_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
         "Last Fragment",
         "Fragment offset",
         "TTL (Time to live)",
-        # TODO: Revert the comment for snappi 6.x
-        # "Protocol",
+        "Protocol",
     ]
     f3_attrs = dict()
     for i, k in enumerate(keys):

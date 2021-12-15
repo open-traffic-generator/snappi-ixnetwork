@@ -24,43 +24,49 @@ def bgp_convergence_config(utils, cvg_api):
     ly.speed = utils.settings.speed
     ly.media = utils.settings.media
 
-    tx_device, rx_device = config.devices.device(
-        name="tx_device", container_name=tx.name
-    ).device(name="rx_device", container_name=rx.name)
+    tx_device, rx_device = config.devices.device(name="tx_device").device(name="rx_device")
 
     # tx_device config
-    tx_eth = tx_device.ethernet
+    tx_eth = tx_device.ethernets.add()
+    tx_eth.port_name = tx.name
     tx_eth.name = "tx_eth"
     tx_eth.mac = "00:00:00:00:00:aa"
-    tx_ipv4 = tx_eth.ipv4
+    tx_ipv4 = tx_eth.ipv4_addresses.add()
     tx_ipv4.name = "tx_ipv4"
     tx_ipv4.address = "21.1.1.2"
     tx_ipv4.prefix = 24
     tx_ipv4.gateway = "21.1.1.1"
-    tx_bgpv4 = tx_ipv4.bgpv4
-    tx_bgpv4.name = "tx_bgpv4"
-    tx_bgpv4.as_type = "ebgp"
-    tx_bgpv4.dut_address = "21.1.1.1"
-    tx_bgpv4.local_address = "21.1.1.2"
-    tx_bgpv4.as_number = 65201
+    tx_bgpv4 = tx_device.bgp
+    tx_bgpv4.router_id = "192.0.0.1"
+    tx_bgpv4_int = tx_bgpv4.ipv4_interfaces.add()
+    tx_bgpv4_int.ipv4_name = tx_ipv4.name
+    tx_bgpv4_peer = tx_bgpv4_int.peers.add()
+    tx_bgpv4_peer.name = "tx_bgpv4"
+    tx_bgpv4_peer.as_type = "ebgp"
+    tx_bgpv4_peer.peer_address = "21.1.1.1"
+    tx_bgpv4_peer.as_number = 65201
 
     # rx_device config
-    rx_eth = rx_device.ethernet
+    rx_eth = rx_device.ethernets.add()
+    rx_eth.port_name = rx.name
     rx_eth.name = "rx_eth"
     rx_eth.mac = "00:00:00:00:00:bb"
-    rx_ipv4 = rx_eth.ipv4
+    rx_ipv4 = rx_eth.ipv4_addresses.add()
     rx_ipv4.name = "rx_ipv4"
     rx_ipv4.address = "21.1.1.1"
     rx_ipv4.prefix = 24
     rx_ipv4.gateway = "21.1.1.2"
-    rx_bgpv4 = rx_ipv4.bgpv4
-    rx_bgpv4.name = "rx_bgpv4"
-    rx_bgpv4.as_type = "ebgp"
-    rx_bgpv4.dut_address = "21.1.1.2"
-    rx_bgpv4.local_address = "21.1.1.1"
-    rx_bgpv4.as_number = 65200
-    rx_rr = rx_bgpv4.bgpv4_routes.bgpv4route(name="rx_rr")[-1]
-    rx_rr.addresses.bgpv4routeaddress(
+    rx_bgpv4 = rx_device.bgp
+    rx_bgpv4.router_id = "192.0.0.2"
+    rx_bgpv4_int = rx_bgpv4.ipv4_interfaces.add()
+    rx_bgpv4_int.ipv4_name = rx_ipv4.name
+    rx_bgpv4_peer = rx_bgpv4_int.peers.add()
+    rx_bgpv4_peer.name = "rx_bgpv4"
+    rx_bgpv4_peer.as_type = "ebgp"
+    rx_bgpv4_peer.peer_address = "21.1.1.2"
+    rx_bgpv4_peer.as_number = 65200
+    rx_rr = rx_bgpv4_peer.v4_routes.add(name="rx_rr")
+    rx_rr.addresses.add(
         count=1000, address="200.1.0.1", prefix=32
     )
 
@@ -74,8 +80,8 @@ def bgp_convergence_config(utils, cvg_api):
     flow.metrics.enable = True
 
     # flow2 config
-    rx1_rr = rx_bgpv4.bgpv4_routes.bgpv4route(name="rx1_rr")[-1]
-    rx1_rr.addresses.bgpv4routeaddress(
+    rx1_rr = rx_bgpv4_peer.v4_routes.add(name="rx1_rr")
+    rx1_rr.addresses.add(
         count=1000, address="200.1.0.1", prefix=32
     )
 

@@ -1,6 +1,6 @@
 import pytest
 
-
+@pytest.mark.skip("New SR TE model is not available")
 def test_bgp_sr_te_policy_v4v6(api):
     """
     Test BGP SRTE Policy V4V6 configuration applied properly on ixNetwork

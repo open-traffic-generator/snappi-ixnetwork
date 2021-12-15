@@ -33,26 +33,30 @@ def test_bgp_attributes(api, utils):
     ly.speed = utils.settings.speed
     ly.media = utils.settings.media
 
-    (device,) = config.devices.device(name="device", container_name=port.name)
+    (device,) = config.devices.device(name="device")
 
     # device config
-    eth = device.ethernet
+    eth = device.ethernets.add()
     eth.name = "eth"
+    eth.port_name = port.name
     eth.mac = "00:00:00:00:00:11"
-    ipv4 = eth.ipv4
+    ipv4 = eth.ipv4_addresses.add()
     ipv4.name = "ipv4"
     ipv4.address = "21.1.1.1"
     ipv4.prefix = 24
     ipv4.gateway = "21.1.1.2"
-    bgpv4 = ipv4.bgpv4
-    bgpv4.name = "rx_bgpv4"
-    bgpv4.local_address = "21.1.1.1"
-    bgpv4.as_type = "ebgp"
-    bgpv4.dut_address = "22.1.1.1"
-    bgpv4.as_number = 65200
+    bgpv4 = device.bgp
+    bgpv4.router_id = "192.0.0.1"
+    bgpv4_int = bgpv4.ipv4_interfaces.add()
+    bgpv4_int.ipv4_name = ipv4.name
+    bgpv4_peer = bgpv4_int.peers.add()
+    bgpv4_peer.name = "rx_bgpv4"
+    bgpv4_peer.as_type = "ebgp"
+    bgpv4_peer.peer_address = "22.1.1.1"
+    bgpv4_peer.as_number = 65200
 
-    rr = bgpv4.bgpv4_routes.bgpv4route(name="rr")[-1]
-    rr.addresses.bgpv4routeaddress(
+    rr = bgpv4_peer.v4_routes.add(name="rr")
+    rr.addresses.add(
         address=v4_rr_attr["address"],
         prefix=int(v4_rr_attr["prefix"]),
         count=int(v4_rr_attr["count"]),
@@ -60,15 +64,15 @@ def test_bgp_attributes(api, utils):
     )
 
     # Community
-    manual_as_community = rr.communities.bgpcommunity()[-1]
-    manual_as_community.community_type = manual_as_community.MANUAL_AS_NUMBER
+    manual_as_community = rr.communities.add()
+    manual_as_community.type = manual_as_community.MANUAL_AS_NUMBER
     manual_as_community.as_number = int(community.split(":")[0])
     manual_as_community.as_custom = int(community.split(":")[1])
 
     # AS Path
     as_path = rr.as_path
-    as_path_segment = as_path.as_path_segments.bgpaspathsegment()[-1]
-    as_path_segment.segment_type = as_path_segment.AS_SEQ
+    as_path_segment = as_path.segments.add()
+    as_path_segment.type = as_path_segment.AS_SEQ
     as_path_segment.as_numbers = aspaths
 
     # MED
@@ -78,20 +82,23 @@ def test_bgp_attributes(api, utils):
     rr.advanced.origin = rr.advanced.EGP
 
     # v6
-    ipv6 = eth.ipv6
+    ipv6 = eth.ipv6_addresses.add()
     ipv6.name = "ipv6"
     ipv6.address = "2000::1"
     ipv6.prefix = 64
     ipv6.gateway = "2000::2"
-    bgpv6 = ipv6.bgpv6
-    bgpv6.name = "rx_bgpv6"
-    bgpv6.local_address = "2000::1"
-    bgpv6.as_type = "ebgp"
-    bgpv6.dut_address = "2000::2"
-    bgpv6.as_number = 65200
+    bgpv6 = device.bgp
+    bgpv6.router_id = "192.0.0.1"
+    bgpv6_int =  bgpv6.ipv6_interfaces.add()
+    bgpv6_int.ipv6_name = ipv6.name
+    bgp6_peer = bgpv6_int.peers.add()
+    bgp6_peer.name = "rx_bgpv6"
+    bgp6_peer.as_type = "ebgp"
+    bgp6_peer.peer_address = "2000::2"
+    bgp6_peer.as_number = 65200
 
-    rrv6 = bgpv6.bgpv6_routes.bgpv6route(name="rrv6")[-1]
-    rrv6.addresses.bgpv6routeaddress(
+    rrv6 = bgp6_peer.v6_routes.add(name="rrv6")
+    rrv6.addresses.add(
         address=v6_rr_attr["address"],
         prefix=int(v6_rr_attr["prefix"]),
         count=int(v6_rr_attr["count"]),
@@ -99,15 +106,15 @@ def test_bgp_attributes(api, utils):
     )
 
     # Community
-    manual_as_community = rrv6.communities.bgpcommunity()[-1]
-    manual_as_community.community_type = manual_as_community.MANUAL_AS_NUMBER
+    manual_as_community = rrv6.communities.add()
+    manual_as_community.type = manual_as_community.MANUAL_AS_NUMBER
     manual_as_community.as_number = int(community.split(":")[0])
     manual_as_community.as_custom = int(community.split(":")[1])
 
     # As Path
     as_path = rrv6.as_path
-    as_path_segment = as_path.as_path_segments.bgpaspathsegment()[-1]
-    as_path_segment.segment_type = as_path_segment.AS_SEQ
+    as_path_segment = as_path.segments.add()
+    as_path_segment.type = as_path_segment.AS_SEQ
     as_path_segment.as_numbers = aspaths
 
     # MED
@@ -176,9 +183,8 @@ def validate_community_config(api, community, aspaths, med, origin):
     assert last_two_octets == community.split(":")[1]
 
     as_paths = bgpv4.AsPathASString
-    as_paths = [
-        ele.replace("<", "").replace(">", "").split(",") for ele in as_paths
-    ][0]
+    as_paths = as_paths[0].replace('}', '').replace('{', '')
+    as_paths = as_paths.split(',')
     as_paths = [int(ele) for ele in as_paths]
     assert as_paths == aspaths
 
@@ -192,9 +198,8 @@ def validate_community_config(api, community, aspaths, med, origin):
     assert last_two_octets == community.split(":")[1]
 
     as_paths = bgpv6.AsPathASString
-    as_paths = [
-        ele.replace("<", "").replace(">", "").split(",") for ele in as_paths
-    ][0]
+    as_paths = as_paths[0].replace('}', '').replace('{', '')
+    as_paths = as_paths.split(',')
     as_paths = [int(ele) for ele in as_paths]
     assert as_paths == aspaths
 

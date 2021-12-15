@@ -123,6 +123,9 @@ class Api(snappi_convergence.Api):
                 event_state = route.state
                 with Timer(self._api, "Setting route state"):
                     event_names = self._api.ngpf.set_route_state(route)
+            elif payload.choice == "protocol":
+                with Timer(self._api, "Setting protocol state"):
+                    self._api.ngpf.set_protocol_state(payload.protocol)
             else:
                 raise Exception(
                     "These[transmit/ link/ route] are valid convergence_state"
@@ -319,7 +322,7 @@ class Api(snappi_convergence.Api):
             else:
                 event["type"] = "link_down"
         else:
-            for route_name in self._api.ixn_route_objects.keys():
+            for route_name in self._api.ixn_routes.names:
                 if re.search(route_name, event_name) is not None:
                     event["source"] = route_name
                     event_type = event_name.split(route_name)[-1]
@@ -346,12 +349,8 @@ class Api(snappi_convergence.Api):
         count = 0
         sleep_time = 0.5
         while True:
-            has_event = False
             drill_down_options = traffic_stat.DrillDownOptions()
             if drill_down_option in drill_down_options:
-                has_event = True
-                break
-            if has_event is True:
                 break
             if count * sleep_time > self._convergence_timeout:
                 raise Exception(

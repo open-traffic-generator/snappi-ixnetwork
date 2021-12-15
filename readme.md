@@ -1,4 +1,4 @@
-# snappi Extension for IxNetwork
+# Snappi Extension for IxNetwork
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://en.wikipedia.org/wiki/MIT_License)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Build](https://github.com/open-traffic-generator/snappi-ixnetwork/workflows/Build/badge.svg)](https://github.com/open-traffic-generator/snappi-ixnetwork/actions)

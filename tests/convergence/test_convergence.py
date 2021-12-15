@@ -20,6 +20,11 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
 
     cvg_api.set_config(bgp_convergence_config)
 
+    print("Starting all protocols ...")
+    cs = cvg_api.convergence_state()
+    cs.protocol.state = cs.protocol.START
+    cvg_api.set_state(cs)
+
     # Scenario 1: Route withdraw/Advertise
     # Start traffic
     cs = cvg_api.convergence_state()

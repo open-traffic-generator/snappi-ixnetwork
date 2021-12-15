@@ -6,7 +6,6 @@ import snappi
 from snappi_ixnetwork.validation import Validation
 from snappi_ixnetwork.vport import Vport
 from snappi_ixnetwork.lag import Lag
-from snappi_ixnetwork.ngpf import Ngpf
 from snappi_ixnetwork.trafficitem import TrafficItem
 from snappi_ixnetwork.capture import Capture
 from snappi_ixnetwork.ping import Ping
@@ -14,7 +13,8 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.protocolmetrics import ProtocolMetrics
 from snappi_ixnetwork.resourcegroup import ResourceGroup
 from snappi_ixnetwork.exceptions import SnappiIxnException
-
+from snappi_ixnetwork.device.ngpf import Ngpf
+from snappi_ixnetwork.objectdb import IxNetObjects
 
 class Api(snappi.Api):
     """IxNetwork implementation of the abstract-open-traffic-generator package
@@ -57,13 +57,15 @@ class Api(snappi.Api):
         self._ixn_errors = list()
         self._config_objects = {}
         self._device_encap = {}
+        self.ixn_objects = None
         self._config_type = self.config()
+        self._protocol_state = self.protocol_state()
         self._transmit_state = self.transmit_state()
         self._link_state = self.link_state()
         self._capture_state = self.capture_state()
         self._capture_request = self.capture_request()
         self._ping_request = self.ping_request()
-        self._ixn_route_objects = {}
+        self.ixn_routes = []
         self.validation = Validation(self)
         self.vport = Vport(self)
         self.lag = Lag(self)
@@ -74,13 +76,9 @@ class Api(snappi.Api):
         self.protocol_metrics = ProtocolMetrics(self)
         self.resource_group = ResourceGroup(self)
         self.do_compact = False
-        self._flow_tracking = False
         self._dev_compacted = {}
-        self.compacted_ref = {}
         self._previous_errors = []
-        self._ixn_obj_info = namedtuple(
-            "IxNobjInfo", ["xpath", "href", "index", "multiplier", "compacted"]
-        )
+
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
         )
@@ -101,9 +99,6 @@ class Api(snappi.Api):
     def enable_scaling(self, do_compact=False):
         self.do_compact = do_compact
 
-    def _enable_flow_tracking(self, _flow_tracking=False):
-        self._flow_tracking = _flow_tracking
-
     @property
     def snappi_config(self):
         return self._config
@@ -114,107 +109,25 @@ class Api(snappi.Api):
         except KeyError:
             raise NameError("snappi object named {0} not found".format(name))
 
-    def get_ixn_href(self, name):
-        """Returns an href given a unique configuration name"""
-        return self._ixn_objects[name].href
-
-    def get_ixn_object(self, name):
-        try:
-            return self._ixn_objects[name]
-        except KeyError:
-            raise NameError(
-                "snappi object named {0} not found in get_ixn_object".format(
-                    name
-                )
-            )
-
-    def set_ixn_object(self, name, href, xpath=None):
-        self._ixn_objects[name] = self._ixn_obj_info(
-            xpath=xpath, href=href, index=1, multiplier=1, compacted=False
-        )
-
-    def set_ixn_cmp_object(self, snappi_obj, href, xpath=None, multiplier=1):
-        names = snappi_obj.get("name_list")
-        if names is None:
-            name = snappi_obj.get("name")
-            if name is None:
-                raise Exception(
-                    "Problem at the time of parsing set_ixn_cmp_object"
-                )
-            self._ixn_objects[name] = self._ixn_obj_info(
-                xpath=xpath,
-                href=href,
-                index=1,
-                multiplier=multiplier,
-                compacted=False,
-            )
-        else:
-            self.compacted_ref[xpath] = names
-            for index, name in enumerate(names):
-                self._ixn_objects[name] = self._ixn_obj_info(
-                    xpath=xpath,
-                    href=href,
-                    index=multiplier * index + 1,
-                    multiplier=multiplier,
-                    compacted=True,
-                )
-
     def get_device_encap(self, name):
         try:
             return self._device_encap[name]
         except KeyError:
             raise NameError("snappi object named {0} not found".format(name))
 
-    def set_device_encap(self, obj, type):
-        if isinstance(obj, str):
-            self._device_encap[obj] = type
-        names = obj.get("name_list")
-        if names is None:
-            name = obj.get("name")
-            if name is None:
-                raise Exception(
-                    "Problem at the time of parsing set_device_encap"
-                )
-            self._device_encap[name] = type
-        else:
-            for name in names:
-                self._device_encap[name] = type
-
-    @property
-    def ixn_route_objects(self):
-        return self._ixn_route_objects
-
-    def get_route_object(self, name):
-        if name not in self._ixn_route_objects.keys():
-            raise Exception("%s not within configure routes" % name)
-        return self._ixn_route_objects[name]
-
-    def set_route_objects(self, ixn_bgp_property, route_obj, multiplier=1):
-        names = route_obj.get("name_list")
-        if names is None:
-            name = route_obj.get("name")
-            if name is None:
-                raise Exception(
-                    "Problem at the time of parsing set_route_objects"
-                )
-            self._ixn_route_objects[name] = self._ixn_route_info(
-                ixn_obj=ixn_bgp_property, index=1, multiplier=multiplier
-            )
-        else:
-            for index, name in enumerate(names):
-                self._ixn_route_objects[name] = self._ixn_route_info(
-                    ixn_obj=ixn_bgp_property,
-                    index=index * multiplier,
-                    multiplier=multiplier,
-                )
+    def set_device_encap(self, name, type):
+        self._device_encap[name] = type
 
     @property
     def assistant(self):
         return self._assistant
 
-    def set_dev_compacted(self, device):
-        dev_name = device["name"]
-        for index, name in enumerate(device["name_list"]):
+    @property
+    def dev_compacted(self):
+        return self._dev_compacted
+
+    def set_dev_compacted(self, dev_name, name_list):
+        for index, name in enumerate(name_list):
             self._dev_compacted[name] = {"dev_name": dev_name, "index": index}
 
     def _dict_to_obj(self, source):
@@ -302,10 +215,9 @@ class Api(snappi.Api):
     def config_ixnetwork(self, config):
         self._config_objects = {}
         self._device_encap = {}
-        self._ixn_objects = {}
-        self._ixn_route_objects = {}
+        self.ixn_objects = IxNetObjects()
+        self.ixn_routes = IxNetObjects()
         self._dev_compacted = {}
-        self.compacted_ref = {}
         self._connect()
         self.capture.reset_capture_request()
         self._config = self._validate_instance(config)
@@ -322,6 +234,24 @@ class Api(snappi.Api):
             self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
+        with Timer(self, "Start interfaces"):
+            self._start_interface()
+
+    def set_protocol_state(self, payload):
+        """Set the transmit state of flows"""
+        try:
+            if isinstance(payload, (type(self._protocol_state), str)) is False:
+                raise TypeError(
+                    "The content must be of type Union[TransmitState, str]"
+                )
+            if isinstance(payload, str) is True:
+                payload = self._protocol_state.deserialize(payload)
+            self._connect()
+            with Timer(self, "Setting Protocol state"):
+                self.ngpf.set_protocol_state(payload)
+        except Exception as err:
+            raise SnappiIxnException(err)
+        return self._request_detail()
 
     def set_transmit_state(self, payload):
         """Set the transmit state of flows"""
@@ -438,6 +368,31 @@ class Api(snappi.Api):
             raise SnappiIxnException(err)
         return self.capture.results(request)
 
+    def get_states(self, request):
+        try:
+            states_request = self.states_request()
+            if (
+                isinstance(request, (type(states_request), str))
+                is False
+            ):
+                raise TypeError(
+                    "The content must be of type Union[StatesRequest, str]"
+                )
+            if isinstance(request, str) is True:
+                request = states_request.deserialize(request)
+            self._connect()
+            response = self.ngpf.get_states(request)
+            states_response = self.states_response()
+            # if request.choice == "ipv4_neighbors":
+            #     ip_neighbors = states_response.ipv4_neighbors
+            # else:
+            #     ip_neighbors = states_response.ipv6_neighbors
+            # ip_neighbors.deserialize(response)
+            states_response.deserialize(response)
+            return states_response
+        except Exception as err:
+            raise SnappiIxnException(err)
+
     def get_metrics(self, request):
         """
         Gets port, flow and protocol metrics.
@@ -496,6 +451,9 @@ class Api(snappi.Api):
             self._errors.append("%s %s" % (type(error), str(error)))
         else:
             self._errors.append(error)
+
+    def get_errors(self):
+        return self._errors
 
     def parse_location_info(self, location):
         """It will return (chassis,card,port)
@@ -670,6 +628,27 @@ class Api(snappi.Api):
             except Exception:
                 pass
 
+    def _start_interface(self):
+        topos = self._ixnetwork.Topology.find()
+        if len(topos) > 0:
+            dgs = topos.DeviceGroup.find()
+            if len(dgs) > 0:
+                eth_list = dgs.Ethernet.find()
+                if len(eth_list) > 0:
+                    ip4_list = eth_list.Ipv4.find()
+                    ip6_list = eth_list.Ipv6.find()
+                    if len(eth_list) == max(len(ip4_list), len(ip6_list)):
+                        if len(ip4_list) > 0:
+                            ip4_list.Start()
+                        if len(ip6_list) > 0:
+                            ip6_list.Start()
+                    else:
+                        eth_list.Start()
+                        if len(ip4_list) > 0:
+                            ip4_list.Start()
+                        if len(ip6_list) > 0:
+                            ip6_list.Start()
+
     def _request(self, method, url, payload=None):
         connection, url = self._assistant.Session._connection._normalize_url(
             url
@@ -747,8 +726,8 @@ class Api(snappi.Api):
             if len(ixn_obj) > 0:
                 ixn_obj.remove()
 
-    def _get_topology_name(self, port_name):
-        return "Topology %s" % port_name
+    # def _get_topology_name(self, port_name):
+    #     return "Topology %s" % port_name
 
     def select_card_aggregation(self, location):
         (hostname, cardid, portid) = location.split(";")

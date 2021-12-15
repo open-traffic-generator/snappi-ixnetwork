@@ -154,7 +154,9 @@ class Vport(object):
                 "arg2": link_state.state,
             }
             for port_name in link_state.port_names:
-                payload["arg1"].append(self._api.get_ixn_href(port_name))
+                payload["arg1"].append(
+                    self._api.ixn_objects.get_href(port_name)
+                )
             url = "%s/vport/operations/linkupdn" % self._api._ixnetwork.href
             self._api._request("POST", url, payload)
 
@@ -192,7 +194,7 @@ class Vport(object):
                 imports.append(vport_import)
         self._import(imports)
         for name, vport in self._api.select_vports().items():
-            self._api.set_ixn_object(name, vport["href"], vport["xpath"])
+            self._api.ixn_objects.set(name, vport)
 
     def _add_hosts(self, HostReadyTimeout):
         chassis = self._api._ixnetwork.AvailableHardware.Chassis
@@ -267,7 +269,7 @@ class Vport(object):
                 ].startswith("connectedLink"):
                     continue
 
-            self._api.set_ixn_object(port.name, vport["href"], vport["xpath"])
+            self._api.ixn_objects.set(port.name, vport)
             vport = {"xpath": vports[port.name]["xpath"]}
             if location_supported is True:
                 vport["location"] = location
@@ -523,13 +525,14 @@ class Vport(object):
         if re.search("novustengiglan", vport["type"].lower()) is not None:
             auto_field_name = "autoNegotiate"
         # Due to ieeeL1Defaults dependency
+        ieee_l1_defaults = layer1.get("ieee_media_defaults", with_default=True)
+        if ieee_l1_defaults is None:
+            ieee_l1_defaults = "True"
         ieee_media_defaults = {
             "xpath": vport["xpath"]
             + "/l1Config/"
             + vport["type"].replace("Fcoe", ""),
-            "ieeeL1Defaults": layer1.get(
-                "ieee_media_defaults", with_default=True
-            ),
+            "ieeeL1Defaults": ieee_l1_defaults,
         }
         self._add_l1config_import(vport, ieee_media_defaults, imports)
         auto_negotiation = layer1.get("auto_negotiation", with_default=True)
@@ -538,6 +541,8 @@ class Vport(object):
             "link_training", with_default=True
         )
         auto_negotiate = layer1.get("auto_negotiate", with_default=True)
+        if auto_negotiate is None:
+            auto_negotiate = "True"
         proposed_import = {
             "xpath": vport["xpath"]
             + "/l1Config/"

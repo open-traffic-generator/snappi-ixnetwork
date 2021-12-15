@@ -123,77 +123,82 @@ def test_compact(api, utils):
     config_values["rx_rr_add1"] = "210.1.0.0"
 
     for i in range(1, num_of_devices + 1):
-        tx_device = config.devices.device()[-1]
+        tx_device = config.devices.add()
         tx_device.name = "Tx Device {0}".format(i)
-        tx_device.container_name = tx_port.name
-        tx_eth = tx_device.ethernet
+        tx_eth = tx_device.ethernets.add()
+        tx_eth.port_name = tx_port.name
         tx_eth.name = "Tx eth {0}".format(i)
         tx_eth.mac = config_values["tx_macs"][i - 1]
         tx_vlan = tx_eth.vlans.vlan()[-1]
         tx_vlan.name = "Tx vlan {0}".format(i)
         tx_vlan.id = int(config_values["vlan_ids"][i - 1])
-        tx_ip = tx_eth.ipv4
+        tx_ip = tx_eth.ipv4_addresses.add()
         tx_ip.name = "Tx IP {0}".format(i)
         tx_ip.address = config_values["tx_adds"][i - 1]
         tx_ip.gateway = config_values["rx_adds"][i - 1]
         tx_ip.prefix = 24
 
-        tx_ipv6 = tx_eth.ipv6
+        tx_ipv6 = tx_eth.ipv6_addresses.add()
         tx_ipv6.name = "Tx IP v6{0}".format(i)
         tx_ipv6.address = config_values["tx_ipv6_adds"][i - 1]
         tx_ipv6.gateway = config_values["rx_ipv6_adds"][i - 1]
         tx_ipv6.prefix = 64
 
-        tx_bgp = tx_ip.bgpv4
-        tx_bgp.name = "Tx Bgp {0}".format(i)
-        tx_bgp.dut_address = config_values["rx_adds"][i - 1]
-        tx_bgp.local_address = config_values["tx_adds"][i - 1]
-        tx_bgp.as_number = 65200
-        tx_bgp.as_type = "ibgp"
+        tx_bgp = tx_device.bgp
+        tx_bgp.router_id = config_values["tx_adds"][i - 1]
+        tx_bgp_int = tx_bgp.ipv4_interfaces.add()
+        tx_bgp_int.ipv4_name = tx_ip.name
+        tx_peer = tx_bgp_int.peers.add()
+        tx_peer.name = "BGP Peer {0}".format(i)
+        tx_peer.as_type = "ibgp"
+        tx_peer.peer_address = config_values["rx_adds"][i - 1]
+        tx_peer.as_number = 65200
 
-        tx_rr = tx_bgp.bgpv4_routes.bgpv4route(name="Tx RR {0}".format(i))[-1]
-        tx_rr.addresses.bgpv4routeaddress(
+        tx_rr = tx_peer.v4_routes.add(name="Tx RR {0}".format(i))
+        tx_rr.addresses.add(
             count=20, address=config_values["tx_rr_add1"][i - 1], prefix=32
         )
-        tx_rr.addresses.bgpv4routeaddress(
+        tx_rr.addresses.add(
             count=10, address=config_values["tx_rr_add2"][i - 1], prefix=24
         )
-        tx_rr.next_hop_address = next_hop_addr[i - 1]
+        tx_rr.next_hop_ipv4_address = next_hop_addr[i - 1]
 
     for i in range(1, num_of_devices + 1):
-        rx_device = config.devices.device()[-1]
+        rx_device = config.devices.add()
         rx_device.name = "Rx Device {0}".format(i)
-        rx_device.container_name = rx_port.name
-        rx_eth = rx_device.ethernet
+        rx_eth = rx_device.ethernets.add()
+        rx_eth.port_name = rx_port.name
         rx_eth.name = "Rx eth {0}".format(i)
         rx_eth.mac = config_values["rx_macs"][i - 1]
         rx_vlan = rx_eth.vlans.vlan()[-1]
         rx_vlan.name = "Rx vlan {0}".format(i)
         rx_vlan.id = int(config_values["vlan_ids"][i - 1])
-        rx_ip = rx_eth.ipv4
+        rx_ip = rx_eth.ipv4_addresses.add()
         rx_ip.name = "Rx IP {0}".format(i)
         rx_ip.address = config_values["rx_adds"][i - 1]
         rx_ip.gateway = config_values["tx_adds"][i - 1]
         rx_ip.prefix = 24
 
-        rx_ipv6 = rx_eth.ipv6
+        rx_ipv6 = rx_eth.ipv6_addresses.add()
         rx_ipv6.name = "Rx IP v6{0}".format(i)
         rx_ipv6.address = config_values["rx_ipv6_adds"][i - 1]
         rx_ipv6.gateway = config_values["tx_ipv6_adds"][i - 1]
         rx_ipv6.prefix = 64
 
-        rx_bgp = rx_ip.bgpv4
-        rx_bgp.name = "Rx Bgp {0}".format(i)
-        rx_bgp.dut_address = config_values["tx_adds"][i - 1]
-        rx_bgp.local_address = config_values["rx_adds"][i - 1]
-        rx_bgp.as_number = 65200
-        rx_bgp.as_type = "ibgp"
+        rx_bgp = rx_device.bgp
+        rx_bgp.router_id = config_values["rx_adds"][i - 1]
+        rx_bgp_int = rx_bgp.ipv4_interfaces.add()
+        rx_bgp_int.ipv4_name = rx_ip.name
+        rx_peer = rx_bgp_int.peers.add()
+        rx_peer.name = "Rx Bgp {0}".format(i)
+        rx_peer.as_type = "ibgp"
+        rx_peer.peer_address = config_values["tx_adds"][i - 1]
+        rx_peer.as_number = 65200
+
 
         if i == rx_device_with_rr:
-            rx_rr = rx_bgp.bgpv4_routes.bgpv4route(name="Rx RR {0}".format(i))[
-                -1
-            ]
-            rx_rr.addresses.bgpv4routeaddress(
+            rx_rr = rx_peer.v4_routes.add(name="Rx RR {0}".format(i))
+            rx_rr.addresses.add(
                 count=1000,
                 address=config_values["rx_rr_add1"],
                 prefix=32,
@@ -248,8 +253,16 @@ def test_compact(api, utils):
     api.set_config(config)
 
     validate_compact_config(api, config_values, rx_device_with_rr)
+    print("Starting all protocols ...")
+    ps = api.protocol_state()
+    ps.state = ps.START
+    api.set_protocol_state(ps)
 
-    utils.start_traffic(api, config, start_capture=False)
+    print("Starting transmit on all flows ...")
+    ts = api.transmit_state()
+    ts.state = ts.START
+    api.set_transmit_state(ts)
+    # utils.start_traffic(api, config, start_capture=False)
     utils.wait_for(
         lambda: stats_ok(api, PACKETS * 3, utils), "stats to be as expected"
     )

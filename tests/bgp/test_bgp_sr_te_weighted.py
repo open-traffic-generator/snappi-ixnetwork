@@ -1,6 +1,6 @@
 import pytest
 
-
+@pytest.mark.skip("New SR TE model is not available")
 def test_bgp_sr_te_weighted(api):
     """
     Test BGP SRTE Policy configuration applied properly
