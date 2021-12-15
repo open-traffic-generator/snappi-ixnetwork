@@ -32,7 +32,7 @@ setuptools.setup(
     ],
     keywords="snappi ixnetwork testing open traffic generator automation",
     include_package_data=True,
-    packages=[pkg_name],
+    packages=setuptools.find_packages(),
     python_requires=">=2.7, <4",
     install_requires=["ixnetwork-restpy>=1.0.52"],
     extras_require={
