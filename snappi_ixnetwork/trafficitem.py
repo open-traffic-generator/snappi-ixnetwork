@@ -221,7 +221,16 @@ class TrafficItem(CustomField):
         "hop_limit": "ipv6.header.hopLimit",
         "src": "ipv6.header.srcIP",
         "dst": "ipv6.header.dstIP",
-        "order": ["version", "traffic_class", "flow_label", "payload_length"],
+        "order": [
+            "version",
+            "traffic_class",
+            "flow_label",
+            "payload_length",
+            "next_header",
+            "hop_limit",
+            "src",
+            "dst"
+        ],
     }
 
     _TCP = {
