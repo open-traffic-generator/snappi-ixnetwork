@@ -20,6 +20,8 @@ def test_vxlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     inner_dst_mac = "00:00:0d:00:00:04"
     flags = 255
     vni = 2000
+    reserved0 = 16777215
+    reserved1 = 255
 
     flow1 = b2b_raw_config_vports.flows[0]
 
@@ -39,6 +41,8 @@ def test_vxlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
 
     vxlan.flags.value = flags
     vxlan.vni.value = vni
+    vxlan.reserved0.value = reserved0
+    vxlan.reserved1.value = reserved1
 
     inner_eth.src.value = inner_src_mac
     inner_eth.dst.value = inner_dst_mac
@@ -50,6 +54,8 @@ def test_vxlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
 
     flags_list = [0, 15, 255]
     vni_list = [0, 15, 255, 4095, 65535, 1048575, 16777215]
+    reserved0_list = [0, 15, 255, 4095, 65535, 1048575, 16777215]
+    reserved1_list = [0, 15, 255]
 
     outer_eth, ip, udp, vxlan, inner_eth = (
         flow2.packet.ethernet().ipv4().udp().vxlan().ethernet()
@@ -67,6 +73,8 @@ def test_vxlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
 
     vxlan.flags.values = flags_list
     vxlan.vni.values = vni_list
+    vxlan.reserved0.values = reserved0_list
+    vxlan.reserved1.values = reserved1_list
 
     inner_eth.src.value = inner_src_mac
     inner_eth.dst.value = inner_dst_mac
@@ -98,6 +106,14 @@ def test_vxlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     vxlan.vni.increment.step = 1
     vxlan.vni.increment.count = 16777216
 
+    vxlan.reserved0.increment.start = 0
+    vxlan.reserved0.increment.step = 1
+    vxlan.reserved0.increment.count = 16777216
+
+    vxlan.reserved1.increment.start = 0
+    vxlan.reserved1.increment.step = 1
+    vxlan.reserved1.increment.count = 256
+
     inner_eth.src.value = inner_src_mac
     inner_eth.dst.value = inner_dst_mac
 
@@ -107,6 +123,8 @@ def test_vxlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     f1_attrs = {
         "Flags": format(flags, "x"),
         "VNI": str(vni),
+        "Reserved": format(reserved0, "x"),
+        "Reserved8": format(reserved1, "x"),
     }
     utils.validate_config(api, "f1", "vxlan", **f1_attrs)
 
@@ -114,6 +132,8 @@ def test_vxlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     f2_attrs = {
         "Flags": [format(f, "x") for f in flags_list],
         "VNI": [str(v) for v in vni_list],
+        "Reserved": [format(f, "x") for f in reserved0_list],
+        "Reserved8": [format(f, "x") for f in reserved1_list],
     }
     utils.validate_config(api, "f2", "vxlan", **f2_attrs)
 
@@ -128,6 +148,16 @@ def test_vxlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
             str(vxlan.vni.increment.start),
             str(vxlan.vni.increment.step),
             str(vxlan.vni.increment.count),
+        ),
+        "Reserved": (
+            str(vxlan.reserved0.increment.start),
+            str(vxlan.reserved0.increment.step),
+            str(vxlan.reserved0.increment.count),
+        ),
+        "Reserved8": (
+            str(vxlan.reserved1.increment.start),
+            str(vxlan.reserved1.increment.step),
+            str(vxlan.reserved1.increment.count),
         ),
     }
     utils.validate_config(api, "f3", "vxlan", **f3_attrs)
