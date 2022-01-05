@@ -1,6 +1,6 @@
 name: cicd
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   cicd:
@@ -14,7 +14,8 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v2
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ env.BASE_BRANCH }}
+          # ref: ${{ github.head_ref }}
           submodules: recursive
       - name: Set python path
         id: path
