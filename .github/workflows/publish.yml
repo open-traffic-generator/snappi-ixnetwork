@@ -1,6 +1,9 @@
 name: cicd
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
   cicd:
@@ -8,7 +11,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        python-version: [python27]
+        python-version: [python27, python38]
 
     steps:
       - name: Checkout source
