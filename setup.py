@@ -5,7 +5,7 @@ import os
 import setuptools
 
 pkg_name = "snappi_ixnetwork"
-version = "0.7.2"
+version = "0.7.3"
 
 # read long description from readme.md
 base_dir = os.path.abspath(os.path.dirname(__file__))
@@ -37,8 +37,8 @@ setuptools.setup(
     install_requires=["ixnetwork-restpy>=1.0.52"],
     extras_require={
         "testing": [
-            "snappi==0.7.1",
-            "snappi_convergence==0.2.2",
+            "snappi==0.7.3",
+            "snappi_convergence==0.2.3",
             "pytest",
             "mock",
             "dpkt==1.9.4",
