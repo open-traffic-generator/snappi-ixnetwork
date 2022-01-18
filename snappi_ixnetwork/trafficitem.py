@@ -664,9 +664,6 @@ class TrafficItem(CustomField):
             self.remove_ixn_traffic()
             self.copy_flow_packet(self._config)
             ixn_traffic_item = self.get_ixn_config(self._config)[0]
-            self.flows_has_latency = []
-            self.flows_has_timestamp = []
-            self.flows_has_loss = []
             self.latency_mode = None
             if ixn_traffic_item.get("trafficItem") is None:
                 # TODO raise Exception
@@ -713,14 +710,14 @@ class TrafficItem(CustomField):
                     )
                     latency = metrics.get("latency")
                     if latency is not None and latency.enable is True:
-                        self.flows_has_latency.append(flow.name)
+                        # self.flows_has_latency.append(flow.name)
                         self._process_latency(latency)
-                    timestamps = metrics.get("timestamps")
-                    if timestamps is True:
-                        self.flows_has_timestamp.append(flow.name)
-                    loss = metrics.get("loss")
-                    if loss is True:
-                        self.flows_has_loss.append(flow.name)
+                    # timestamps = metrics.get("timestamps")
+                    # if timestamps is True:
+                    #     self.flows_has_timestamp.append(flow.name)
+                    # loss = metrics.get("loss")
+                    # if loss is True:
+                    #     self.flows_has_loss.append(flow.name)
                 tr_json["traffic"]["trafficItem"].append(tr_item)
             self._importconfig(tr_json)
 
@@ -1192,54 +1189,35 @@ class TrafficItem(CustomField):
             )
             raise Exception(msg)
 
-        flow_names = request.get("flow_names")
         has_request_flow = True
-        if flow_names is None or len(flow_names) == 0:
+        req_flow_names = request.get("flow_names")
+        if req_flow_names is None or len(req_flow_names) == 0:
+            req_flow_names = []
             has_request_flow = False
-            flow_names = [flow.name for flow in self._api._config.flows]
-        elif not isinstance(flow_names, list):
+        if not isinstance(req_flow_names, list):
             msg = "Invalid format of flow_names passed {},\
                     expected list".format(
-                flow_names
+                req_flow_names
             )
             raise Exception(msg)
-        final_flow_names = []
-        for flow in self._api._config.flows:
-            metrics = flow.get("metrics")
-            if metrics is None:
-                continue
-            if metrics.enable is True and flow.name in flow_names:
-                final_flow_names.append(flow.name)
-        if len(final_flow_names) == 0:
-            msg = """
-            To fetch flow metrics at least one flow shall have metric enabled
-            """
-            raise Exception(msg.strip())
-        diff = set(flow_names).difference(final_flow_names)
-        if len(diff) > 0 and has_request_flow is True:
-            raise Exception(
-                "Flow metrics is not enabled on flows {}".format(
-                    "".join(list(diff))
-                )
-            )
-        flow_names = final_flow_names
-        regfilter = {"property": "name", "regex": ".*"}
-        regfilter["regex"] = "^(%s)$" % "|".join(
-            self._api.special_char(flow_names)
-        )
-
-        flow_count = len(flow_names)
-        ixn_page = self._api._ixnetwork.Statistics.View.find(
-            Caption="Flow Statistics"
-        ).Page
-        if ixn_page.PageSize < flow_count:
-            ixn_page.PageSize = flow_count
-
+        req_flow_names = [self._api.special_char(n) for n in req_flow_names]
         # initialize result values
+        flow_names = []
         flow_rows = {}
+        regfilter = {"property": "name", "regex": ".*"}
+        if len(req_flow_names) > 0:
+            regfilter["regex"] = "^(%s)$" % "|".join(
+                self._api.special_char(req_flow_names)
+            )
         for traffic_item in self._api.select_traffic_items(
             traffic_item_filters=[regfilter]
         ).values():
+            name = traffic_item["name"]
+            track_by = traffic_item["tracking"][0]["trackBy"]
+            # flow.
+            if len(track_by) == 0 or "trackingenabled0" not in track_by:
+                continue
+            flow_names.append(name)
             for stream in traffic_item["highLevelStream"]:
                 for rx_port_name in stream["rxPortNames"]:
                     flow_row = {}
@@ -1266,10 +1244,28 @@ class TrafficItem(CustomField):
                         self._set_result_value(
                             flow_row, external_name, 0, external_type
                         )
-                    flow_rows[
-                        traffic_item["name"]
-                    ] = flow_row
+                    flow_rows[name] = flow_row
 
+        if len(flow_names) == 0:
+            msg = """
+            To fetch flow metrics at least one flow shall have metric enabled
+            """
+            raise Exception(msg.strip())
+        diff = set(req_flow_names).difference(flow_names)
+        if len(diff) > 0 and has_request_flow is True:
+            raise Exception(
+                "Flow metrics is not enabled on flows {}".format(
+                    "".join(list(diff))
+                )
+            )
+
+        flow_count = len(flow_names)
+        ixn_page = self._api._ixnetwork.Statistics.View.find(
+            Caption="Flow Statistics"
+        ).Page
+        if ixn_page.PageSize < flow_count:
+            ixn_page.PageSize = flow_count
+        ixn_latency = self._api._traffic.Statistics.Latency
         flow_stat = self._api.assistant.StatViewAssistant("Traffic Item Statistics")
         for row in flow_stat.Rows:
             name = row["Traffic Item"]
@@ -1301,12 +1297,13 @@ class TrafficItem(CustomField):
                     except Exception:
                         # TODO print a warning maybe ?
                         pass
-                if name in self.flows_has_latency:
+                self._construct_timestamp(flow_row, row)
+                if ixn_latency is True:
                     self._construct_latency(flow_row, row)
-                if name in self.flows_has_timestamp:
-                    self._construct_timestamp(flow_row, row)
-                if name not in self.flows_has_loss:
-                    flow_row.pop("loss")
+                # if name in flows_has_timestamp:
+                #     self._construct_timestamp(flow_row, row)
+                # if name not in flows_has_loss:
+                #     flow_row.pop("loss")
         return list(flow_rows.values())
 
     def _construct_latency(self, flow_row, row):
