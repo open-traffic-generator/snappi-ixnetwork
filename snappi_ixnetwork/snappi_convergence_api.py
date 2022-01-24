@@ -26,6 +26,8 @@ class Api(snappi_convergence.Api):
         ("end_timestamp_ns", "Event End Timestamp", int),
     }
 
+    _TRIGGERED_EVENT = ""
+
     def __init__(self, **kwargs):
 
         self._convergence_timeout = 3
@@ -113,6 +115,7 @@ class Api(snappi_convergence.Api):
                 transmit = payload.transmit
                 self._api.traffic_item.transmit(transmit)
             elif payload.choice == "link":
+                self._TRIGGERED_EVENT = "link"
                 link = payload.link
                 if link.port_names is not None:
                     event_names = link.port_names
@@ -288,15 +291,19 @@ class Api(snappi_convergence.Api):
                     )
                 events.append(event)
                 if interruption_time is None:
-                    interruption_time = float(
-                        flow_result["DP Above Threshold Timestamp"].split(":")[
-                            -1
-                        ]
-                    ) - float(
-                        flow_result["DP Below Threshold Timestamp"].split(":")[
-                            -1
-                        ]
-                    )
+                    if flow_result["DP Above Threshold Timestamp"] != "":
+                        att = flow_result[
+                            "DP Above Threshold Timestamp"
+                        ].split(":")[-1]
+                    else:
+                        att = 0
+                    if flow_result["DP Below Threshold Timestamp"] != "":
+                        btt = flow_result[
+                            "DP Below Threshold Timestamp"
+                        ].split(":")[-1]
+                    else:
+                        btt = 0
+                    interruption_time = float(att) - float(btt)
                     self._set_result_value(
                         convergence,
                         "service_interruption_time_us",
@@ -364,23 +371,25 @@ class Api(snappi_convergence.Api):
         count = 0
         sleep_time = 0.5
         flow_stat = self._api.assistant.StatViewAssistant("Flow Statistics")
-        if "Show Physical Ports in LAG" in flow_stat.DrillDownOptions():
-            flow_index = {}
-            drill_down_option = "Show Physical Ports in LAG"
-            for index, row in enumerate(
-                self._get_traffic_rows(flow_stat, drill_down_option)
-            ):
-                flow_index[row["Traffic Item"]] = index
-            drill_down_options = flow_stat.DrillDownOptions()
-            drilldown_index = drill_down_options.index(drill_down_option)
-            flow_stat.Drilldown(
-                0,
-                drill_down_option,
-                flow_stat.TargetRowFilters()[drilldown_index],
-            )
-            flow_stat = self._api.assistant.StatViewAssistant(
-                "Flow Statistics"
-            )
+
+        if self._TRIGGERED_EVENT == "link":
+            if "Show Physical Ports in LAG" in flow_stat.DrillDownOptions():
+                flow_index = {}
+                drill_down_option = "Show Physical Ports in LAG"
+                for index, row in enumerate(
+                    self._get_traffic_rows(flow_stat, drill_down_option)
+                ):
+                    flow_index[row["Traffic Item"]] = index
+                drill_down_options = flow_stat.DrillDownOptions()
+                drilldown_index = drill_down_options.index(drill_down_option)
+                flow_stat.Drilldown(
+                    0,
+                    drill_down_option,
+                    flow_stat.TargetRowFilters()[drilldown_index],
+                )
+                flow_stat = self._api.assistant.StatViewAssistant(
+                    "Flow Statistics"
+                )
         has_flow = False
         while True:
             flow_rows = flow_stat.Rows
