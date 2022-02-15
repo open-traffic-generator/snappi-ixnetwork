@@ -45,6 +45,7 @@ def test_vlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     priority_lst = [i for i in range(7)]
     cfi_lst = [0, 1]
     vlan_id_lst = [i for i in range(4094)]
+    tpid_lst = [i for i in range(65536)]
 
     flow2.packet.ethernet().vlan()
     eth, vlan = flow2.packet[0], flow2.packet[1]
@@ -57,6 +58,8 @@ def test_vlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     vlan.cfi.values = cfi_lst
 
     vlan.id.values = vlan_id_lst
+
+    vlan.tpid.values = tpid_lst
 
     # Counter
     flow3 = b2b_raw_config_vports.flows.flow(name="f3")[-1]
@@ -84,6 +87,10 @@ def test_vlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     vlan.id.increment.step = 1
     vlan.id.increment.count = 4094
 
+    vlan.tpid.increment.start = 0
+    vlan.tpid.increment.step = 1
+    vlan.tpid.increment.count = 65536
+
     api.set_config(b2b_raw_config_vports)
 
     # fixed validation
@@ -91,6 +98,7 @@ def test_vlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
         "VLAN Priority": str(priority),
         "Canonical Format Indicator": str(cfi),
         "VLAN-ID": str(vlan_id),
+        "Protocol-ID": format(vlan.tpid.X8100, "x"),
     }
     utils.validate_config(api, "f1", "vlan", **f1_attrs)
 
@@ -99,6 +107,7 @@ def test_vlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
         "VLAN Priority": [str(p) for p in priority_lst],
         "Canonical Format Indicator": [str(c) for c in cfi_lst],
         "VLAN-ID": [str(v) for v in vlan_id_lst],
+        "Protocol-ID": [format(v, "x") for v in tpid_lst],
     }
     utils.validate_config(api, "f2", "vlan", **f2_attrs)
 
@@ -118,6 +127,11 @@ def test_vlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
             str(vlan.id.increment.start),
             str(vlan.id.increment.step),
             str(vlan.id.increment.count),
+        ),
+        "Protocol-ID": (
+            str(vlan.tpid.increment.start),
+            str(vlan.tpid.increment.step),
+            str(vlan.tpid.increment.count),
         ),
     }
 

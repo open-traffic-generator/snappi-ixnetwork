@@ -148,8 +148,9 @@ class TrafficItem(CustomField):
         "id": "vlan.header.vlanTag.vlanID",
         "cfi": "vlan.header.vlanTag.cfi",
         "priority": "vlan.header.vlanTag.vlanUserPriority",
-        "protocol": "vlan.header.protocolID",
-        "order": ["priority", "cfi", "id", "protocol"],
+        "tpid": "vlan.header.protocolID",
+        "order": ["priority", "cfi", "id", "tpid"],
+        "convert_int_to_hex": ["tpid"],
     }
 
     _IPV4 = {
