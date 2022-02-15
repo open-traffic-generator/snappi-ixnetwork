@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_flow_metrics(api, utils, b2b_raw_config, tx_port, rx_port):
+def test_only_config(api, utils, b2b_raw_config, tx_port, rx_port):
     """This is a test script to test flow metrics,
     metrics should be available only for the flows metrics are enabled
 
@@ -40,6 +40,8 @@ def test_flow_metrics(api, utils, b2b_raw_config, tx_port, rx_port):
         lambda: stats_ok(api, PACKETS, utils), "stats to be as expected"
     )
 
+
+def test_only_metrics(api, utils):
     _, flow_stats = utils.get_all_stats(api)
 
     # Validation
