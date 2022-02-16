@@ -915,9 +915,15 @@ class Api(snappi.Api):
                                 "txPortName",
                                 "rxPortNames",
                                 "state",
+                                "name"
                             ],
                             "filters": [],
                         },
+                        {
+                            "child": "tracking",
+                            "properties": ["trackBy"],
+                            "filters": [],
+                        }
                     ],
                     "inlines": [],
                 }
