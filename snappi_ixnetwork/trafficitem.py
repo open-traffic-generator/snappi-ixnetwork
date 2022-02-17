@@ -232,7 +232,7 @@ class TrafficItem(CustomField):
             "next_header",
             "hop_limit",
             "src",
-            "dst"
+            "dst",
         ],
     }
 
@@ -1105,8 +1105,10 @@ class TrafficItem(CustomField):
             if len(self._api._topology.find()) > 0:
                 glob_topo = self._api._globals.Topology.refresh()
                 if glob_topo.Status == "notStarted":
-                    raise Exception("Please start protocols using set_protocol_state "
-                                    "before start traffic")
+                    raise Exception(
+                        "Please start protocols using set_protocol_state "
+                        "before start traffic"
+                    )
             if len(self._api._traffic_item.find()) == 0:
                 return
             self._api._traffic_item.find(State="^unapplied$")
@@ -1218,7 +1220,9 @@ class TrafficItem(CustomField):
             traffic_item_filters=[regfilter]
         )
         if len(traffic_items) == 0:
-            raise Exception("To fetch flow metrics at least Flow should configured")
+            raise Exception(
+                "To fetch flow metrics at least Flow should configured"
+            )
         for traffic_item in traffic_items.values():
             name = traffic_item["name"]
             track_by = traffic_item["tracking"][0]["trackBy"]
@@ -1273,7 +1277,9 @@ class TrafficItem(CustomField):
         ).Page
         if ixn_page.PageSize < flow_count:
             ixn_page.PageSize = flow_count
-        flow_stat = self._api.assistant.StatViewAssistant("Traffic Item Statistics")
+        flow_stat = self._api.assistant.StatViewAssistant(
+            "Traffic Item Statistics"
+        )
         for row in flow_stat.Rows:
             name = row["Traffic Item"]
             if len(flow_names) > 0 and name not in flow_names:
@@ -1308,8 +1314,10 @@ class TrafficItem(CustomField):
                     self._construct_latency(flow_row, row)
                 if name in self.flows_has_timestamp:
                     self._construct_timestamp(flow_row, row)
-                if name not in self.flows_has_loss \
-                        and len(self.flows_has_loss) > 0:
+                if (
+                    name not in self.flows_has_loss
+                    and len(self.flows_has_loss) > 0
+                ):
                     flow_row.pop("loss")
         return list(flow_rows.values())
 
@@ -1370,3 +1378,97 @@ class TrafficItem(CustomField):
                 )
         if len(timestamp_result) > 0:
             flow_row["timestamps"] = timestamp_result
+
+    def update_flows(self, update_flows_config):
+        """
+        Update the flows with property size & rate
+        """
+        self._validate_update_flows_config(update_flows_config)
+        for flow in update_flows_config.flows:
+            hl = self._api._ixnetwork.Traffic.TrafficItem.find(
+                Name=flow.name
+            ).HighLevelStream.find()
+            self._update_size(hl, flow.size)
+            self._update_rate(hl, flow.rate)
+
+    def _validate_update_flows_config(self, update_flows_config):
+        errors = []
+        for flow in update_flows_config.flows:
+            if flow not in self._api._config.flows._items:
+                errors.append(
+                    "Adding a new flow {} is not allowed in update operation".format(
+                        flow.name
+                    )
+                )
+            else:
+                for i_flow in self._api._initial_flows_config._items:
+                    if i_flow.name == flow.name:
+                        d1 = flow.serialize(flow.DICT)
+                        d2 = i_flow.serialize(i_flow.DICT)
+                        error = self._compare_property(d1, d2)
+                        errors.extend(error)
+        if errors:
+            raise SnappiIxnException(400, "{}".format(("\n").join(errors)))
+
+    def _compare_property(self, d1, d2):
+        property_errors = []
+        for key in d1.keys():
+            if d1[key] != d2[key]:
+                property_errors.append(key)
+        property_errors = [
+            property_err
+            + " property update is not supported on flow {}".format(d1["name"])
+            for property_err in property_errors
+            if property_err not in ["rate", "size"]
+        ]
+        return property_errors
+
+    def _update_size(self, ixn_hl_stream, size):
+        if size.choice is not None:
+            if size.choice != "fixed":
+                raise SnappiIxnException(
+                    400,
+                    "Frame size update on a started flow is not supported for {} choice".format(
+                        size.choice
+                    ),
+                )
+            ixn_hl_stream.FrameSize.FixedSize = size.fixed
+
+    def _update_rate(self, ixn_hl_stream, rate):
+        if rate.choice is None:
+            return
+        ixn_frame_rate = ixn_hl_stream.FrameRate
+        args = {}
+        value = None
+        if rate.choice == "percentage":
+            args["Type"] = "percentLineRate"
+            value = rate.percentage
+        elif rate.choice == "pps":
+            args["Type"] = "framesPerSecond"
+            value = rate.pps
+        else:
+            args["Type"] = "bitsPerSecond"
+            args["BitRateUnitsType"] = TrafficItem._BIT_RATE_UNITS_TYPE[
+                rate.choice
+            ]
+            value = getattr(rate, rate.choice)
+        args["Rate"] = value
+        self._update(ixn_frame_rate, **args)
+
+    def _update(self, ixn_object, **kwargs):
+        from ixnetwork_restpy.base import Base
+
+        update = False
+        for name, value in kwargs.items():
+            if (
+                isinstance(value, list)
+                and len(value) > 0
+                and isinstance(value[0], Base)
+            ):
+                value = [item.href for item in value]
+            elif isinstance(value, Base):
+                value = value.href
+            if getattr(ixn_object, name) != value:
+                update = True
+        if update is True:
+            ixn_object.update(**kwargs)
