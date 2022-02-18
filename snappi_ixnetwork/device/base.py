@@ -1,5 +1,6 @@
-__all__ = ['Base', 'MultiValue', 'PostCalculated']
+import re
 
+__all__ = ['Base', 'MultiValue', 'PostCalculated']
 
 
 class MultiValue(object):
@@ -94,3 +95,141 @@ class Base(object):
                 ixn_attr = ixn_map
                 value = snappi_obj.get(snappi_attr)
             ixn_obj[ixn_attr] = self.multivalue(value)
+
+    def get_group_values(self, nodes, attr_name, enum_map=None):
+        values = []
+        for node in nodes:
+            value = node.get(attr_name)
+            # if value is None:
+            #     value = next(n for n in nodes if n.get(attr_name) is not None)
+            if enum_map is not None:
+                value = enum_map[value]
+            values.append(value)
+        return values
+
+    def get_group_multivalues(self, nodes, attr_name, enum_map=None):
+        return self.multivalue(self.get_group_values(
+            nodes, attr_name, enum_map
+        ))
+
+    def config_group_values(self, snappi_obj_list, ixn_obj, attr_map):
+        for snappi_attr, ixn_map in attr_map.items():
+            if isinstance(ixn_map, dict):
+                ixn_attr = ixn_map.get("ixn_attr")
+                if ixn_attr is None:
+                    raise NameError("ixn_attr is missing within ", ixn_map)
+                enum_map = ixn_map.get("enum_map")
+                values = self.get_group_multivalues(
+                    snappi_obj_list, snappi_attr, enum_map=enum_map
+                )
+            else:
+                ixn_attr = ixn_map
+                values = self.get_group_multivalues(
+                    snappi_obj_list, snappi_attr
+                )
+            ixn_obj[ixn_attr] = values
+
+    def get_symmetric_nodes(self, parent_list, node_name):
+        nodes_list = []
+        max_len = 0
+        for parent in parent_list:
+            nodes = getattr(parent, node_name)
+            node_len = len(nodes)
+            if node_len > max_len:
+                max_len = node_len
+            nodes_list.append(nodes)
+        symmetric_nodes = []
+        active_list = []
+        for nodes in nodes_list:
+            if len(nodes) == max_len:
+                active_list.extend([True] * max_len)
+                symmetric_nodes.extend(nodes)
+            else:
+                for index in range(0, max_len):
+                    node = nodes[0]
+                    if index < len(nodes):
+                        node = nodes[index]
+                        active_list.append(node.active)
+                        symmetric_nodes.append(node)
+                    else:
+                        active_list.append(False)
+                        symmetric_nodes.append(node)
+        return NodesInfo(max_len, active_list, symmetric_nodes)
+
+    def asdot2plain(self, asdot):
+        """This returns an ASPLAIN formated ASN given an ASDOT+ format"""
+        if re.findall(r'\.|\:', asdot):
+            left, right = re.split(r'\.|\:', asdot)
+            ret = int(left) * 65536 + int(right)
+            return ret
+        else:
+            return int(asdot)
+
+
+class NodesInfo(object):
+    def __init__(self, max_len, active_list, symmetric_nodes):
+        self._base = Base()
+        self._max_len = max_len
+        self._active_list = active_list
+        self._symmetric_nodes = symmetric_nodes
+
+    @property
+    def max_len(self):
+        return self._max_len
+
+    @property
+    def active_list(self):
+        return self._active_list
+
+    @property
+    def symmetric_nodes(self):
+        return self._symmetric_nodes
+
+    def get_values(self, attr_name, enum_map=None):
+        return self._base.get_group_values(
+            self._symmetric_nodes, attr_name, enum_map=enum_map
+        )
+
+    def get_multivalues(self, attr_name, enum_map=None):
+        return self._base.get_group_multivalues(
+            self._symmetric_nodes, attr_name, enum_map=enum_map
+        )
+
+    def config_values(self, ixn_obj, attr_map):
+        self._base.config_group_values(
+            self._symmetric_nodes, ixn_obj, attr_map
+        )
+
+    def get_tab(self, tab_name):
+        tab_nodes = [v.get(tab_name) for v in self._symmetric_nodes]
+        return NodesInfo(
+            self._max_len,
+            self._active_list,
+            tab_nodes
+        )
+
+    def get_group_nodes(self, tab_name):
+        """We will pass a attribute names which is array in type
+        It will raise error if all elements are not same length
+        Finally return list of NodesInfo
+        It will use some IxNetwork tab which do not have enable/disable features"""
+        tab_lengths = []
+        group_nodes = []
+        for node in self._symmetric_nodes:
+            tab = node.get(tab_name)
+            if tab is None:
+                tab_lengths.append(0)
+            else:
+                tab_lengths.append(len(tab))
+            if len(set(tab_lengths)) > 1:
+                raise Exception("All the attributes %s should have same lengths" % tab_name)
+            if len(group_nodes) == 0:
+                group_nodes = [[]] * tab_lengths[-1]
+            for idx in range(tab_lengths[0]):
+                group_nodes[idx].append(tab[idx])
+        return [NodesInfo(
+            self._max_len,
+            self._active_list,
+            group_node
+        ) for group_node in group_nodes]
+

@@ -1,4 +1,5 @@
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.device.bgpevpn import BgpEvpn
 
 class Bgp(Base):
     _BGP = {
@@ -106,6 +107,7 @@ class Bgp(Base):
     def __init__(self, ngpf):
         super(Bgp, self).__init__()
         self._ngpf = ngpf
+        self._bgp_evpn = BgpEvpn(ngpf)
         self._router_id = None
         self._invalid_ips = []
         self._same_dg_ips = []
@@ -202,6 +204,8 @@ class Bgp(Base):
             if capability is not None:
                 self.configure_multivalues(capability, ixn_bgpv4, Bgp._CAPABILITY)
             self._bgp_route_builder(bgp_peer, ixn_bgpv4)
+            self._bgp_evpn.config(bgp_peer, ixn_bgpv4)
+            pass
 
     def _config_bgpv6(self, bgp_peers, ixn_ipv6):
         if bgp_peers is None:
