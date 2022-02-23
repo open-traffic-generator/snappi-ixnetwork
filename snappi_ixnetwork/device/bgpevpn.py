@@ -1,8 +1,5 @@
 from snappi_ixnetwork.device.base import Base
 
-# todo
-# rd_value for all those cases
-
 
 class BgpEvpn(Base):
     _VXLAN = {
@@ -21,47 +18,38 @@ class BgpEvpn(Base):
         "ipv4_address": "ip"
     }
 
-    _ROUTE_DISTINGUISHHER = {
-        "rd_type": {
-            "ixn_attr": "rdType",
-            "enum_map": _COMMON_ROUTE_TYPE
-        },
-    }
-
-    _ROUTE_TARGET = {
-        "rt_type": {
-            "ixn_attr": "targetType",
-            "enum_map": _COMMON_ROUTE_TYPE
-        },
-    }
-
     def __init__(self, ngpf):
         super(BgpEvpn, self).__init__()
         self._ngpf = ngpf
         self._peer_class = None
 
     def config(self, bgp_peer, ixn_bgpv4):
-        eth_segments = bgp_peer.get("evpn_ethernet_segments")
-        if eth_segments is None \
-                or len(eth_segments) == 0:
+        eth_segment_info = self.get_symmetric_nodes(
+            [bgp_peer], "evpn_ethernet_segments"
+        )
+        if eth_segment_info.max_len == 0:
             return
         self._peer_class = bgp_peer.__class__.__name__
         if self._peer_class == "BgpV4Peer":
-            ixn_bgpv4["ethernetSegmentsCountV4"] = len(eth_segments)
+            ixn_bgpv4["ethernetSegmentsCountV4"] = eth_segment_info.max_len
             ixn_eth_segments = self.create_property(
                 ixn_bgpv4, "bgpEthernetSegmentV4"
             )
         else:
             raise Exception("TBD")
 
-        self._config_eth_segment(eth_segments, ixn_eth_segments)
-        self._config_evis(eth_segments, ixn_bgpv4, ixn_eth_segments)
+        self._config_eth_segment(eth_segment_info, ixn_eth_segments)
+        self._config_evis(eth_segment_info, ixn_bgpv4, ixn_eth_segments)
 
-    def _config_eth_segment(self, eth_segments, ixn_eth_segments):
-        pass
+    def _config_eth_segment(self, eth_segment_info, ixn_eth_segments):
+        df_election_info = eth_segment_info.get_tab("df_election")
+        ixn_eth_segments["dfElectionTimer"] = df_election_info.get_multivalues(
+            "election_timer"
+        )
 
-    def _config_evis(self, eth_segments, ixn_bgpv4, ixn_eth_segments):
-        vxlan_info = self.get_symmetric_nodes(eth_segments, "evis")
+
+    def _config_evis(self, eth_segment_info, ixn_bgpv4, ixn_eth_segments):
+        vxlan_info = eth_segment_info.get_symmetric_nodes("evis")
         ixn_eth_segments["evisCount"] = vxlan_info.max_len
         if self._peer_class == "BgpV4Peer":
             ixn_xvlan = self.create_node_elemet(

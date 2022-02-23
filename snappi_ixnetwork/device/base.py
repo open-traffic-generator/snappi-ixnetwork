@@ -96,39 +96,6 @@ class Base(object):
                 value = snappi_obj.get(snappi_attr)
             ixn_obj[ixn_attr] = self.multivalue(value)
 
-    def get_group_values(self, nodes, attr_name, enum_map=None):
-        values = []
-        for node in nodes:
-            value = node.get(attr_name)
-            # if value is None:
-            #     value = next(n for n in nodes if n.get(attr_name) is not None)
-            if enum_map is not None:
-                value = enum_map[value]
-            values.append(value)
-        return values
-
-    def get_group_multivalues(self, nodes, attr_name, enum_map=None):
-        return self.multivalue(self.get_group_values(
-            nodes, attr_name, enum_map
-        ))
-
-    def config_group_values(self, snappi_obj_list, ixn_obj, attr_map):
-        for snappi_attr, ixn_map in attr_map.items():
-            if isinstance(ixn_map, dict):
-                ixn_attr = ixn_map.get("ixn_attr")
-                if ixn_attr is None:
-                    raise NameError("ixn_attr is missing within ", ixn_map)
-                enum_map = ixn_map.get("enum_map")
-                values = self.get_group_multivalues(
-                    snappi_obj_list, snappi_attr, enum_map=enum_map
-                )
-            else:
-                ixn_attr = ixn_map
-                values = self.get_group_multivalues(
-                    snappi_obj_list, snappi_attr
-                )
-            ixn_obj[ixn_attr] = values
-
     def get_symmetric_nodes(self, parent_list, node_name):
         nodes_list = []
         max_len = 0
@@ -186,19 +153,35 @@ class NodesInfo(object):
         return self._symmetric_nodes
 
     def get_values(self, attr_name, enum_map=None):
-        return self._base.get_group_values(
-            self._symmetric_nodes, attr_name, enum_map=enum_map
-        )
+        values = []
+        for node in self._symmetric_nodes:
+            value = node.get(attr_name)
+            # if value is None:
+            #     value = next(n for n in nodes if n.get(attr_name) is not None)
+            if enum_map is not None:
+                value = enum_map[value]
+            values.append(value)
+        return values
 
     def get_multivalues(self, attr_name, enum_map=None):
-        return self._base.get_group_multivalues(
-            self._symmetric_nodes, attr_name, enum_map=enum_map
-        )
+        return self._base.multivalue(self.get_values(
+            attr_name, enum_map=enum_map
+        ))
 
     def config_values(self, ixn_obj, attr_map):
-        self._base.config_group_values(
-            self._symmetric_nodes, ixn_obj, attr_map
-        )
+        for snappi_attr, ixn_map in attr_map.items():
+            if isinstance(ixn_map, dict):
+                ixn_attr = ixn_map.get("ixn_attr")
+                if ixn_attr is None:
+                    raise NameError("ixn_attr is missing within ", ixn_map)
+                enum_map = ixn_map.get("enum_map")
+                values = self.get_multivalues(
+                    snappi_attr, enum_map=enum_map
+                )
+            else:
+                ixn_attr = ixn_map
+                values = self.get_multivalues(snappi_attr)
+            ixn_obj[ixn_attr] = values
 
     def get_tab(self, tab_name):
         tab_nodes = [v.get(tab_name) for v in self._symmetric_nodes]
@@ -206,6 +189,11 @@ class NodesInfo(object):
             self._max_len,
             self._active_list,
             tab_nodes
+        )
+
+    def get_symmetric_nodes(self, node_name):
+        return self._base.get_symmetric_nodes(
+            self._symmetric_nodes, node_name
         )
 
     def get_group_nodes(self, tab_name):
