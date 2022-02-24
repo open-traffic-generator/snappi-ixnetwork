@@ -915,15 +915,15 @@ class TrafficItem(CustomField):
                 ind = field_names.index(val)
             except Exception:
                 continue
-            format_type = field_map.get("convert_int_to_hex")
-            format_type = "hex" if format_type is not None else None
-            field = snappi_header.get(field, True)
-            auto_to_def = field_map.get("auto_to_default")
+            format_type = field_map.get("convert_int_to_hex", [])
+            format_type = "hex" if field in format_type else None
+            auto_to_def = field_map.get("auto_to_default", [])
             auto_to_def = (
                 True
-                if auto_to_def is not None and is_raw_traffic is True
+                if field in auto_to_def and is_raw_traffic is True
                 else False
             )
+            field = snappi_header.get(field, True)
             self._config_field_pattern(
                 snappi_field=field,
                 field_json=fields[ind],
