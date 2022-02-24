@@ -56,6 +56,7 @@ class TrafficItem(CustomField):
         "gTPuOptionalFields": "gtpv1option",
         "custom": "custom",
         "vxlan": "vxlan",
+        "ethernetARP": "arp"
     }
 
     _HEADER_TO_TYPE = {
@@ -71,6 +72,7 @@ class TrafficItem(CustomField):
         "gtpv1option": "gTPuOptionalFields",
         "custom": "custom",
         "vxlan": "vxlan",
+        "arp": "ethernetARP"
     }
 
     _BIT_RATE_UNITS_TYPE = {
@@ -142,6 +144,35 @@ class TrafficItem(CustomField):
         "control_op_code": CustomField._process_ethernet_pause,
         "order": ["dst", "src", "ether_type"],
         "convert_int_to_hex": ["ether_type"],
+    }
+
+    _ARP = {
+        "hardware_type": "ethernetARP.header.hardwareType",
+        "protocol_type": "ethernetARP.header.protocolType",
+        "hardware_length": "ethernetARP.header.hardwareAddressLength",
+        "protocol_length": "ethernetARP.header.protocolAddressLength",
+        "operation": "ethernetARP.header.opCode",
+        "sender_hardware_addr": "ethernetARP.header.srcHardwareAddress",
+        "sender_protocol_addr": "ethernetARP.header.srcIP",
+        "target_hardware_addr": "ethernetARP.header.dstHardwareAddress",
+        "target_protocol_addr": "ethernetARP.header.dstIP",
+        "order": [
+            "hardware_type",
+            "protocol_type",
+            "hardware_length",
+            "protocol_length",
+            "operation",
+            "sender_hardware_addr",
+            "sender_protocol_addr",
+            "target_hardware_addr",
+            "target_protocol_addr"
+        ],
+        "convert_int_to_hex": [
+            "hardware_type",
+            "protocol_type",
+            "hardware_length",
+            "protocol_length",
+        ],
     }
 
     _VLAN = {
