@@ -81,6 +81,7 @@ class Api(snappi.Api):
         self._dev_compacted = {}
         self._previous_errors = []
         self._initial_flows_config = None
+        self._flow_tracking = False
 
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
@@ -101,6 +102,9 @@ class Api(snappi.Api):
 
     def enable_scaling(self, do_compact=False):
         self.do_compact = do_compact
+
+    def _enable_flow_tracking(self, _flow_tracking=False):
+        self._flow_tracking = _flow_tracking
 
     @property
     def snappi_config(self):
@@ -915,7 +919,7 @@ class Api(snappi.Api):
                                 "txPortName",
                                 "rxPortNames",
                                 "state",
-                                "name"
+                                "name",
                             ],
                             "filters": [],
                         },
@@ -923,7 +927,7 @@ class Api(snappi.Api):
                             "child": "tracking",
                             "properties": ["trackBy"],
                             "filters": [],
-                        }
+                        },
                     ],
                     "inlines": [],
                 }
