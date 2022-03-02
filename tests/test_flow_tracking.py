@@ -118,7 +118,7 @@ def test_flow_tracking_stats(api, utils):
     api.set_transmit_state(ts)
 
 
-# @pytest.mark.skip(reason="run for 8 ports")
+@pytest.mark.skip(reason="run for 8 ports")
 def test_flow_tracking_stats_8_ports(api):
     config = api.config()
     api._enable_flow_tracking(True)
