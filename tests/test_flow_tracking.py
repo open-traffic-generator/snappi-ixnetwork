@@ -118,7 +118,7 @@ def test_flow_tracking_stats(api, utils):
     api.set_transmit_state(ts)
 
 
-@pytest.mark.skip(reason="run for 8 ports")
+# @pytest.mark.skip(reason="run for 8 ports")
 def test_flow_tracking_stats_8_ports(api):
     config = api.config()
     api._enable_flow_tracking(True)
@@ -134,7 +134,7 @@ def test_flow_tracking_stats_8_ports(api):
     ]
     # ports
     for i in range(8):
-        config.ports.port(name=f"p{i+1}", location=locations[i])
+        config.ports.port(name="p{}".format(i + 1), location=locations[i])
     layer1 = config.layer1.layer1()[-1]
     layer1.port_names = [port.name for port in config.ports]
     layer1.speed = "speed_100_gbps"
@@ -146,28 +146,28 @@ def test_flow_tracking_stats_8_ports(api):
     ports = [port for port in config.ports]
 
     for i in range(1, 9, 2):
-        d = config.devices.device(name=f"Device{i}")[-1]
+        d = config.devices.device(name="Device{}".format(i))[-1]
         eth = d.ethernets.add()
         eth.port_name = ports[i - 1].name
-        eth.name = f"Eth{i}"
-        eth.mac = f"00:02:00:00:00:1{i}"
+        eth.name = "Eth{}".format(i)
+        eth.mac = "00:02:00:00:00:1{}".format(i)
         ip = eth.ipv4_addresses.add()
-        ip.name = f"ip{i}"
-        ip.address = f"10.10.10.{i}"
+        ip.name = "ip{}".format(i)
+        ip.address = "10.10.10.{}".format(i)
         ip.prefix = 32
-        ip.gateway = f"10.10.10.{i+1}"
+        ip.gateway = "10.10.10.{}".format(i + 1)
 
     for i in range(1, 9, 2):
-        d = config.devices.device(name=f"Device{i+1}")[-1]
+        d = config.devices.device(name="Device{}".format(i + 1))[-1]
         eth = d.ethernets.add()
         eth.port_name = ports[i].name
-        eth.name = f"Eth{i+1}"
-        eth.mac = f"00:02:00:00:00:1{i+1}"
+        eth.name = "Eth{}".format(i + 1)
+        eth.mac = "00:02:00:00:00:1{}".format(i + 1)
         ip = eth.ipv4_addresses.add()
-        ip.name = f"ip{i+1}"
-        ip.address = f"10.10.10.{i+1}"
+        ip.name = "ip{}".format(i + 1)
+        ip.address = "10.10.10.{}".format(i + 1)
         ip.prefix = 32
-        ip.gateway = f"10.10.10.{i}"
+        ip.gateway = "10.10.10.{}".format(i)
 
     # traffic
     config.flows.flow(name="Full Mesh Traffic")
