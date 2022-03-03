@@ -96,7 +96,7 @@ class Capture(object):
                     "xpath": vports[port_name]["xpath"] + "/capture",
                     "captureMode": capture_mode,
                     "hardwareEnabled": True,
-                    "softwareEnabled": False,
+                    "softwareEnabled": True,
                 }
                 pallette = {"xpath": capture["xpath"] + "/filterPallette"}
                 filter = {"xpath": capture["xpath"] + "/filter"}
@@ -309,15 +309,32 @@ class Capture(object):
                     % (request.port_name)
                 )
 
-        payload = {"arg1": [self._api._vport.href]}
-        url = "%s/vport/operations/getCaptureInfos" % self._api._ixnetwork.href
-        response = self._api._request("POST", url, payload)
-        file_name = response["result"][0]["arg6"]
-        file_id = response["result"][0]["arg1"]
+        self._api._ixnetwork.SaveCaptureFiles(
+            self._api._ixnetwork.Globals.PersistencePath + "/capture"
+        )
 
-        url = "%s/vport/operations/saveCaptureInfo" % self._api._ixnetwork.href
-        payload = {"arg1": self._api._vport.href, "arg2": file_id}
-        self._api._request("POST", url, payload)
+        cc = (
+            self._api._ixnetwork.Globals.PersistencePath
+            + "/capture/"
+            + self._api._vport.Name
+            + "_HW.cap"
+        )
+        dc = (
+            self._api._ixnetwork.Globals.PersistencePath
+            + "/capture/"
+            + self._api._vport.Name
+            + "_SW.cap"
+        )
+        merged_capture = (
+            self._api._ixnetwork.Globals.PersistencePath
+            + "/capture/"
+            + self._api._vport.Name
+            + ".cap"
+        )
+
+        self._api._ixnetwork.MergeCapture(
+            Arg1=cc, Arg2=dc, Arg3=merged_capture
+        )
 
         url = "{}/vport/operations/releaseCapturePorts".format(
             self._api._ixnetwork.href
@@ -326,10 +343,10 @@ class Capture(object):
         self._api._request("POST", url, payload)
 
         path = "%s/capture" % self._api._ixnetwork.Globals.PersistencePath
-        url = "%s/files?absolute=%s&filename=%s.cap" % (
+        url = "%s/files?absolute=%s&filename=%s" % (
             self._api._ixnetwork.href,
             path,
-            file_name,
+            merged_capture,
         )
         pcap_file_bytes = self._api._request("GET", url)
         return io.BytesIO(pcap_file_bytes)
