@@ -53,8 +53,8 @@ def test():
         (
             '--ports="otg-novus100g.lbj.is.keysight.com;1;1'
             " otg-novus100g.lbj.is.keysight.com;1;2"
-            " otg-novus100g.lbj.is.keysight.com;1;3"
-            ' otg-novus100g.lbj.is.keysight.com;1;4"'
+            " otg-novus100g.lbj.is.keysight.com;1;5"
+            ' otg-novus100g.lbj.is.keysight.com;1;6"'
         ),
         "--ext=ixnetwork",
         "--speed=speed_100_gbps",
