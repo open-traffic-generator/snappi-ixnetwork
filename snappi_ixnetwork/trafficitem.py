@@ -947,13 +947,13 @@ class TrafficItem(CustomField):
             "values": "valueList",
             "increment": "increment",
             "decrement": "decrement",
-            "auto": "auto" if auto_to_default is False else "singleValue",
+            "auto": "auto",
             "generated": "auto",
         }
 
         def get_value(field_value):
-            if choice == "auto" and auto_to_default is False:
-                return "auto"
+            # if choice == "auto" and auto_to_default is False:
+            #     return "auto"
             if format_type is None:
                 return field_value
             if snappi_type == int and format_type == "hex":
@@ -970,10 +970,14 @@ class TrafficItem(CustomField):
         if "_TYPES" in dir(snappi_field):
             snappi_type = snappi_field._TYPES.get("value", {}).get("type")
         field_json["valueType"] = ixn_pattern[choice]
-        if choice in ["value", "values"]:
-            field_json[ixn_pattern[choice]] = get_value(
-                snappi_field.get(choice)
-            )
+
+        if choice in ["value", "values", "auto"]:
+            value = get_value(snappi_field.get(choice))
+            if auto_to_default is True and choice == "auto":
+                choice = "value"
+                field_json["valueType"] = ixn_pattern[choice]
+            field_json[ixn_pattern[choice]] = value
+
         if choice in ["increment", "decrement"]:
             obj = snappi_field.get(choice)
             field_json["startValue"] = get_value(obj.start)
@@ -988,7 +992,7 @@ class TrafficItem(CustomField):
                 # Need to add some logic to generate bad value
                 field_json["value"] = "0001"
         field_json["activeFieldChoice"] = active_field
-        field_json["auto"] = False if choice != "auto" else True
+        field_json["auto"] = True if choice == "auto" else False
         return
 
     def _set_default(self, ixn_field, field_choice):
