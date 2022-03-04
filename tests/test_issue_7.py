@@ -2,13 +2,17 @@ import pytest
 
 
 @pytest.fixture
-def config_v4_devices(api):
+def config_v4_devices(api, utils):
     """Configure bgpv4 devices"""
     config = api.config()
 
-    tx, rx = config.ports.port(name="tx").port(name="rx")
+    tx, rx = config.ports.port(
+        name="tx", location=utils.settings.ports[0]
+    ).port(name="rx", location=utils.settings.ports[1])
 
-    tx_device, rx_device = config.devices.device(name="tx_device").device(name="rx_device")
+    tx_device, rx_device = config.devices.device(name="tx_device").device(
+        name="rx_device"
+    )
 
     # tx_device config
     tx_eth = tx_device.ethernets.add()
@@ -51,9 +55,7 @@ def config_v4_devices(api):
     rx_bgpv4_peer.peer_address = "21.1.1.2"
     rx_bgpv4_peer.as_number = 65200
     rx_rr = rx_bgpv4_peer.v4_routes.add(name="rx_rr")
-    rx_rr.addresses.add(
-        count=1000, address="200.1.0.1", prefix=32
-    )
+    rx_rr.addresses.add(count=1000, address="200.1.0.1", prefix=32)
 
     # flow config
     flow = config.flows.flow(name="convergence_test")[-1]
@@ -63,14 +65,18 @@ def config_v4_devices(api):
     api.set_config(config)
 
 
-def test_issue_7(api, config_v4_devices):
+def test_issue_7(api, config_v4_devices, utils):
     """This unit test to validate the fixes provided for the issue
     https://github.com/open-traffic-generator/snappi-convergence/issues/7"""
     config = api.config()
 
-    tx, rx = config.ports.port(name="tx").port(name="rx")
+    tx, rx = config.ports.port(
+        name="tx", location=utils.settings.ports[0]
+    ).port(name="rx", location=utils.settings.ports[1])
 
-    tx_device, rx_device = config.devices.device(name="tx_device").device(name="rx_device")
+    tx_device, rx_device = config.devices.device(name="tx_device").device(
+        name="rx_device"
+    )
 
     # tx_device config
     tx_eth = tx_device.ethernets.add()
@@ -112,9 +118,7 @@ def test_issue_7(api, config_v4_devices):
     rx_bgpv6_peer.peer_address = "2000::1"
     rx_bgpv6_peer.as_number = 65200
     rx6_rr = rx_bgpv6_peer.v6_routes.add(name="rx6_rr")
-    rx6_rr.addresses.add(
-        count=1000, address="3000::1", prefix=64
-    )
+    rx6_rr.addresses.add(count=1000, address="3000::1", prefix=64)
 
     # flow config
     flow = config.flows.flow(name="convergence_test")[-1]
