@@ -46,7 +46,8 @@ def test():
     #         '--media="fiber"',
     #         "tests",
     #         '-m "not e2e and not l1_manual"',
-    #         '--cov=./snappi_ixnetwork --cov-report term --cov-report html:cov_report',
+    #         '--cov=./snappi_ixnetwork --cov-report term'
+    #         ' --cov-report html:cov_report',
     #     ]
     args = [
         '--location="https://otg-novus100g.lbj.is.keysight.com:5000"',
@@ -60,7 +61,8 @@ def test():
         "--speed=speed_100_gbps",
         "tests",
         '-m "not e2e and not l1_manual"',
-        "--cov=./snappi_ixnetwork --cov-report term --cov-report html:cov_report",
+        "--cov=./snappi_ixnetwork --cov-report term"
+        " --cov-report html:cov_report",
     ]
     run(
         [
@@ -225,9 +227,9 @@ def run(commands):
     try:
         for cmd in commands:
             print(cmd)
-            subprocess.check_call(
-                cmd.encode("utf-8", errors="ignore"), shell=True
-            )
+            if sys.platform != "win32":
+                cmd = cmd.encode("utf-8", errors="ignore")
+            subprocess.check_call(cmd, shell=True)
     except Exception:
         sys.exit(1)
 
