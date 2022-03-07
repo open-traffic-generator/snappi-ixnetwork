@@ -135,6 +135,8 @@ class TrafficItem(CustomField):
         "pfc_queue": "ethernet.header.pfcQueue",
         "order": ["dst", "src", "ether_type", "pfc_queue"],
         "convert_int_to_hex": ["ether_type"],
+        # sets to default only when traffic type is `Raw`
+        "auto_to_default": ["src", "dst"],
     }
 
     _ETHERNETPAUSE = {
@@ -244,6 +246,7 @@ class TrafficItem(CustomField):
             "src",
             "dst",
         ],
+        "auto_to_default": ["src", "dst"],
     }
 
     _IPV6 = {
@@ -625,7 +628,9 @@ class TrafficItem(CustomField):
                 stack_name,
                 i + 1,
             )
-            self._append_header(header, header_xpath, config_elem["stack"])
+            self._append_header(
+                header, header_xpath, config_elem["stack"], is_raw_traffic=True
+            )
         return [config_elem]
 
     def _get_mesh_type(self, flow):
@@ -852,6 +857,7 @@ class TrafficItem(CustomField):
         stacks,
         insert_header=False,
         header_index=None,
+        is_raw_traffic=False,
     ):
         field_map = getattr(self, "_%s" % snappi_header.parent.choice.upper())
         stack_name = self._HEADER_TO_TYPE.get(snappi_header.parent.choice)
@@ -867,7 +873,7 @@ class TrafficItem(CustomField):
         if field_map.get("order") is not None:
             fields = self._generate_fields(field_map, xpath)
             header["field"] = self._configure_stack_fields(
-                fields, snappi_header, stacks
+                fields, snappi_header, stacks, is_raw_traffic
             )
             header["field"] = (
                 [] if header["field"] is None else header["field"]
@@ -883,7 +889,9 @@ class TrafficItem(CustomField):
             fields.append({"xpath": "%s/field[@alias = '%s']" % (xpath, fmap)})
         return fields
 
-    def _configure_stack_fields(self, ixn_fields, snappi_header, stacks):
+    def _configure_stack_fields(
+        self, ixn_fields, snappi_header, stacks, is_raw_traffic=False
+    ):
         fields = [{"xpath": f["xpath"]} for f in ixn_fields]
         field_names = [
             f["xpath"].split(" = ")[-1].strip("']").split("-")[0]
@@ -907,21 +915,34 @@ class TrafficItem(CustomField):
                 ind = field_names.index(val)
             except Exception:
                 continue
-            if (
-                field_map.get("convert_int_to_hex") is not None
-                and field in field_map["convert_int_to_hex"]
-            ):
-                format_type = "hex"
+            format_type = field_map.get("convert_int_to_hex", [])
+            format_type = "hex" if field in format_type else None
+            auto_to_def = field_map.get("auto_to_default", [])
+            auto_to_def = (
+                True
+                if field in auto_to_def and is_raw_traffic is True
+                else False
+            )
             field = snappi_header.get(field, True)
-            self._config_field_pattern(field, fields[ind], format_type)
+            self._config_field_pattern(
+                snappi_field=field,
+                field_json=fields[ind],
+                format_type=format_type,
+                auto_to_default=auto_to_def,
+            )
         return fields
 
     def _config_field_pattern(
-        self, snappi_field, field_json, format_type=None, active_field=False
+        self,
+        snappi_field,
+        field_json,
+        format_type=None,
+        active_field=False,
+        auto_to_default=False,
     ):
         if snappi_field is None:
             return
-        ixn_patt = {
+        ixn_pattern = {
             "value": "singleValue",
             "values": "valueList",
             "increment": "increment",
@@ -931,6 +952,8 @@ class TrafficItem(CustomField):
         }
 
         def get_value(field_value):
+            # if choice == "auto" and auto_to_default is False:
+            #     return "auto"
             if format_type is None:
                 return field_value
             if snappi_type == int and format_type == "hex":
@@ -944,14 +967,17 @@ class TrafficItem(CustomField):
         if choice is None:
             return
         snappi_type = None
-        if (
-            "_TYPES" in dir(snappi_field)
-            and snappi_field._TYPES.get("value") is not None
-        ):
-            snappi_type = snappi_field._TYPES["value"]["type"]
-        field_json["valueType"] = ixn_patt[choice]
-        if choice in ["value", "values"]:
-            field_json[ixn_patt[choice]] = get_value(snappi_field.get(choice))
+        if "_TYPES" in dir(snappi_field):
+            snappi_type = snappi_field._TYPES.get("value", {}).get("type")
+        field_json["valueType"] = ixn_pattern[choice]
+
+        if choice in ["value", "values", "auto"]:
+            value = get_value(snappi_field.get(choice))
+            if auto_to_default is True and choice == "auto":
+                choice = "value"
+                field_json["valueType"] = ixn_pattern[choice]
+            field_json[ixn_pattern[choice]] = value
+
         if choice in ["increment", "decrement"]:
             obj = snappi_field.get(choice)
             field_json["startValue"] = get_value(obj.start)
@@ -966,7 +992,7 @@ class TrafficItem(CustomField):
                 # Need to add some logic to generate bad value
                 field_json["value"] = "0001"
         field_json["activeFieldChoice"] = active_field
-        field_json["auto"] = False if choice != "auto" else True
+        field_json["auto"] = True if choice == "auto" else False
         return
 
     def _set_default(self, ixn_field, field_choice):

@@ -3,7 +3,8 @@ __pycache__/
 .pytype/
 *.pyc
 
-*env/
+.env/
+env/
 build/
 dist/
 *.egg-info/
@@ -13,3 +14,5 @@ dist/
 *.cap
 logs/
 scratch/
+.coverage
+cov_report
