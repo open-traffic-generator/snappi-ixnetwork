@@ -222,8 +222,8 @@ class Api(snappi.Api):
     def config_ixnetwork(self, config):
         self._config_objects = {}
         self._device_encap = {}
-        self.ixn_objects = IxNetObjects()
-        self.ixn_routes = IxNetObjects()
+        self.ixn_objects = IxNetObjects(self)
+        self.ixn_routes = IxNetObjects(self)
         self._dev_compacted = {}
         self._connect()
         self.capture.reset_capture_request()
