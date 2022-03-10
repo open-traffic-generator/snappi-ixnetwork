@@ -62,3 +62,8 @@ jobs:
           artifacts: "dist/*"
           tag: ${{ steps.get_version.outputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
+  snappitest_cicd:
+    runs-on: [self-hosted, Linux, Ubuntu, x64]
+    needs: cicd
+    steps:
+      - uses: snappi-tests/.github/workflows/cicd.yml@main
