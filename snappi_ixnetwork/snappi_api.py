@@ -642,6 +642,20 @@ class Api(snappi.Api):
         self._initial_flows_config = self.config().flows.deserialize(
             config.flows.serialize(config.flows.DICT)
         )
+
+        if "UHD" in self._ixnetwork.Globals.ProductVersion:
+            chassis_info = "localuhd"
+            for port in config.ports:
+                if port.location is None:
+                    continue
+                if ";" in port.location:
+                    (_, _, port_info) = port.location.split(";")
+                elif "/" in port.location:
+                    (_, port_info) = port.location.split("/")
+                else:
+                    # throw exception
+                    continue
+                port.location = chassis_info + "/" + port_info
         return config
 
     def _apply_change(self):
