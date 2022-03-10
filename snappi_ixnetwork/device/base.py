@@ -66,6 +66,11 @@ class Base(object):
             value = enum[value]
         return MultiValue(value)
 
+    def as_multivalue(self, snappi_obj, name, enum=None):
+        return self.multivalue(
+            snappi_obj.get(name), enum
+        )
+
     def post_calculated(self, key, ref_ixnobj=None, ixnobj=None):
         return PostCalculated(
             key, ref_ixnobj, ixnobj
