@@ -68,5 +68,5 @@ jobs:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     needs: cicd
     steps:
-      #- uses: actions/checkout@v2
-      - uses: open-traffic-generator-snappi-tests/.github/workflows/cicd.yml@main
+      - uses: actions/upload-artifact@v2
+      - uses: ./snappi-tests/.github/workflows/cicd.yml@main
