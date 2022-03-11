@@ -67,6 +67,5 @@ jobs:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     needs: cicd
     steps:
-      - name: Run Snappi-tests
       - uses: actions/checkout@v2
       - uses: ./snappi-tests/.github/workflows/cicd.yml@main
