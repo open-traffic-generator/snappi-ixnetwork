@@ -17,7 +17,7 @@ def test_uhd_port_locations():
         location="localuhd/a", name="p2"
     )
     api._validate_instance(config)
-    assert port[0].location == "localuhd/c"
+    assert port[0].location == "localuhd/b.c"
     assert port[1].location == "localuhd/a"
 
 

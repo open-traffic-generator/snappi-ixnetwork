@@ -17,9 +17,11 @@ def test_uhd_global_pause(api, b2b_raw_config_vports, utils):
     api.set_config(b2b_raw_config_vports)
 
     attrs = {
-        "Destination MAC Address": "01:80:c2:00:00:01",
-        "Source MAC Address": "00:ab:bc:ab:bc:ab",
-        "Ethernet-Type": "8808",
+        "Destination address": "01:80:c2:00:00:01",
+        "Source address": "00:ab:bc:ab:bc:ab",
+        "Ethertype": "8808",
+        "Control opcode": "1",
+        "PAUSE Quanta": "ffff",
     }
     utils.validate_config(api, "f1", 0, **attrs)
 
@@ -33,13 +35,14 @@ def test_uhd_global_pause(api, b2b_raw_config_vports, utils):
     api.set_config(b2b_raw_config_vports)
 
     attrs = {
-        "Destination MAC Address": (
+        "Destination address": (
             "01:80:c2:00:00:01",
             "00:00:00:01:00:00",
             "10",
         ),
-        "Source MAC Address": ("00:ab:bc:ab:bc:ab", "00:00:00:01:00:00", "10"),
-        "Ethernet-Type": "8808",
-        "PFC Queue": "0",
+        "Source address": ("00:ab:bc:ab:bc:ab", "00:00:00:01:00:00", "10"),
+        "Ethertype": "8808",
+        "Control opcode": "1",
+        "PAUSE Quanta": "ffff",
     }
     utils.validate_config(api, "f1", 0, **attrs)

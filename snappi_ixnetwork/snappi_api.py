@@ -649,12 +649,12 @@ class Api(snappi.Api):
                 if port.location is None:
                     continue
                 if ";" in port.location:
-                    (_, _, port_info) = port.location.split(";")
+                    (_, card, port_info) = port.location.split(";")
+                    port_info = "{}.{}".format(card, port_info)
                 elif "/" in port.location:
                     (_, port_info) = port.location.split("/")
                 else:
-                    # throw exception
-                    continue
+                    raise SnappiIxnException(400, "port location is not valid")
                 port.location = chassis_info + "/" + port_info
         return config
 
