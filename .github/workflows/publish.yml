@@ -65,6 +65,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
   snappitest_cicd:
     uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@main
+    #
     #runs-on: [self-hosted, Linux, Ubuntu, x64]
     #needs: cicd
     #steps:
