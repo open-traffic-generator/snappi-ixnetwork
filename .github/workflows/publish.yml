@@ -11,7 +11,8 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        python-version: [python27, python38]
+        #python-version: [python27, python38]
+        python-version: [python38]
 
     steps:
       - name: Checkout source
@@ -66,4 +67,4 @@ jobs:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     needs: cicd
     steps:
-      - uses: snappi-tests/.github/workflows/cicd.yml@main
+      - uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@main
