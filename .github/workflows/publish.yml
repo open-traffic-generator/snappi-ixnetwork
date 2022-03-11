@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 jobs:
   cicd:
@@ -67,4 +68,5 @@ jobs:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     needs: cicd
     steps:
-      - uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@main
+      - name: Run Snappi tests
+        uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@main
