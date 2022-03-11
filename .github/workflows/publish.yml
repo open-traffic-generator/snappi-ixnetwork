@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_call:
 
 jobs:
   build:
@@ -71,5 +70,5 @@ jobs:
     needs: cicd
     steps:
       - name: Run Snappi-tests
-        with:
-          path: build/
+        run: |
+          build/
