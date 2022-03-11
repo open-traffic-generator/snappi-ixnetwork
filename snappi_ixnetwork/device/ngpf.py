@@ -60,7 +60,6 @@ class Ngpf(Base):
 
     def set_device_info(self, snappi_obj, ixn_obj):
         name = snappi_obj.get("name")
-        print("+++++++ ", name)
         class_name = snappi_obj.__class__.__name__
         try:
             encap = Ngpf._DEVICE_ENCAP_MAP[class_name]
@@ -95,7 +94,7 @@ class Ngpf(Base):
         ixn_topos = self.create_node(self._ixn_config, "topology")
         self._configure_device_group(ixn_topos)
 
-        # We need to configure all interface before
+        # We need to configure all interface before configure protocols
         for device in self.api.snappi_config.devices:
             self.working_dg = self.api.ixn_objects.get_working_dg(device.name)
             self._bgp.config(device)
@@ -137,8 +136,6 @@ class Ngpf(Base):
         if len(erros) > 0:
             return
         ixn_cnf = json.dumps(self._ixn_config, indent=2)
-        print("Final Config:")
-        print(ixn_cnf)
         errata = self._resource_manager.ImportConfig(
             ixn_cnf, False
         )
