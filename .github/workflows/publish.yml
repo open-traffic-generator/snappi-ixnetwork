@@ -38,9 +38,9 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py install
           ${{steps.path.outputs.pythonv}} do.py init
-      - name: Run tests
-        run: |
-          ${{steps.path.outputs.pythonv}} do.py test
+      #- name: Run tests
+      #  run: |
+      #    ${{steps.path.outputs.pythonv}} do.py test
       - name: Get package version
         id: get_version
         run: |
@@ -67,4 +67,6 @@ jobs:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     needs: cicd
     steps:
+      - name: Run Snappi-tests
+      - uses: actions/checkout@v2
       - uses: ./snappi-tests/.github/workflows/cicd.yml@main
