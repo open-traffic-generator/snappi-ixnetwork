@@ -6,8 +6,6 @@ on:
   pull_request:
 
 jobs:
-  build:
-    uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@main
   cicd:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     strategy:
@@ -69,6 +67,4 @@ jobs:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     needs: cicd
     steps:
-      - name: Run Snappi-tests
-        run: |
-          build/
+      - uses: ./snappi-tests/.github/workflows/cicd.yml@main
