@@ -67,3 +67,5 @@ jobs:
     name: Run Snappi-tests after snappi-ixnetwork
     needs: cicd
     uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
+    with:
+      event_type: sample_push
