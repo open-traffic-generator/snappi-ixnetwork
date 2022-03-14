@@ -92,13 +92,20 @@ class Ngpf(Base):
         self.stop_topology()
         self.api._remove(self.api._topology, [])
         ixn_topos = self.create_node(self._ixn_config, "topology")
-        self._configure_device_group(ixn_topos)
+        ixn_parent_dgs = self._configure_device_group(ixn_topos)
 
         # We need to configure all interface before configure protocols
         for device in self.api.snappi_config.devices:
             self.working_dg = self.api.ixn_objects.get_working_dg(device.name)
             self._bgp.config(device)
 
+        # First compact all loopback interfaces
+        for ix_parent_dg in ixn_parent_dgs:
+            self.compactor.compact(ix_parent_dg.get(
+                "deviceGroup"
+            ))
+
+        # Finally compact primary DGs
         for ixn_topo in self._ixn_topo_objects.values():
             self.compactor.compact(ixn_topo.get(
                 "deviceGroup"
@@ -128,7 +135,7 @@ class Ngpf(Base):
                 self._ethernet.config(ethernet, ixn_dg)
 
         # Create all ethernet before start loopback
-        self._loop_back.config()
+        return self._loop_back.config()
 
 
     def _pushixnconfig(self):

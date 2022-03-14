@@ -16,10 +16,7 @@ class LoopbackInt(Base):
             ipv6_loopbacks = device.get("ipv6_loopbacks")
             if ipv6_loopbacks is not None:
                 self._config_ipv6_loopbacks(ipv6_loopbacks, device)
-        for ix_parent_dg in self._ixn_parent_dgs:
-            self._ngpf.compactor.compact(ix_parent_dg.get(
-                "deviceGroup"
-            ))
+        return self._ixn_parent_dgs
 
     def _create_dg(self, loop_back, device):
         eth_name = loop_back.get("eth_name")
