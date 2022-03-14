@@ -56,13 +56,14 @@ class TrafficItem(CustomField):
         "gTPuOptionalFields": "gtpv1option",
         "custom": "custom",
         "vxlan": "vxlan",
-        "ethernetARP": "arp"
+        "ethernetARP": "arp",
     }
 
     _HEADER_TO_TYPE = {
         "ethernet": "ethernet",
         "pfcpause": "pfcPause",
         "ethernetpause": "ethernet",
+        "ethernetpauseUHD": "globalPause",
         "vlan": "vlan",
         "ipv4": "ipv4",
         "ipv6": "ipv6",
@@ -72,7 +73,17 @@ class TrafficItem(CustomField):
         "gtpv1option": "gTPuOptionalFields",
         "custom": "custom",
         "vxlan": "vxlan",
-        "arp": "ethernetARP"
+        "arp": "ethernetARP",
+    }
+
+    _ETHERNETPAUSEUHD = {
+        "dst": "globalPause.header.header.dstAddress",
+        "src": "globalPause.header.header.srcAddress",
+        "ether_type": "globalPause.header.header.ethertype",
+        "control_op_code": "globalPause.header.macControl.controlOpcode",
+        "time": "globalPause.header.macControl.pfcQueue0",
+        "order": ["dst", "src", "ether_type", "control_op_code", "time"],
+        "convert_int_to_hex": ["ether_type", "time"],
     }
 
     _BIT_RATE_UNITS_TYPE = {
@@ -167,7 +178,7 @@ class TrafficItem(CustomField):
             "sender_hardware_addr",
             "sender_protocol_addr",
             "target_hardware_addr",
-            "target_protocol_addr"
+            "target_protocol_addr",
         ],
         "convert_int_to_hex": [
             "hardware_type",
@@ -622,7 +633,9 @@ class TrafficItem(CustomField):
         ce_path = "%s/configElement[1]" % xpath
         config_elem = {"xpath": ce_path, "stack": []}
         for i, header in enumerate(packet):
-            stack_name = self._HEADER_TO_TYPE.get(header.parent.choice)
+            stack_name = self._HEADER_TO_TYPE.get(
+                self._getUhdHeader(header.parent.choice)
+            )
             header_xpath = "%s/stack[@alias = '%s-%d']" % (
                 ce_path,
                 stack_name,
@@ -800,6 +813,8 @@ class TrafficItem(CustomField):
         return {"tracking": tracking}
 
     def _configure_options(self):
+        if self.isUhd is True:
+            return
         enable_min_frame_size = False
         for flow in self._config.flows:
             if (
@@ -835,7 +850,9 @@ class TrafficItem(CustomField):
                 else:
                     stack_names.append(choice)
         for index, stack in enumerate(stack_names):
-            ixn_header_name = self._HEADER_TO_TYPE.get(stack)
+            ixn_header_name = self._HEADER_TO_TYPE.get(
+                self._getUhdHeader(stack)
+            )
             if ixn_header_name is None:
                 msg = "%s ixia header is not mapped" % ixn_header_name
                 raise SnappiIxnException("400", msg)
@@ -859,8 +876,13 @@ class TrafficItem(CustomField):
         header_index=None,
         is_raw_traffic=False,
     ):
-        field_map = getattr(self, "_%s" % snappi_header.parent.choice.upper())
-        stack_name = self._HEADER_TO_TYPE.get(snappi_header.parent.choice)
+        field_map = getattr(
+            self,
+            "_%s" % (self._getUhdHeader(snappi_header.parent.choice).upper()),
+        )
+        stack_name = self._HEADER_TO_TYPE.get(
+            self._getUhdHeader(snappi_header.parent.choice)
+        )
         if stack_name is None:
             raise NotImplementedError(
                 "%s stack is not implemented" % snappi_header.parent.choice
@@ -889,6 +911,15 @@ class TrafficItem(CustomField):
             fields.append({"xpath": "%s/field[@alias = '%s']" % (xpath, fmap)})
         return fields
 
+    @property
+    def isUhd(self):
+        return "UHD" in self._api._ixnetwork.Globals.ProductVersion
+
+    def _getUhdHeader(self, header=None):
+        if self.isUhd is True and header == "ethernetpause":
+            return header + "UHD"
+        return header
+
     def _configure_stack_fields(
         self, ixn_fields, snappi_header, stacks, is_raw_traffic=False
     ):
@@ -897,7 +928,10 @@ class TrafficItem(CustomField):
             f["xpath"].split(" = ")[-1].strip("']").split("-")[0]
             for f in ixn_fields
         ]
-        field_map = getattr(self, "_%s" % snappi_header.parent.choice.upper())
+        field_map = getattr(
+            self,
+            "_%s" % (self._getUhdHeader(snappi_header.parent.choice).upper()),
+        )
         for field in snappi_header._TYPES:
             format_type = None
             try:
