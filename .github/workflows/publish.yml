@@ -42,10 +42,10 @@ jobs:
       #- name: Run tests
       #  run: |
       #    ${{steps.path.outputs.pythonv}} do.py test
-      #- name: Get package version
-      #  id: get_version
-      #  run: |
-      #    echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
+      - name: Get package version
+        id: get_version
+        run: |
+          echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
       - name: Check tag for current version
         uses: mukunku/tag-exists-action@v1.0.0
         id: check_tag
@@ -55,7 +55,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish package
         run: |
-          echo "tag output: ${{matrix.python-version}}"
+          echo "tag output: ${{matrix.python-version}} ${{steps.check_tag.outputs}}"
         #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
         #run: |
         #  PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
