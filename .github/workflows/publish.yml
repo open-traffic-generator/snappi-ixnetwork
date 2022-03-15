@@ -44,25 +44,29 @@ jobs:
       #- name: Run tests
       #  run: |
       #    ${{steps.path.outputs.pythonv}} do.py test
-      - name: Get package version
-        id: get_version
-        run: |
-          echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
+      #- name: Get package version
+      #  id: get_version
+      #  run: |
+      #    echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
       - name: Check tag for current version
-        uses: mukunku/tag-exists-action@v1.0.0
-        id: check_tag
-        with:
-          tag: ${{ steps.get_version.outputs.version }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish package
-        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        run: |
-          echo "new version created"
-        #run: |
-        #  PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
+          tag_created: true
+        #uses: mukunku/tag-exists-action@v1.0.0
+        #id: check_tag
+        #with:
+        #  tag: ${{ steps.get_version.outputs.version }}
+        #env:
+        #  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #- name: Publish package
+      #  #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+      #  if: ${{env.tag_created == true}}
+      #  run: |
+      #    echo "new version created"
+      #  #run: |
+      #  #  PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
       - name: Create release and publish artifacts
-        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+        #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+        if: ${{env.tag_created == true}}
         env:
           release_triggered: true
         #uses: ncipollo/release-action@v1
