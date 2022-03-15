@@ -81,6 +81,5 @@ jobs:
         #  token: ${{ secrets.GITHUB_TOKEN }}
   snappitest_cicd:
     name: Run Snappi-tests after snappi-ixnetwork
-    if: ${{cicd.steps.release.env.release_triggered == true}}
-    needs: cicd
+    if: ${{needs.cicd.steps.release.env.release_triggered == true}}
     uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
