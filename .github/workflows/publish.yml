@@ -70,11 +70,11 @@ jobs:
       - name: Create release and publish artifacts
         id: release
         #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        if: ${{steps.check_tags.env.tag_created == 'true'}}
-        env:
-          release_triggered: true
+        #if: ${{steps.check_tags.env.tag_created == 'true'}}
+        #env:
+        #  release_triggered: true
         run: |
-          echo "new release created ${{env.release_triggered}}"
+          echo "new release created ${{steps.check_tags.env.tag_created}}"
         #uses: ncipollo/release-action@v1
         #with:
         #  artifacts: "dist/*"
