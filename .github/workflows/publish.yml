@@ -73,7 +73,7 @@ jobs:
         env:
           release_triggered: true
         run: |
-          echo "new release created ${{tag_created}}"
+          echo "new release created ${{env.tag_created}} ${{env.release_triggered}}"
         #uses: ncipollo/release-action@v1
         #with:
         #  artifacts: "dist/*"
