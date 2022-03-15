@@ -50,7 +50,7 @@ jobs:
       #    echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
       - name: Check tag for current version
         env:
-          tag_created: true
+          tag_created: "true"
         run: |
           echo "new version created"
         #uses: mukunku/tag-exists-action@v1.0.0
@@ -69,11 +69,11 @@ jobs:
       - name: Create release and publish artifacts
         id: release
         #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        if: ${{env.tag_created == true}}
+        if: ${{env.tag_created == "true"}}
         env:
-          release_triggered: true
+          release_triggered: "true"
         run: |
-          echo "new release created"
+          echo "new release created ${{tag_created}}"
         #uses: ncipollo/release-action@v1
         #with:
         #  artifacts: "dist/*"
@@ -81,5 +81,5 @@ jobs:
         #  token: ${{ secrets.GITHUB_TOKEN }}
   snappitest_cicd:
     name: Run Snappi-tests after snappi-ixnetwork
-    if: ${{needs.cicd.steps.release.env.release_triggered == true}}
+    if: ${{needs.cicd.steps.release.env.release_triggered == "true"}}
     uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
