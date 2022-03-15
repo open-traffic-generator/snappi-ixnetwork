@@ -71,3 +71,4 @@ jobs:
         with:
           repository: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
           event-type: event-demo
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
