@@ -79,11 +79,7 @@ jobs:
         #  tag: ${{ steps.get_version.outputs.version }}
         #  token: ${{ secrets.GITHUB_TOKEN }}
   snappitest_cicd:
-    runs-on: [self-hosted, Linux, Ubuntu, x64]
+    name: Run Snappi-tests after snappi-ixnetwork
     needs: cicd
-    steps:
-      - name: Run Snappi-tests after snappi-ixnetwork
-        run: |
-          echo ${{ needs.cicd.steps.release.outputs.release_triggered}}
-    #if: ${{ needs.cicd.steps.release.env.release_triggered == 'true' }}
-    #uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
+    if: needs.cicd.steps.release.outputs.release_triggered == 'true'
+    uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
