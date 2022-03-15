@@ -49,6 +49,7 @@ jobs:
       #  run: |
       #    echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
       - name: Check tag for current version
+        id: check_tag
         env:
           tag_created: true
         run: |
@@ -69,11 +70,11 @@ jobs:
       - name: Create release and publish artifacts
         id: release
         #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        if: ${{env.tag_created == 'true'}}
+        if: ${{steps.check_tags.env.tag_created == 'true'}}
         env:
           release_triggered: true
         run: |
-          echo "new release created ${{env.tag_created}} ${{env.release_triggered}}"
+          echo "new release created ${{env.release_triggered}}"
         #uses: ncipollo/release-action@v1
         #with:
         #  artifacts: "dist/*"
