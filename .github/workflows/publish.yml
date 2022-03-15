@@ -51,7 +51,8 @@ jobs:
       - name: Check tag for current version
         id: check_tag
         run: |
-          echo "::set-env name=tag_created::true"
+          export tag_created=true
+          echo "::set-env name=tag_created::$tag_created"
         #uses: mukunku/tag-exists-action@v1.0.0
         #id: check_tag
         #with:
