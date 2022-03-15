@@ -51,6 +51,8 @@ jobs:
       - name: Check tag for current version
         env:
           tag_created: true
+        run: |
+          echo "new version created"
         #uses: mukunku/tag-exists-action@v1.0.0
         #id: check_tag
         #with:
@@ -69,6 +71,8 @@ jobs:
         if: ${{env.tag_created == true}}
         env:
           release_triggered: true
+        run: |
+          echo "new release created"
         #uses: ncipollo/release-action@v1
         #with:
         #  artifacts: "dist/*"
