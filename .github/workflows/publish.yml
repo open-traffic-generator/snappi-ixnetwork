@@ -55,7 +55,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish package
         run: |
-          echo "tag output: ${{steps.check_tag.outputs}}"
+          echo "tag output: ${{matrix.python-version}}"
         #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
         #run: |
         #  PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
