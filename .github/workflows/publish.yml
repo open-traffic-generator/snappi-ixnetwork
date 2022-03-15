@@ -52,7 +52,7 @@ jobs:
         id: check_tag
         run: |
           export tag_created=true
-          echo "::set-env name=tag_created::$tag_created"
+          echo "::set-output name=tag_created::$tag_created"
         #uses: mukunku/tag-exists-action@v1.0.0
         #id: check_tag
         #with:
