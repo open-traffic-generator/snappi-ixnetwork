@@ -71,7 +71,8 @@ jobs:
         #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
         if: steps.check_tag.outputs.tag_created == 'true'
         run: |
-          echo "hello"
+          export release_triggered=true
+          echo "::set-output name=release_triggered::$release_triggered"
         #uses: ncipollo/release-action@v1
         #with:
         #  artifacts: "dist/*"
@@ -83,6 +84,6 @@ jobs:
     steps:
       - name: Run Snappi-tests after snappi-ixnetwork
         run: |
-          echo ${{ needs.cicd.steps.release.env.release_triggered}}
+          echo ${{ needs.cicd.steps.release.outputs.release_triggered}}
     #if: ${{ needs.cicd.steps.release.env.release_triggered == 'true' }}
     #uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
