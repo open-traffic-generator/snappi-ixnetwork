@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   cicd:
@@ -15,57 +16,57 @@ jobs:
         python-version: [python38]
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ env.BASE_BRANCH }}
-          # ref: ${{ github.head_ref }}
-          submodules: recursive
-      - name: Set python path
-        id: path
-        run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
-      - name: Install dependencies
-        run: |
-          rm -rf .env
-          ${{steps.path.outputs.pythonv}} do.py setup
-          ${{steps.path.outputs.pythonv}} do.py init
-      - name: Build distribution
-        run: |
-          ${{steps.path.outputs.pythonv}} do.py dist
-      - name: Install package on clean env
-        run: |
-          rm -rf .env
-          ${{steps.path.outputs.pythonv}} do.py setup
-          ${{steps.path.outputs.pythonv}} do.py install
-          ${{steps.path.outputs.pythonv}} do.py init
+      #- name: Checkout source
+      #  uses: actions/checkout@v2
+      #  with:
+      #    ref: ${{ env.BASE_BRANCH }}
+      #    # ref: ${{ github.head_ref }}
+      #    submodules: recursive
+      #- name: Set python path
+      #  id: path
+      #  run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
+      #- name: Install dependencies
+      #  run: |
+      #    rm -rf .env
+      #    ${{steps.path.outputs.pythonv}} do.py setup
+      #    ${{steps.path.outputs.pythonv}} do.py init
+      #- name: Build distribution
+      #  run: |
+      #    ${{steps.path.outputs.pythonv}} do.py dist
+      #- name: Install package on clean env
+      #  run: |
+      #    rm -rf .env
+      #    ${{steps.path.outputs.pythonv}} do.py setup
+      #    ${{steps.path.outputs.pythonv}} do.py install
+      #    ${{steps.path.outputs.pythonv}} do.py init
       #- name: Run tests
       #  run: |
       #    ${{steps.path.outputs.pythonv}} do.py test
-      - name: Get package version
-        id: get_version
-        run: |
-          echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
-      - name: Check tag for current version
-        uses: mukunku/tag-exists-action@v1.0.0
-        id: check_tag
+      #- name: Get package version
+      #  id: get_version
+      #  run: |
+      #    echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
+      #- name: Check tag for current version
+      #  uses: mukunku/tag-exists-action@v1.0.0
+      #  id: check_tag
+      #  with:
+      #    tag: ${{ steps.get_version.outputs.version }}
+      #  env:
+      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #- name: Publish package
+      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+      #  run: |
+      #    PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
+      #- name: Create release and publish artifacts
+      #  id: release
+      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+      #  uses: ncipollo/release-action@v1
+      #  with:
+      #    artifacts: "dist/*"
+      #    tag: ${{ steps.get_version.outputs.version }}
+      #    token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Snappi_test repo dispatch
+        uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
+        #if: ${{ steps.release.outputs.proceed}}
         with:
-          tag: ${{ steps.get_version.outputs.version }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish package
-        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        run: |
-          PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
-      - name: Create release and publish artifacts
-        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "dist/*"
-          tag: ${{ steps.get_version.outputs.version }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-  snappitest_cicd:
-    name: Run Snappi-tests after snappi-ixnetwork
-    needs: cicd
-    uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
-    with:
-      event_type: sample_push
+          event-type: event-demo
