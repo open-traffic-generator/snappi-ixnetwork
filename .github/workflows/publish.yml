@@ -69,6 +69,7 @@ jobs:
         uses: peter-evans/repository-dispatch@v1.1.3
         #if: ${{ steps.release.outputs.proceed}}
         with:
+          token: ${{ secrets.ACCESS_TOKEN }}
           repository: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
           event-type: event-demo
           client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
