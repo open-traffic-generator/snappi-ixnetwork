@@ -20,6 +20,7 @@ class Ngpf(Base):
         "BgpV4RouteRange": "ipv4",
         "BgpV6RouteRange": "ipv6",
         "DeviceIpv4Loopback": "ipv4",
+        "DeviceIpv6Loopback": "ipv6",
     }
 
     _ROUTE_STATE = {

@@ -44,25 +44,49 @@ def test_loopback_interface(b2b_raw_config, api):
     loop3.eth_name, loop4.eth_name = eth1.name, eth2.name
     loop3.address, loop4.address = "20.20.0.3", "20.20.0.4"
 
+    loop5, loop6 = d1.ipv6_loopbacks.add(), d2.ipv6_loopbacks.add()
+    loop5.name, loop6.name = "loop5", "loop6"
+    loop5.eth_name, loop6.eth_name = eth1.name, eth2.name
+    loop5.address, loop6.address = "2222::1", "2222::2"
+
+    loop7, loop8 = d1.ipv6_loopbacks.add(), d2.ipv6_loopbacks.add()
+    loop7.name, loop8.name = "loop7", "loop8"
+    loop7.eth_name, loop8.eth_name = eth1.name, eth2.name
+    loop7.address, loop8.address = "2222::3", "2222::4"
+
     api.set_config(b2b_raw_config)
     validate_result(api)
 
 
 def validate_result(api):
-    validate = {
+    validate_v4 = {
         "loop1": {
             "address": ['20.20.0.1', '20.20.0.3'],
         },
         "loop2": {
             "address": ['20.20.0.2', '20.20.0.4'],
-        }
+        },
+    }
+    validate_v6 = {
+        "loop5": {
+            "address": ['2222::1', '2222::3'],
+        },
+        "loop6": {
+            "address": ['2222::2', '2222::4'],
+        },
     }
     ixn = api._ixnetwork
     dgs = ixn.Topology.find().DeviceGroup.find().DeviceGroup.find()
     for dg in dgs:
         loop = dg.Ipv4Loopback.find()
-        key_values = validate.get(loop.Name)
-        assert loop.Address.Values == key_values["address"]
+        if len(loop) > 0:
+            key_values = validate_v4.get(loop.Name)
+            assert loop.Address.Values == key_values["address"]
+
+        loop_v6 = dg.Ipv6Loopback.find()
+        if len(loop_v6) > 0:
+            key_values = validate_v6.get(loop_v6.Name)
+            assert loop_v6.Address.Values == key_values["address"]
 
 
 if __name__ == "__main__":
