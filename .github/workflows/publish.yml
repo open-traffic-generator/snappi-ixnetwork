@@ -4,7 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
+
+env:
+  release_triggered: False
 
 jobs:
   cicd:
@@ -54,26 +56,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish package
+        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
         run: |
-          echo "tag output: ${{matrix.python-version}} ${{steps.check_tag.outputs}}"
-        #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+          echo "new version created"
         #run: |
         #  PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
-      #- name: Create release and publish artifacts
-      #  id: release
-      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-      #  uses: ncipollo/release-action@v1
-      #  with:
-      #    artifacts: "dist/*"
-      #    tag: ${{ steps.get_version.outputs.version }}
-      #    token: ${{ secrets.GITHUB_TOKEN }}
-      #- name: Snappi_test repo dispatch
-      #  run: |
-      #    curl -X POST -H "Accept: application/vnd.github.v3+json" https://github.com/open-traffic-generator/snappi-tests/tree/Issue495-CI/CD/.github/workflows -d '{"event_type":"event-demo"}'
-      #uses: peter-evans/repository-dispatch@v1.1.3
-      ##if: ${{ steps.release.outputs.proceed}}
-      #with:
-      #  token: ${{ secrets.ACCESS_TOKEN }}
-      #  repository: open-traffic-generator/snappi-tests@Issue495-CI/CD
-      #  event-type: event-demo
-      #  client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
+      - name: Create release and publish artifacts
+        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+        env:
+          release_triggered: true
+        #uses: ncipollo/release-action@v1
+        #with:
+        #  artifacts: "dist/*"
+        #  tag: ${{ steps.get_version.outputs.version }}
+        #  token: ${{ secrets.GITHUB_TOKEN }}
+  snappitest_cicd:
+    name: Run Snappi-tests after snappi-ixnetwork
+    if: ${{env.release_triggered == true}}
+    needs: cicd
+    uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
