@@ -69,7 +69,7 @@ jobs:
       - name: Create release and publish artifacts
         id: release
         #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        if: steps.check_tag.tag_created == 'true'
+        if: steps.check_tag.outputs.tag_created == 'true'
         env:
           release_triggered: true
         run: |
