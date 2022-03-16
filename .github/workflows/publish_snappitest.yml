@@ -2,6 +2,7 @@ name: snappitest_cicd
 
 on:
   pull_request:
+  push:
   #release:
   #  types: [released]
 
