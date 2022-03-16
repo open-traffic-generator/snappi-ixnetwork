@@ -11,7 +11,8 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        python-version: [python27, python38]
+        #python-version: [python27, python38]
+        python-version: [python27]
 
     steps:
       - name: Checkout source
@@ -23,42 +24,42 @@ jobs:
       - name: Set python path
         id: path
         run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
-      - name: Install dependencies
-        run: |
-          rm -rf .env
-          ${{steps.path.outputs.pythonv}} do.py setup
-          ${{steps.path.outputs.pythonv}} do.py init
-      - name: Build distribution
-        run: |
-          ${{steps.path.outputs.pythonv}} do.py dist
-      - name: Install package on clean env
-        run: |
-          rm -rf .env
-          ${{steps.path.outputs.pythonv}} do.py setup
-          ${{steps.path.outputs.pythonv}} do.py install
-          ${{steps.path.outputs.pythonv}} do.py init
-      - name: Run tests
-        run: |
-          ${{steps.path.outputs.pythonv}} do.py test
-      - name: Get package version
-        id: get_version
-        run: |
-          echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
-      - name: Check tag for current version
-        uses: mukunku/tag-exists-action@v1.0.0
-        id: check_tag
-        with:
-          tag: ${{ steps.get_version.outputs.version }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish package
-        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        run: |
-          PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
-      - name: Create release and publish artifacts
-        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "dist/*"
-          tag: ${{ steps.get_version.outputs.version }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+      #- name: Install dependencies
+      #  run: |
+      #    rm -rf .env
+      #    ${{steps.path.outputs.pythonv}} do.py setup
+      #    ${{steps.path.outputs.pythonv}} do.py init
+      #- name: Build distribution
+      #  run: |
+      #    ${{steps.path.outputs.pythonv}} do.py dist
+      #- name: Install package on clean env
+      #  run: |
+      #    rm -rf .env
+      #    ${{steps.path.outputs.pythonv}} do.py setup
+      #    ${{steps.path.outputs.pythonv}} do.py install
+      #    ${{steps.path.outputs.pythonv}} do.py init
+      #- name: Run tests
+      #  run: |
+      #    ${{steps.path.outputs.pythonv}} do.py test
+      #- name: Get package version
+      #  id: get_version
+      #  run: |
+      #    echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
+      #- name: Check tag for current version
+      #  uses: mukunku/tag-exists-action@v1.0.0
+      #  id: check_tag
+      #  with:
+      #    tag: ${{ steps.get_version.outputs.version }}
+      #  env:
+      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #- name: Publish package
+      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+      #  run: |
+      #    PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
+      #- name: Create release and publish artifacts
+      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+      #  uses: ncipollo/release-action@v1
+      #  with:
+      #    artifacts: "dist/*"
+      #    tag: ${{ steps.get_version.outputs.version }}
+      #    token: ${{ secrets.GITHUB_TOKEN }}
