@@ -65,13 +65,13 @@ jobs:
       #    artifacts: "dist/*"
       #    tag: ${{ steps.get_version.outputs.version }}
       #    token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Trigger snappi test
-        if: ${{ github.event_name == 'pull_request' }}
-        run: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml
-  #snappitest_cicd:
-  #  name: Trigger snappi test
-  #  #run: |
-  #  #  echo "event name is:" ${{ github.event_name }}
-  #  if: ${{ github.event_name == 'pull_request' }}
-  #  #uses: ./.github/workflows/publish_snappitest.yml
-  #  uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
+      #- name: Trigger snappi test
+      #  if: ${{ github.event_name == 'pull_request' }}
+      #  run: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml
+  snappitest_cicd:
+    name: Trigger snappi test
+    #run: |
+    #  echo "event name is:" ${{ github.event_name }}
+    if: ${{ github.event_name == 'pull_request' }}
+    #uses: ./.github/workflows/publish_snappitest.yml
+    uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
