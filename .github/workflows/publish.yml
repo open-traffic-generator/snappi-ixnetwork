@@ -66,4 +66,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Trigger snappi test
         if: ${{ github.event.action == 'pull_request' }}
-        uses: .github/workflows/publish_snappitest.yml@Issue495
+        uses: ./.github/workflows/publish_snappitest.yml@Issue495
