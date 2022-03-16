@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Check github action
         run: |
-          echo "${{ github.action }}"
+          echo "${{ github.event.push.conclusion }}"
       #- name: Checkout source
       #  uses: actions/checkout@v2
       #  with:
