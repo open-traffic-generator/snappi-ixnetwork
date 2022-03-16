@@ -1,7 +1,6 @@
 name: snappitest
 
-on:
-  workflow_call:
+on: ["check_run"]
 
 jobs:
   snappitest_cicd:
