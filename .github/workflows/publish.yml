@@ -3,9 +3,7 @@ name: cicd
 on:
   push:
     branches: [main]
-  pull_request:
-  release:
-    types: [released]
+  #pull_request:
 
 jobs:
   cicd:
@@ -13,8 +11,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        #python-version: [python27, python38]
-        python-version: [python38]
+        python-version: [python27, python38]
 
     steps:
       - name: Checkout source
@@ -26,23 +23,23 @@ jobs:
       - name: Set python path
         id: path
         run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
-      #- name: Install dependencies
-      #  run: |
-      #    rm -rf .env
-      #    ${{steps.path.outputs.pythonv}} do.py setup
-      #    ${{steps.path.outputs.pythonv}} do.py init
-      #- name: Build distribution
-      #  run: |
-      #    ${{steps.path.outputs.pythonv}} do.py dist
-      #- name: Install package on clean env
-      #  run: |
-      #    rm -rf .env
-      #    ${{steps.path.outputs.pythonv}} do.py setup
-      #    ${{steps.path.outputs.pythonv}} do.py install
-      #    ${{steps.path.outputs.pythonv}} do.py init
-      #- name: Run tests
-      #  run: |
-      #    ${{steps.path.outputs.pythonv}} do.py test
+      - name: Install dependencies
+        run: |
+          rm -rf .env
+          ${{steps.path.outputs.pythonv}} do.py setup
+          ${{steps.path.outputs.pythonv}} do.py init
+      - name: Build distribution
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py dist
+      - name: Install package on clean env
+        run: |
+          rm -rf .env
+          ${{steps.path.outputs.pythonv}} do.py setup
+          ${{steps.path.outputs.pythonv}} do.py install
+          ${{steps.path.outputs.pythonv}} do.py init
+      - name: Run tests
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py test
       - name: Get package version
         id: get_version
         run: |
@@ -54,24 +51,14 @@ jobs:
           tag: ${{ steps.get_version.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #- name: Publish package
-      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-      #  run: |
-      #    PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
-      #- name: Create release and publish artifacts
-      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-      #  uses: ncipollo/release-action@v1
-      #  with:
-      #    artifacts: "dist/*"
-      #    tag: ${{ steps.get_version.outputs.version }}
-      #    token: ${{ secrets.GITHUB_TOKEN }}
-      #- name: Trigger snappi test
-      #  if: ${{ github.event_name == 'pull_request' }}
-      #  uses: open-traffic-generator/snappi-ixnetwork/.github/workflows/publish_snappitest.yml@Issue495
-  #snappitest_cicd:
-  #  name: Trigger snappi test
-  #  #run: |
-  #  #  echo "event name is:" ${{ github.event_name }}
-  #  if: ${{ github.event_name == 'pull_request' }}
-  #  #uses: ./.github/workflows/publish_snappitest.yml
-  #  uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
+      - name: Publish package
+        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+        run: |
+          PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
+      - name: Create release and publish artifacts
+        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "dist/*"
+          tag: ${{ steps.get_version.outputs.version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
