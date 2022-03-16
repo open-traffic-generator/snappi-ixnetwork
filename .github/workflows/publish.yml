@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  release:
+    types: [released]
 
 env:
   release_triggered: False
@@ -18,6 +20,9 @@ jobs:
         python-version: [python38]
 
     steps:
+      - name: Check github action
+        run: |
+          echo "${{ github.action }}"
       #- name: Checkout source
       #  uses: actions/checkout@v2
       #  with:
@@ -48,17 +53,17 @@ jobs:
       #  id: get_version
       #  run: |
       #    echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
-      - name: Check tag for current version
-        id: check_tag
-        run: |
-          export tag_created=true
-          echo "::set-output name=tag_created::$tag_created"
-        #uses: mukunku/tag-exists-action@v1.0.0
-        #id: check_tag
-        #with:
-        #  tag: ${{ steps.get_version.outputs.version }}
-        #env:
-        #  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #- name: Check tag for current version
+      #  id: check_tag
+      #  run: |
+      #    export tag_created=true
+      #    echo "::set-output name=tag_created::$tag_created"
+      #uses: mukunku/tag-exists-action@v1.0.0
+      #id: check_tag
+      #with:
+      #  tag: ${{ steps.get_version.outputs.version }}
+      #env:
+      #  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #- name: Publish package
       #  #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
       #  if: ${{env.tag_created == true}}
@@ -66,20 +71,20 @@ jobs:
       #    echo "new version created"
       #  #run: |
       #  #  PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
-      - name: Create release and publish artifacts
-        id: release
-        #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        if: steps.check_tag.outputs.tag_created == 'true'
-        run: |
-          export release_triggered=true
-          echo "::set-output name=release_triggered::$release_triggered"
-        #uses: ncipollo/release-action@v1
-        #with:
-        #  artifacts: "dist/*"
-        #  tag: ${{ steps.get_version.outputs.version }}
-        #  token: ${{ secrets.GITHUB_TOKEN }}
-  snappitest_cicd:
-    name: Run Snappi-tests after snappi-ixnetwork
-    needs: cicd
-    if: jobs.cicd.steps.release.outputs.release_triggered == 'true'
-    uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
+      #- name: Create release and publish artifacts
+      #  id: release
+      #  #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+      #  if: steps.check_tag.outputs.tag_created == 'true'
+      #  run: |
+      #    export release_triggered=true
+      #    echo "::set-output name=release_triggered::$release_triggered"
+      #uses: ncipollo/release-action@v1
+      #with:
+      #  artifacts: "dist/*"
+      #  tag: ${{ steps.get_version.outputs.version }}
+      #  token: ${{ secrets.GITHUB_TOKEN }}
+  #snappitest_cicd:
+  #  name: Run Snappi-tests after snappi-ixnetwork
+  #  needs: cicd
+  #  if: needs.cicd.steps.release.outputs.release_triggered == 'true'
+  #  uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
