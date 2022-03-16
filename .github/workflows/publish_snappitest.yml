@@ -1,0 +1,9 @@
+name: snappitest
+
+on:
+  workflow_call:
+
+jobs:
+  snappitest_cicd:
+    name: Run Snappi-tests after snappi-ixnetwork
+    uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
