@@ -40,9 +40,9 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py install
           ${{steps.path.outputs.pythonv}} do.py init
-      - name: Run tests
-        run: |
-          ${{steps.path.outputs.pythonv}} do.py test
+      #- name: Run tests
+      #  run: |
+      #    ${{steps.path.outputs.pythonv}} do.py test
       - name: Get package version
         id: get_version
         run: |
@@ -65,5 +65,5 @@ jobs:
           tag: ${{ steps.get_version.outputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Trigger snappi test
-        if: ${{ github.event.action == pull_request }}
+        if: ${{ github.event.action == 'pull_request' }}
         uses: .github/workflows/publish_snappitest.yml@Issue495
