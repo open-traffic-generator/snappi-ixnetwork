@@ -1,8 +1,9 @@
 
 
 class IxNetObjects(object):
-    def __init__(self):
+    def __init__(self, ixnetworkapi):
         self._ixn_objects = {}
+        self._api = ixnetworkapi
 
     # get_ixn_href
     def get_href(self, name):
@@ -35,8 +36,14 @@ class IxNetObjects(object):
                 )
             )
 
+    def get_working_dg(self, name):
+        ixn_obj = self.get(name)
+        return ixn_obj.working_dg
+
     def set(self, name, ixnobject):
-        self._ixn_objects[name] = IxNetInfo(ixnobject)
+        self._ixn_objects[name] = IxNetInfo(
+            ixnobject, self._api.ngpf.working_dg
+        )
 
     def set_scalable(self, ixnobject):
         names = ixnobject.get("name")
@@ -53,7 +60,8 @@ class IxNetObjects(object):
                 continue
             set_names.append(name)
             self._ixn_objects[name] = IxNetInfo(
-                ixnobject=ixnobject,
+                ixnobject,
+                self.get_working_dg(names[0]),
                 index=index,
                 multiplier=names.count(name),
                 names=names
@@ -62,8 +70,9 @@ class IxNetObjects(object):
 
 class IxNetInfo(object):
     # index start with 0 and use multiplier for count
-    def __init__(self, ixnobject, index=0, multiplier=1, names=None):
+    def __init__(self, ixnobject, working_dg, index=0, multiplier=1, names=None):
         self.ixnobject = ixnobject
+        self.working_dg = working_dg
         self.index = int(index)
         self.multiplier = int(multiplier)
         self.names = [] if names is None else names
@@ -75,3 +84,4 @@ class IxNetInfo(object):
     @property
     def href(self):
         return self.ixnobject.get("href")
+
