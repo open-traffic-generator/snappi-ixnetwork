@@ -67,7 +67,7 @@ jobs:
       #    token: ${{ secrets.GITHUB_TOKEN }}
       - name: Trigger snappi test
         if: ${{ github.event_name == 'pull_request' }}
-        uses: open-traffic-generator/snappi-ixnetwork/.github/workflows/publish_snappitest.yml
+        uses: open-traffic-generator/snappi-ixnetwork/.github/workflows/publish_snappitest.yml@Issue495
   #snappitest_cicd:
   #  name: Trigger snappi test
   #  #run: |
