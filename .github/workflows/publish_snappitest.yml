@@ -10,6 +10,8 @@ jobs:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     steps:
       - name: Test repository dispatch
+        run: |
+          echo "Run snappi test"
         #uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
         with:
           repository: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
