@@ -70,4 +70,5 @@ jobs:
     #run: |
     #  echo "event name is:" ${{ github.event_name }}
     if: ${{ github.event_name == 'pull_request' }}
-    uses: ./.github/workflows/publish_snappitest.yml
+    #uses: ./.github/workflows/publish_snappitest.yml
+    uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
