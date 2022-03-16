@@ -15,6 +15,7 @@ jobs:
           repo: snappi-tests
           workflow_file_name: cicd.yml
           ref: Issue495-CI/CD
+          trigger_workflow: true
     #name: Run Snappi-tests after snappi-ixnetwork
     #uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
 
