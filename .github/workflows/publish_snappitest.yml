@@ -13,7 +13,7 @@ jobs:
         uses: convictional/trigger-workflow-and-wait
         with:
           owner: open-traffic-generator
-          repo: open-traffic-generator/snappi-tests/.github/workflows
+          repo: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml
           workflow_file_name: cicd.yml
           ref: Issue495-CI/CD
           trigger_workflow: true
