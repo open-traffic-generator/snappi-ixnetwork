@@ -68,5 +68,5 @@ jobs:
       - name: Trigger snappi test
         #run: |
         #  echo "event name is:" ${{ github.event_name }}
-        if: ${{ github.event.name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/workflows/publish_snappitest.yml@Issue495
