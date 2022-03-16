@@ -2,7 +2,7 @@ name: cicd
 
 on:
   push:
-    #branches: [main]
+  #  branches: [main]
   #pull_request:
 
 jobs:
@@ -11,8 +11,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        #python-version: [python27, python38]
-        python-version: [python27]
+        python-version: [python27, python38]
 
     steps:
       - name: Checkout source
@@ -21,9 +20,9 @@ jobs:
           ref: ${{ env.BASE_BRANCH }}
           # ref: ${{ github.head_ref }}
           submodules: recursive
-      - name: Set python path
-        id: path
-        run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
+      #- name: Set python path
+      #  id: path
+      #  run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
       #- name: Install dependencies
       #  run: |
       #    rm -rf .env
