@@ -65,8 +65,9 @@ jobs:
       #    artifacts: "dist/*"
       #    tag: ${{ steps.get_version.outputs.version }}
       #    token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Trigger snappi test
-        #run: |
-        #  echo "event name is:" ${{ github.event_name }}
-        if: ${{ github.event_name == 'pull_request' }}
-        run: open-traffic-generator/snappi-ixnetwork/.github/workflows/publish_snappitest.yml
+  snappitest_cicd:
+    name: Trigger snappi test
+    #run: |
+    #  echo "event name is:" ${{ github.event_name }}
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: open-traffic-generator/snappi-ixnetwork/.github/workflows/publish_snappitest.yml
