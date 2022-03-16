@@ -2,17 +2,22 @@ name: snappitest_cicd
 
 on:
   pull_request:
-  release:
-    types: [released]
+  #release:
+  #  types: [released]
 
 jobs:
   snappitest_cicd:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     steps:
-      - uses: convictional/trigger-workflow-and-wait@v1.6.0
+      - name: Test repository dispatch
+        uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
         with:
-          repo: snappi-tests
-          workflow_file_name: cicd.yml
-          ref: Issue495-CI/CD
+          event-type: cicd
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
+      #- uses: convictional/trigger-workflow-and-wait@v1.6.0
+      #  with:
+      #    repo: snappi-tests
+      #    workflow_file_name: cicd.yml
+      #    ref: Issue495-CI/CD
     #name: Run Snappi-tests after snappi-ixnetwork
     #uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
