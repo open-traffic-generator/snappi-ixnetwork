@@ -1,4 +1,4 @@
-name: snappitest
+name: snappitest_cicd
 
 on:
   pull_request:
