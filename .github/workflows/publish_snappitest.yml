@@ -10,8 +10,9 @@ jobs:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     steps:
       - name: Test repository dispatch
-        uses: convictional/trigger-workflow-and-wait@v1.6.0
+        uses: convictional/trigger-workflow-and-wait
         with:
+          owner: open-traffic-generator
           repo: snappi-tests
           workflow_file_name: cicd.yml
           ref: Issue495-CI/CD
