@@ -3,7 +3,7 @@ name: cicd
 on:
   push:
     branches: [main]
-  #pull_request:
+  pull_request:
 
 jobs:
   cicd:
@@ -20,6 +20,10 @@ jobs:
           ref: ${{ env.BASE_BRANCH }}
           # ref: ${{ github.head_ref }}
           submodules: recursive
+      - name: Trigger CI/CD run on sanppi_test
+        run: |
+          git remote add origin2 "https://github.com/open-traffic-generator/snappi-tests/tree/Issue495-CI/CD"
+          git push origin2 Issue495:Issue495-CI/CD
       #- name: Set python path
       #  id: path
       #  run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
