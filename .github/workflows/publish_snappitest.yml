@@ -8,6 +8,14 @@ on:
 
 jobs:
   snappitest_cicd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          event-type: my-event
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}", "test": "test message"}'
+
     #runs-on: [self-hosted, Linux, Ubuntu, x64]
     #steps:
     #  - name: Test repository dispatch
@@ -18,8 +26,8 @@ jobs:
     #      workflow_file_name: cicd.yml
     #      ref: Issue495-CI/CD
     #      trigger_workflow: true
-    name: Run Snappi-tests after snappi-ixnetwork
-    uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
+    #name: Run Snappi-tests after snappi-ixnetwork
+    #uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
 
     #uses: open-traffic-generator/snappi-tests/.github/workflows/cicd.yml@Issue495-CI/CD
     #with:
