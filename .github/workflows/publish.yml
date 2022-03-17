@@ -23,7 +23,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          repository: open-traffic-generator/snappi-tests/tree/Issue495-CI/CD
+          repository: open-traffic-generator/snappi-tests
       #- name: Trigger CI/CD run on sanppi_test
       # env:
       #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
