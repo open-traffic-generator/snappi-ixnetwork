@@ -21,9 +21,12 @@ jobs:
           # ref: ${{ github.head_ref }}
           submodules: recursive
       - name: Checkout
-        uses: actions/checkout@v2
+        #uses: actions/checkout@v2
         with:
           repository: open-traffic-generator/snappi-tests
+          branches: Issue495-CI/CD
+        run: |
+          git push
       #- name: Trigger CI/CD run on sanppi_test
       # env:
       #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
