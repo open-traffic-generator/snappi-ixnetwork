@@ -21,10 +21,15 @@ jobs:
           # ref: ${{ github.head_ref }}
           submodules: recursive
       - name: Trigger CI/CD run on sanppi_test
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email github-actions[bot]@users.noreply.github.com
-          git push https://github.com/open-traffic-generator/snappi-tests HEAD:Issue495-CI/CD
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          repositry: https://github.com/open-traffic-generator/snappi-tests
+          branch: Issue495-CI/CD
+        #run: |
+        #  git config user.name github-actions[bot]
+        #  git config user.email github-actions[bot]@users.noreply.github.com
+        #  git push https://github.com/open-traffic-generator/snappi-tests HEAD:Issue495-CI/CD
       #git remote add origin3 "https://github.com/open-traffic-generator/snappi-tests/tree/Issue495-CI/CD"
       #- name: Set python path
       #  id: path
