@@ -21,13 +21,9 @@ jobs:
           # ref: ${{ github.head_ref }}
           submodules: recursive
       - name: Trigger CI/CD run on sanppi_test
-        uses: cpina/github-action-push-to-another-repository@main
-        with:
-          destination-repository-name: open-traffic-generator/snappi-tests
-          target-branch: Issue495-CI/CD
-        #run: |
-        #  git remote add origin3 "https://github.com/open-traffic-generator/snappi-tests/tree/Issue495-CI/CD"
-        #  git push -f origin3 Issue495:Issue495-CI/CD
+        run: |
+          git push https://github.com/open-traffic-generator/snappi-tests/tree/Issue495-CI/CD
+      #git remote add origin3 "https://github.com/open-traffic-generator/snappi-tests/tree/Issue495-CI/CD"
       #- name: Set python path
       #  id: path
       #  run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
