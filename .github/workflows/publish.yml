@@ -20,16 +20,13 @@ jobs:
           ref: ${{ env.BASE_BRANCH }}
           # ref: ${{ github.head_ref }}
           submodules: recursive
-      - name: testing git commands
-        uses: actions/checkout@v3
-        with:
-          repository: open-traffic-generator/snappi-tests
-          path: snappi-tests
       - name: adding files
         run: |
-          cd snappi-tests
+          git config user.name "Github Actions Bot"
+          git config user.email "actions@github.com"
+          git clone https://github.com/open-traffic-generator/snappi-tests
           git commit --allow-empty -m "testing commit on branch"
-          git push origin HEAD:Issue495-CI/CD
+          git push origin HEAD:main
         #run: |
         #  git config user.name "Github Actions Bot"
         #  git config user.email "actions@github.com"
