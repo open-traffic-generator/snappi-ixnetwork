@@ -27,8 +27,8 @@ jobs:
           git clone https://github.com/open-traffic-generator/snappi-tests
           cd snappi-tests
           git commit --allow-empty -m "testing commit on branch"
-          git pull --rebase origin master
-          git push -f origin master
+          git pull --rebase origin main
+          git push -f origin main
         #run: |
         #  git config user.name "Github Actions Bot"
         #  git config user.email "actions@github.com"
