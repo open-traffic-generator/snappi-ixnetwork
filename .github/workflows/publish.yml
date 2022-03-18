@@ -23,10 +23,11 @@ jobs:
       - name: testing git commands
         uses: actions/checkout@v3
         with:
-          repository: open-traffic-generator/snappi-tests/Issue495-CI/CD
+          repository: open-traffic-generator/snappi-tests
           path: snappi-tests
       - name: adding files
-        run: cd snappi-tests
+        run: |
+          cd snappi-tests
           git commit --allow-empty -m "testing commit on branch"
           git push origin HEAD:Issue495-CI/CD
         #run: |
@@ -36,6 +37,7 @@ jobs:
         #  cd snappi-tests
         #  git commit --allow-empty -m "testing commit on branch"
         #  git push origin HEAD:Issue495-CI/CD
+
 #git commit --allow-empty -m "testing commit on branch"
 #git push
 #git config user.name "Github Actions Bot"
