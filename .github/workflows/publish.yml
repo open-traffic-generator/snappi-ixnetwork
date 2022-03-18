@@ -24,7 +24,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           repository: open-traffic-generator/snappi-tests
-          branches: Issue495-CI/CD
+          branch: Issue495-CI/CD
       #- name: Set python path
       #  id: path
       #  run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
