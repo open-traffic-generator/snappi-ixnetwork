@@ -26,6 +26,10 @@ jobs:
           repository: open-traffic-generator/snappi-tests
           path: snappi-tests
           branches: Issue495-CI/CD
+      - name: adding files
+        run: cd snappi-tests
+          git commit --allow-empty -m "testing commit on branch"
+          git push origin HEAD:Issue495-CI/CD
         #run: |
         #  git config user.name "Github Actions Bot"
         #  git config user.email "actions@github.com"
