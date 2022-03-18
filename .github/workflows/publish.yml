@@ -24,8 +24,6 @@ jobs:
         run: |
           git clone -b Issue495-CI/CD https://github.com/open-traffic-generator/snappi-tests
           cd snappi-tests
-      - name: path
-        run: |
           import os
           print(os.getcwd())
         shell: python
