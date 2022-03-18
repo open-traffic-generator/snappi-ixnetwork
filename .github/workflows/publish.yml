@@ -27,7 +27,8 @@ jobs:
           git clone https://github.com/open-traffic-generator/snappi-tests
           cd snappi-tests
           git remote show origin
-          git remote add origin  https://github.com/open-traffic-generator/snappi-tests
+          git remote -v
+          #git remote add origin  https://github.com/open-traffic-generator/snappi-tests
         #git pull --rebase origin main
         #git push -f origin main
         #git commit --allow-empty -m "testing commit on branch"
