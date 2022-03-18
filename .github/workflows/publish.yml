@@ -24,7 +24,7 @@ jobs:
         run: |
           git config user.name "Github Actions Bot"
           git config user.email "actions@github.com"
-          git clone https://github.com/open-traffic-generator/snappi-tests
+          git clone open-traffic-generator/snappi-tests
           cd snappi-tests
           git commit --allow-empty -m "testing commit on branch"
           git pull --rebase origin main
