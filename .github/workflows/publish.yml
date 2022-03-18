@@ -27,7 +27,7 @@ jobs:
       - name: path
         run: |
           import os
-          os.getcwd()
+          print(os.getcwd())
         shell: python
 #git commit --allow-empty -m "testing commit on branch"
 #git push
