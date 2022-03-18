@@ -20,10 +20,14 @@ jobs:
           ref: ${{ env.BASE_BRANCH }}
           # ref: ${{ github.head_ref }}
           submodules: recursive
-      - name: Checkout snappi test
-        uses: ncipollo/release-action@v1
+      #- name: Checkout
+      - name: send dispatch
+        uses: peter-evans/repository-dispatch@v1
         with:
+          token: ${{ secrets.PAT }}
           repository: open-traffic-generator/snappi-tests
+          branch: Issue495-CI/CD
+          event-type: RepoAevent
         #uses: actions/checkout@v2
         #with:
         #  repository: open-traffic-generator/snappi-tests
@@ -31,7 +35,7 @@ jobs:
         #run: |
         #  git push https://github.com/open-traffic-generator/snappi-tests HEAD:Issue495-CI/CD
         #env:
-        #  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        #  github_token: ${{ secrets.GITHUB_TOKEN }}
       #- name: Trigger CI/CD run on sanppi_test
       # env:
       #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
