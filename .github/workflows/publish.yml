@@ -23,9 +23,8 @@ jobs:
       - name: testing git commands
         uses: actions/checkout@v3
         with:
-          repository: open-traffic-generator/snappi-tests
+          repository: open-traffic-generator/snappi-tests/Issue495-CI/CD
           path: snappi-tests
-          branches: Issue495-CI/CD
       - name: adding files
         run: cd snappi-tests
           git commit --allow-empty -m "testing commit on branch"
