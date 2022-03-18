@@ -23,8 +23,7 @@ jobs:
       - name: testing git commands
         run: |
           git clone -b Issue495-CI/CD https://github.com/open-traffic-generator/snappi-tests
-          git add --force "dist/*"
-          git commit
+          git commit --allow-empty
           git push
       #git add --force "dist/*"
       #git commit
