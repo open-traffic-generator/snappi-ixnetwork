@@ -26,8 +26,9 @@ jobs:
           cd snappi-tests
       - name: path
         run: |
+          import os
           os.getcwd()
-
+        shell: python
 #git commit --allow-empty -m "testing commit on branch"
 #git push
 #git config user.name "Github Actions Bot"
