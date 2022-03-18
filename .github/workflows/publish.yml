@@ -20,16 +20,9 @@ jobs:
           ref: ${{ env.BASE_BRANCH }}
           # ref: ${{ github.head_ref }}
           submodules: recursive
-      - name: Checkout snapp_test
-        uses: actions/checkout@v2
-        with:
-          repository: open-traffic-generator/snappi-tests
-          branches: Issue495-CI/CD
-      - name: Push snappi ixnetwork
-        uses: ad-m/github-push-action@master
-        with:
-          repository: open-traffic-generator/snappi-tests
-          branch: Issue495-CI/CD
+      - name: testing git commands
+        run: |
+          git clone https://github.com/open-traffic-generator/snappi-tests
       #- name: Set python path
       #  id: path
       #  run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
