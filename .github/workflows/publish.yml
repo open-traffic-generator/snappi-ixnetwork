@@ -20,14 +20,18 @@ jobs:
           ref: ${{ env.BASE_BRANCH }}
           # ref: ${{ github.head_ref }}
           submodules: recursive
-      - name: Checkout
+      - name: Checkout snappi test
+        uses: ncipollo/release-action@v1
+        with:
+          repository: open-traffic-generator/snappi-tests
         #uses: actions/checkout@v2
         #with:
         #  repository: open-traffic-generator/snappi-tests
         #  branches: Issue495-CI/CD
-        run: |
-          git push https://github.com/open-traffic-generator/snappi-tests HEAD:Issue495-CI/CD
-
+        #run: |
+        #  git push https://github.com/open-traffic-generator/snappi-tests HEAD:Issue495-CI/CD
+        #env:
+        #  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #- name: Trigger CI/CD run on sanppi_test
       # env:
       #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
