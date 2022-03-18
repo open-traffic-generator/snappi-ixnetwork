@@ -25,7 +25,7 @@ jobs:
           git config user.name "Github Actions Bot"
           git config user.email "actions@github.com"
           git clone -b Issue495-CI/CD https://github.com/open-traffic-generator/snappi-tests
-          git commit --allow-empty
+          git commit --allow-empty -m "testing commit on branch"
           git push
       #git add --force "dist/*"
       #git commit
