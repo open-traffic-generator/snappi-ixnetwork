@@ -25,9 +25,10 @@ jobs:
           git config user.name "Github Actions Bot"
           git config user.email "actions@github.com"
           git clone https://github.com/open-traffic-generator/snappi-tests
-          cd snappi-tests
-          git commit --allow-empty -m "testing commit on branch"
-          git push
+          git remote -v
+        #cd snappi-tests
+        #git commit --allow-empty -m "testing commit on branch"
+        #git push
         #run: |
         #  git config user.name "Github Actions Bot"
         #  git config user.email "actions@github.com"
