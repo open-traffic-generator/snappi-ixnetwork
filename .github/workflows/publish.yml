@@ -29,8 +29,7 @@ jobs:
           git remote show origin
           git remote add new_origin  https://github.com/open-traffic-generator/snappi-tests
           git remote -v
-          git pull --rebase new_origin main
-          git push -f new_origin main
+          git push -f
         #git commit --allow-empty -m "testing commit on branch"
         #git pull --rebase origin main
         #git push -f origin main
