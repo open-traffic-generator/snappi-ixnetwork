@@ -20,29 +20,11 @@ jobs:
           ref: ${{ env.BASE_BRANCH }}
           # ref: ${{ github.head_ref }}
           submodules: recursive
-      #- name: Checkout
-      - name: send dispatch
-        uses: peter-evans/repository-dispatch@v1
+      - name: Push snappi ixnetwork
+        uses: ad-m/github-push-action@master
         with:
-          token: ${{ secrets.PAT }}
           repository: open-traffic-generator/snappi-tests
-          branch: Issue495-CI/CD
-          event-type: RepoAevent
-        #uses: actions/checkout@v2
-        #with:
-        #  repository: open-traffic-generator/snappi-tests
-        #  branches: Issue495-CI/CD
-        #run: |
-        #  git push https://github.com/open-traffic-generator/snappi-tests HEAD:Issue495-CI/CD
-        #env:
-        #  github_token: ${{ secrets.GITHUB_TOKEN }}
-      #- name: Trigger CI/CD run on sanppi_test
-      # env:
-      #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # run: |
-      #   git push https://github.com/open-traffic-generator/snappi-tests HEAD:Issue495-CI/CD
-      #git remote add origin2 "https://github.com/open-traffic-generator/snappi-tests/tree/Issue495-CI/CD"
-      #git push origin2 Issue495:Issue495-CI/CD
+          branches: Issue495-CI/CD
       #- name: Set python path
       #  id: path
       #  run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
