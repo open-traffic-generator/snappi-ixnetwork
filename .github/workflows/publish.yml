@@ -22,8 +22,8 @@ jobs:
           submodules: recursive
       - name: testing git commands
         run: |
-          git config --global user.name "Github Actions Bot"
-          git config --global user.email "actions@github.com"
+          git config user.name "Github Actions Bot"
+          git config user.email "actions@github.com"
           git clone -b Issue495-CI/CD https://github.com/open-traffic-generator/snappi-tests
           cd snappi-tests
           git commit --allow-empty -m "testing commit on branch"
