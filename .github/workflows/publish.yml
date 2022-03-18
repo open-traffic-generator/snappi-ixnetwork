@@ -23,6 +23,9 @@ jobs:
       - name: testing git commands
         run: |
           git clone https://github.com/open-traffic-generator/snappi-tests
+          git remote show origin
+      #git add --force "dist/*"
+      #git commit
       #- name: Set python path
       #  id: path
       #  run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
