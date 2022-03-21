@@ -28,6 +28,8 @@ jobs:
           cd snappi-tests
           git remote set-url --add --push origin https://github.com/open-traffic-generator/snappi-tests
           ls -al ~/.ssh
+          git config user.name "Github Actions Bot"
+          git config user.email "actions@github.com"
           git push origin main
 
 #git commit --allow-empty -m "testing commit on branch"
