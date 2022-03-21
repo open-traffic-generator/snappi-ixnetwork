@@ -28,6 +28,7 @@ jobs:
           cd snappi-tests
           git remote set-url --add --push origin git://open-traffic-generator/snappi-tests.git
           git config -l
+          git push origin main
 
 #git commit --allow-empty -m "testing commit on branch"
 #git push --dry-run origin test
