@@ -26,10 +26,9 @@ jobs:
           git config user.email "actions@github.com"
           git clone https://github.com/open-traffic-generator/snappi-tests
           cd snappi-tests
-          git config remote.origin.url "git@github.com:open-traffic-generator/snappi-tests.git"
+          git remote set-url --add --push origin https://github.com/open-traffic-generator/snappi-tests
+          git config --global --edit
           git push origin main
-
-#git remote set-url --add --push origin https://github.com/open-traffic-generator/snappi-tests
 
 #git commit --allow-empty -m "testing commit on branch"
 #git push --dry-run origin test
