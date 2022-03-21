@@ -26,7 +26,7 @@ jobs:
           git config --global user.email "actions@github.com"
           git clone https://github.com/open-traffic-generator/snappi-tests
           cd snappi-tests
-          git request-pull v1.0 https://github.com/open-traffic-generator/snappi-tests master:Issue495-CI/CD
+          git pull-request v1.0 https://github.com/open-traffic-generator/snappi-tests master:Issue495-CI/CD
 
 #git remote set-url --add --push origin https://github.com/open-traffic-generator/snappi-tests
 
