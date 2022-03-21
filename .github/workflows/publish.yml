@@ -26,17 +26,19 @@ jobs:
           git config user.email "actions@github.com"
           git clone https://github.com/open-traffic-generator/snappi-tests
           cd snappi-tests
-          git remote rm origin
-          git remote add origin 'git@github.com:Github Actions Bot/open-traffic-generator/snappi-tests.git'
           git commit --allow-empty -m "testing commit on branch"
-          git push --set-upstream origin main
-        #run: |
-        #  git config user.name "Github Actions Bot"
-        #  git config user.email "actions@github.com"
-        #  git clone -b Issue495-CI/CD git@github.com:open-traffic-generator/snappi-tests.git
-        #  cd snappi-tests
-        #  git commit --allow-empty -m "testing commit on branch"
-        #  git push origin HEAD:Issue495-CI/CD
+          git push https://ASHNA-AGGARWAL-KEYSIGHT:Panchkula@123@github.com/ASHNA-AGGARWAL-KEYSIGHT/open-traffic-generator/snappi-tests.git
+        #git remote add origin 'git@github.com:Github Actions Bot/open-traffic-generator/snappi-tests.git'
+
+#git remote rm origin
+#git push --set-upstream origin main
+#run: |
+#  git config user.name "Github Actions Bot"
+#  git config user.email "actions@github.com"
+#  git clone -b Issue495-CI/CD git@github.com:open-traffic-generator/snappi-tests.git
+#  cd snappi-tests
+#  git commit --allow-empty -m "testing commit on branch"
+#  git push origin HEAD:Issue495-CI/CD
 
 #git commit --allow-empty -m "testing commit on branch"
 #git push
