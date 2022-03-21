@@ -26,8 +26,10 @@ jobs:
           git config user.email "actions@github.com"
           git clone https://github.com/open-traffic-generator/snappi-tests
           cd snappi-tests
-          git commit --allow-empty -m "testing commit on branch"
-          git push --dry-run origin test
+          ${{steps.path.outputs.pythonv}} do.py snappi_test
+
+#git commit --allow-empty -m "testing commit on branch"
+#git push --dry-run origin test
 
 #git remote rm origin
 #git remote add origin https://github.com/open-traffic-generator/snappi-tests.git
