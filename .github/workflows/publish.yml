@@ -27,8 +27,8 @@ jobs:
           git clone https://github.com/open-traffic-generator/snappi-tests
           cd snappi-tests
           git commit --allow-empty -m "testing commit on branch"
-          git push https://ASHNA-AGGARWAL-KEYSIGHT@github.com/open-traffic-generator/snappi-tests.git
-        #git remote add origin 'git@github.com:Github Actions Bot/open-traffic-generator/snappi-tests.git'
+          git remote add origin https://github.com/open-traffic-generator/snappi-tests.git
+          git push -u origin master
 
 #git remote rm origin
 #git push --set-upstream origin main
