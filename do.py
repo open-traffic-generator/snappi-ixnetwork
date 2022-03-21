@@ -240,10 +240,6 @@ def main():
     else:
         print("usage: python do.py [args]")
 
-def snappi_test():
-    import os
-    print(os.getcwd())
-
 
 if __name__ == "__main__":
     main()
