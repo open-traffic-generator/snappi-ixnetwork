@@ -75,5 +75,5 @@ jobs:
           cd snappi-tests
           git add --all dist
           git commit --allow-empty -m "testing commit on branch"
-          git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git:Issue495-CI/CD
+          git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
           git push origin HEAD:Issue495-CI/CD
