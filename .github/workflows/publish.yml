@@ -22,7 +22,7 @@ jobs:
           submodules: recursive
       - name: adding files
         run: |
-          echo "${{ GITHUB_CONTEXT }}"
+          ls -al ~/.ssh
 
 #git config user.name "Github Actions Bot"
 #git config user.email "actions@github.com"
