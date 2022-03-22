@@ -22,14 +22,14 @@ jobs:
           submodules: recursive
       - name: adding files
         run: |
-          echo "${CI_TOKEN}"
           git config user.name "Github Actions Bot"
           git config user.email "actions@github.com"
-          git clone https://github.com/open-traffic-generator/snappi-tests.git
-          cd snappi-tests
           git commit --allow-empty -m "testing commit on branch"
-          git remote set-url origin https://$CI_TOKEN@github.com/ASHNA-AGGARWAL-KEYSIGHT/snappi-tests.git
-          git push origin main
+          git push
+
+#git clone https://github.com/open-traffic-generator/snappi-tests.git
+#cd snappi-tests
+#git remote set-url origin https://$CI_TOKEN@github.com/ASHNA-AGGARWAL-KEYSIGHT/snappi-tests.git
 
 #git remote set-url --add --push origin https://github.com/open-traffic-generator/snappi-tests
 
