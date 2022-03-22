@@ -68,6 +68,7 @@ jobs:
           git config user.email "actions@github.com"
           git clone https://github.com/open-traffic-generator/snappi-tests.git
           cd snappi-tests
+          git add "dist/*"
           ls -lrt
           git commit --allow-empty -m "testing commit on branch"
           git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
