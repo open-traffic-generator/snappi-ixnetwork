@@ -20,14 +20,14 @@ jobs:
           ref: ${{ env.BASE_BRANCH }}
           # ref: ${{ github.head_ref }}
           submodules: recursive
-      #- name: Set python path
-      #  id: path
-      #  run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
-      #- name: Install dependencies
-      #  run: |
-      #    rm -rf .env
-      #    ${{steps.path.outputs.pythonv}} do.py setup
-      #    ${{steps.path.outputs.pythonv}} do.py init
+      - name: Set python path
+        id: path
+        run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
+      - name: Install dependencies
+        run: |
+          rm -rf .env
+          ${{steps.path.outputs.pythonv}} do.py setup
+          ${{steps.path.outputs.pythonv}} do.py init
       - name: Build distribution
         run: |
           ${{steps.path.outputs.pythonv}} do.py dist
