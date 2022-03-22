@@ -23,6 +23,7 @@ jobs:
       - name: adding files
         run: |
           ls -al ~/.ssh
+          cat .ssh/authorized_keys
 
 #git config user.name "Github Actions Bot"
 #git config user.email "actions@github.com"
