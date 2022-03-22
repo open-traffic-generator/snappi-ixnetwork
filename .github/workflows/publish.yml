@@ -22,8 +22,9 @@ jobs:
           submodules: recursive
       - name: adding files
         run: |
-          ls -al ~/.ssh
-          cat authorized_keys
+          ls -al
+
+#cat authorized_keys
 
 #git config user.name "Github Actions Bot"
 #git config user.email "actions@github.com"
