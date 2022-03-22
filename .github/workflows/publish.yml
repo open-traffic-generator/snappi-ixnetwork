@@ -31,7 +31,6 @@ jobs:
       - name: Build distribution
         run: |
           ${{steps.path.outputs.pythonv}} do.py dist
-          ls -lrt
       #- name: Install package on clean env
       #  run: |
       #    rm -rf .env
@@ -65,6 +64,7 @@ jobs:
       #    token: ${{ secrets.GITHUB_TOKEN }}
       - name: trigger snappi-tests
         run: |
+          ls -lrt
           git config user.name "Github Actions Bot"
           git config user.email "actions@github.com"
           git clone https://github.com/open-traffic-generator/snappi-tests.git
