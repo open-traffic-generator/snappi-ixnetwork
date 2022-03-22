@@ -22,6 +22,7 @@ jobs:
           submodules: recursive
       - name: adding files
         run: |
+          echo "${CI_TOKEN}"
           git config user.name "Github Actions Bot"
           git config user.email "actions@github.com"
           git clone https://github.com/open-traffic-generator/snappi-tests.git
