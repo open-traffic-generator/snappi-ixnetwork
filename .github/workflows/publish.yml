@@ -56,7 +56,7 @@ jobs:
         #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
         #PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
         run: |
-          export RELEASE_FLAG = 1
+          export RELEASE_FLAG="1"
           echo "::set-output name=release_flag::${RELEASE_FLAG}"
       #- name: Create release and publish artifacts
       #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
