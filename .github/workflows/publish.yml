@@ -70,7 +70,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           path: |
-            dist/
+            dist
   #cicd_snappitest:
   #  runs-on: [self-hosted, Linux, Ubuntu, x64]
   #  needs: cicd
