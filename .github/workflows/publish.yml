@@ -28,9 +28,9 @@ jobs:
       #    rm -rf .env
       #    ${{steps.path.outputs.pythonv}} do.py setup
       #    ${{steps.path.outputs.pythonv}} do.py init
-      #- name: Build distribution
-      #  run: |
-      #    ${{steps.path.outputs.pythonv}} do.py dist
+      - name: Build distribution
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py dist
       #- name: Install package on clean env
       #  run: |
       #    rm -rf .env
