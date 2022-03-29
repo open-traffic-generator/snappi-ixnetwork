@@ -44,13 +44,13 @@ jobs:
         id: get_version
         run: |
           echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
-      #- name: Check tag for current version
-      #  uses: mukunku/tag-exists-action@v1.0.0
-      #  id: check_tag
-      #  with:
-      #    tag: ${{ steps.get_version.outputs.version }}
-      #  env:
-      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check tag for current version
+        uses: mukunku/tag-exists-action@v1.0.0
+        id: check_tag
+        with:
+          tag: ${{ steps.get_version.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #- name: Publish package
       #  id: release
       #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
@@ -75,8 +75,7 @@ jobs:
       - name: save the artifat set-url
         run: |
           URL=$(curl -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/artifacts)
-          echo '::set-output name=URL::$URL'
-          echo "{{ outputs.URL }}"
+          echo "{{ URL }}"
   #cicd_snappitest:
   #  runs-on: [self-hosted, Linux, Ubuntu, x64]
   #  needs: cicd
