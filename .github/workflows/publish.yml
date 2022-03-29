@@ -68,7 +68,7 @@ jobs:
       - name: Upload artifacts if release didn't happen
         #if: steps.check_tag.outputs.exists == 'true'
         run: |
-          echo "${{ RELEASE_FLAG }}"
+          echo "${{ release_flag }}"
   #cicd_snappitest:
   #  runs-on: [self-hosted, Linux, Ubuntu, x64]
   #  needs: cicd
