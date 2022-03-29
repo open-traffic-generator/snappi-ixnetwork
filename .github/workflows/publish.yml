@@ -44,27 +44,27 @@ jobs:
         id: get_version
         run: |
           echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
-      - name: Check tag for current version
-        uses: mukunku/tag-exists-action@v1.0.0
-        id: check_tag
-        with:
-          tag: ${{ steps.get_version.outputs.version }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish package
-        id: release
-        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        run: |
-          PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
-          export RELEASE_FLAG="1"
-          echo "::set-output name=release_flag::${RELEASE_FLAG}"
-      - name: Create release and publish artifacts
-        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "dist/*"
-          tag: ${{ steps.get_version.outputs.version }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+      #- name: Check tag for current version
+      #  uses: mukunku/tag-exists-action@v1.0.0
+      #  id: check_tag
+      #  with:
+      #    tag: ${{ steps.get_version.outputs.version }}
+      #  env:
+      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #- name: Publish package
+      #  id: release
+      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+      #  run: |
+      #    PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
+      #    export RELEASE_FLAG="1"
+      #    echo "::set-output name=release_flag::${RELEASE_FLAG}"
+      #- name: Create release and publish artifacts
+      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+      #  uses: ncipollo/release-action@v1
+      #  with:
+      #    artifacts: "dist/*"
+      #    tag: ${{ steps.get_version.outputs.version }}
+      #    token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload artifacts if release didn't happen
         id: check_release
         if: steps.check_tag.outputs.exists == 'true'
