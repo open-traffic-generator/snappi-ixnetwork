@@ -2,7 +2,7 @@
 
 class IxNetObjects(object):
     def __init__(self, ixnetworkapi):
-        self._ixn_objects = {}
+        self._ixnet_infos = {}
         self._api = ixnetworkapi
 
     # get_ixn_href
@@ -24,11 +24,11 @@ class IxNetObjects(object):
     @property
     def names(self):
         """Returns all names stored as keys"""
-        return self._ixn_objects.keys()
+        return self._ixnet_infos.keys()
 
     def get(self, name):
         try:
-            return self._ixn_objects[name]
+            return self._ixnet_infos[name]
         except KeyError:
             raise NameError(
                 "snappi object named {0} not found in internal db".format(
@@ -41,7 +41,7 @@ class IxNetObjects(object):
         return ixn_obj.working_dg
 
     def set(self, name, ixnobject):
-        self._ixn_objects[name] = IxNetInfo(
+        self._ixnet_infos[name] = IxNetInfo(
             ixnobject, self._api.ngpf.working_dg
         )
 
@@ -51,15 +51,15 @@ class IxNetObjects(object):
         for index, name in enumerate(names):
             if name is None or name in set_names:
                 continue
-            if name not in self._ixn_objects:
+            if name not in self._ixnet_infos:
                 continue
             # Same name may present within different object structure
-            old_keys = sorted(self._ixn_objects[name].ixnobject)
+            old_keys = sorted(self._ixnet_infos[name].ixnobject)
             keys = sorted(ixnobject)
             if old_keys != keys:
                 continue
             set_names.append(name)
-            self._ixn_objects[name] = IxNetInfo(
+            self._ixnet_infos[name] = IxNetInfo(
                 ixnobject,
                 self.get_working_dg(names[0]),
                 index=index,

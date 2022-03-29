@@ -3,6 +3,7 @@ import json, re
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.device.bgp import Bgp
+from snappi_ixnetwork.device.vxlan import VXLAN
 from snappi_ixnetwork.device.interface import Ethernet
 from snappi_ixnetwork.device.loopbackint import LoopbackInt
 from snappi_ixnetwork.device.compactor import Compactor
@@ -38,6 +39,7 @@ class Ngpf(Base):
         self.ether_v6gateway_map = {}
         self._ethernet = Ethernet(self)
         self._bgp = Bgp(self)
+        self._vxlan = VXLAN(self)
         self._loop_back = LoopbackInt(self)
         self.compactor = Compactor(self.api)
         self._createixnconfig = CreateIxnConfig(self)
@@ -99,6 +101,7 @@ class Ngpf(Base):
         for device in self.api.snappi_config.devices:
             self.working_dg = self.api.ixn_objects.get_working_dg(device.name)
             self._bgp.config(device)
+            self._vxlan.config(device)
 
         # First compact all loopback interfaces
         for ix_parent_dg in ixn_parent_dgs:
