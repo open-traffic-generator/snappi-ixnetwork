@@ -73,9 +73,11 @@ jobs:
           path: |
             dist
       - name: save the artifat set-url
+        id: url
         run: |
-          URL=$(curl -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/artifacts)
-          echo "{{ URL }}"
+          URL=$(curl -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/artifacts | jq .artifacts[].url)
+          echo "::set-output url=$URL"
+          echo "${{ steps.url.outputs.url }}"
   #cicd_snappitest:
   #  runs-on: [self-hosted, Linux, Ubuntu, x64]
   #  needs: cicd
