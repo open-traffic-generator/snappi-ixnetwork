@@ -51,46 +51,40 @@ jobs:
           tag: ${{ steps.get_version.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #- name: Publish package
-      #  id: release
-      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-      #  run: |
-      #    PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
-      #    export RELEASE_FLAG="1"
-      #    echo "::set-output name=release_flag::${RELEASE_FLAG}"
-      #- name: Create release and publish artifacts
-      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-      #  uses: ncipollo/release-action@v1
-      #  with:
-      #    artifacts: "dist/*"
-      #    tag: ${{ steps.get_version.outputs.version }}
-      #    token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish package
+        id: release
+        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+        run: |
+          PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
+          export RELEASE_FLAG="1"
+          echo "::set-output name=release_flag::${RELEASE_FLAG}"
+      - name: Create release and publish artifacts
+        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "dist/*"
+          tag: ${{ steps.get_version.outputs.version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload artifacts if release didn't happen
         id: check_release
         if: steps.check_tag.outputs.exists == 'true'
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v3
         with:
           path: |
             dist
-          env-url: URL
-      - name: save the artifat set-url
-        id: url
+  cicd_snappitest:
+    runs-on: [self-hosted, Linux, Ubuntu, x64]
+    needs: cicd
+    steps:
+      - name: Check the release flag
         run: |
-          echo "${{ env.URL }}"
-
-#URL=$(curl -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/artifacts | jq .artifacts[].url)
-#echo "::set-output url=$URL"
-#echo "${{ steps.url.outputs.url }}"
-#cicd_snappitest:
-#  runs-on: [self-hosted, Linux, Ubuntu, x64]
-#  needs: cicd
-#  steps:
-#    - name: Trigger CI/CD snappi-tests
-#      run: |
-#        git clone https://github.com/open-traffic-generator/snappi-tests.git
-#        cp -R dist snappi-tests
-#        cd snappi-tests
-#        git add --all dist
-#        git commit -m "Trigger Snappi test from snappi-ixnetwork"
-#        git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
-#        git push origin main
+          echo "{{ needs.cicd.steps.release.outputs.release_flag }}"
+      #- name: Trigger CI/CD snappi-tests
+      #  run: |
+      #    git clone https://github.com/open-traffic-generator/snappi-tests.git
+      #    cp -R dist snappi-tests
+      #    cd snappi-tests
+      #    git add --all dist
+      #    git commit -m "Trigger Snappi test from snappi-ixnetwork"
+      #    git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
+      #    git push origin main
