@@ -75,10 +75,11 @@ jobs:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     needs: cicd
     steps:
-      - name: Set the release version or artifact url
+      - name: Check the release
+        id: check_release
         run: |
           echo "::set-output name=release_flag::v$(${{steps.path.outputs.pythonv}} do.py check_release_flag)"
-          echo "${{ release_flag }}"
+          echo "${{ steps.check_release.outputs.release_flag }}"
       #- name: Trigger CI/CD snappi-tests
       #  run: |
       #    git clone -b Issue495-CI/CD https://github.com/open-traffic-generator/snappi-tests.git
