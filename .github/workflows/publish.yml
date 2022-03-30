@@ -65,14 +65,12 @@ jobs:
           tag: ${{ steps.get_version.outputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload artifacts if release didn't happen
-        id: check_release
         if: steps.check_tag.outputs.exists == 'true'
         uses: actions/upload-artifact@v3
         with:
           path: |
             dist
       - name: Check the release tag/artifact set-url
-        id: check_release
         run: |
           ${{steps.path.outputs.pythonv}} do.py check_release_flag
   #cicd_snappitest:
