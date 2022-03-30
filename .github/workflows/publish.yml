@@ -79,7 +79,7 @@ jobs:
     steps:
       - name: Check the release flag
         run: |
-          echo "{{ needs.cicd.steps.release.outputs.release_flag }}"
+          echo "${{ needs.cicd.steps.release.outputs.release_flag }}"
       #- name: Trigger CI/CD snappi-tests
       #  run: |
       #    git clone https://github.com/open-traffic-generator/snappi-tests.git
