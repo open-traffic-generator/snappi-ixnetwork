@@ -57,8 +57,6 @@ jobs:
         if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
         run: |
           PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
-          export RELEASE_FLAG="1"
-          echo "::set-output name=release_flag::${RELEASE_FLAG}"
       - name: Create release and publish artifacts
         if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
         uses: ncipollo/release-action@v1
@@ -77,14 +75,15 @@ jobs:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     needs: cicd
     steps:
-      - name: Check the release flag
+      - name: Set the release version or artifact url
         run: |
-          echo "${{ needs.cicd.steps.release.outputs.release_flag }}"
+          echo "::set-output name=release_flag::v$(${{steps.path.outputs.pythonv}} do.py check_release_flag)"
+          echo "${{ release_flag }}"
       #- name: Trigger CI/CD snappi-tests
       #  run: |
-      #    git clone https://github.com/open-traffic-generator/snappi-tests.git
-      #    cp -R dist snappi-tests
+      #    git clone -b Issue495-CI/CD https://github.com/open-traffic-generator/snappi-tests.git
       #    cd snappi-tests
+      #    echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
       #    git add --all dist
       #    git commit -m "Trigger Snappi test from snappi-ixnetwork"
       #    git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
