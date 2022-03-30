@@ -78,7 +78,7 @@ jobs:
       - name: Check the release
         id: check_release
         run: |
-          echo "::set-output name=release_flag::v$(${{steps.path.outputs.pythonv}} do.py check_release_flag)"
+          echo "::set-output name=release_flag::v$(${{needs.cicd.steps.path.outputs.pythonv}} do.py check_release_flag)"
           echo "${{ steps.check_release.outputs.release_flag }}"
       #- name: Trigger CI/CD snappi-tests
       #  run: |
