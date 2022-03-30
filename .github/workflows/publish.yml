@@ -11,7 +11,8 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        python-version: [python27, python38]
+        #python-version: [python27, python38]
+        python-version: [python27]
 
     steps:
       - name: Checkout source
