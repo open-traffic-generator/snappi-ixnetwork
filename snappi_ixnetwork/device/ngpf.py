@@ -109,7 +109,21 @@ class Ngpf(Base):
                 "deviceGroup"
             ))
 
-        # Finally compact primary DGs
+        # Finally compact accordinb to order
+        # Compact chain DGs - TBD
+
+        # Compact VXLAN
+        source_interfaces = self._vxlan.source_interfaces
+        for v4_int in source_interfaces.ipv4:
+            self.compactor.compact(v4_int.get(
+                "vxlan"
+            ))
+        for v6_int in source_interfaces.ipv6:
+            self.compactor.compact(v6_int.get(
+                "vxlanv6"
+            ))
+
+        # Compact Topology
         for ixn_topo in self._ixn_topo_objects.values():
             self.compactor.compact(ixn_topo.get(
                 "deviceGroup"
@@ -147,6 +161,7 @@ class Ngpf(Base):
         if len(erros) > 0:
             return
         ixn_cnf = json.dumps(self._ixn_config, indent=2)
+        print(ixn_cnf)
         errata = self._resource_manager.ImportConfig(
             ixn_cnf, False
         )

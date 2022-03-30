@@ -228,8 +228,8 @@ class Api(snappi.Api):
         self._connect()
         self.capture.reset_capture_request()
         self._config = self._validate_instance(config)
-        # with Timer(self, "Config validation"):
-        #     self.validation.validate_config()
+        with Timer(self, "Config validation"):
+            self.validation.validate_config()
         self._ixnetwork.Traffic.UseRfc5952 = True
         if len(self._config._properties) == 0:
             self._ixnetwork.NewConfig()

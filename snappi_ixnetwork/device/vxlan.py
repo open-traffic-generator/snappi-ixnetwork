@@ -2,17 +2,19 @@ from collections import namedtuple
 from snappi_ixnetwork.device.base import Base
 
 class VXLAN(Base):
+    SourceInterface = namedtuple("SourceInterface",
+                                 ("ipv4", "ipv6"),
+                                 defaults=([], []))
     def __init__(self, ngpf):
         super(VXLAN, self).__init__()
         self._ngpf = ngpf
-        self._source_interfaces = []
+        self._source_interfaces = VXLAN.SourceInterface()
 
     @property
     def source_interfaces(self):
-        return list(set(self._source_interfaces))
+        return self._source_interfaces
 
     def config(self, device):
-        self._source_interfaces = []
         vxlan = device.get("vxlan")
         if vxlan is None: return None
 
@@ -26,16 +28,30 @@ class VXLAN(Base):
                 v6_tunnels) > 0:
             self._config_v6_tunnels(v6_tunnels)
 
+    def _store_source_interface(self, ixn_inter, ip_type):
+        if ip_type == "ipv4":
+            if ixn_inter not in self._source_interfaces.ipv4:
+                self._source_interfaces.ipv4.append(ixn_inter)
+        else:
+            if ixn_inter not in self._source_interfaces.ipv6:
+                self._source_interfaces.ipv6.append(ixn_inter)
+
     def _config_v4_tunnels(self, v4_tunnels):
         for v4_tunnel in v4_tunnels:
             source_interface = v4_tunnel.get("source_interface")
             ixnet_info = self._ngpf.api.ixn_objects.get(source_interface)
             ixn_inter = ixnet_info.ixnobject
             self._ngpf.working_dg = ixnet_info.working_dg
-            self._source_interfaces.append(ixn_inter)
+            ip_type = self._ngpf.api.get_device_encap(source_interface)
+            if ip_type != "ipv4":
+                raise TypeError("source_interface {} should support IPv4".format(
+                    source_interface
+                ))
+            self._store_source_interface(ixn_inter, ip_type)
             ixn_vxlan = self.create_node_elemet(
                 ixn_inter, "vxlan", v4_tunnel.get("name")
             )
+            ixn_vxlan["multiplier"] = 1
             ixn_vxlan["vni"] = self.as_multivalue(v4_tunnel, "vni")
             destination_ip_mode = v4_tunnel.destination_ip_mode
             if destination_ip_mode.choice == "unicast":
@@ -55,10 +71,16 @@ class VXLAN(Base):
             ixnet_info = self._ngpf.api.ixn_objects.get(source_interface)
             ixn_inter = ixnet_info.ixnobject
             self._ngpf.working_dg = ixnet_info.working_dg
-            self._source_interfaces.append(ixn_inter)
+            ip_type = self._ngpf.api.get_device_encap(source_interface)
+            if ip_type != "ipv6":
+                raise TypeError("source_interface {} should support IPv6".format(
+                    source_interface
+                ))
+            self._store_source_interface(ixn_inter, ip_type)
             ixn_vxlan6 = self.create_node_elemet(
                 ixn_inter, "vxlanv6", v6_tunnel.get("name")
             )
+            ixn_vxlan6["multiplier"] = 1
             ixn_vxlan6["vni"] = self.as_multivalue(v6_tunnel, "vni")
             destination_ip_mode = v6_tunnel.destination_ip_mode
             if destination_ip_mode.choice == "unicast":
