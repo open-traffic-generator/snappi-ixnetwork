@@ -71,21 +71,25 @@ jobs:
         with:
           path: |
             dist
-  cicd_snappitest:
-    runs-on: [self-hosted, Linux, Ubuntu, x64]
-    needs: cicd
-    steps:
-      - name: Check the release
+      - name: Check the release tag/artifact set-url
         id: check_release
         run: |
-          echo "::set-output name=release_flag::v$(${{needs.cicd.steps.path.outputs.pythonv}} do.py check_release_flag)"
-          echo "${{ steps.check_release.outputs.release_flag }}"
-      #- name: Trigger CI/CD snappi-tests
-      #  run: |
-      #    git clone -b Issue495-CI/CD https://github.com/open-traffic-generator/snappi-tests.git
-      #    cd snappi-tests
-      #    echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
-      #    git add --all dist
-      #    git commit -m "Trigger Snappi test from snappi-ixnetwork"
-      #    git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
-      #    git push origin main
+          ${{steps.path.outputs.pythonv}} do.py check_release_flag
+  #cicd_snappitest:
+  #  runs-on: [self-hosted, Linux, Ubuntu, x64]
+  #  needs: cicd
+  #  steps:
+  #    - name: Check the release
+  #      id: check_release
+  #      run: |
+  #        echo "::set-output name=release_flag::v$(${{needs.cicd.steps.path.outputs.pythonv}} do.py check_release_flag)"
+  #        echo "${{ steps.check_release.outputs.release_flag }}"
+  #- name: Trigger CI/CD snappi-tests
+  #  run: |
+  #    git clone -b Issue495-CI/CD https://github.com/open-traffic-generator/snappi-tests.git
+  #    cd snappi-tests
+  #    echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
+  #    git add --all dist
+  #    git commit -m "Trigger Snappi test from snappi-ixnetwork"
+  #    git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
+  #    git push origin main
