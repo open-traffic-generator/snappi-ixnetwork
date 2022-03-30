@@ -5,12 +5,6 @@ class VXLAN(Base):
     SourceInterface = namedtuple_with_defaults("SourceInterface",
                                         ("ipv4", "ipv6"),
                                         ([], []))
-    AllInfo = namedtuple_with_defaults("AllInfo",
-                         ("remote_vtep_address",
-                          "suppress_arp",
-                          "remote_vm_mac",
-                          "remote_vm_ipv4"),
-                         ([], [], [], []))
 
     def __init__(self, ngpf):
         super(VXLAN, self).__init__()
@@ -26,12 +20,12 @@ class VXLAN(Base):
         if vxlan is None: return None
 
         v4_tunnels = vxlan.get("v4_tunnels")
-        if v4_tunnels is not None or len(
+        if v4_tunnels is not None and len(
                 v4_tunnels) > 0:
             self._config_v4_tunnels(v4_tunnels)
 
         v6_tunnels = vxlan.get("v6_tunnels")
-        if v6_tunnels is not None or len(
+        if v6_tunnels is not None and len(
                 v6_tunnels) > 0:
             self._config_v6_tunnels(v6_tunnels)
 
@@ -103,7 +97,13 @@ class VXLAN(Base):
 
     def _get_all_info(self, unicast):
         ixn_info_count = 0
-        all_info = VXLAN.AllInfo()
+        AllInfo = namedtuple_with_defaults("AllInfo",
+                                           ("remote_vtep_address",
+                                            "suppress_arp",
+                                            "remote_vm_mac",
+                                            "remote_vm_ipv4"),
+                                           ([], [], [], []))
+        all_info = AllInfo()
         vteps = unicast.vteps
         for vtep in vteps:
             remote_vtep_address = vtep.get("remote_vtep_address")
