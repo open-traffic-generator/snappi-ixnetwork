@@ -13,11 +13,11 @@ class Validation(object):
 
     def validate_config(self):
         self._unique_name_errors = []
-        self.__check_config_objects(self._api.snappi_config)
+        self.__check_config_objects(self._api.snappi_config, item_ids=[])
         if len(self._unique_name_errors) > 0:
             raise NameError(", ".join(self._unique_name_errors))
 
-    def __check_config_objects(self, config_item):
+    def __check_config_objects(self, config_item, item_ids):
         if config_item is None:
             return
         config_item.validate()
@@ -51,9 +51,12 @@ class Validation(object):
                 if attr_value.__module__.startswith("snappi"):
                     if "__next__" in dir(attr_value):
                         for item in attr_value:
+                            if id(item_ids) in item_ids:
+                                continue
                             if getattr(item, "parent", None) is not None:
-                                self.__check_config_objects(item.parent)
+                                item_ids.append(id(item_ids))
+                                self.__check_config_objects(item.parent, item_ids)
                             else:
-                                self.__check_config_objects(item)
+                                self.__check_config_objects(item, item_ids)
                     else:
-                        self.__check_config_objects(attr_value)
+                        self.__check_config_objects(attr_value, item_ids)

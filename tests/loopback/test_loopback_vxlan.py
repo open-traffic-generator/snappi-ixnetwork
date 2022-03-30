@@ -1,7 +1,6 @@
 import snappi
 import pytest
 
-@pytest.mark.skip(reason="Validation issue")
 def test_vxlan(api, b2b_raw_config):
     p1, p2 = b2b_raw_config.ports
     d1, d2 = b2b_raw_config.devices.device(name='d1').device(name='d2')
