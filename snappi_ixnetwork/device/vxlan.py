@@ -1,10 +1,17 @@
-from collections import namedtuple
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.device.utils import namedtuple_with_defaults
 
 class VXLAN(Base):
-    SourceInterface = namedtuple("SourceInterface",
-                                 ("ipv4", "ipv6"),
-                                 defaults=([], []))
+    SourceInterface = namedtuple_with_defaults("SourceInterface",
+                                        ("ipv4", "ipv6"),
+                                        ([], []))
+    AllInfo = namedtuple_with_defaults("AllInfo",
+                         ("remote_vtep_address",
+                          "suppress_arp",
+                          "remote_vm_mac",
+                          "remote_vm_ipv4"),
+                         ([], [], [], []))
+
     def __init__(self, ngpf):
         super(VXLAN, self).__init__()
         self._ngpf = ngpf
@@ -96,13 +103,7 @@ class VXLAN(Base):
 
     def _get_all_info(self, unicast):
         ixn_info_count = 0
-        AllInfo = namedtuple("AllInfo",
-                             ("remote_vtep_address",
-                              "suppress_arp",
-                              "remote_vm_mac",
-                              "remote_vm_ipv4"),
-                             defaults=([], [], [], []))
-        all_info = AllInfo()
+        all_info = VXLAN.AllInfo()
         vteps = unicast.vteps
         for vtep in vteps:
             remote_vtep_address = vtep.get("remote_vtep_address")
