@@ -7,6 +7,7 @@ def test_port_name(api, utils):
     eth1.name = "eth1"
     eth1.mac = "00:01:00:00:00:01"
     api.set_config(config)
+    validate_config(api, p1.name)
 
 
 def test_connection_portname(api, utils):
@@ -19,7 +20,7 @@ def test_connection_portname(api, utils):
     eth1.name = "eth1"
     eth1.mac = "00:01:00:00:00:01"
     api.set_config(config)
-
+    validate_config(api, p1.name)
 
 def test_device_connection(api, utils):
     """
@@ -36,7 +37,7 @@ def test_device_connection(api, utils):
     eth1.name = "eth1"
     eth1.mac = "00:01:00:00:00:01"
     api.set_config(config)
-
+    validate_config(api, p1.name)
 
 def test_device_lag_name(api, utils):
     config = api.config()
@@ -52,3 +53,17 @@ def test_device_lag_name(api, utils):
     eth1.name = "eth1"
     eth1.mac = "00:01:00:00:00:02"
     api.set_config(config)
+    assert(api._ixnetwork.Lag.find()[0].Name) == lag1.name
+
+def test_device_without_port_name(api, utils):
+    config = api.config()
+    api.set_config(config)
+    p1 = config.ports.port(name="p1", location=utils.settings.ports[0])[-1]
+    d1 = config.devices.device(name="d1")[-1]
+    eth1 = d1.ethernets.ethernet()[-1]
+    eth1.name = "eth1"
+    eth1.mac = "00:01:00:00:00:01"
+    api.set_config(config)
+
+def validate_config(api, port_name):
+    assert(api._ixnetwork.Vport.find()[0].Name) == port_name

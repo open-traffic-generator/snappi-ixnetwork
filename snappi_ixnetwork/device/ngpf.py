@@ -130,6 +130,8 @@ class Ngpf(Base):
                         print("skip as vxlan_name is not implemented")
                 else:
                     port_name = ethernet.get("port_name")
+                if port_name is None:
+                    raise Exception("port_name is not passed for the device {}".format(device.get("name")))
                 if port_name in self._ixn_topo_objects:
                     ixn_topo = self._ixn_topo_objects[port_name]
                 else:

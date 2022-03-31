@@ -3,7 +3,7 @@
         80,
         90
     ],
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": false,
     "python.linting.pylintEnabled": false,
     "python.linting.flake8Enabled": true,
     "python.linting.enabled": true,
