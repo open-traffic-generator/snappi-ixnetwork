@@ -117,9 +117,19 @@ class Ngpf(Base):
 
     def _configure_device_group(self, ixn_topos):
         """map ethernet with a ixn deviceGroup with multiplier = 1"""
+        port_name = None
         for device in self.api.snappi_config.devices:
             for ethernet in device.get("ethernets"):
-                port_name = ethernet.get("port_name")
+                if ethernet.get("connection"):
+                    connection_choice = ethernet.get("connection").choice
+                    if connection_choice == "port_name":
+                        port_name = ethernet.get("connection").port_name
+                    elif connection_choice == "lag_name":
+                        port_name = ethernet.get("connection").lag_name
+                    elif connection_choice == "vxlan_name":
+                        print("skip as vxlan_name is not implemented")
+                else:
+                    port_name = ethernet.get("port_name")
                 if port_name in self._ixn_topo_objects:
                     ixn_topo = self._ixn_topo_objects[port_name]
                 else:
