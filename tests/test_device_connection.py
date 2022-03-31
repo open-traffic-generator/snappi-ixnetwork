@@ -63,7 +63,10 @@ def test_device_without_port_name(api, utils):
     eth1 = d1.ethernets.ethernet()[-1]
     eth1.name = "eth1"
     eth1.mac = "00:01:00:00:00:01"
-    api.set_config(config)
+    try:
+        api.set_config(config)
+    except Exception as err:
+        assert(str(err).split('\n ')[-1]) == "port_name is not passed for the device d1"
 
 def validate_config(api, port_name):
     assert(api._ixnetwork.Vport.find()[0].Name) == port_name
