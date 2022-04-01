@@ -22,6 +22,7 @@ def test_connection_portname(api, utils):
     eth1.mac = "00:01:00:00:00:01"
     api.set_config(config)
     validate_config(api, p1.name)
+    api._ixnetwork.NewConfig()
 
 def test_device_connection(api, utils):
     """
