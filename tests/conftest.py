@@ -47,9 +47,10 @@ def pytest_collection_modifyitems(items):
             if item.name == "test_device_connection"
         ][0]
 
-        items[-1], items[-2], items[test_flow_tracking_index] = (
+        items[-2], items[test_device_connection] = items[test_device_connection], items[-2]
+
+        items[-1], items[test_flow_tracking_index] = (
             items[test_flow_tracking_index],
-            items[test_device_connection],
             items[-1],
         )
     except:
