@@ -26,7 +26,6 @@ def pytest_collection_modifyitems(items):
 
     :param List[pytest.Item] items: List of item objects.
     """
-
     try:
         pretest_index = [
             index
@@ -41,8 +40,16 @@ def pytest_collection_modifyitems(items):
             for index, item in enumerate(items)
             if item.name == "test_flow_tracking_stats"
         ][0]
-        items[-1], items[test_flow_tracking_index] = (
+
+        test_device_connection = [
+            index
+            for index, item in enumerate(items)
+            if item.name == "test_device_connection"
+        ][0]
+
+        items[-1], items[test_device_connection], items[test_flow_tracking_index] = (
             items[test_flow_tracking_index],
+            items[test_device_connection],
             items[-1],
         )
     except:
