@@ -9,7 +9,6 @@ def test_port_name(api, utils):
     eth1.mac = "00:01:00:00:00:01"
     api.set_config(config)
     validate_config(api, p1.name)
-    api._ixnetwork.NewConfig()
 
 
 def test_connection_portname(api, utils):
@@ -23,7 +22,6 @@ def test_connection_portname(api, utils):
     eth1.mac = "00:01:00:00:00:01"
     api.set_config(config)
     validate_config(api, p1.name)
-    api._ixnetwork.NewConfig()
 
 def test_device_connection(api, utils):
     """
@@ -42,7 +40,6 @@ def test_device_connection(api, utils):
     eth1.mac = "00:01:00:00:00:01"
     api.set_config(config)
     validate_config(api, p1.name)
-    api._ixnetwork.NewConfig()
 
 
 def test_device_lag_name(api, utils):
@@ -61,7 +58,6 @@ def test_device_lag_name(api, utils):
     eth1.mac = "00:01:00:00:00:02"
     api.set_config(config)
     assert(api._ixnetwork.Lag.find()[0].Name) == lag1.name
-    api._ixnetwork.NewConfig()
 
 
 def test_device_without_port_name(api, utils):
@@ -76,7 +72,6 @@ def test_device_without_port_name(api, utils):
         api.set_config(config)
     except Exception as err:
         assert(str(err).split('\n ')[-1]) == "port_name is not passed for the device d1"
-    api._ixnetwork.NewConfig()
 
 def validate_config(api, port_name):
     assert(api._ixnetwork.Vport.find()[0].Name) == port_name
