@@ -15,10 +15,7 @@ class VXLAN(Base):
     def source_interfaces(self):
         return self._source_interfaces
 
-    def config(self, device):
-        vxlan = device.get("vxlan")
-        if vxlan is None: return None
-
+    def config(self, vxlan):
         v4_tunnels = vxlan.get("v4_tunnels")
         if v4_tunnels is not None and len(
                 v4_tunnels) > 0:

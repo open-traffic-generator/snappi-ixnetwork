@@ -179,8 +179,11 @@ class Ngpf(Base):
         self.loopback_parent_dgs = self._loop_back.config()
 
         for device in self.api.snappi_config.devices:
+            vxlan = device.get("vxlan")
+            if vxlan is None:
+                continue
             self.working_dg = self.api.ixn_objects.get_working_dg(device.name)
-            self._vxlan.config(device)
+            self._vxlan.config(vxlan)
 
         # Wait till all primary DG will configure
         for device in self.api.snappi_config.devices:
@@ -194,6 +197,7 @@ class Ngpf(Base):
                     )
                     ixn_dg["multiplier"] = 1
                     self.working_dg = ixn_dg
+                    self.set_device_info(device, ixn_dg)
                     self._ethernet.config(ethernet, ixn_dg)
 
 
