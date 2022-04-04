@@ -22,6 +22,8 @@ class Ngpf(Base):
         "BgpV6RouteRange": "ipv6",
         "DeviceIpv4Loopback": "ipv4",
         "DeviceIpv6Loopback": "ipv6",
+        "VxlanV4Tunnel": "ipv4",
+        "VxlanV6Tunnel": "ipv6"
     }
 
     _ROUTE_STATE = {
@@ -50,6 +52,8 @@ class Ngpf(Base):
         self._ixn_config = dict()
         self.ether_v4gateway_map = {}
         self.ether_v6gateway_map = {}
+        self._chain_parent_dgs = []
+        self.loopback_parent_dgs = []
         self._ixn_config["xpath"] = "/"
         self._resource_manager = self.api._ixnetwork.ResourceManager
         with Timer(self.api, "Convert device config :"):
@@ -95,16 +99,15 @@ class Ngpf(Base):
         self.stop_topology()
         self.api._remove(self.api._topology, [])
         ixn_topos = self.create_node(self._ixn_config, "topology")
-        ixn_parent_dgs = self._configure_device_group(ixn_topos)
+        self._configure_device_group(ixn_topos)
 
         # We need to configure all interface before configure protocols
         for device in self.api.snappi_config.devices:
             self.working_dg = self.api.ixn_objects.get_working_dg(device.name)
             self._bgp.config(device)
-            self._vxlan.config(device)
 
         # First compact all loopback interfaces
-        for ix_parent_dg in ixn_parent_dgs:
+        for ix_parent_dg in self.loopback_parent_dgs:
             self.compactor.compact(ix_parent_dg.get(
                 "deviceGroup"
             ))
@@ -135,7 +138,9 @@ class Ngpf(Base):
     def _configure_device_group(self, ixn_topos):
         """map ethernet with a ixn deviceGroup with multiplier = 1"""
         port_name = None
+        device_chain_dgs = {}
         for device in self.api.snappi_config.devices:
+            chin_dgs = {}
             for ethernet in device.get("ethernets"):
                 if ethernet.get("connection"):
                     connection_choice = ethernet.get("connection").choice
@@ -144,7 +149,12 @@ class Ngpf(Base):
                     elif connection_choice == "lag_name":
                         port_name = ethernet.get("connection").lag_name
                     elif connection_choice == "vxlan_name":
-                        print("skip as vxlan_name is not implemented")
+                        port_name = ethernet.get("connection").vxlan_name
+                        if port_name in chin_dgs:
+                            chin_dgs[port_name].append(ethernet)
+                        else:
+                            chin_dgs[port_name] = [ethernet]
+                        continue
                 else:
                     port_name = ethernet.get("port_name")
                 if port_name is None:
@@ -163,9 +173,28 @@ class Ngpf(Base):
                 self.working_dg = ixn_dg
                 self.set_device_info(device, ixn_dg)
                 self._ethernet.config(ethernet, ixn_dg)
+            device_chain_dgs[device.name] = chin_dgs
 
         # Create all ethernet before start loopback
-        return self._loop_back.config()
+        self.loopback_parent_dgs = self._loop_back.config()
+
+        for device in self.api.snappi_config.devices:
+            self.working_dg = self.api.ixn_objects.get_working_dg(device.name)
+            self._vxlan.config(device)
+
+        # Wait till all primary DG will configure
+        for device in self.api.snappi_config.devices:
+            chin_dgs = device_chain_dgs[device.name]
+            for connected_to, ethernet_list in chin_dgs.items():
+                ixn_working_dg = self.api.ixn_objects.get_working_dg(connected_to)
+                self._chain_parent_dgs.append(ixn_working_dg)
+                for ethernet in ethernet_list:
+                    ixn_dg = self.create_node_elemet(
+                        ixn_working_dg, "deviceGroup", device.get("name")
+                    )
+                    ixn_dg["multiplier"] = 1
+                    self.working_dg = ixn_dg
+                    self._ethernet.config(ethernet, ixn_dg)
 
 
     def _pushixnconfig(self):

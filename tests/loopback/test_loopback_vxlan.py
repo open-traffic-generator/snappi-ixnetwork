@@ -36,10 +36,15 @@ def test_device_vxlan(api, b2b_raw_config):
     vtep.arp_suppression_cache.add("00:1b:6e:80:00:01", "20.1.1.1")
     vtep.arp_suppression_cache.add("00:1b:6e:80:00:02", "20.1.1.2")
 
-    vxlanv4 = d1.vxlan.v4_tunnels.add()
-    vxlanv4.vni = 1
-    vxlanv4.source_interface = l1.name
-    vxlanv4.name = "vxlanv42"
+    # device connected to VXLAN
+    e3 = d1.ethernets.ethernet()[-1]
+    e3.name = "e3"
+    e3.mac = "00:01:00:00:00:08"
+    e3.connection.vxlan_name = vxlanv4.name
+    i3 = e3.ipv4_addresses.add()
+    i3.name = "i3"
+    i3.address = "30.0.0.1"
+    i3.gateway = "30.0.0.2"
 
     # unicast communication
     vtep = vxlanv4.destination_ip_mode.unicast.vteps.add()

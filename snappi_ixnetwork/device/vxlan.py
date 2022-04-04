@@ -52,6 +52,7 @@ class VXLAN(Base):
             ixn_vxlan = self.create_node_elemet(
                 ixn_inter, "vxlan", v4_tunnel.get("name")
             )
+            self._ngpf.set_device_info(v4_tunnel, ixn_vxlan)
             ixn_vxlan["multiplier"] = 1
             ixn_vxlan["vni"] = self.as_multivalue(v4_tunnel, "vni")
             destination_ip_mode = v4_tunnel.destination_ip_mode
@@ -81,6 +82,7 @@ class VXLAN(Base):
             ixn_vxlan6 = self.create_node_elemet(
                 ixn_inter, "vxlanv6", v6_tunnel.get("name")
             )
+            self._ngpf.set_device_info(v6_tunnel, ixn_vxlan6)
             ixn_vxlan6["multiplier"] = 1
             ixn_vxlan6["vni"] = self.as_multivalue(v6_tunnel, "vni")
             destination_ip_mode = v6_tunnel.destination_ip_mode
