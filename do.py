@@ -5,7 +5,7 @@ import sys
 import shutil
 import subprocess
 
-release_flag = 0
+release_flag = 1
 
 
 def setup():
@@ -253,7 +253,7 @@ def get_workflow_id():
 
 def check_release_flag():
     if release_flag == 1:
-        release_version = version()
+        release_version = pkg()[-1]
         with open("version.txt", "w+") as f:
             f.write("version: {}".format(release_version))
             f.close()
