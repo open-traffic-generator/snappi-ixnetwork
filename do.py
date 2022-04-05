@@ -238,12 +238,10 @@ def run(commands):
 
 
 def get_workflow_id():
-    import requests
-
     cmd = "https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/runs"
-    res = requests.get(cmd)
-    workflow_id = res.json()["workflow_runs"][0]["workflow_id"]
-    return workflow_id
+    res = run([py() + requests.get(cmd)])
+    # workflow_id = res.json()["workflow_runs"][0]["workflow_id"]
+    # return workflow_id
 
 
 def check_release_flag():
