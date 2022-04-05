@@ -238,8 +238,6 @@ def run(commands):
 
 
 def get_workflow_id():
-    cmd = "pip install requests"
-    subprocess.run(cmd, shell=True)
     import requests
 
     cmd = "https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/runs"
@@ -258,6 +256,11 @@ def check_release_flag():
         workflow_id = get_workflow_id()
         with open("version.txt", "w+") as f:
             f.write("workflow_id: {}".format(workflow_id))
+
+
+def install_requests(path):
+    cmd = "{} -m pip install requests".format(path)
+    subprocess.run(cmd, shell=True)
 
 
 def main():
