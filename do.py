@@ -238,6 +238,11 @@ def run(commands):
 
 
 def get_workflow_id():
+    run(
+        [
+            py() + " -m pip install requests",
+        ]
+    )
     import requests
 
     cmd = "https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/runs"
@@ -247,11 +252,6 @@ def get_workflow_id():
 
 
 def check_release_flag():
-    run(
-        [
-            py() + " -m pip install requests",
-        ]
-    )
     if release_flag == 1:
         release_version = pkg()[-1]
         with open("version.txt", "w+") as f:
