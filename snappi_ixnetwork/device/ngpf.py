@@ -206,7 +206,6 @@ class Ngpf(Base):
         if len(erros) > 0:
             return
         ixn_cnf = json.dumps(self._ixn_config, indent=2)
-        print(ixn_cnf)
         errata = self._resource_manager.ImportConfig(
             ixn_cnf, False
         )
