@@ -68,7 +68,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           path: dist
-      - name: Check the release tag/artifact set-url
+      - name: Set the release version/workflow id
         run: |
           ${{steps.path.outputs.pythonv}} do.py check_release_flag
   cicd_snappitest:
