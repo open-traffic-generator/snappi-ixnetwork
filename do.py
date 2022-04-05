@@ -240,7 +240,7 @@ def run(commands):
 def get_workflow_id():
     run(
         [
-            py() + " -m pip install requests",
+            py() + " -m pip3 install requests",
         ]
     )
     import requests
