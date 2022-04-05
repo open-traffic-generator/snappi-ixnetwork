@@ -5,7 +5,7 @@ import sys
 import shutil
 import subprocess
 
-release_flag = 1
+release_flag = 0
 
 
 def setup():
