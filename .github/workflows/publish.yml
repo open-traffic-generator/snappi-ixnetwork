@@ -24,20 +24,20 @@ jobs:
       - name: Set python path
         id: path
         run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
-      - name: Install dependencies
-        run: |
-          rm -rf .env
-          ${{steps.path.outputs.pythonv}} do.py setup
-          ${{steps.path.outputs.pythonv}} do.py init
+      #- name: Install dependencies
+      #  run: |
+      #    rm -rf .env
+      #    ${{steps.path.outputs.pythonv}} do.py setup
+      #    ${{steps.path.outputs.pythonv}} do.py init
       #- name: Build distribution
       #  run: |
       #    ${{steps.path.outputs.pythonv}} do.py dist
-      - name: Install package on clean env
-        run: |
-          rm -rf .env
-          ${{steps.path.outputs.pythonv}} do.py setup
-          ${{steps.path.outputs.pythonv}} do.py install
-          ${{steps.path.outputs.pythonv}} do.py init
+      #- name: Install package on clean env
+      #  run: |
+      #    rm -rf .env
+      #    ${{steps.path.outputs.pythonv}} do.py setup
+      #    ${{steps.path.outputs.pythonv}} do.py install
+      #    ${{steps.path.outputs.pythonv}} do.py init
       #- name: Run tests
       #  run: |
       #    ${{steps.path.outputs.pythonv}} do.py test
@@ -85,4 +85,6 @@ jobs:
           git add version.txt
           git commit -m "Trigger Snappi test from snappi-ixnetwork"
           git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
-          git push origin main
+          git push origin HEAD:Issue495-CI/CD
+
+#git push origin main
