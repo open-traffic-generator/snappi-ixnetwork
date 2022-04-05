@@ -238,7 +238,8 @@ def run(commands):
 
 
 def get_workflow_id():
-    subprocess.run("pip install requests", shell=True)
+    cmd = 'source activate .env; pip install requests'
+    subprocess.run(cmd, shell=True)
     import requests
     cmd = "https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/runs"
     res = requests.get(cmd)
