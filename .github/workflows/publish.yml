@@ -65,7 +65,7 @@ jobs:
       #    tag: ${{ steps.get_version.outputs.version }}
       #    token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload artifacts if release didn't happen
-        if: steps.check_tag.outputs.exists == 'true'
+        #if: steps.check_tag.outputs.exists == 'true'
         uses: actions/upload-artifact@v3
         with:
           path: |
