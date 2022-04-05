@@ -4,6 +4,9 @@ import re
 import sys
 import shutil
 import subprocess
+import requests
+
+release_flag = 0
 
 
 def setup():
@@ -121,6 +124,7 @@ def release():
             ),
         ]
     )
+    release_flag = 1
 
 
 def clean():
@@ -232,6 +236,25 @@ def run(commands):
             subprocess.check_call(cmd, shell=True)
     except Exception:
         sys.exit(1)
+
+
+def get_workflow_id():
+    cmd = "https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/runs"
+    res = requests.get(cmd)
+    workflow_id = res.json()["workflow_runs"][0]["workflow_id"]
+    return workflow_id
+
+
+def check_release_flag():
+    if release_flag == 1:
+        release_version = version()
+        with open("version.txt", "w+") as f:
+            f.write("version: {}".format(release_version))
+            f.close()
+    else:
+        workflow_id = get_workflow_id()
+        with open("version.txt", "w+") as f:
+            f.write("workflow_id: {}".format(workflow_id))
 
 
 def main():
