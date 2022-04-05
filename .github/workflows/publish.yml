@@ -68,7 +68,7 @@ jobs:
         if: steps.check_tag.outputs.exists == 'true'
         uses: actions/upload-artifact@v3
         with:
-          path: artifacts
+          path: dist
       - name: Check the release tag/artifact set-url
         run: |
           ${{steps.path.outputs.pythonv}} do.py check_release_flag
