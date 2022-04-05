@@ -69,7 +69,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           path: |
-            dist
+            dist/
       - name: Check the release tag/artifact set-url
         run: |
           ${{steps.path.outputs.pythonv}} do.py check_release_flag
@@ -80,7 +80,7 @@ jobs:
       - name: Trigger CI/CD snappi-tests
         run: |
           git clone -b Issue495-CI/CD https://github.com/open-traffic-generator/snappi-tests.git
-          mv version.txt snappi-tests
+          cp version.txt snappi-tests
           cd snappi-tests
           git add version.txt
           git commit -m "Trigger Snappi test from snappi-ixnetwork"
