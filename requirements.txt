@@ -3,5 +3,6 @@ ipaddr==2.2.0
 netaddr==0.8.0
 ipaddress==1.0.23
 flake8
+dpkt
 requests
 black; python_version > '3.6'
