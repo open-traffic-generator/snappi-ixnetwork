@@ -37,9 +37,9 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py install
           ${{steps.path.outputs.pythonv}} do.py init
-      #- name: Run tests
-      #  run: |
-      #    ${{steps.path.outputs.pythonv}} do.py test
+      - name: Run tests
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py test
       - name: Get package version
         id: get_version
         run: |
@@ -78,12 +78,10 @@ jobs:
     steps:
       - name: Trigger CI/CD snappi-tests
         run: |
-          git clone -b Issue495-CI/CD https://github.com/open-traffic-generator/snappi-tests.git
+          git clone https://github.com/open-traffic-generator/snappi-tests.git
           mv version.txt snappi-tests
           cd snappi-tests
           git add version.txt
           git commit --allow-empty -m "Trigger Snappi test from snappi-ixnetwork"
           git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
-          git push origin HEAD:Issue495-CI/CD
-
-#git push origin main
+          git push origin main
