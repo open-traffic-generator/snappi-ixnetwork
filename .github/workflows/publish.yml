@@ -53,11 +53,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish package
         id: release
-        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+      #if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
         run: |
           export RELEASE_FLAG=1
           echo "::set-output name=release_flag::${RELEASE_FLAG}"
-          PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
+      #PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
       #- name: Create release and publish artifacts
       #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
       #  uses: ncipollo/release-action@v1
