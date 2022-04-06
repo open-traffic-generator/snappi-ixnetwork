@@ -257,7 +257,7 @@ def check_release_flag(release_flag):
 
 def install_requests(path):
     cmd = "{} -m pip install requests".format(path)
-    subprocess.run(cmd, shell=True)
+    subprocess.check_call(cmd, shell=True)
 
 
 def main():
