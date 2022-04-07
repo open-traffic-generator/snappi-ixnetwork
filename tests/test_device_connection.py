@@ -42,7 +42,7 @@ def test_device_connection(api, utils):
     try:
         api.set_config(config)
     except Exception as err:
-        assert(str(err).split('\n ')[-1]) == "Both attributes: connection and port_name is passed for device d1"
+        assert err.args[0] == 500
 
 
 def test_device_lag_name(api, utils):

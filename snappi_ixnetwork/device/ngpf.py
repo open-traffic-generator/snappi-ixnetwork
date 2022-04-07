@@ -121,7 +121,9 @@ class Ngpf(Base):
         for device in self.api.snappi_config.devices:
             for ethernet in device.get("ethernets"):
                 if ethernet.get("connection") and ethernet.get("port_name"):
-                    raise Exception("Both attributes: connection and port_name is passed for device {}".format(device.get("name")))
+                    raise Exception(
+                        "port_name and connection for ethernet configuration cannot be passed together, use either connection or port_name property. \
+                            port_name is deprecated and will be removed in future releases.")
                 if ethernet.get("connection"):
                     connection_choice = ethernet.get("connection").choice
                     if connection_choice == "port_name":
