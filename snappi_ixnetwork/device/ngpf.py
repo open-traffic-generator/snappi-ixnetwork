@@ -58,11 +58,11 @@ class Ngpf(Base):
         self._resource_manager = self.api._ixnetwork.ResourceManager
         with Timer(self.api, "Convert device config :"):
             self._configure_topology()
-        with Timer(self.api, "Create IxNetwork config :"):
+        with Timer(self.api, "Create IxNetwork device config :"):
             self._createixnconfig.create(
                 self._ixn_config["topology"], "topology"
             )
-        with Timer(self.api, "Push IxNetwork config :"):
+        with Timer(self.api, "Push IxNetwork device config :"):
             self._pushixnconfig()
 
     def set_device_info(self, snappi_obj, ixn_obj):

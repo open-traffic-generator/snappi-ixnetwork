@@ -51,10 +51,11 @@ class Validation(object):
                 if attr_value.__module__.startswith("snappi"):
                     if "__next__" in dir(attr_value):
                         for item in attr_value:
-                            if id(item_ids) in item_ids:
+                            item_id = id(item)
+                            if item_id in item_ids:
                                 continue
                             if getattr(item, "parent", None) is not None:
-                                item_ids.append(id(item_ids))
+                                item_ids.append(item_id)
                                 self.__check_config_objects(item.parent, item_ids)
                             else:
                                 self.__check_config_objects(item, item_ids)
