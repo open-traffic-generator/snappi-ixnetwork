@@ -73,7 +73,7 @@ jobs:
       - name: Set the release version/workflow id
         run: |
           ${{steps.path.outputs.pythonv}} do.py install_requests ${{steps.path.outputs.pythonv}}
-          ${{steps.path.outputs.pythonv}} do.py check_release_flag ${{ steps.release.outputs.release_flag }}
+          ${{steps.path.outputs.pythonv}} do.py check_release_flag ${{ steps.release.outputs.release_flag }} ${{ steps.get_version.outputs.version }}
   cicd_snappitest:
     runs-on: [self-hosted, Linux, Ubuntu, x64]
     needs: cicd

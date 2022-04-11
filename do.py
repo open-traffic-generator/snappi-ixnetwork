@@ -243,9 +243,8 @@ def get_workflow_id():
     return workflow_id
 
 
-def check_release_flag(release_flag=None):
+def check_release_flag(release_flag=None, release_version=None):
     if release_flag == 1:
-        release_version = pkg()[-1]
         with open("version.txt", "w+") as f:
             f.write("version: {}".format(release_version))
             f.close()
