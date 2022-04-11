@@ -39,8 +39,10 @@ def test_device_connection(api, utils):
     eth1.connection.port_name = p1.name
     eth1.name = "eth1"
     eth1.mac = "00:01:00:00:00:01"
-    api.set_config(config)
-    validate_config(api, p1.name)
+    try:
+        api.set_config(config)
+    except Exception as err:
+        assert err.args[0] == 500
 
 
 def test_device_lag_name(api, utils):
