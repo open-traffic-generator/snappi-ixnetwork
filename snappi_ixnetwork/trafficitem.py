@@ -743,7 +743,13 @@ class TrafficItem(CustomField):
                 self._configure_rate(
                     tr_item["configElement"], flow.get("rate", True)
                 )
-                hl_stream_count = len(ixn_traffic_item[i]["highLevelStream"])
+                # TODO: ixNetwork is not creating flow groups for vxlan, remove
+                # hard coding of setting to 1 once the issue is fixed in ixn
+                if "highLevelStream" not in ixn_traffic_item[i].keys():
+                    hl_stream_count = 1
+                else:
+                    hl_stream_count = len(
+                        ixn_traffic_item[i]["highLevelStream"])
                 self._configure_duration(
                     tr_item["configElement"],
                     hl_stream_count,
