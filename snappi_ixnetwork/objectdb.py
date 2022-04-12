@@ -1,8 +1,9 @@
 
 
 class IxNetObjects(object):
-    def __init__(self):
-        self._ixn_objects = {}
+    def __init__(self, ixnetworkapi):
+        self._ixnet_infos = {}
+        self._api = ixnetworkapi
 
     # get_ixn_href
     def get_href(self, name):
@@ -23,11 +24,11 @@ class IxNetObjects(object):
     @property
     def names(self):
         """Returns all names stored as keys"""
-        return self._ixn_objects.keys()
+        return self._ixnet_infos.keys()
 
     def get(self, name):
         try:
-            return self._ixn_objects[name]
+            return self._ixnet_infos[name]
         except KeyError:
             raise NameError(
                 "snappi object named {0} not found in internal db".format(
@@ -35,8 +36,14 @@ class IxNetObjects(object):
                 )
             )
 
+    def get_working_dg(self, name):
+        ixn_obj = self.get(name)
+        return ixn_obj.working_dg
+
     def set(self, name, ixnobject):
-        self._ixn_objects[name] = IxNetInfo(ixnobject)
+        self._ixnet_infos[name] = IxNetInfo(
+            ixnobject, self._api.ngpf.working_dg
+        )
 
     def set_scalable(self, ixnobject):
         names = ixnobject.get("name")
@@ -44,16 +51,17 @@ class IxNetObjects(object):
         for index, name in enumerate(names):
             if name is None or name in set_names:
                 continue
-            if name not in self._ixn_objects:
+            if name not in self._ixnet_infos:
                 continue
             # Same name may present within different object structure
-            old_keys = sorted(self._ixn_objects[name].ixnobject)
+            old_keys = sorted(self._ixnet_infos[name].ixnobject)
             keys = sorted(ixnobject)
             if old_keys != keys:
                 continue
             set_names.append(name)
-            self._ixn_objects[name] = IxNetInfo(
-                ixnobject=ixnobject,
+            self._ixnet_infos[name] = IxNetInfo(
+                ixnobject,
+                self.get_working_dg(names[0]),
                 index=index,
                 multiplier=names.count(name),
                 names=names
@@ -62,8 +70,9 @@ class IxNetObjects(object):
 
 class IxNetInfo(object):
     # index start with 0 and use multiplier for count
-    def __init__(self, ixnobject, index=0, multiplier=1, names=None):
+    def __init__(self, ixnobject, working_dg, index=0, multiplier=1, names=None):
         self.ixnobject = ixnobject
+        self.working_dg = working_dg
         self.index = int(index)
         self.multiplier = int(multiplier)
         self.names = [] if names is None else names
@@ -75,3 +84,4 @@ class IxNetInfo(object):
     @property
     def href(self):
         return self.ixnobject.get("href")
+

@@ -16,6 +16,7 @@ from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.device.ngpf import Ngpf
 from snappi_ixnetwork.objectdb import IxNetObjects
 
+
 class Api(snappi.Api):
     """IxNetwork implementation of the abstract-open-traffic-generator package
 
@@ -60,6 +61,7 @@ class Api(snappi.Api):
         self.ixn_objects = None
         self._config_type = self.config()
         self._protocol_state = self.protocol_state()
+        self._flows_update = self.flows_update()
         self._transmit_state = self.transmit_state()
         self._link_state = self.link_state()
         self._capture_state = self.capture_state()
@@ -78,6 +80,8 @@ class Api(snappi.Api):
         self.do_compact = False
         self._dev_compacted = {}
         self._previous_errors = []
+        self._initial_flows_config = None
+        self._flow_tracking = False
 
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
@@ -98,6 +102,9 @@ class Api(snappi.Api):
 
     def enable_scaling(self, do_compact=False):
         self.do_compact = do_compact
+
+    def _enable_flow_tracking(self, _flow_tracking=False):
+        self._flow_tracking = _flow_tracking
 
     @property
     def snappi_config(self):
@@ -215,8 +222,8 @@ class Api(snappi.Api):
     def config_ixnetwork(self, config):
         self._config_objects = {}
         self._device_encap = {}
-        self.ixn_objects = IxNetObjects()
-        self.ixn_routes = IxNetObjects()
+        self.ixn_objects = IxNetObjects(self)
+        self.ixn_routes = IxNetObjects(self)
         self._dev_compacted = {}
         self._connect()
         self.capture.reset_capture_request()
@@ -371,10 +378,7 @@ class Api(snappi.Api):
     def get_states(self, request):
         try:
             states_request = self.states_request()
-            if (
-                isinstance(request, (type(states_request), str))
-                is False
-            ):
+            if isinstance(request, (type(states_request), str)) is False:
                 raise TypeError(
                     "The content must be of type Union[StatesRequest, str]"
                 )
@@ -444,6 +448,30 @@ class Api(snappi.Api):
                 request.choice
             )
             raise SnappiIxnException(400, msg)
+
+    def update_flows(self, payload):
+        """
+        Update Flows for property size and rate
+
+        Args
+        ----
+        - request (Union[UpdateFlows, str]): A request for Flow property update.
+          The request content MUST be vase on the OpenAPI model,
+          #/components/schemas/Control.FlowsUpdate
+          See the docs/openapi.yaml document for all model details
+        """
+        try:
+            if isinstance(payload, (type(self._flows_update), str)) is False:
+                raise TypeError(
+                    "The content must be of type Union[UpdateFlows, str]"
+                )
+            if isinstance(payload, str) is True:
+                payload = self._flows_update.deserialize(payload)
+            self._connect()
+            self.traffic_item.update_flows(payload)
+        except Exception as err:
+            raise SnappiIxnException(err)
+        return self._request_detail()
 
     def add_error(self, error):
         """Add an error to the global errors"""
@@ -611,6 +639,23 @@ class Api(snappi.Api):
                 )
                 self.add_error(msg)
                 self.warning(msg)
+        self._initial_flows_config = self.config().flows.deserialize(
+            config.flows.serialize(config.flows.DICT)
+        )
+
+        if "UHD" in self._ixnetwork.Globals.ProductVersion:
+            chassis_info = "localuhd"
+            for port in config.ports:
+                if port.location is None:
+                    continue
+                if ";" in port.location:
+                    (_, card, port_info) = port.location.split(";")
+                    port_info = "{}.{}".format(card, port_info)
+                elif "/" in port.location:
+                    (_, port_info) = port.location.split("/")
+                else:
+                    raise SnappiIxnException(400, "port location is not valid")
+                port.location = chassis_info + "/" + port_info
         return config
 
     def _apply_change(self):
@@ -888,7 +933,13 @@ class Api(snappi.Api):
                                 "txPortName",
                                 "rxPortNames",
                                 "state",
+                                "name",
                             ],
+                            "filters": [],
+                        },
+                        {
+                            "child": "tracking",
+                            "properties": ["trackBy"],
                             "filters": [],
                         },
                     ],

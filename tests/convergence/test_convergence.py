@@ -118,6 +118,12 @@ def test_convergence(utils, cvg_api, bgp_convergence_config):
     cs.transmit.state = cs.transmit.STOP
     cvg_api.set_state(cs)
 
+    # TODO: As ixNetwork sometimes not clearing the ownership from one
+    # session to another session
+    conv_config = cvg_api.convergence_config()
+    conv_config.config
+    cvg_api.set_config(conv_config)
+
 
 def is_traffic_running(cvg_api):
     """

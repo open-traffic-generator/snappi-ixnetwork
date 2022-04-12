@@ -3,7 +3,9 @@ import json, re
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.device.bgp import Bgp
-from snappi_ixnetwork.device.ethernet import Ethernet
+from snappi_ixnetwork.device.vxlan import VXLAN
+from snappi_ixnetwork.device.interface import Ethernet
+from snappi_ixnetwork.device.loopbackint import LoopbackInt
 from snappi_ixnetwork.device.compactor import Compactor
 from snappi_ixnetwork.device.createixnconfig import CreateIxnConfig
 
@@ -17,7 +19,11 @@ class Ngpf(Base):
         "BgpV4Peer": "ipv4",
         "BgpV6Peer": "ipv6",
         "BgpV4RouteRange": "ipv4",
-        "BgpV6RouteRange": "ipv6"
+        "BgpV6RouteRange": "ipv6",
+        "DeviceIpv4Loopback": "ipv4",
+        "DeviceIpv6Loopback": "ipv6",
+        "VxlanV4Tunnel": "ipv4",
+        "VxlanV6Tunnel": "ipv6"
     }
 
     _ROUTE_STATE = {
@@ -27,14 +33,17 @@ class Ngpf(Base):
 
     def __init__(self, ixnetworkapi):
         super(Ngpf, self).__init__()
-        self._api = ixnetworkapi
+        self.api = ixnetworkapi
         self._ixn_config = {}
+        self.working_dg = None
         self._ixn_topo_objects = {}
         self.ether_v4gateway_map = {}
         self.ether_v6gateway_map = {}
         self._ethernet = Ethernet(self)
         self._bgp = Bgp(self)
-        self.compactor = Compactor(self._api)
+        self._vxlan = VXLAN(self)
+        self._loop_back = LoopbackInt(self)
+        self.compactor = Compactor(self.api)
         self._createixnconfig = CreateIxnConfig(self)
 
     def config(self):
@@ -43,15 +52,17 @@ class Ngpf(Base):
         self._ixn_config = dict()
         self.ether_v4gateway_map = {}
         self.ether_v6gateway_map = {}
+        self._chain_parent_dgs = []
+        self.loopback_parent_dgs = []
         self._ixn_config["xpath"] = "/"
-        self._resource_manager = self._api._ixnetwork.ResourceManager
-        with Timer(self._api, "Convert device config :"):
+        self._resource_manager = self.api._ixnetwork.ResourceManager
+        with Timer(self.api, "Convert device config :"):
             self._configure_topology()
-        with Timer(self._api, "Create IxNetwork config :"):
+        with Timer(self.api, "Create IxNetwork device config :"):
             self._createixnconfig.create(
                 self._ixn_config["topology"], "topology"
             )
-        with Timer(self._api, "Push IxNetwork config :"):
+        with Timer(self.api, "Push IxNetwork device config :"):
             self._pushixnconfig()
 
     def set_device_info(self, snappi_obj, ixn_obj):
@@ -63,15 +74,15 @@ class Ngpf(Base):
             raise NameError(
                 "Mapping is missing for {0}".format(class_name)
             )
-        self._api.set_device_encap(name, encap)
-        self._api.set_device_encap(
+        self.api.set_device_encap(name, encap)
+        self.api.set_device_encap(
             self.get_name(self.working_dg), encap
         )
-        self._api.ixn_objects.set(name, ixn_obj)
+        self.api.ixn_objects.set(name, ixn_obj)
 
     def set_ixn_routes(self, snappi_obj, ixn_obj):
         name = snappi_obj.get("name")
-        self._api.ixn_routes.set(name, ixn_obj)
+        self.api.ixn_routes.set(name, ixn_obj)
 
     def _get_topology_name(self, port_name):
         return "Topology %s" % port_name
@@ -82,15 +93,40 @@ class Ngpf(Base):
         for dg in dgs:
             names = dg.get("name")
             if isinstance(names, list) and len(names) > 1:
-                self._api.set_dev_compacted(names[0], names)
+                self.api.set_dev_compacted(names[0], names)
 
     def _configure_topology(self):
         self.stop_topology()
-        self._api._remove(self._api._topology, [])
+        self.api._remove(self.api._topology, [])
         ixn_topos = self.create_node(self._ixn_config, "topology")
-        for device in self._api.snappi_config.devices:
-            self._configure_device_group(device, ixn_topos)
+        self._configure_device_group(ixn_topos)
 
+        # We need to configure all interface before configure protocols
+        for device in self.api.snappi_config.devices:
+            self.working_dg = self.api.ixn_objects.get_working_dg(device.name)
+            self._bgp.config(device)
+
+        # First compact all loopback interfaces
+        for ix_parent_dg in self.loopback_parent_dgs:
+            self.compactor.compact(ix_parent_dg.get(
+                "deviceGroup"
+            ))
+
+        # Finally compact accordinb to order
+        # Compact chain DGs - TBD
+
+        # Compact VXLAN
+        source_interfaces = self._vxlan.source_interfaces
+        for v4_int in source_interfaces.ipv4:
+            self.compactor.compact(v4_int.get(
+                "vxlan"
+            ))
+        for v6_int in source_interfaces.ipv6:
+            self.compactor.compact(v6_int.get(
+                "vxlanv6"
+            ))
+
+        # Compact Topology
         for ixn_topo in self._ixn_topo_objects.values():
             self.compactor.compact(ixn_topo.get(
                 "deviceGroup"
@@ -99,28 +135,78 @@ class Ngpf(Base):
                 "deviceGroup"
             ))
 
-    def _configure_device_group(self, device, ixn_topos):
+    def _configure_device_group(self, ixn_topos):
         """map ethernet with a ixn deviceGroup with multiplier = 1"""
-        for ethernet in device.get("ethernets"):
-            port_name = ethernet.get("port_name")
-            if port_name in self._ixn_topo_objects:
-                ixn_topo = self._ixn_topo_objects[port_name]
-            else:
-                ixn_topo = self.add_element(ixn_topos)
-                ixn_topo["name"] = self._get_topology_name(port_name)
-                ixn_topo["ports"] = [self._api.ixn_objects.get_xpath(port_name)]
-                self._ixn_topo_objects[port_name] = ixn_topo
-            ixn_dg = self.create_node_elemet(
-                ixn_topo, "deviceGroup", device.get("name")
-            )
-            ixn_dg["multiplier"] = 1
-            self.working_dg = ixn_dg
-            self.set_device_info(device, ixn_dg)
-            self._ethernet.config(ethernet, ixn_dg)
-        self._bgp.config(device)
+        port_name = None
+        device_chain_dgs = {}
+        for device in self.api.snappi_config.devices:
+            chin_dgs = {}
+            for ethernet in device.get("ethernets"):
+                if ethernet.get("connection") and ethernet.get("port_name"):
+                    raise Exception(
+                        "port_name and connection for ethernet configuration cannot be passed together, use either connection or port_name property. \
+                            port_name is deprecated and will be removed in future releases.")
+                if ethernet.get("connection"):
+                    connection_choice = ethernet.get("connection").choice
+                    if connection_choice == "port_name":
+                        port_name = ethernet.get("connection").port_name
+                    elif connection_choice == "lag_name":
+                        port_name = ethernet.get("connection").lag_name
+                    elif connection_choice == "vxlan_name":
+                        port_name = ethernet.get("connection").vxlan_name
+                        if port_name in chin_dgs:
+                            chin_dgs[port_name].append(ethernet)
+                        else:
+                            chin_dgs[port_name] = [ethernet]
+                        continue
+                else:
+                    port_name = ethernet.get("port_name")
+                if port_name is None:
+                    raise Exception("port_name is not passed for the device {}".format(device.get("name")))
+                if port_name in self._ixn_topo_objects:
+                    ixn_topo = self._ixn_topo_objects[port_name]
+                else:
+                    ixn_topo = self.add_element(ixn_topos)
+                    ixn_topo["name"] = self._get_topology_name(port_name)
+                    ixn_topo["ports"] = [self.api.ixn_objects.get_xpath(port_name)]
+                    self._ixn_topo_objects[port_name] = ixn_topo
+                ixn_dg = self.create_node_elemet(
+                    ixn_topo, "deviceGroup", device.get("name")
+                )
+                ixn_dg["multiplier"] = 1
+                self.working_dg = ixn_dg
+                self.set_device_info(device, ixn_dg)
+                self._ethernet.config(ethernet, ixn_dg)
+            device_chain_dgs[device.name] = chin_dgs
+
+        # Create all ethernet before start loopback
+        self.loopback_parent_dgs = self._loop_back.config()
+
+        for device in self.api.snappi_config.devices:
+            vxlan = device.get("vxlan")
+            if vxlan is None:
+                continue
+            self.working_dg = self.api.ixn_objects.get_working_dg(device.name)
+            self._vxlan.config(vxlan)
+
+        # Wait till all primary DG will configure
+        for device in self.api.snappi_config.devices:
+            chin_dgs = device_chain_dgs[device.name]
+            for connected_to, ethernet_list in chin_dgs.items():
+                ixn_working_dg = self.api.ixn_objects.get_working_dg(connected_to)
+                self._chain_parent_dgs.append(ixn_working_dg)
+                for ethernet in ethernet_list:
+                    ixn_dg = self.create_node_elemet(
+                        ixn_working_dg, "deviceGroup", device.get("name")
+                    )
+                    ixn_dg["multiplier"] = 1
+                    self.working_dg = ixn_dg
+                    self.set_device_info(device, ixn_dg)
+                    self._ethernet.config(ethernet, ixn_dg)
+
 
     def _pushixnconfig(self):
-        erros = self._api.get_errors()
+        erros = self.api.get_errors()
         if len(erros) > 0:
             return
         ixn_cnf = json.dumps(self._ixn_config, indent=2)
@@ -128,34 +214,34 @@ class Ngpf(Base):
             ixn_cnf, False
         )
         for item in errata:
-            self._api.warning(item)
+            self.api.warning(item)
 
     def stop_topology(self):
-        glob_topo = self._api._globals.Topology.refresh()
+        glob_topo = self.api._globals.Topology.refresh()
         if glob_topo.Status == "started":
-            self._api._ixnetwork.StopAllProtocols("sync")
+            self.api._ixnetwork.StopAllProtocols("sync")
 
     def set_protocol_state(self,request):
         if request.state is None:
             raise Exception("state is None within set_protocol_state")
         if request.state == "start":
-            if len(self._api._topology.find()) > 0:
-                self._api._ixnetwork.StartAllProtocols("sync")
-                self._api.check_protocol_statistics()
+            if len(self.api._topology.find()) > 0:
+                self.api._ixnetwork.StartAllProtocols("sync")
+                self.api.check_protocol_statistics()
         else:
-            if len(self._api._topology.find()) > 0:
-                self._api._ixnetwork.StopAllProtocols("sync")
+            if len(self.api._topology.find()) > 0:
+                self.api._ixnetwork.StopAllProtocols("sync")
 
     def set_route_state(self, payload):
         if payload.state is None:
             return
         names = payload.names
         if len(names) == 0:
-            names = self._api.ixn_routes.names
+            names = self.api.ixn_routes.names
         ixn_obj_idx_list = {}
         names = list(set(names))
         for name in names:
-            route_info = self._api.ixn_routes.get(name)
+            route_info = self.api.ixn_routes.get(name)
             ixn_obj = None
             for obj in ixn_obj_idx_list.keys():
                 if obj.xpath == route_info.xpath:
@@ -184,17 +270,17 @@ class Ngpf(Base):
                 xpath, active, values
             ))
         self.imports(imports)
-        self._api._ixnetwork.Globals.Topology.ApplyOnTheFly()
+        self.api._ixnetwork.Globals.Topology.ApplyOnTheFly()
         return names
 
     def get_states(self, request):
         if request.choice == "ipv4_neighbors":
-            ip_objs = self._api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv4.find()
+            ip_objs = self.api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv4.find()
             resolved_mac_list = self._get_ether_resolved_mac(
                 ip_objs, self.ether_v4gateway_map, request.ipv4_neighbors, "ipv4"
             )
         elif request.choice == "ipv6_neighbors":
-            ip_objs = self._api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv6.find()
+            ip_objs = self.api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv6.find()
             resolved_mac_list = self._get_ether_resolved_mac(
                 ip_objs, self.ether_v6gateway_map, request.ipv6_neighbors, "ipv6"
             )
@@ -262,8 +348,8 @@ class Ngpf(Base):
                 }
             ]
         }
-        url = "%s/operations/select?xpath=true" % self._api._ixnetwork.href
-        results = self._api._ixnetwork._connection._execute(url, payload)
+        url = "%s/operations/select?xpath=true" % self.api._ixnetwork.href
+        results = self.api._ixnetwork._connection._execute(url, payload)
         try:
             return results[0]
         except Exception:
@@ -275,7 +361,7 @@ class Ngpf(Base):
                 json.dumps(imports), False
             )
             for item in errata:
-                self._api.warning(item)
+                self.api.warning(item)
             return len(errata) == 0
         return True
 

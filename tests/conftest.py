@@ -26,7 +26,6 @@ def pytest_collection_modifyitems(items):
 
     :param List[pytest.Item] items: List of item objects.
     """
-
     try:
         pretest_index = [
             index
@@ -35,6 +34,25 @@ def pytest_collection_modifyitems(items):
         ][0]
 
         items[0], items[pretest_index] = items[pretest_index], items[0]
+
+        test_flow_tracking_index = [
+            index
+            for index, item in enumerate(items)
+            if item.name == "test_flow_tracking_stats"
+        ][0]
+
+        test_device_connection = [
+            index
+            for index, item in enumerate(items)
+            if item.name == "test_device_connection"
+        ][0]
+
+        items[-2], items[test_device_connection] = items[test_device_connection], items[-2]
+
+        items[-1], items[test_flow_tracking_index] = (
+            items[test_flow_tracking_index],
+            items[-1],
+        )
     except:
         print("skipping pretest as test_pretest is not part of the batch run")
 
