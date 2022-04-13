@@ -99,6 +99,7 @@ class Ngpf(Base):
         self.stop_topology()
         self.api._remove(self.api._topology, [])
         ixn_topos = self.create_node(self._ixn_config, "topology")
+        # Configured all interfaces
         self._configure_device_group(ixn_topos)
 
         # We need to configure all interface before configure protocols
@@ -106,16 +107,18 @@ class Ngpf(Base):
             self.working_dg = self.api.ixn_objects.get_working_dg(device.name)
             self._bgp.config(device)
 
-        # First compact all loopback interfaces
-        for ix_parent_dg in self.loopback_parent_dgs:
-            self.compactor.compact(ix_parent_dg.get(
+
+        # Compaction will take place in this order
+        # Step-1: Compact chain DGs
+        for chain_parent_dg in self._chain_parent_dgs:
+            self.compactor.compact(chain_parent_dg.get(
+                "deviceGroup"
+            ))
+            self._set_dev_compacted(chain_parent_dg.get(
                 "deviceGroup"
             ))
 
-        # Finally compact accordinb to order
-        # Compact chain DGs - TBD
-
-        # Compact VXLAN
+        # Step-2: Compact VXLAN
         source_interfaces = self._vxlan.source_interfaces
         for v4_int in source_interfaces.ipv4:
             self.compactor.compact(v4_int.get(
@@ -126,7 +129,13 @@ class Ngpf(Base):
                 "vxlanv6"
             ))
 
-        # Compact Topology
+        # Step-3: First compact all loopback interfaces
+        for ix_parent_dg in self.loopback_parent_dgs:
+            self.compactor.compact(ix_parent_dg.get(
+                "deviceGroup"
+            ))
+
+        # Step-4: Compact root Topology
         for ixn_topo in self._ixn_topo_objects.values():
             self.compactor.compact(ixn_topo.get(
                 "deviceGroup"
