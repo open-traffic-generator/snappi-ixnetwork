@@ -38,8 +38,8 @@ class BgpEvpn(Base):
         else:
             raise Exception("TBD")
 
-        self._config_eth_segment(eth_segment_info, ixn_eth_segments)
-        self._config_evis(eth_segment_info, ixn_bgpv4, ixn_eth_segments)
+        # self._config_eth_segment(eth_segment_info, ixn_eth_segments)
+        # self._config_evis(eth_segment_info, ixn_bgpv4, ixn_eth_segments)
 
     def _config_eth_segment(self, eth_segment_info, ixn_eth_segments):
         df_election_info = eth_segment_info.get_tab("df_election")
