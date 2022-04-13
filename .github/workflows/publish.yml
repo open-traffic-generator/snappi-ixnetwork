@@ -52,8 +52,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish package
+        id: release
         if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
         run: |
+          export RELEASE_FLAG=1
+          echo "::set-output name=release_flag::${RELEASE_FLAG}"
           PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
       - name: Create release and publish artifacts
         if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
@@ -62,3 +65,25 @@ jobs:
           artifacts: "dist/*"
           tag: ${{ steps.get_version.outputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifacts if release didn't happen
+        if: steps.check_tag.outputs.exists == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          path: dist
+      - name: Set the release version/workflow id
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py install_requests ${{steps.path.outputs.pythonv}}
+          ${{steps.path.outputs.pythonv}} do.py check_release_flag ${{ steps.release.outputs.release_flag }} ${{ steps.get_version.outputs.version }}
+  cicd_snappitest:
+    runs-on: [self-hosted, Linux, Ubuntu, x64]
+    needs: cicd
+    steps:
+      - name: Trigger CI/CD snappi-tests
+        run: |
+          git clone https://github.com/open-traffic-generator/snappi-tests.git
+          mv version.txt snappi-tests
+          cd snappi-tests
+          git add version.txt
+          git commit --allow-empty -m "Trigger Snappi test from snappi-ixnetwork"
+          git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
+          git push origin main

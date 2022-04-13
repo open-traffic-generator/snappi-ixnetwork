@@ -234,6 +234,31 @@ def run(commands):
         sys.exit(1)
 
 
+def get_workflow_id():
+    import requests
+
+    cmd = "https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/runs"
+    res = requests.get(cmd)
+    workflow_id = res.json()["workflow_runs"][0]["workflow_id"]
+    return workflow_id
+
+
+def check_release_flag(release_flag=None, release_version=None):
+    if release_flag == 1:
+        with open("version.txt", "w+") as f:
+            f.write("version: {}".format(release_version))
+            f.close()
+    else:
+        workflow_id = get_workflow_id()
+        with open("version.txt", "w+") as f:
+            f.write("workflow_id: {}".format(workflow_id))
+
+
+def install_requests(path):
+    cmd = "{} -m pip install requests".format(path)
+    subprocess.check_call(cmd, shell=True)
+
+
 def main():
     if len(sys.argv) >= 2:
         globals()[sys.argv[1]](*sys.argv[2:])
