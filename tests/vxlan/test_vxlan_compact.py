@@ -1,5 +1,6 @@
 import pytest
 
+
 def test_vxlan_compact(api, utils):
     count = 4
     config = api.config()
@@ -167,16 +168,24 @@ def test_vxlan_compact(api, utils):
     flow.metrics.enable = True
     flow.metrics.loss = True
 
-    # api.set_config(config)
+    api.set_config(config)
 
-    utils.start_traffic(api, config, start_capture=False)
+    assert (
+        api._ixnetwork.Topology.find()[0]
+        .DeviceGroup.find()
+        .DeviceGroup.find()
+        .DeviceGroup.find()
+        .Multiplier
+    ) == 4
 
-    utils.wait_for(
-        lambda: results_ok(api, ["f1"], count * 10),
-        "stats to be as expected",
-        timeout_seconds=30,
-    )
-    utils.stop_traffic(api, config)
+    assert (
+        api._ixnetwork.Topology.find()[0]
+        .DeviceGroup.find()
+        .DeviceGroup.find()
+        .DeviceGroup.find()
+        .NetworkGroup.find()
+        .Multiplier
+    ) == 2
 
 
 def get_macs(mac, count, offset=1):
@@ -191,17 +200,6 @@ def get_macs(mac, count, offset=1):
         )
         mac_list.append(mac_address)
     return mac_list
-
-
-def results_ok(api, flow_names, expected):
-    """
-    Returns True if there is no traffic loss else False
-    """
-    request = api.metrics_request()
-    request.flow.flow_names = flow_names
-    flow_results = api.get_metrics(request).flow_metrics
-    flow_rx = sum([f.frames_rx for f in flow_results])
-    return flow_rx == expected
 
 
 if __name__ == "__main__":
