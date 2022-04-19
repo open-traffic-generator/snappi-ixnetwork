@@ -13,17 +13,16 @@ def test_vxlan_b2b_scale(api, utils):
     edge1_macs = get_macs("001801000011", count)
     edge2_macs = get_macs("001601000011", count)
 
-    p1, p2 = (
-        config.ports
-        .port(name="p1", location=utils.settings.ports[0])
-        .port(name="p2", location=utils.settings.ports[1]))
+    p1, p2 = config.ports.port(
+        name="p1", location=utils.settings.ports[0]
+    ).port(name="p2", location=utils.settings.ports[1])
 
-    d1, d2 = config.devices.device(name='d1').device(name='d2')
+    d1, d2 = config.devices.device(name="d1").device(name="d2")
 
     e1, e2 = d1.ethernets.ethernet()[-1], d2.ethernets.ethernet()[-1]
     e1.port_name, e2.port_name = p1.name, p2.name
-    e1.name, e2.name = 'e1', 'e2'
-    e1.mac, e2.mac = '00:01:00:00:00:01', '00:01:00:00:00:02'
+    e1.name, e2.name = "e1", "e2"
+    e1.mac, e2.mac = "00:01:00:00:00:01", "00:01:00:00:00:02"
 
     ip1, ip2 = e1.ipv4_addresses.add(), e2.ipv4_addresses.add()
     ip1.name, ip2.name = "ip_d1", "ip_d2"
@@ -74,10 +73,8 @@ def test_vxlan_b2b_scale(api, utils):
         # unicast communication, Add two unicast info
         vtep = d1_vxlan.destination_ip_mode.unicast.vteps.add()
         vtep.remote_vtep_address = "2.2.2.{}".format(i)
-        vtep.arp_suppression_cache.add(edge2_macs[i],
-                                       "100.1.2.{}".format(i))
-        vtep.arp_suppression_cache.add("00:1b:6e:00:00:01",
-                                       "1.2.0.1")
+        vtep.arp_suppression_cache.add(edge2_macs[i], "100.1.2.{}".format(i))
+        vtep.arp_suppression_cache.add("00:1b:6e:00:00:01", "1.2.0.1")
 
     # Create vxlan on d2
     for i in range(1, count + 1):
@@ -90,10 +87,8 @@ def test_vxlan_b2b_scale(api, utils):
         # unicast communication
         vtep = d2_vxlan.destination_ip_mode.unicast.vteps.add()
         vtep.remote_vtep_address = "1.1.1.{}".format(i)
-        vtep.arp_suppression_cache.add(edge1_macs[i],
-                                       "100.1.1.{}".format(i))
-        vtep.arp_suppression_cache.add("00:1b:6e:00:00:01",
-                                       "1.2.0.1")
+        vtep.arp_suppression_cache.add(edge1_macs[i], "100.1.1.{}".format(i))
+        vtep.arp_suppression_cache.add("00:1b:6e:00:00:01", "1.2.0.1")
 
     for i in range(1, count + 1):
         edge1_d = config.devices.device(name="edge1_d{}".format(i))[-1]
@@ -146,24 +141,24 @@ def test_vxlan_b2b_scale(api, utils):
         edge1_bgp_peer.as_number, edge2_bgp_peer.as_number = 1000, 1000
 
         edge1_bgp_rr = edge1_bgp_peer.v4_routes.add(name="A1{}".format(i))
-        edge1_bgp_rr.addresses.add(address="1.1.0.{}".format(i),
-                                   count=180,
-                                   prefix=32)
+        edge1_bgp_rr.addresses.add(
+            address="1.1.0.{}".format(i), count=180, prefix=32
+        )
 
         edge1_bgp_rr2 = edge1_bgp_peer.v4_routes.add(name="D1{}".format(i))
-        edge1_bgp_rr2.addresses.add(address="2.1.0.{}".format(i),
-                                    count=1,
-                                    prefix=32)
+        edge1_bgp_rr2.addresses.add(
+            address="2.1.0.{}".format(i), count=1, prefix=32
+        )
 
         edge2_bgp_rr = edge2_bgp_peer.v4_routes.add(name="A2{}".format(i))
-        edge2_bgp_rr.addresses.add(address="3.1.0.{}".format(i),
-                                   count=180,
-                                   prefix=32)
+        edge2_bgp_rr.addresses.add(
+            address="3.1.0.{}".format(i), count=180, prefix=32
+        )
 
         edge2_bgp_rr2 = edge2_bgp_peer.v4_routes.add(name="D2{}".format(i))
-        edge2_bgp_rr2.addresses.add(address="4.1.0.{}".format(i),
-                                    count=1,
-                                    prefix=32)
+        edge2_bgp_rr2.addresses.add(
+            address="4.1.0.{}".format(i), count=1, prefix=32
+        )
 
     a1_routes = ["A1{}".format(i) for i in range(1, count + 1)]
     d1_routes = ["D1{}".format(i) for i in range(1, count + 1)]
@@ -181,6 +176,21 @@ def test_vxlan_b2b_scale(api, utils):
     flow.metrics.loss = True
 
     utils.start_traffic(api, config, start_capture=False)
+
+    assert (
+        api._ixnetwork.Topology.find()[0]
+        .DeviceGroup.find()
+        .DeviceGroup.find()
+        .Multiplier
+    ) == 128
+
+    assert (
+        api._ixnetwork.Topology.find()[0]
+        .DeviceGroup.find()
+        .DeviceGroup.find()
+        .DeviceGroup.find()
+        .Count
+    ) == 128
 
     utils.wait_for(
         lambda: results_ok(api, ["f1"], count * 10),
