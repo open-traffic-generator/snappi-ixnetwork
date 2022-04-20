@@ -24,10 +24,13 @@ class BgpEvpn(Base):
         self._peer_class = None
 
     def config(self, bgp_peer, ixn_bgpv4):
+        if bgp_peer.get("evpn_ethernet_segments") is None:
+            return
         eth_segment_info = self.get_symmetric_nodes(
             [bgp_peer], "evpn_ethernet_segments"
         )
-        if eth_segment_info.max_len == 0:
+        if eth_segment_info.is_null or \
+                eth_segment_info.max_len == 0:
             return
         self._peer_class = bgp_peer.__class__.__name__
         if self._peer_class == "BgpV4Peer":
@@ -38,15 +41,16 @@ class BgpEvpn(Base):
         else:
             raise Exception("TBD")
 
-        # self._config_eth_segment(eth_segment_info, ixn_eth_segments)
-        # self._config_evis(eth_segment_info, ixn_bgpv4, ixn_eth_segments)
+        self._config_eth_segment(eth_segment_info, ixn_eth_segments)
+        self._config_evis(eth_segment_info, ixn_bgpv4, ixn_eth_segments)
 
     def _config_eth_segment(self, eth_segment_info, ixn_eth_segments):
         df_election_info = eth_segment_info.get_tab("df_election")
+        if df_election_info.is_null:
+            return
         ixn_eth_segments["dfElectionTimer"] = df_election_info.get_multivalues(
             "election_timer"
         )
-
 
     def _config_evis(self, eth_segment_info, ixn_bgpv4, ixn_eth_segments):
         vxlan_info = eth_segment_info.get_symmetric_nodes("evis")

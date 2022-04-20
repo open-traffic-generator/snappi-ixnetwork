@@ -157,6 +157,13 @@ class NodesInfo(object):
     def symmetric_nodes(self):
         return self._symmetric_nodes
 
+    @property
+    def is_null(self):
+        for node in self._symmetric_nodes:
+            if node is not None:
+                return False
+        return True
+
     def get_values(self, attr_name, enum_map=None):
         values = []
         for node in self._symmetric_nodes:
@@ -189,7 +196,18 @@ class NodesInfo(object):
             ixn_obj[ixn_attr] = values
 
     def get_tab(self, tab_name):
-        tab_nodes = [v.get(tab_name) for v in self._symmetric_nodes]
+        dummy_value = None
+        tab_nodes = []
+        for node in self._symmetric_nodes:
+            tab_node = node.get(tab_name)
+            if tab_node is not None:
+                dummy_value = tab_node
+            tab_nodes.append(tab_node)
+
+        for idx, tab_node in enumerate(tab_nodes):
+            if tab_node is None and dummy_value is not None:
+                tab_nodes[idx] = dummy_value
+
         return NodesInfo(
             self._max_len,
             self._active_list,

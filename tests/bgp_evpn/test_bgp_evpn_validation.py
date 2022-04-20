@@ -1,14 +1,13 @@
 import pytest
-import snappi
 
 
-def test_bgp_evpn_validation(api, b2b_raw_config):
+def test_bgp_evpn_validation(api, b2b_raw_config_vports):
     # Creating Ports
-    p1, p2 = b2b_raw_config.ports
+    p1, p2 = b2b_raw_config_vports.ports
 
     # Create BGP running on connected interface.
-    p1_d1 = b2b_raw_config.devices.device(name='p1_d1')[-1]
-    p2_d1 = b2b_raw_config.devices.device(name='p2_d1')[-1]
+    p1_d1 = b2b_raw_config_vports.devices.device(name='p1_d1')[-1]
+    p2_d1 = b2b_raw_config_vports.devices.device(name='p2_d1')[-1]
 
     p1_eth1 = p1_d1.ethernets.ethernet(port_name=p1.name)[-1]
     p2_eth1 = p2_d1.ethernets.ethernet(port_name=p2.name)[-1]
@@ -87,8 +86,8 @@ def test_bgp_evpn_validation(api, b2b_raw_config):
     p2_es1_evisV4_1_bd_1_mac_Pool1 = p2_es1_evisV4_1_bd_1.cmac_ip_range.cmaciprange(l2vni=16)[-1]
     p2_es1_evisV4_1_bd_1_mac_Pool1.mac_addresses.address = "20:11:22:33:44:55"
 
-    print(b2b_raw_config.serialize())
-    api.set_config(b2b_raw_config)
+    print(b2b_raw_config_vports.serialize())
+    api.set_config(b2b_raw_config_vports)
 
 
 if __name__ == "__main__":
