@@ -346,7 +346,7 @@ class Capture(object):
         url = "%s/files?absolute=%s&filename=%s" % (
             self._api._ixnetwork.href,
             path,
-            merged_capture,
+            dc,
         )
         pcap_file_bytes = self._api._request("GET", url)
         return io.BytesIO(pcap_file_bytes)

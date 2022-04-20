@@ -25,7 +25,7 @@ def test_capture_control(api, utils):
 
     cap = config.captures.capture(name="c1")[-1]
     cap.port_names = [rx.name]
-    cap.format = cap.PCAP
+    cap.format = cap.PCAPNG
 
     tx_device, rx_device = config.devices.device(name="d1").device(name="d2")
 
@@ -86,7 +86,8 @@ def test_capture_control(api, utils):
     pcap_bytes = api.get_capture(request)
 
     bgp_pkts = []
-    for _, pkt in dpkt.pcap.Reader(pcap_bytes):
+
+    for _, pkt in dpkt.pcapng.Reader(pcap_bytes):
         eth = dpkt.ethernet.Ethernet(pkt)
         if getattr(eth.data, "tcp", None) is not None:
             if eth.data.tcp.sport == 179:
