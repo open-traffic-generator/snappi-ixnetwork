@@ -80,6 +80,8 @@ class Capture(object):
                 }
                 imports.append(capture)
         for capture_item in self._api.snappi_config.captures:
+            if capture_item.format == "pcap":
+                raise Exception("Choice of format for capture is incorrect. Select format as pcapng")
             if capture_item.port_names is None:
                 continue
             for port_name in capture_item.port_names:
