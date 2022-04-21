@@ -1,6 +1,9 @@
 import pytest
 import dpkt
 
+@pytest.mark.skip(
+    reason="https://github.com/open-traffic-generator/snappi-ixnetwork/issues/525"
+)
 
 def test_capture_control(api, utils):
     """

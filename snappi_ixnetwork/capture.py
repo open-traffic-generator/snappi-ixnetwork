@@ -315,13 +315,13 @@ class Capture(object):
             self._api._ixnetwork.Globals.PersistencePath + "/capture"
         )
 
-        cc = (
+        dc = (
             self._api._ixnetwork.Globals.PersistencePath
             + "/capture/"
             + self._api._vport.Name
             + "_HW.cap"
         )
-        dc = (
+        cc = (
             self._api._ixnetwork.Globals.PersistencePath
             + "/capture/"
             + self._api._vport.Name
