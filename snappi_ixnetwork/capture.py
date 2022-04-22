@@ -346,6 +346,7 @@ class Capture(object):
         self._api._request("POST", url, payload)
 
         path = "%s/capture" % self._api._ixnetwork.Globals.PersistencePath
+        #Todo: Revert dc to merged capture after fix is available in 9.20
         url = "%s/files?absolute=%s&filename=%s" % (
             self._api._ixnetwork.href,
             path,
