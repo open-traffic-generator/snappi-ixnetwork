@@ -31,7 +31,7 @@ class CreateIxnConfig(Base):
             if key == "name":
                 element["name"] = self.get_name(element)
             elif isinstance(value, MultiValue):
-                value = self._get_ixn_multivalue(value, key, parent_xpath)
+                value = self._get_ixn_multivalue(value, key, element["xpath"])
                 if value is None:
                     key_to_remove.append(key)
                 else:
@@ -43,8 +43,9 @@ class CreateIxnConfig(Base):
             elif isinstance(value, list) and len(value) > 0 and \
                     isinstance(value[0], dict):
                 if child_name is not None:
-                    raise Exception("Add support node within element")
-                self.create(value, key, parent_xpath)
+                    self.create(value, key, element["xpath"])
+                else:
+                    self.create(value, key, parent_xpath)
 
         for key in key_to_remove:
             element.pop(key)

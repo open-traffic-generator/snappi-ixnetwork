@@ -28,6 +28,22 @@ def test_bgp_evpn_validation(api, b2b_raw_config_vports):
 
     # Adding 1 Ethernet Segment per Bgp Peer
     p1_es_1 = p1_bgp_peer.evpn_ethernet_segments.ethernetsegment()[-1]
+    p1_es_1.esi = '00000000000000000002'
+    p1_es_1.esi_label = 8
+    p1_es_1.active_mode = p1_es_1.SINGLE_ACTIVE
+    p1_es_1.advanced.origin = p1_es_1.advanced.EGP
+
+    p1_es_1_com = p1_es_1.communities.add()
+    p1_es_1_com.type = p1_es_1_com.MANUAL_AS_NUMBER
+    p1_es_1_com.as_number = 8
+    p1_es_1_com.as_custom = 8
+    p1_es_1_com1 = p1_es_1.communities.add()
+    p1_es_1_com1.type = p1_es_1_com1.NO_EXPORT
+    p1_es_1_com1.as_number = 7
+    p1_es_1_com1.as_custom = 7
+
+    p1_es_1.as_path.segments.add("as_confed_seq", [2, 3])
+    p1_es_1.as_path.segments.add("as_seq", [8])
 
     # Adding 1 EVI on the Ethernet Segment
     p1_es1_evisV4_1 = p1_es_1.evis.evi_vxlan()[-1]
@@ -35,6 +51,13 @@ def test_bgp_evpn_validation(api, b2b_raw_config_vports):
 
     p1_es1_evisV4_1.route_distinguisher.rd_type = p1_es1_evisV4_1.route_distinguisher.AS_2OCTET
     p1_es1_evisV4_1.route_distinguisher.rd_value = "1000:1"
+
+    p1_es1_evisV4_1.advanced.origin = p1_es1_evisV4_1.advanced.EGP
+    p1_es1_evisV4_1_com = p1_es1_evisV4_1.communities.add()
+    p1_es1_evisV4_1_com.type = p1_es1_evisV4_1_com.MANUAL_AS_NUMBER
+    p1_es1_evisV4_1_com.as_number = 3
+    p1_es1_evisV4_1_com.as_custom = 3
+    p1_es1_evisV4_1.as_path.segments.add("as_seq", [9, 10])
 
     export_rt = p1_es1_evisV4_1.route_target_export.routetarget()[-1]
     import_rt = p1_es1_evisV4_1.route_target_import.routetarget()[-1]
@@ -46,11 +69,14 @@ def test_bgp_evpn_validation(api, b2b_raw_config_vports):
 
     # Adding 1 Broadcast Domain per EVI
     p1_es1_evisV4_1_bd_1 = p1_es1_evisV4_1.broadcast_domains.broadcastdomain()[-1]
+    p1_es1_evisV4_1_bd_1.ethernet_tag_id = 5
+    p1_es1_evisV4_1_bd_1.vlan_aware_service = True
 
     # Adding 1 MAC Range Per Broadcast Domain
     p1_es1_evisV4_1_bd_1_mac_Pool1 = p1_es1_evisV4_1_bd_1.cmac_ip_range.cmaciprange(l2vni=16)[-1]
     p1_es1_evisV4_1_bd_1_mac_Pool1.mac_addresses.address = "10:11:22:33:44:55"
 
+    ##################################################################
     # bgp Port 2
     p2_bgp = p2_d1.bgp
     p2_bgp.router_id = "193.0.0.1"

@@ -54,8 +54,7 @@ class Base(object):
         return self.add_element(node, name)
 
     def create_property(self, ixn_obj, name):
-        ixn_obj[name] = dict()
-        ixn_property = ixn_obj[name]
+        ixn_property = ixn_obj[name] = dict()
         ixn_property["xpath"] = ""
         return ixn_property
 
@@ -94,6 +93,13 @@ class Base(object):
                     raise NameError("ixn_attr is missing within ", ixn_map)
                 enum_map = ixn_map.get("enum_map")
                 value = snappi_obj.get(snappi_attr)
+                if value is None:
+                    # We need to specify product default if model not specify
+                    default_value = ixn_map.get("default_value")
+                    if default_value is None:
+                        raise NameError("Please specify default_value for ",
+                                        snappi_attr)
+                    value = default_value
                 if enum_map is not None and value is not None:
                     value = enum_map[value]
             else:
@@ -158,7 +164,7 @@ class NodesInfo(object):
         return self._symmetric_nodes
 
     @property
-    def is_null(self):
+    def is_all_null(self):
         for node in self._symmetric_nodes:
             if node is not None:
                 return False
@@ -234,12 +240,13 @@ class NodesInfo(object):
                 tab_lengths.append(len(tab))
             if len(set(tab_lengths)) > 1:
                 raise Exception("All the attributes %s should have same lengths" % tab_name)
-            if len(group_nodes) == 0:
-                group_nodes = [[]] * tab_lengths[-1]
-            for idx in range(tab_lengths[0]):
-                group_nodes[idx].append(tab[idx])
+            for idx in range(tab_lengths[-1]):
+                if len(group_nodes) <= idx:
+                    group_nodes.append([tab[idx]])
+                else:
+                    group_nodes[idx].append(tab[idx])
         return [NodesInfo(
-            self._max_len,
+            1,  # use dummy one
             self._active_list,
             group_node
         ) for group_node in group_nodes]
