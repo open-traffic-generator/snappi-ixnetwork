@@ -5,7 +5,7 @@ import os
 import setuptools
 
 pkg_name = "snappi_ixnetwork"
-version = "0.7.7"
+version = "0.7.8"
 
 # read long description from readme.md
 base_dir = os.path.abspath(os.path.dirname(__file__))
