@@ -7,6 +7,7 @@ def test_bgp_evpn_validation(api, b2b_raw_config_vports):
 
     # Create BGP running on connected interface.
     p1_d1 = b2b_raw_config_vports.devices.device(name='p1_d1')[-1]
+    p1_bgp_d = b2b_raw_config_vports.devices.device(name='p1_bgp_d')[-1]
     p2_d1 = b2b_raw_config_vports.devices.device(name='p2_d1')[-1]
 
     p1_eth1 = p1_d1.ethernets.ethernet(port_name=p1.name)[-1]
@@ -20,10 +21,13 @@ def test_bgp_evpn_validation(api, b2b_raw_config_vports):
     p2_eth1.mac = '00:12:00:00:00:01'
     p2_ip1 = p2_eth1.ipv4_addresses.ipv4(name='p2_ip1', address='30.30.30.2', gateway='30.30.30.1')[-1]
 
+    # lopback in port1 dg p1_bgp_d
+    p1_loop = p1_bgp_d.ipv4_loopbacks.add(name="p1_loopback", eth_name="p1_eth1")
+
     # bgp Port 1
-    p1_bgp = p1_d1.bgp
+    p1_bgp = p1_bgp_d.bgp
     p1_bgp.router_id = "192.0.0.1"
-    p1_bgp_iface = p1_bgp.ipv4_interfaces.v4interface(ipv4_name=p1_ip1.name)[-1]
+    p1_bgp_iface = p1_bgp.ipv4_interfaces.v4interface(ipv4_name=p1_loop.name)[-1]
     p1_bgp_peer = p1_bgp_iface.peers.v4peer(name="bgp1", peer_address='20.20.20.1', as_type='ibgp', as_number=100)[-1]
 
     # Adding 1 Ethernet Segment per Bgp Peer
@@ -111,6 +115,7 @@ def test_bgp_evpn_validation(api, b2b_raw_config_vports):
     # Adding 1 CMAC Range Per Broadcast Domain
     p2_es1_evisV4_1_bd_1_mac_Pool1 = p2_es1_evisV4_1_bd_1.cmac_ip_range.cmaciprange(l2vni=16)[-1]
     p2_es1_evisV4_1_bd_1_mac_Pool1.mac_addresses.address = "20:11:22:33:44:55"
+    p2_es1_evisV4_1_bd_1_mac_Pool1.ipv4_addresses.address = "2.2.2.2"
 
     print(b2b_raw_config_vports.serialize())
     api.set_config(b2b_raw_config_vports)

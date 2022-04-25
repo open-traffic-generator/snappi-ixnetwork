@@ -1,11 +1,5 @@
-from snappi_ixnetwork.device.base import Base
-
-"""
-Need clarification form Protocols team
-    - evpn_ethernet_segments/active_mode => check ixn property
-    - evpn_ethernet_segments/advance/multi_exit_discriminator => need review
-    - evpn_ethernet_segments/ext_communities/value => check ixn map
-"""
+from snappi_ixnetwork.device.base import Base, NodesInfo
+from snappi_ixnetwork.device.utils import namedtuple_with_defaults
 
 
 class BgpEvpn(Base):
@@ -100,6 +94,18 @@ class BgpEvpn(Base):
     _BROADCAST_DOMAINS = {
         "ethernet_tag_id": "ethernetTagId",
         "vlan_aware_service": "enableVlanAwareService"
+    }
+
+    _MAC_ADDRESS = {
+        "address": "mac",
+        "prefix": "prefixLength",
+        "count": "numberOfAddressesAsy"
+    }
+
+    _IP_ADDRESS = {
+        "address": "networkAddress",
+        "prefix": "prefixLength",
+        "count": "numberOfAddressesAsy"
     }
 
     def __init__(self, ngpf):
@@ -264,16 +270,112 @@ class BgpEvpn(Base):
                 ixn_broadcast_domains = self.create_property(
                     ixn_xvlan, "broadcastDomainV4"
                 )
+                ixn_broadcast_domains["active"] = self.multivalue(
+                    broadcast_domains_info.active_list
+                )
                 broadcast_domains_info.config_values(
                     ixn_broadcast_domains, BgpEvpn._BROADCAST_DOMAINS
                 )
-                self._config_cmac_ip_range(broadcast_domains_info)
+                self._config_cmac_ip_range(
+                    broadcast_domains_info, ixn_broadcast_domains, ixn_xvlan
+                )
 
+    def _get_symetic_address(self, cmac_ip_range_info, address_type):
+        active_list = []
+        symmetric_nodes = []
+        dummy_value = None
+        for node in cmac_ip_range_info.symmetric_nodes:
+            symmetric_nodes.append(
+                node.get(address_type)
+            )
+            if symmetric_nodes[-1] is None:
+                active_list.append(False)
+            else:
+                active_list.append(True)
+                if dummy_value is None:
+                    dummy_value = symmetric_nodes[-1]
 
-    def _config_cmac_ip_range(self, broadcast_domains_info):
+        if dummy_value is not None:
+            for idx in range(len(active_list)):
+                if active_list[idx] is False:
+                    symmetric_nodes[idx] = dummy_value
+                active_list[idx] = cmac_ip_range_info.active_list[idx] \
+                                   and active_list[idx]
+        return NodesInfo(
+            cmac_ip_range_info.max_len,
+            active_list,
+            symmetric_nodes
+        )
+
+    def _config_cmac_ip_range(self, broadcast_domains_info, ixn_broadcast_domains, ixn_xvlan):
         cmac_ip_range_info = broadcast_domains_info.get_symmetric_nodes(
             "cmac_ip_range"
         )
         if cmac_ip_range_info.is_all_null:
             return
+
+        mac_info = self._get_symetic_address(cmac_ip_range_info, "mac_addresses")
+        ipv4_info = self._get_symetic_address(cmac_ip_range_info, "ipv4_addresses")
+        ipv6_info = self._get_symetic_address(cmac_ip_range_info, "ipv6_addresses")
+        ixn_broadcast_domains["noOfMacPools"] = cmac_ip_range_info.max_len
+        if mac_info.is_all_null:
+            raise Exception("mac_addresses should configured in cmac_ip_range")
+        name = "macPool" # TBD : add proper name
+        ixn_ng = self.create_node_elemet(
+            self._ngpf.working_dg, "networkGroup", "ng_{}".format(name)
+        )
+        ixn_ng["enabled"] = self.multivalue(cmac_ip_range_info.active_list)
+        ixn_mac_pools = self.create_node_elemet(
+            ixn_ng, "macPools", "pool_{}".format(name)
+        )
+        mac_info.config_values(
+            ixn_mac_pools, BgpEvpn._MAC_ADDRESS
+        )
+        ixn_connector = self.create_property(ixn_mac_pools, "connector")
+        ixn_connector["connectedTo"] = self.post_calculated(
+            "connectedTo", ref_ixnobj=ixn_xvlan
+        )
+        ixn_mac = self.create_node_elemet(
+            ixn_mac_pools, "cMacProperties", "mac_{}".format(name)
+        )
+        self._config_advance(cmac_ip_range_info, ixn_mac)
+        self._config_communities(cmac_ip_range_info, ixn_mac)
+        self._config_ext_communities(cmac_ip_range_info, ixn_mac)
+        self._config_as_path_segments(cmac_ip_range_info, ixn_mac)
+
+        if not ipv4_info.is_all_null:
+            ixn_ipv4 = self.create_node_elemet(
+                ixn_mac_pools, "ipv4PrefixPools"
+            )
+            ixn_mac["advertiseIpv4Address"] = self.multivalue(
+                ipv4_info.active_list
+            )
+            ipv4_info.config_values(ixn_ipv4, BgpEvpn._IP_ADDRESS)
+
+        if not ipv6_info.is_all_null:
+            ixn_ipv6 = self.create_node_elemet(
+                ixn_mac_pools, "ipv6PrefixPools"
+            )
+            ixn_mac["advertiseIpv6Address"] = self.multivalue(
+                ipv6_info.active_list
+            )
+            ipv6_info.config_values(ixn_ipv6, BgpEvpn._IP_ADDRESS)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

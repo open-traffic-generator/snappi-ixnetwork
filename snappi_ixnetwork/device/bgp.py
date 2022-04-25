@@ -126,6 +126,8 @@ class Bgp(Base):
         same_dg_ips = []
         invalid_ips = []
         ethernets = self._ngpf.working_dg.get("ethernet")
+        if ethernets is None:
+            return same_dg_ips, invalid_ips
         for ethernet in ethernets:
             for ip_type in ip_types:
                 ips = ethernet.get(ip_type)
@@ -148,7 +150,7 @@ class Bgp(Base):
                     name=ipv4_name
                 ))
                 is_invalid = True
-            if ipv4_name not in self._same_dg_ips:
+            if len(self._same_dg_ips) > 0 and ipv4_name not in self._same_dg_ips:
                 self._ngpf.api.add_error("BGP should not configured on top of different device")
                 is_invalid = True
             if is_invalid:
@@ -169,7 +171,7 @@ class Bgp(Base):
                     name=ipv6_name
                 ))
                 is_invalid = True
-            if ipv6_name not in self._same_dg_ips:
+            if len(self._same_dg_ips) > 0 and ipv6_name not in self._same_dg_ips:
                 self._ngpf.api.add_error("BGP should not configured on top of different device")
                 is_invalid = True
             if is_invalid:
