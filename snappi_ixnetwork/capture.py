@@ -80,6 +80,9 @@ class Capture(object):
                 }
                 imports.append(capture)
         for capture_item in self._api.snappi_config.captures:
+            if capture_item.format == "pcap":
+                self._api.warning("pcap format is not supported for IxNetwork, setting capture format to pcapng")
+                capture_item.format = "pcapng"
             if capture_item.port_names is None:
                 continue
             for port_name in capture_item.port_names:
@@ -313,13 +316,13 @@ class Capture(object):
             self._api._ixnetwork.Globals.PersistencePath + "/capture"
         )
 
-        cc = (
+        dc = (
             self._api._ixnetwork.Globals.PersistencePath
             + "/capture/"
             + self._api._vport.Name
             + "_HW.cap"
         )
-        dc = (
+        cc = (
             self._api._ixnetwork.Globals.PersistencePath
             + "/capture/"
             + self._api._vport.Name
@@ -343,10 +346,11 @@ class Capture(object):
         self._api._request("POST", url, payload)
 
         path = "%s/capture" % self._api._ixnetwork.Globals.PersistencePath
+        #Todo: Revert dc to merged capture after fix is available in 9.20
         url = "%s/files?absolute=%s&filename=%s" % (
             self._api._ixnetwork.href,
             path,
-            merged_capture,
+            dc,
         )
         pcap_file_bytes = self._api._request("GET", url)
         return io.BytesIO(pcap_file_bytes)
