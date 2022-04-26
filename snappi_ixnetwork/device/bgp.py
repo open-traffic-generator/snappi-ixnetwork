@@ -145,6 +145,9 @@ class Bgp(Base):
         for ipv4_interface in ipv4_interfaces:
             is_invalid = False
             ipv4_name = ipv4_interface.get("ipv4_name")
+            self._ngpf.working_dg = self._ngpf.api.ixn_objects.get_working_dg(
+                ipv4_name
+            )
             if ipv4_name in self._invalid_ips:
                 self._ngpf.api.add_error("Multiple IP {name} on top of name Ethernet".format(
                     name=ipv4_name
@@ -166,6 +169,9 @@ class Bgp(Base):
         for ipv6_interface in ipv6_interfaces:
             is_invalid = False
             ipv6_name = ipv6_interface.get("ipv6_name")
+            self._ngpf.working_dg = self._ngpf.api.ixn_objects.get_working_dg(
+                ipv6_name
+            )
             if ipv6_name in self._invalid_ips:
                 self._ngpf.api.add_error("Multiple IP {name} on top of name Ethernet".format(
                     name=ipv6_name

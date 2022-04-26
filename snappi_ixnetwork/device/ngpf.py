@@ -104,7 +104,6 @@ class Ngpf(Base):
 
         # We need to configure all interface before configure protocols
         for device in self.api.snappi_config.devices:
-            self.working_dg = self.api.ixn_objects.get_working_dg(device.name)
             self._bgp.config(device)
 
 
@@ -224,6 +223,9 @@ class Ngpf(Base):
         if len(erros) > 0:
             return
         ixn_cnf = json.dumps(self._ixn_config, indent=2)
+        print(ixn_cnf)
+        with open("d:/sample.json", "w") as outfile:
+            outfile.write(ixn_cnf)
         errata = self._resource_manager.ImportConfig(
             ixn_cnf, False
         )
