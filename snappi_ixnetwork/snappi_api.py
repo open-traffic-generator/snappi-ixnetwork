@@ -241,9 +241,8 @@ class Api(snappi.Api):
             self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
-        if self._has_port_location():
-            with Timer(self, "Start interfaces"):
-                self._start_interface()
+        with Timer(self, "Start interfaces"):
+            self._start_interface()
 
     def set_protocol_state(self, payload):
         """Set the transmit state of flows"""
@@ -673,12 +672,6 @@ class Api(snappi.Api):
                 self._request("POST", url, payload)
             except Exception:
                 pass
-
-    def _has_port_location(self):
-        for port in self._config.ports:
-            if port.get("location") is not None:
-                return True
-        return False
 
     def _start_interface(self):
         topos = self._ixnetwork.Topology.find()
