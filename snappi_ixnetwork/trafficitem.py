@@ -927,11 +927,11 @@ class TrafficItem(CustomField):
             return header + "UHD"
         elif header == "ethernetpause":
             # This is to support 9.20 globalpause header
-            if "globalpause" in self._getProtocoTemplatelist():
+            if "globalPause" in self._getProtocolTemplatelist():
                 return header + "UHD"
         return header
 
-    def _getProtocoTemplatelist(self):
+    def _getProtocolTemplatelist(self):
         filter = [{"property": "name", "regex": ".*"}]
         parent = "/traffic"
         child = "protocolTemplate"
@@ -943,7 +943,7 @@ class TrafficItem(CustomField):
         )
         stack_ids = []
         result = ixn._connection._execute(url, payload)
-        for item in result.get("protocolTemplate", []):
+        for item in result[0].get("protocolTemplate", []):
             stack_ids.append(item.get("stackTypeId"))
         return stack_ids
 
