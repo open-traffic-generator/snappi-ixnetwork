@@ -58,7 +58,7 @@ def test():
             ' 10.36.83.121;1;6"'
         ),
         "--ext=ixnetwork",
-        "--speed=speed_100_gbps",
+        "--speed=speed_400_gbps",
         "tests",
         '-m "not e2e and not l1_manual and not uhd"',
         "--cov=./snappi_ixnetwork --cov-report term"
@@ -237,7 +237,10 @@ def run(commands):
 def get_workflow_id():
     import requests
 
-    cmd = "https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/runs"
+    cmd = (
+        "https://api.github.com/repos/open-traffic-generator"
+        "/snappi-ixnetwork/actions/runs"
+    )
     res = requests.get(cmd)
     workflow_id = res.json()["workflow_runs"][0]["workflow_id"]
     return workflow_id
