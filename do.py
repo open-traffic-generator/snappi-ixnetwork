@@ -52,10 +52,10 @@ def test():
     args = [
         '--location="https://otg-novus100g.lbj.is.keysight.com:5000"',
         (
-            '--ports="otg-novus100g.lbj.is.keysight.com;1;1'
-            " otg-novus100g.lbj.is.keysight.com;1;2"
-            " otg-novus100g.lbj.is.keysight.com;1;5"
-            ' otg-novus100g.lbj.is.keysight.com;1;6"'
+            '--ports="10.36.83.121;1;1'
+            " 10.36.83.121;1;2"
+            " 10.36.83.121;1;5"
+            ' 10.36.83.121;1;6"'
         ),
         "--ext=ixnetwork",
         "--speed=speed_100_gbps",
