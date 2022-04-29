@@ -1,18 +1,17 @@
 from snappi_ixnetwork.device.base import Base, NodesInfo
-from snappi_ixnetwork.device.utils import namedtuple_with_defaults
 
 
 class BgpEvpn(Base):
     _ETHER_SEGMENT = {
         "esi": "esiValue",
-        "esi_label": "esiLabel"
-        # "active_mode": {
-        #     "ixn_attr": "asSetMode",
-        #     "enum_map": {
-        #         "single_active": "includelocalasasasseq",
-        #         "all_active": ""
-        #     }
-        # },
+        "esi_label": "esiLabel",
+        "active_mode": {
+            "ixn_attr": "enableSingleActive",
+            "enum_map": {
+                "single_active": True,
+                "all_active": False
+            }
+        },
     }
 
     _SEG_COMMUNITIES = {
@@ -113,7 +112,7 @@ class BgpEvpn(Base):
         self._ngpf = ngpf
         self._peer_class = None
 
-    def config(self, bgp_peer, ixn_bgpv4):
+    def config(self, bgp_peer, ixn_bgp):
         if bgp_peer.get("evpn_ethernet_segments") is None:
             return
         eth_segment_info = self.get_symmetric_nodes(
@@ -124,15 +123,18 @@ class BgpEvpn(Base):
             return
         self._peer_class = bgp_peer.__class__.__name__
         if self._peer_class == "BgpV4Peer":
-            ixn_bgpv4["ethernetSegmentsCountV4"] = eth_segment_info.max_len
+            ixn_bgp["ethernetSegmentsCountV4"] = eth_segment_info.max_len
             ixn_eth_segments = self.create_property(
-                ixn_bgpv4, "bgpEthernetSegmentV4"
+                ixn_bgp, "bgpEthernetSegmentV4"
             )
         else:
-            raise Exception("TBD")
+            ixn_bgp["ethernetSegmentsCountV6"] = eth_segment_info.max_len
+            ixn_eth_segments = self.create_property(
+                ixn_bgp, "bgpEthernetSegmentV6"
+            )
 
         self._config_eth_segment(eth_segment_info, ixn_eth_segments)
-        self._config_evis(eth_segment_info, ixn_bgpv4, ixn_eth_segments)
+        self._config_evis(eth_segment_info, ixn_bgp, ixn_eth_segments)
 
     def _config_advance(self, parent_info, ixn_parent):
         advanced = parent_info.get_tab("advanced")
@@ -142,6 +144,12 @@ class BgpEvpn(Base):
         ixn_parent["origin"] = advanced.get_multivalues(
             "origin"
         )
+        med_values = advanced.get_values_fill("multi_exit_discriminator")
+        if med_values.count(None) != len(med_values):
+            ixn_parent["enableMultiExitDiscriminator"] = self.multivalue(True)
+            ixn_parent["multiExitDiscriminator"] = self.multivalue(
+                med_values
+            )
 
     def _config_communities(self, parent_info, ixn_parent):
         communities_info_list = parent_info.get_group_nodes("communities")
@@ -224,16 +232,22 @@ class BgpEvpn(Base):
         self._config_ext_communities(eth_segment_info, ixn_eth_segments)
         self._config_as_path_segments(eth_segment_info, ixn_eth_segments)
 
-    def _config_evis(self, eth_segment_info, ixn_bgpv4, ixn_eth_segments):
+    def _config_target(self, ):
+
+    def _config_evis(self, eth_segment_info, ixn_bgp, ixn_eth_segments):
         vxlan_info = eth_segment_info.get_symmetric_nodes("evis")
         ixn_eth_segments["evisCount"] = vxlan_info.max_len
         if self._peer_class == "BgpV4Peer":
             ixn_xvlan = self.create_node_elemet(
-                ixn_bgpv4, "bgpIPv4EvpnVXLAN"
+                ixn_bgp, "bgpIPv4EvpnVXLAN"
             )
         else:
-            raise Exception("TBD")
+            ixn_xvlan = self.create_node_elemet(
+                ixn_bgp, "bgpIPv6EvpnVXLAN"
+            )
         vxlan_info.config_values(ixn_xvlan, BgpEvpn._VXLAN)
+
+        # Configure route_distinguisher
         distinguisher_info = vxlan_info.get_tab("route_distinguisher")
         ixn_xvlan["rdType"] = distinguisher_info.get_multivalues(
             "rd_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
@@ -242,19 +256,36 @@ class BgpEvpn(Base):
             self.asdot2plain(v) for v in distinguisher_info.get_values("rd_value")
         ])
 
-        exports_info_list = vxlan_info.get_group_nodes("route_target_export")
-        if len(exports_info_list) > 0:
-            ixn_xvlan["numRtInExportRouteTargetList"] = len(
-                exports_info_list
+        # Configure route_target_import
+        import_info_list = vxlan_info.get_group_nodes("route_target_import")
+        if len(import_info_list) > 0:
+            ixn_xvlan["numRtInImportRouteTargetList"] = len(
+                import_info_list
             )
-        for exports_info in exports_info_list:
-            ixn_exports = self.create_node_elemet(ixn_xvlan, "bgpExportRouteTargetList")
-            ixn_exports["targetType"] = exports_info.get_multivalues(
+        for import_info in import_info_list:
+            ixn_exports = self.create_node_elemet(ixn_xvlan, "bgpImportRouteTargetList")
+            ixn_exports["targetType"] = import_info.get_multivalues(
                 "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
             )
             ixn_exports["targetAsNumber"] = self.multivalue([
-                self.asdot2plain(v) for v in exports_info.get_values("rt_value")
+                self.asdot2plain(v) for v in import_info.get_values("rt_value")
             ])
+
+        # Configure route_target_export
+        # exports_info_list = vxlan_info.get_group_nodes("route_target_export")
+        # if len(exports_info_list) > 0:
+        #     ixn_xvlan["numRtInExportRouteTargetList"] = len(
+        #         exports_info_list
+        #     )
+        # for exports_info in exports_info_list:
+        #     ixn_exports = self.create_node_elemet(ixn_xvlan, "bgpExportRouteTargetList")
+        #     ixn_exports["targetType"] = exports_info.get_multivalues(
+        #         "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
+        #     )
+        #     ixn_exports["targetAsNumber"] = self.multivalue([
+        #         self.asdot2plain(v) for v in exports_info.get_values("rt_value")
+        #     ])
+
 
         self._config_advance(vxlan_info, ixn_xvlan)
         self._config_communities(vxlan_info, ixn_xvlan)
@@ -270,15 +301,20 @@ class BgpEvpn(Base):
                 ixn_broadcast_domains = self.create_property(
                     ixn_xvlan, "broadcastDomainV4"
                 )
-                ixn_broadcast_domains["active"] = self.multivalue(
-                    broadcast_domains_info.active_list
+            else:
+                ixn_xvlan["numBroadcastDomainV6"] = broadcast_domains_info.max_len
+                ixn_broadcast_domains = self.create_property(
+                    ixn_xvlan, "broadcastDomainV6"
                 )
-                broadcast_domains_info.config_values(
-                    ixn_broadcast_domains, BgpEvpn._BROADCAST_DOMAINS
-                )
-                self._config_cmac_ip_range(
-                    broadcast_domains_info, ixn_broadcast_domains, ixn_xvlan
-                )
+            ixn_broadcast_domains["active"] = self.multivalue(
+                broadcast_domains_info.active_list
+            )
+            broadcast_domains_info.config_values(
+                ixn_broadcast_domains, BgpEvpn._BROADCAST_DOMAINS
+            )
+            self._config_cmac_ip_range(
+                broadcast_domains_info, ixn_broadcast_domains, ixn_xvlan
+            )
 
     def _get_symetic_address(self, cmac_ip_range_info, address_type):
         active_list = []
