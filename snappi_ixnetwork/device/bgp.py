@@ -232,6 +232,7 @@ class Bgp(Base):
                     capability, ixn_bgpv6, Bgp._CAPABILITY_IPv6
                 )
             self._bgp_route_builder(bgp_peer, ixn_bgpv6)
+            self._bgp_evpn.config(bgp_peer, ixn_bgpv6)
 
     def _bgp_route_builder(self, bgp_peer, ixn_bgp):
         v4_routes = bgp_peer.get("v4_routes")

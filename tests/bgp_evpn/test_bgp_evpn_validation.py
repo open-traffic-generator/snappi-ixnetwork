@@ -68,6 +68,7 @@ def test_bgp_evpn_validation(api, utils):
     tx_eth_seg.esi_label = 8
     tx_eth_seg.active_mode = tx_eth_seg.SINGLE_ACTIVE
     tx_eth_seg.advanced.origin = tx_eth_seg.advanced.EGP
+    tx_eth_seg.advanced.multi_exit_discriminator = 5
     tx_eth_seg_community = tx_eth_seg.communities.add()
     tx_eth_seg_community.type = tx_eth_seg_community.MANUAL_AS_NUMBER
     tx_eth_seg_community.as_number = 8
