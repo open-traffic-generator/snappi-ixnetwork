@@ -1,4 +1,3 @@
-import re
 
 __all__ = ['Base', 'MultiValue', 'PostCalculated']
 
@@ -133,15 +132,6 @@ class Base(object):
                         active_list.append(False)
                         symmetric_nodes.append(node)
         return NodesInfo(max_len, active_list, symmetric_nodes)
-
-    def asdot2plain(self, asdot):
-        """This returns an ASPLAIN formated ASN given an ASDOT+ format"""
-        if re.findall(r'\.|\:', asdot):
-            left, right = re.split(r'\.|\:', asdot)
-            ret = int(left) * 65536 + int(right)
-            return ret
-        else:
-            return int(asdot)
 
 
 class NodesInfo(object):

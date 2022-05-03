@@ -1,4 +1,5 @@
 from snappi_ixnetwork.device.base import Base, NodesInfo
+from snappi_ixnetwork.device.utils import asdot2plain, convert_as_values
 
 
 class BgpEvpn(Base):
@@ -213,6 +214,9 @@ class BgpEvpn(Base):
                         ixn_as_number = self.create_node_elemet(
                             ixn_segments, "bgpAsNumberList"
                         )
+                        ixn_as_number["enableASNumber"] = self.multivalue(
+                            numbers_info.active_list
+                        )
                         ixn_as_number["asNumber"] = self.multivalue(
                             numbers_info.symmetric_nodes
                         )
@@ -231,8 +235,6 @@ class BgpEvpn(Base):
         self._config_communities(eth_segment_info, ixn_eth_segments)
         self._config_ext_communities(eth_segment_info, ixn_eth_segments)
         self._config_as_path_segments(eth_segment_info, ixn_eth_segments)
-
-    def _config_target(self, ):
 
     def _config_evis(self, eth_segment_info, ixn_bgp, ixn_eth_segments):
         vxlan_info = eth_segment_info.get_symmetric_nodes("evis")
@@ -253,39 +255,94 @@ class BgpEvpn(Base):
             "rd_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
         )
         ixn_xvlan["rdASNumber"] = self.multivalue([
-            self.asdot2plain(v) for v in distinguisher_info.get_values("rd_value")
+            asdot2plain(v) for v in distinguisher_info.get_values("rd_value")
         ])
+
+        # Configure route_target_export
+        exports_info_list = vxlan_info.get_group_nodes("route_target_export")
+        if len(exports_info_list) > 0:
+            ixn_xvlan["numRtInExportRouteTargetList"] = len(
+                exports_info_list
+            )
+        for exports_info in exports_info_list:
+            ixn_exports = self.create_node_elemet(ixn_xvlan, "bgpExportRouteTargetList")
+            rt_types = exports_info.get_values(
+                "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
+            )
+            convert_rt_values = convert_as_values(
+                rt_types, exports_info.get_values("rt_value")
+            )
+            ixn_exports["targetType"] = self.multivalue(rt_types)
+            ixn_exports["targetAsNumber"] = self.multivalue(convert_rt_values.as_num)
+            ixn_exports["targetAs4Number"] = self.multivalue(convert_rt_values.as4_num)
+            ixn_exports["targetAssignedNumber"] = self.multivalue(
+                convert_rt_values.assign_num
+            )
 
         # Configure route_target_import
         import_info_list = vxlan_info.get_group_nodes("route_target_import")
         if len(import_info_list) > 0:
+            ixn_xvlan["importRtListSameAsExportRtList"] = False
             ixn_xvlan["numRtInImportRouteTargetList"] = len(
                 import_info_list
             )
         for import_info in import_info_list:
-            ixn_exports = self.create_node_elemet(ixn_xvlan, "bgpImportRouteTargetList")
-            ixn_exports["targetType"] = import_info.get_multivalues(
+            ixn_import = self.create_node_elemet(ixn_xvlan, "bgpImportRouteTargetList")
+            rt_types = import_info.get_values(
                 "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
             )
-            ixn_exports["targetAsNumber"] = self.multivalue([
-                self.asdot2plain(v) for v in import_info.get_values("rt_value")
-            ])
+            convert_rt_values = convert_as_values(
+                rt_types, import_info.get_values("rt_value")
+            )
+            ixn_import["targetType"] = self.multivalue(rt_types)
+            ixn_import["targetAsNumber"] = self.multivalue(convert_rt_values.as_num)
+            ixn_import["targetAs4Number"] = self.multivalue(convert_rt_values.as4_num)
+            ixn_import["targetAssignedNumber"] = self.multivalue(
+                convert_rt_values.assign_num
+            )
 
-        # Configure route_target_export
-        # exports_info_list = vxlan_info.get_group_nodes("route_target_export")
-        # if len(exports_info_list) > 0:
-        #     ixn_xvlan["numRtInExportRouteTargetList"] = len(
-        #         exports_info_list
-        #     )
-        # for exports_info in exports_info_list:
-        #     ixn_exports = self.create_node_elemet(ixn_xvlan, "bgpExportRouteTargetList")
-        #     ixn_exports["targetType"] = exports_info.get_multivalues(
-        #         "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
-        #     )
-        #     ixn_exports["targetAsNumber"] = self.multivalue([
-        #         self.asdot2plain(v) for v in exports_info.get_values("rt_value")
-        #     ])
+        # Configure l3_route_target_export
+        l3exports_info_list = vxlan_info.get_group_nodes("l3_route_target_export")
+        if len(l3exports_info_list) > 0:
+            ixn_xvlan["numRtInL3vniExportRouteTargetList"] = len(
+                l3exports_info_list
+            )
+        for l3exports_info in l3exports_info_list:
+            ixn_l3export = self.create_node_elemet(ixn_xvlan, "bgpL3VNIExportRouteTargetList")
+            rt_types = l3exports_info.get_values(
+                "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
+            )
+            convert_rt_values = convert_as_values(
+                rt_types, l3exports_info.get_values("rt_value")
+            )
+            ixn_l3export["targetType"] = self.multivalue(rt_types)
+            ixn_l3export["targetAsNumber"] = self.multivalue(convert_rt_values.as_num)
+            ixn_l3export["targetAs4Number"] = self.multivalue(convert_rt_values.as4_num)
+            ixn_l3export["targetAssignedNumber"] = self.multivalue(
+                convert_rt_values.assign_num
+            )
 
+        # Configure l3_route_target_import
+        l3import_info_list = vxlan_info.get_group_nodes("l3_route_target_import")
+        if len(l3import_info_list) > 0:
+            ixn_xvlan["l3vniImportRtListSameAsL3vniExportRtList"] = False
+            ixn_xvlan["numRtInL3vniImportRouteTargetList"] = len(
+                l3import_info_list
+            )
+        for l3import_info in l3import_info_list:
+            ixn_l3import = self.create_node_elemet(ixn_xvlan, "bgpL3VNIImportRouteTargetList")
+            rt_types = l3import_info.get_values(
+                "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
+            )
+            convert_rt_values = convert_as_values(
+                rt_types, l3import_info.get_values("rt_value")
+            )
+            ixn_l3import["targetType"] = self.multivalue(rt_types)
+            ixn_l3import["targetAsNumber"] = self.multivalue(convert_rt_values.as_num)
+            ixn_l3import["targetAs4Number"] = self.multivalue(convert_rt_values.as4_num)
+            ixn_l3import["targetAssignedNumber"] = self.multivalue(
+                convert_rt_values.assign_num
+            )
 
         self._config_advance(vxlan_info, ixn_xvlan)
         self._config_communities(vxlan_info, ixn_xvlan)
