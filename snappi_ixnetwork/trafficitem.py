@@ -749,7 +749,8 @@ class TrafficItem(CustomField):
                     hl_stream_count = 1
                 else:
                     hl_stream_count = len(
-                        ixn_traffic_item[i]["highLevelStream"])
+                        ixn_traffic_item[i]["highLevelStream"]
+                    )
                 self._configure_duration(
                     tr_item["configElement"],
                     hl_stream_count,
@@ -924,7 +925,27 @@ class TrafficItem(CustomField):
     def _getUhdHeader(self, header=None):
         if self.isUhd is True and header == "ethernetpause":
             return header + "UHD"
+        elif header == "ethernetpause":
+            # This is to support 9.20 globalpause header
+            if "globalPause" in self._getProtocolTemplatelist():
+                return header + "UHD"
         return header
+
+    def _getProtocolTemplatelist(self):
+        filter = [{"property": "name", "regex": ".*"}]
+        parent = "/traffic"
+        child = "protocolTemplate"
+        properties = ["displayName", "stackTypeId"]
+        ixn = self._api.assistant._ixnetwork
+
+        url, payload = self._get_search_payload(
+            parent=parent, child=child, properties=properties, filters=filter
+        )
+        stack_ids = []
+        result = ixn._connection._execute(url, payload)
+        for item in result[0].get("protocolTemplate", []):
+            stack_ids.append(item.get("stackTypeId"))
+        return stack_ids
 
     def _configure_stack_fields(
         self, ixn_fields, snappi_header, stacks, is_raw_traffic=False
