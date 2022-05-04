@@ -108,6 +108,12 @@ class BgpEvpn(Base):
         "count": "numberOfAddressesAsy"
     }
 
+    _CMAC_PROPERTIES = {
+        "l2vni": "firstLabelStart",
+        "l3vni": "secondLabelStart",
+        "include_default_gateway": "includeDefaultGatewayExtendedCommunity"
+    }
+
     def __init__(self, ngpf):
         super(BgpEvpn, self).__init__()
         self._ngpf = ngpf
@@ -430,6 +436,10 @@ class BgpEvpn(Base):
         )
         ixn_mac = self.create_node_elemet(
             ixn_mac_pools, "cMacProperties", "mac_{}".format(name)
+        )
+        ixn_mac["enableSecondLabel"] = self.multivalue(True)
+        cmac_ip_range_info.config_values(
+            ixn_mac, BgpEvpn._CMAC_PROPERTIES
         )
         self._config_advance(cmac_ip_range_info, ixn_mac)
         self._config_communities(cmac_ip_range_info, ixn_mac)
