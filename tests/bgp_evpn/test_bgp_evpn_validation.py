@@ -87,14 +87,14 @@ def test_bgp_evpn_validation(api, utils):
     tx_export_rt = tx_evi_vxlan.route_target_export.routetarget()[-1]
     tx_import_rt = tx_evi_vxlan.route_target_import.routetarget()[-1]
     tx_export_rt.rt_type = tx_export_rt.AS_2OCTET
-    tx_export_rt.rt_value = "100:20"
+    tx_export_rt.rt_value = "200:20"
     tx_import_rt.rt_type = tx_import_rt.AS_2OCTET
-    tx_import_rt.rt_value = "100:20"
+    tx_import_rt.rt_value = "300:30"
     # Adding tx Broadcast Domain per EVI and MAC range
     tx_evpn_brodcust_domain = tx_evi_vxlan.broadcast_domains.broadcastdomain()[-1]
     tx_evpn_brodcust_domain.ethernet_tag_id = 5
     tx_evpn_brodcust_domain.vlan_aware_service = True
-    tx_broadcust_macrange = tx_evpn_brodcust_domain.cmac_ip_range.cmaciprange(l2vni=16)[-1]
+    tx_broadcust_macrange = tx_evpn_brodcust_domain.cmac_ip_range.cmaciprange(l2vni=16, name="tx_cmaciprange")[-1]
     tx_broadcust_macrange.mac_addresses.address = "10:11:22:33:44:55"
     tx_broadcust_macrange.ipv4_addresses.address = "2.2.2.2"
     tx_broadcust_macrange.ipv6_addresses.address = "2000:0:2:1::1"
@@ -122,28 +122,36 @@ def test_bgp_evpn_validation(api, utils):
     # Adding Tx EVI on the Ethernet Segment
     rx_evi_vxlan = rx_eth_seg.evis.evi_vxlan()[-1]
     rx_evi_vxlan.route_distinguisher.rd_type = rx_evi_vxlan.route_distinguisher.AS_2OCTET
+    rx_evi_vxlan.route_distinguisher.auto_config_rd_ip_addr = False
     rx_evi_vxlan.route_distinguisher.rd_value = "3000:3"
     rx_evi_vxlan.advanced.origin = rx_evi_vxlan.advanced.EGP
     rx_evi_vxlan_comm = rx_evi_vxlan.communities.add()
     rx_evi_vxlan_comm.type = rx_evi_vxlan_comm.MANUAL_AS_NUMBER
     rx_evi_vxlan_comm.as_number = 4
     rx_evi_vxlan_comm.as_custom = 4
-    rx_evi_vxlan.as_path.segments.add("as_seq", [9, 10])
+    # rx_evi_vxlan.as_path.segments.add("as_seq", [9, 10])
     rx_export_rt = rx_evi_vxlan.route_target_export.routetarget()[-1]
     rx_import_rt = rx_evi_vxlan.route_target_import.routetarget()[-1]
-    rx_export_rt.rt_type = rx_export_rt.AS_2OCTET
-    rx_export_rt.rt_value = "100:30"
-    rx_import_rt.rt_type = rx_import_rt.AS_2OCTET
-    rx_import_rt.rt_value = "100:30"
+    rx_export_rt.rt_type = rx_export_rt.AS_4OCTET
+    rx_export_rt.rt_value = "400:40"
+    rx_import_rt.rt_type = rx_import_rt.AS_4OCTET
+    rx_import_rt.rt_value = "500:50"
+    rx_export_rt = rx_evi_vxlan.route_target_export.routetarget()[-1]
+    rx_import_rt = rx_evi_vxlan.route_target_import.routetarget()[-1]
+    rx_export_rt.rt_type = rx_export_rt.IPV4_ADDRESS
+    rx_export_rt.rt_value = "3.3.3.3:60"
+    rx_import_rt.rt_type = rx_import_rt.IPV4_ADDRESS
+    rx_import_rt.rt_value = "4.4.4.4:70"
     # Adding tx Broadcast Domain per EVI and MAC range
     rx_evpn_brodcust_domain = rx_evi_vxlan.broadcast_domains.broadcastdomain()[-1]
     rx_evpn_brodcust_domain.ethernet_tag_id = 5
     rx_evpn_brodcust_domain.vlan_aware_service = True
-    rx_broadcust_macrange = rx_evpn_brodcust_domain.cmac_ip_range.cmaciprange(l2vni=16)[-1]
+    rx_broadcust_macrange = rx_evpn_brodcust_domain.cmac_ip_range.cmaciprange(l2vni=16, name="rx_cmaciprange")[-1]
     rx_broadcust_macrange.mac_addresses.address = "10:11:33:33:44:55"
     rx_broadcust_macrange.ipv4_addresses.address = "3.3.3.1"
     rx_broadcust_macrange.ipv6_addresses.address = "3000:0:3:1::1"
 
+    print(config.serialize())
     api.set_config(config)
     validate_result(api)
 

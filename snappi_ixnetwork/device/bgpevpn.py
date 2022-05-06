@@ -242,6 +242,15 @@ class BgpEvpn(Base):
         self._config_ext_communities(eth_segment_info, ixn_eth_segments)
         self._config_as_path_segments(eth_segment_info, ixn_eth_segments)
 
+    def _set_target(self, ixn_obj, rt_types, convert_rt_values):
+        ixn_obj["targetType"] = self.multivalue(rt_types)
+        ixn_obj["targetAsNumber"] = self.multivalue(convert_rt_values.as_num)
+        ixn_obj["targetAs4Number"] = self.multivalue(convert_rt_values.as4_num)
+        ixn_obj["targetIpAddress"] = self.multivalue(convert_rt_values.ip_addr)
+        ixn_obj["targetAssignedNumber"] = self.multivalue(
+            convert_rt_values.assign_num
+        )
+
     def _config_evis(self, eth_segment_info, ixn_bgp, ixn_eth_segments):
         vxlan_info = eth_segment_info.get_symmetric_nodes("evis")
         ixn_eth_segments["evisCount"] = vxlan_info.max_len
@@ -257,12 +266,18 @@ class BgpEvpn(Base):
 
         # Configure route_distinguisher
         distinguisher_info = vxlan_info.get_tab("route_distinguisher")
-        ixn_xvlan["rdType"] = distinguisher_info.get_multivalues(
+        rd_types = distinguisher_info.get_values(
             "rd_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
         )
-        ixn_xvlan["rdASNumber"] = self.multivalue([
-            asdot2plain(v) for v in distinguisher_info.get_values("rd_value")
-        ])
+        convert_values = convert_as_values(
+            rd_types, distinguisher_info.get_values("rd_value")
+        )
+        ixn_xvlan["rdType"] = self.multivalue(rd_types)
+        ixn_xvlan["rdASNumber"] = self.multivalue(convert_values.as_num)
+        ixn_xvlan["rdIpAddress"] = self.multivalue(convert_values.ip_addr)
+        ixn_xvlan["autoConfigureRdIpAddress"] = distinguisher_info.get_multivalues(
+            "auto_config_rd_ip_addr"
+        )
 
         # Configure route_target_export
         exports_info_list = vxlan_info.get_group_nodes("route_target_export")
@@ -271,19 +286,14 @@ class BgpEvpn(Base):
                 exports_info_list
             )
         for exports_info in exports_info_list:
-            ixn_exports = self.create_node_elemet(ixn_xvlan, "bgpExportRouteTargetList")
+            ixn_export = self.create_node_elemet(ixn_xvlan, "bgpExportRouteTargetList")
             rt_types = exports_info.get_values(
                 "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
             )
             convert_rt_values = convert_as_values(
                 rt_types, exports_info.get_values("rt_value")
             )
-            ixn_exports["targetType"] = self.multivalue(rt_types)
-            ixn_exports["targetAsNumber"] = self.multivalue(convert_rt_values.as_num)
-            ixn_exports["targetAs4Number"] = self.multivalue(convert_rt_values.as4_num)
-            ixn_exports["targetAssignedNumber"] = self.multivalue(
-                convert_rt_values.assign_num
-            )
+            self._set_target(ixn_export, rt_types, convert_rt_values)
 
         # Configure route_target_import
         import_info_list = vxlan_info.get_group_nodes("route_target_import")
@@ -300,12 +310,7 @@ class BgpEvpn(Base):
             convert_rt_values = convert_as_values(
                 rt_types, import_info.get_values("rt_value")
             )
-            ixn_import["targetType"] = self.multivalue(rt_types)
-            ixn_import["targetAsNumber"] = self.multivalue(convert_rt_values.as_num)
-            ixn_import["targetAs4Number"] = self.multivalue(convert_rt_values.as4_num)
-            ixn_import["targetAssignedNumber"] = self.multivalue(
-                convert_rt_values.assign_num
-            )
+            self._set_target(ixn_import, rt_types, convert_rt_values)
 
         # Configure l3_route_target_export
         l3exports_info_list = vxlan_info.get_group_nodes("l3_route_target_export")
@@ -321,12 +326,7 @@ class BgpEvpn(Base):
             convert_rt_values = convert_as_values(
                 rt_types, l3exports_info.get_values("rt_value")
             )
-            ixn_l3export["targetType"] = self.multivalue(rt_types)
-            ixn_l3export["targetAsNumber"] = self.multivalue(convert_rt_values.as_num)
-            ixn_l3export["targetAs4Number"] = self.multivalue(convert_rt_values.as4_num)
-            ixn_l3export["targetAssignedNumber"] = self.multivalue(
-                convert_rt_values.assign_num
-            )
+            self._set_target(ixn_l3export, rt_types, convert_rt_values)
 
         # Configure l3_route_target_import
         l3import_info_list = vxlan_info.get_group_nodes("l3_route_target_import")
@@ -343,12 +343,7 @@ class BgpEvpn(Base):
             convert_rt_values = convert_as_values(
                 rt_types, l3import_info.get_values("rt_value")
             )
-            ixn_l3import["targetType"] = self.multivalue(rt_types)
-            ixn_l3import["targetAsNumber"] = self.multivalue(convert_rt_values.as_num)
-            ixn_l3import["targetAs4Number"] = self.multivalue(convert_rt_values.as4_num)
-            ixn_l3import["targetAssignedNumber"] = self.multivalue(
-                convert_rt_values.assign_num
-            )
+            self._set_target(ixn_l3import, rt_types, convert_rt_values)
 
         self._config_advance(vxlan_info, ixn_xvlan)
         self._config_communities(vxlan_info, ixn_xvlan)
@@ -419,13 +414,19 @@ class BgpEvpn(Base):
         ixn_broadcast_domains["noOfMacPools"] = cmac_ip_range_info.max_len
         if mac_info.is_all_null:
             raise Exception("mac_addresses should configured in cmac_ip_range")
-        name = "macPool" # TBD : add proper name
+        names = cmac_ip_range_info.get_values("name")
         ixn_ng = self.create_node_elemet(
-            self._ngpf.working_dg, "networkGroup", "ng_{}".format(name)
+            self._ngpf.working_dg, "networkGroup"
         )
+        for node in cmac_ip_range_info.symmetric_nodes:
+            self._ngpf.set_device_info(
+                node, ixn_ng
+            )
+        ixn_ng["name"] = names
+        self._ngpf.api.ixn_objects.set_scalable(ixn_ng)
         ixn_ng["enabled"] = self.multivalue(cmac_ip_range_info.active_list)
         ixn_mac_pools = self.create_node_elemet(
-            ixn_ng, "macPools", "pool_{}".format(name)
+            ixn_ng, "macPools", "pool_{}".format(names[0])
         )
         mac_info.config_values(
             ixn_mac_pools, BgpEvpn._MAC_ADDRESS
@@ -435,7 +436,7 @@ class BgpEvpn(Base):
             "connectedTo", ref_ixnobj=ixn_xvlan
         )
         ixn_mac = self.create_node_elemet(
-            ixn_mac_pools, "cMacProperties", "mac_{}".format(name)
+            ixn_mac_pools, "cMacProperties", "mac_{}".format(names[0])
         )
         ixn_mac["enableSecondLabel"] = self.multivalue(True)
         cmac_ip_range_info.config_values(

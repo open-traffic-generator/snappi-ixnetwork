@@ -23,7 +23,8 @@ class Ngpf(Base):
         "DeviceIpv4Loopback": "ipv4",
         "DeviceIpv6Loopback": "ipv6",
         "VxlanV4Tunnel": "ipv4",
-        "VxlanV6Tunnel": "ipv6"
+        "VxlanV6Tunnel": "ipv6",
+        "BgpCMacIpRange": "ethernetVlan",
     }
 
     _ROUTE_STATE = {
