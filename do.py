@@ -245,8 +245,12 @@ def get_workflow_id():
 
 def check_release_flag(release_flag=None, release_version=None):
     if release_flag == 1:
+        with open("setup.py") as f:
+            out = f.read()
+            snappi_convergence = re.findall(r"\"snappi_convergence==(.+)\"",out)[0]
         with open("version.txt", "w+") as f:
-            f.write("version: {}".format(release_version))
+            f.write("version: {}\n".format(release_version))
+            f.write("snappi_convergence: {}\n".format(snappi_convergence))
             f.close()
     else:
         workflow_id = get_workflow_id()

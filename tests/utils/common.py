@@ -508,7 +508,7 @@ def get_all_captures(api, cfg):
         pcap_bytes = api.get_capture(request)
 
         cap_dict[name] = []
-        for ts, pkt in dpkt.pcap.Reader(pcap_bytes):
+        for ts, pkt in dpkt.pcapng.Reader(pcap_bytes):
             if sys.version_info[0] == 2:
                 cap_dict[name].append([ord(b) for b in pkt])
             else:

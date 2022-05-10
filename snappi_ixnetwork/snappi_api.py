@@ -167,11 +167,15 @@ class Api(snappi.Api):
                     if len(match) == 0:
                         if error.ErrorLevel == "kWarning":
                             warnings.append(
-                                "IxNet - {0}".format(error.Description)
+                                "IxNet - {0}".format(
+                                    error.Name if error.Description == "" else error.Description
+                                )
                             )
                         if error.ErrorLevel == "kError":
                             errors.append(
-                                "IxNet - {0}".format(error.Description)
+                                "IxNet - {0}".format(
+                                    error.Name if error.Description == "" else error.Description
+                                )
                             )
         # request_detail.errors = errors
         if len(errors) > 0:
