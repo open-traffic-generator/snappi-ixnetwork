@@ -4,6 +4,7 @@ import pytest
 def test_bgp_evpn_validation(api, utils):
     # Creating Ports
     config = api.config()
+    api.set_config(config)
     p1 = config.ports.port(name='p1', location=utils.settings.ports[0])[-1]
     p2 = config.ports.port(name='p2', location=utils.settings.ports[1])[-1]
     # Create BGP devices on tx & rx
@@ -151,7 +152,6 @@ def test_bgp_evpn_validation(api, utils):
     rx_broadcust_macrange.ipv4_addresses.address = "3.3.3.1"
     rx_broadcust_macrange.ipv6_addresses.address = "3000:0:3:1::1"
 
-    print(config.serialize())
     api.set_config(config)
     validate_result(api)
 
