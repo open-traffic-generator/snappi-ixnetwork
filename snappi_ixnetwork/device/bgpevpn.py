@@ -122,6 +122,7 @@ class BgpEvpn(Base):
     def config(self, bgp_peer, ixn_bgp):
         if bgp_peer.get("evpn_ethernet_segments") is None:
             return
+        ixn_bgp["filterEvpn"] = self.multivalue(True)
         eth_segment_info = self.get_symmetric_nodes(
             [bgp_peer], "evpn_ethernet_segments"
         )
