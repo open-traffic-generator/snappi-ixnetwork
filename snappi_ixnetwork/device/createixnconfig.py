@@ -4,6 +4,7 @@ class CreateIxnConfig(Base):
     def __init__(self, ngpf):
         super(CreateIxnConfig, self).__init__()
         self._ngpf = ngpf
+        self._post_calculated_info = list()
 
     def create(self, node, node_name, parent_xpath=""):
         if not isinstance(node, list):
@@ -18,6 +19,10 @@ class CreateIxnConfig(Base):
             )
             element["xpath"] = xpath
             self._process_element(element, xpath)
+
+    def post_calculate(self):
+        for element, key, value in self._post_calculated_info:
+            element[key] = value.value
 
     def _process_element(self, element, parent_xpath, child_name=None):
         if child_name is not None and "xpath" in element:
@@ -37,7 +42,9 @@ class CreateIxnConfig(Base):
                 else:
                     element[key] = value
             elif isinstance(value, PostCalculated):
-                element[key] = value.value
+                self._post_calculated_info.append(
+                    [element, key, value]
+                )
             elif isinstance(value, dict):
                 self._process_element(value, parent_xpath, key)
             elif isinstance(value, list) and len(value) > 0 and \

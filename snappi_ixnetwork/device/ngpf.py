@@ -63,6 +63,7 @@ class Ngpf(Base):
             self._createixnconfig.create(
                 self._ixn_config["topology"], "topology"
             )
+            self._createixnconfig.post_calculate()
         with Timer(self.api, "Push IxNetwork device config :"):
             self._pushixnconfig()
 

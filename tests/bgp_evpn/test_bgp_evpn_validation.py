@@ -1,10 +1,8 @@
 import pytest
 
-@pytest.mark.skip("disable to pass CICD once")
 def test_bgp_evpn_validation(api, utils):
     # Creating Ports
     config = api.config()
-    api.set_config(config)
     p1 = config.ports.port(name='p1', location=utils.settings.ports[0])[-1]
     p2 = config.ports.port(name='p2', location=utils.settings.ports[1])[-1]
     # Create BGP devices on tx & rx
