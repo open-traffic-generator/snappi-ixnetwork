@@ -2,7 +2,6 @@ import time
 import pytest
 
 
-@pytest.mark.skip(reason="enable after debugging")
 def test_flow_tracking_stats(api, utils):
     config = api.config()
     api._enable_flow_tracking(True)
@@ -18,6 +17,9 @@ def test_flow_tracking_stats(api, utils):
     layer1.speed = "speed_100_gbps"
     layer1.media = "copper"
     layer1.name = "test"
+
+    config.options.port_options.location_preemption = True
+    
     d1, d2, d3, d4 = (
         config.devices.device(name="Device1")
         .device(name="Device2")
