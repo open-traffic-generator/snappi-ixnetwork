@@ -271,7 +271,9 @@ class BgpEvpn(Base):
             "rd_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
         )
         convert_values = convert_as_values(
-            rd_types, distinguisher_info.get_values("rd_value")
+            rd_types, distinguisher_info.get_values_fill(
+                "rd_value", default="65101:1"
+            )
         )
         ixn_xvlan["rdType"] = self.multivalue(rd_types)
         ixn_xvlan["rdASNumber"] = self.multivalue(convert_values.as_num)
@@ -292,7 +294,9 @@ class BgpEvpn(Base):
                 "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
             )
             convert_rt_values = convert_as_values(
-                rt_types, exports_info.get_values("rt_value")
+                rt_types, exports_info.get_values_fill(
+                    "rt_value", default="65101:1"
+                )
             )
             self._set_target(ixn_export, rt_types, convert_rt_values)
 
@@ -309,7 +313,9 @@ class BgpEvpn(Base):
                 "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
             )
             convert_rt_values = convert_as_values(
-                rt_types, import_info.get_values("rt_value")
+                rt_types, import_info.get_values_fill(
+                    "rt_value", default="65101:1"
+                )
             )
             self._set_target(ixn_import, rt_types, convert_rt_values)
 
@@ -325,7 +331,9 @@ class BgpEvpn(Base):
                 "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
             )
             convert_rt_values = convert_as_values(
-                rt_types, l3exports_info.get_values("rt_value")
+                rt_types, l3exports_info.get_values_fill(
+                    "rt_value", default="65101:1"
+                )
             )
             self._set_target(ixn_l3export, rt_types, convert_rt_values)
 
@@ -342,7 +350,9 @@ class BgpEvpn(Base):
                 "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
             )
             convert_rt_values = convert_as_values(
-                rt_types, l3import_info.get_values("rt_value")
+                rt_types, l3import_info.get_values_fill(
+                    "rt_value", default="65101:1"
+                )
             )
             self._set_target(ixn_l3import, rt_types, convert_rt_values)
 

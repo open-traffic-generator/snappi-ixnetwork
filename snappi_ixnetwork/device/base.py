@@ -160,9 +160,13 @@ class NodesInfo(object):
                 return False
         return True
 
-    def get_values_fill(self, attr_name, enum_map=None):
+    def get_values_fill(self, attr_name, enum_map=None, default=None):
+        """This will extract values from NodesInfo object.
+        It will automatically fill if some value is None with default/ other config value"""
         values = []
         fill_value = None
+        if default is not None:
+            fill_value = default
         for node in self._symmetric_nodes:
             value = node.get(attr_name)
             if value is None:
@@ -180,20 +184,26 @@ class NodesInfo(object):
             values.append(value)
         return values
 
-    def get_values(self, attr_name, enum_map=None):
+    def get_values(self, attr_name, enum_map=None, default=None):
+        """This will extract values from NodesInfo object.
+        It will set default value value is None and specify some default
+        Otherwise raise error"""
         values = []
         for node in self._symmetric_nodes:
             value = node.get(attr_name)
-            # if value is None:
-            #     value = next(n for n in nodes if n.get(attr_name) is not None)
+            if value is None:
+                if default is None:
+                    raise NameError("Please specify default_value for ",
+                                    attr_name)
+                value = default
             if enum_map is not None:
                 value = enum_map[value]
             values.append(value)
         return values
 
-    def get_multivalues(self, attr_name, enum_map=None):
+    def get_multivalues(self, attr_name, enum_map=None, default=None):
         return self._base.multivalue(self.get_values(
-            attr_name, enum_map=enum_map
+            attr_name, enum_map=enum_map, default=default
         ))
 
     def config_values(self, ixn_obj, attr_map):
@@ -204,7 +214,9 @@ class NodesInfo(object):
                     raise NameError("ixn_attr is missing within ", ixn_map)
                 enum_map = ixn_map.get("enum_map")
                 values = self.get_multivalues(
-                    snappi_attr, enum_map=enum_map
+                    snappi_attr, enum_map=enum_map, default=ixn_map.get(
+                        "default_value"
+                    )
                 )
             else:
                 ixn_attr = ixn_map
