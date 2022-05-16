@@ -1,5 +1,5 @@
 from snappi_ixnetwork.device.base import Base, NodesInfo
-from snappi_ixnetwork.device.utils import asdot2plain, convert_as_values
+from snappi_ixnetwork.device.utils import convert_as_values, hex_to_ipv4
 
 
 class BgpEvpn(Base):
@@ -77,6 +77,7 @@ class BgpEvpn(Base):
 
     _VXLAN = {
         "ad_label": "adRouteLabel",
+        "pmsi_label": "upstreamDownstreamAssignedMplsLabel",
         "replication_type": {
             "ixn_attr": "multicastTunnelType",
             "enum_map": {
@@ -192,7 +193,71 @@ class BgpEvpn(Base):
             ext_communitiesinfo.config_values(
                 ixn_ext_communities, BgpEvpn._SEG_EXT_COMMUNITIES
             )
-            # check and add value logic
+            types = ixn_ext_communities.get("type").value
+            sub_types = ixn_ext_communities.get("subType").value
+            values = ext_communitiesinfo.get_values("value", default="0000000000c8")
+            idx = 0
+            opaqueData = list()
+            ip = list()
+            assignedNumber2Bytes = list()
+            asNumber2Bytes = list()
+            asNumber4Bytes = list()
+            assignedNumber4Bytes = list()
+            colorCOBits = list()
+            colorReservedBits = list()
+            colorValue = list()
+            for type, sub_type, value in zip(types, sub_types, values):
+                value.zfill(12)
+                opaqueData.append("000000000000")
+                ip.append("1.1.1.1")
+                assignedNumber2Bytes.append("1")
+                asNumber2Bytes.append("1")
+                asNumber4Bytes.append("1")
+                assignedNumber4Bytes.append("1")
+                colorCOBits.append("00")
+                colorReservedBits.append("0")
+                colorValue.append("0")
+
+                if type == "administratorip":
+                    if sub_type == "extendedbandwidth":
+                        opaqueData[idx] = value
+                    else:
+                        ip[idx] = hex_to_ipv4(value[:8])
+                        assignedNumber2Bytes[idx] = int(value[8:], 16)
+                elif type == "administratoras2octet":
+                    if sub_type == "extendedbandwidth":
+                        opaqueData[idx] = value
+                    else:
+                        asNumber2Bytes[idx] = int(value[:4], 16)
+                        assignedNumber4Bytes[idx] = int(value[4:], 16)
+                elif type == "administratoras4octet":
+                    if sub_type == "extendedbandwidth":
+                        opaqueData[idx] = value
+                    else:
+                        asNumber4Bytes[idx] = int(value[:8], 16)
+                        assignedNumber2Bytes[idx] = int(value[8:], 16)
+                elif type == "opaque":
+                    if sub_type == "color":
+                        bin_values = bin(int(value[:4], 16))[2:].zfill(8)
+                        colorCOBits[idx] = bin_values[:2]
+                        colorReservedBits[idx] = int(bin_values[2:], 2)
+                        colorValue[idx] = int(value[4:], 16)
+                    else:
+                        opaqueData[idx] = value
+                elif type == "evpn":
+                    if sub_type == "macaddress":
+                        opaqueData[idx] = value
+                idx += 1
+
+            ixn_ext_communities["opaqueData"] = self.multivalue(opaqueData)
+            ixn_ext_communities["ip"] = self.multivalue(ip)
+            ixn_ext_communities["assignedNumber2Bytes"] = self.multivalue(assignedNumber2Bytes)
+            ixn_ext_communities["asNumber2Bytes"] = self.multivalue(asNumber2Bytes)
+            ixn_ext_communities["asNumber4Bytes"] = self.multivalue(asNumber4Bytes)
+            ixn_ext_communities["assignedNumber4Bytes"] = self.multivalue(assignedNumber4Bytes)
+            ixn_ext_communities["colorCOBits"] = self.multivalue(colorCOBits)
+            ixn_ext_communities["colorReservedBits"] = self.multivalue(colorReservedBits)
+            ixn_ext_communities["colorValue"] = self.multivalue(colorValue)
 
     def _config_as_path_segments(self, parent_info, ixn_parent):
         as_path = parent_info.get_tab("as_path")

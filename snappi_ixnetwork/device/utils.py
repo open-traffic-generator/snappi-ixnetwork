@@ -41,3 +41,8 @@ def convert_as_values(as_types, as_values):
         else:
             convert_values.ip_addr[idx] = num
     return convert_values
+
+def hex_to_ipv4(hex_value):
+    bytes = ["".join(x) for x in zip(*[iter(hex_value)] * 2)]
+    bytes = [int(x, 16) for x in bytes]
+    return ".".join(str(x) for x in reversed(bytes))
