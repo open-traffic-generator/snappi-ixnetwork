@@ -160,33 +160,9 @@ class NodesInfo(object):
                 return False
         return True
 
-    def get_values_fill(self, attr_name, enum_map=None, default=None):
-        """This will extract values from NodesInfo object.
-        It will automatically fill if some value is None with default/ other config value"""
-        values = []
-        fill_value = None
-        if default is not None:
-            fill_value = default
-        for node in self._symmetric_nodes:
-            value = node.get(attr_name)
-            if value is None:
-                # We need to rework if fill with value not valid
-                if fill_value is None:
-                    tmp_values = [
-                        n for n in self._symmetric_nodes if n.get(attr_name) is not None
-                    ]
-                    if len(tmp_values) > 0:
-                        fill_value = tmp_values[0]
-                value = fill_value
-
-            if enum_map is not None and value is not None:
-                value = enum_map[value]
-            values.append(value)
-        return values
-
     def get_values(self, attr_name, enum_map=None, default=None):
         """This will extract values from NodesInfo object.
-        It will set default value value is None and specify some default
+        It will set default value if value is None and have some default
         Otherwise raise error"""
         values = []
         for node in self._symmetric_nodes:

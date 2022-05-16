@@ -152,7 +152,11 @@ class BgpEvpn(Base):
         ixn_parent["origin"] = advanced.get_multivalues(
             "origin"
         )
-        med_values = advanced.get_values_fill("multi_exit_discriminator")
+        med_values = []
+        for node in advanced.symmetric_nodes:
+            med_values.append(
+                node.get("multi_exit_discriminator")
+            )
         if med_values.count(None) != len(med_values):
             ixn_parent["enableMultiExitDiscriminator"] = self.multivalue(True)
             ixn_parent["multiExitDiscriminator"] = self.multivalue(
@@ -271,7 +275,7 @@ class BgpEvpn(Base):
             "rd_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
         )
         convert_values = convert_as_values(
-            rd_types, distinguisher_info.get_values_fill(
+            rd_types, distinguisher_info.get_values(
                 "rd_value", default="65101:1"
             )
         )
@@ -294,7 +298,7 @@ class BgpEvpn(Base):
                 "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
             )
             convert_rt_values = convert_as_values(
-                rt_types, exports_info.get_values_fill(
+                rt_types, exports_info.get_values(
                     "rt_value", default="65101:1"
                 )
             )
@@ -313,7 +317,7 @@ class BgpEvpn(Base):
                 "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
             )
             convert_rt_values = convert_as_values(
-                rt_types, import_info.get_values_fill(
+                rt_types, import_info.get_values(
                     "rt_value", default="65101:1"
                 )
             )
@@ -331,7 +335,7 @@ class BgpEvpn(Base):
                 "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
             )
             convert_rt_values = convert_as_values(
-                rt_types, l3exports_info.get_values_fill(
+                rt_types, l3exports_info.get_values(
                     "rt_value", default="65101:1"
                 )
             )
@@ -350,7 +354,7 @@ class BgpEvpn(Base):
                 "rt_type", enum_map=BgpEvpn._COMMON_ROUTE_TYPE
             )
             convert_rt_values = convert_as_values(
-                rt_types, l3import_info.get_values_fill(
+                rt_types, l3import_info.get_values(
                     "rt_value", default="65101:1"
                 )
             )
