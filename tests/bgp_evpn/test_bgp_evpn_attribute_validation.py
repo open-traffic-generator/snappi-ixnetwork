@@ -2,6 +2,7 @@ import pytest
 
 
 def test_bgp_evpn_validation(api, utils):
+    "Validate BGP EVPN Attributes against RestPy"
 
     BGPV4_EVPN_ETH_SEGMENT = {
         "DfElectionTimer": 10,
@@ -32,6 +33,64 @@ def test_bgp_evpn_validation(api, utils):
 
     BGPV4_EVPN_ETH_SEGMENT_ASPATH_SEGMENTS_lIST = {
         "SegmentType": "asseqconfederation",
+    }
+
+    BGPV4_EVPN_VXLAN = {
+        "AdRouteLabel": 10,
+        "UpstreamDownstreamAssignedMplsLabel": 20,
+        "RdASNumber": 1000,
+        "RdEvi": 10,
+        "MultiExitDiscriminator": 99
+    }
+
+    BGPV4_EVPN_VXLAN_EXPORT_TARGET = {
+        "TargetAs4Number": "100",
+        "TargetAssignedNumber": "20"
+    }
+
+    BGPV4_EVPN_VXLAN_IMPORT_TARGET = {
+        "TargetAs4Number": "200",
+        "TargetAssignedNumber": "30"
+    }
+
+    BGPV4_EVPN_VXLAN_L3_EXPORT_TARGET = {
+        "TargetAs4Number": "300",
+        "TargetAssignedNumber": "50"
+    }
+
+    BGPV4_EVPN_VXLAN_L3_IMPORT_TARGET = {
+        "TargetAs4Number": "400",
+        "TargetAssignedNumber": "60"
+    }
+
+    BROADCAST_DOMAIN = {
+        "EthernetTagId": "5",
+        "EnableVlanAwareService": "true"
+    }
+
+    MAC_ADDRESS = {
+        "Mac": "10:11:22:33:44:55",
+        "PrefixLength": "48",
+        "NumberOfAddressesAsy": "1"
+    }
+
+    IP_ADDRESS = {
+        "NetworkAddress": "2.2.2.2",
+        "PrefixLength": "24",
+        "NumberOfAddressesAsy": "1"
+    }
+
+    IPV6_ADDRESS = {
+        "NetworkAddress": "2000:0:2:1::1",
+        "PrefixLength": "64",
+        "NumberOfAddressesAsy": "1"
+    }
+
+    CMAC_PROPERTIES = {
+        "FirstLabelStart": "16",
+        "SecondLabelStart": "20",
+        "MultiExitDiscriminator": "37",
+        "IncludeDefaultGatewayExtendedCommunity": "true"
     }
 
     # Creating Ports
@@ -101,47 +160,118 @@ def test_bgp_evpn_validation(api, utils):
     tx_evi_vxlan = tx_eth_seg.evis.evi_vxlan()[-1]
     tx_evi_vxlan.route_distinguisher.rd_type = (
         tx_evi_vxlan.route_distinguisher.AS_2OCTET)
-    tx_evi_vxlan.route_distinguisher.rd_value = "1000:1"
+    tx_evi_vxlan.route_distinguisher.rd_value = (
+        str(BGPV4_EVPN_VXLAN["RdASNumber"]) + ":" + str(
+            BGPV4_EVPN_VXLAN["RdEvi"]))
+    tx_evi_vxlan.ad_label = BGPV4_EVPN_VXLAN["AdRouteLabel"]
+    tx_evi_vxlan.pmsi_label = (
+        BGPV4_EVPN_VXLAN["UpstreamDownstreamAssignedMplsLabel"])
+
+    export_rt = tx_evi_vxlan.route_target_export.routetarget()[-1]
+    import_rt = tx_evi_vxlan.route_target_import.routetarget()[-1]
+    export_rt.rt_type = export_rt.AS_4OCTET
+    export_rt.rt_value = (
+        BGPV4_EVPN_VXLAN_EXPORT_TARGET[
+            "TargetAs4Number"] + ":" + BGPV4_EVPN_VXLAN_EXPORT_TARGET[
+                "TargetAssignedNumber"])
+    import_rt.rt_type = import_rt.AS_4OCTET
+    import_rt.rt_value = (
+        BGPV4_EVPN_VXLAN_IMPORT_TARGET[
+            "TargetAs4Number"] + ":" + BGPV4_EVPN_VXLAN_IMPORT_TARGET[
+                "TargetAssignedNumber"])
+
+    l3_export_rt = tx_evi_vxlan.l3_route_target_export.routetarget()[-1]
+    l3_import_rt = tx_evi_vxlan.l3_route_target_import.routetarget()[-1]
+    l3_export_rt.rt_type = l3_export_rt.AS_4OCTET
+    l3_export_rt.rt_value = (
+        BGPV4_EVPN_VXLAN_L3_EXPORT_TARGET[
+            "TargetAs4Number"] + ":" + BGPV4_EVPN_VXLAN_L3_EXPORT_TARGET[
+                "TargetAssignedNumber"])
+    l3_import_rt.rt_type = l3_import_rt.AS_4OCTET
+    l3_import_rt.rt_value = (
+        BGPV4_EVPN_VXLAN_L3_IMPORT_TARGET[
+            "TargetAs4Number"] + ":" + BGPV4_EVPN_VXLAN_L3_IMPORT_TARGET[
+                "TargetAssignedNumber"])
+
     tx_evi_vxlan.advanced.origin = tx_evi_vxlan.advanced.EGP
-    tx_evi_vxlan.advanced.multi_exit_discriminator = 10
+    tx_evi_vxlan.advanced.multi_exit_discriminator = (
+        BGPV4_EVPN_VXLAN["MultiExitDiscriminator"])
     tx_evi_vxlan_comm = tx_evi_vxlan.communities.add()
     tx_evi_vxlan_comm.type = tx_evi_vxlan_comm.MANUAL_AS_NUMBER
-    tx_evi_vxlan_comm.as_number = 3
-    tx_evi_vxlan_comm.as_custom = 3
-    # tx_evi_vxlan_ext_comm = tx_evi_vxlan.ext_communities.add()
-    # tx_evi_vxlan_ext_comm.type = "evpn"
-    tx_evi_vxlan.as_path.segments.add("as_seq", [9, 10])
-    tx_export_rt = tx_evi_vxlan.route_target_export.routetarget()[-1]
-    tx_import_rt = tx_evi_vxlan.route_target_import.routetarget()[-1]
-    tx_export_rt.rt_type = tx_export_rt.AS_2OCTET
-    tx_export_rt.rt_value = "200:20"
-    tx_import_rt.rt_type = tx_import_rt.AS_2OCTET
-    tx_import_rt.rt_value = "300:30"
+    tx_evi_vxlan_comm.as_number = (
+        BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST["AsNumber"])
+    tx_evi_vxlan_comm.as_custom = (
+        BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST["LastTwoOctets"])
+    tx_evi_vxlan_ext_comm = tx_evi_vxlan.ext_communities.add()
+    tx_evi_vxlan_ext_comm.type = "opaque"
+    tx_evi_vxlan_ext_comm.subtype = "color"
+    tx_evi_vxlan_ext_comm.value = "0000000000C8"
+    tx_evi_vxlan.as_path.segments.add("as_confed_seq", [9, 10])
+
     # Adding tx Broadcast Domain per EVI and MAC range
-    tx_evpn_brodcust_domain = (
+    tx_evpn_brodcast_domain = (
         tx_evi_vxlan.broadcast_domains.broadcastdomain()[-1])
-    tx_evpn_brodcust_domain.ethernet_tag_id = 5
-    tx_evpn_brodcust_domain.vlan_aware_service = True
-    tx_broadcust_macrange = (
-        tx_evpn_brodcust_domain.cmac_ip_range.cmaciprange(
-            l2vni=16, name="tx_cmaciprange")[-1])
-    tx_broadcust_macrange.mac_addresses.address = "10:11:22:33:44:55"
-    tx_broadcust_macrange.ipv4_addresses.address = "2.2.2.2"
-    tx_broadcust_macrange.ipv6_addresses.address = "2000:0:2:1::1"
+    tx_evpn_brodcast_domain.ethernet_tag_id = int(
+        BROADCAST_DOMAIN["EthernetTagId"])
+    tx_evpn_brodcast_domain.vlan_aware_service = True
+    tx_broadcast_macrange = (
+        tx_evpn_brodcast_domain.cmac_ip_range.cmaciprange(
+            l2vni=16, l3vni=20, name="tx_cmaciprange",
+            include_default_gateway=True)[-1])
+    tx_broadcast_macrange.mac_addresses.address = MAC_ADDRESS["Mac"]
+    tx_broadcast_macrange.ipv4_addresses.address = IP_ADDRESS["NetworkAddress"]
+    tx_broadcast_macrange.ipv6_addresses.address = (
+        IPV6_ADDRESS["NetworkAddress"])
+
+    tx_broadcast_macrange.advanced.multi_exit_discriminator = int(
+        CMAC_PROPERTIES["MultiExitDiscriminator"])
+
+    cmac_comm = tx_broadcast_macrange.communities.add()
+    cmac_comm.type = cmac_comm.MANUAL_AS_NUMBER
+    cmac_comm.as_number = (
+        BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST["AsNumber"])
+    cmac_comm.as_custom = (
+        BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST["LastTwoOctets"])
+    cmac_ext_comm = tx_broadcast_macrange.ext_communities.add()
+    cmac_ext_comm.type = "opaque"
+    cmac_ext_comm.subtype = "color"
+    cmac_ext_comm.value = "0000000000C8"
+    tx_broadcast_macrange.as_path.segments.add("as_confed_seq", [9, 10])
 
     api.set_config(config)
+
     validate_config(api,
                     BGPV4_EVPN_ETH_SEGMENT,
                     BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST,
                     BGPV4_EVPN_ETH_SEGMENT_EXT_COMMUNITIES_lIST,
-                    BGPV4_EVPN_ETH_SEGMENT_ASPATH_SEGMENTS_lIST)
+                    BGPV4_EVPN_ETH_SEGMENT_ASPATH_SEGMENTS_lIST,
+                    BGPV4_EVPN_VXLAN,
+                    BGPV4_EVPN_VXLAN_EXPORT_TARGET,
+                    BGPV4_EVPN_VXLAN_IMPORT_TARGET,
+                    BGPV4_EVPN_VXLAN_L3_EXPORT_TARGET,
+                    BGPV4_EVPN_VXLAN_L3_IMPORT_TARGET,
+                    BROADCAST_DOMAIN,
+                    MAC_ADDRESS,
+                    IP_ADDRESS,
+                    IPV6_ADDRESS,
+                    CMAC_PROPERTIES)
 
 
 def validate_config(api,
                     BGPV4_EVPN_ETH_SEGMENT,
                     BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST,
                     BGPV4_EVPN_ETH_SEGMENT_EXT_COMMUNITIES_lIST,
-                    BGPV4_EVPN_ETH_SEGMENT_ASPATH_SEGMENTS_lIST):
+                    BGPV4_EVPN_ETH_SEGMENT_ASPATH_SEGMENTS_lIST,
+                    BGPV4_EVPN_VXLAN,
+                    BGPV4_EVPN_VXLAN_EXPORT_TARGET,
+                    BGPV4_EVPN_VXLAN_IMPORT_TARGET,
+                    BGPV4_EVPN_VXLAN_L3_EXPORT_TARGET,
+                    BGPV4_EVPN_VXLAN_L3_IMPORT_TARGET,
+                    BROADCAST_DOMAIN,
+                    MAC_ADDRESS,
+                    IP_ADDRESS,
+                    IPV6_ADDRESS,
+                    CMAC_PROPERTIES):
     ixn = api._ixnetwork
     bgps = (
         ixn.Topology.find().DeviceGroup.find()
@@ -171,11 +301,11 @@ def validate_config(api,
             (getattr(bgp_eth_seg_comm_list, attr).Values)[0]
         )
 
-    bgp_eth_seg_comm_list = (
+    bgp_eth_seg_ext_comm_list = (
         bgps[0].BgpEthernetSegmentV4.BgpExtendedCommunitiesList.find())
     for attr in BGPV4_EVPN_ETH_SEGMENT_EXT_COMMUNITIES_lIST:
         assert BGPV4_EVPN_ETH_SEGMENT_EXT_COMMUNITIES_lIST[attr] == (
-            (getattr(bgp_eth_seg_comm_list, attr).Values)[0]
+            (getattr(bgp_eth_seg_ext_comm_list, attr).Values)[0]
         )
 
     bgp_eth_seg_aspath_segments_list = (
@@ -185,6 +315,113 @@ def validate_config(api,
             (getattr(bgp_eth_seg_aspath_segments_list, attr).Values)[0]
         )
 
+    bgp_evpn_vxlan = bgps[0].BgpIPv4EvpnVXLAN.find()
+    for attr in BGPV4_EVPN_VXLAN:
+        assert BGPV4_EVPN_VXLAN[attr] == int(
+            (getattr(bgp_evpn_vxlan, attr).Values)[0]
+        )
+
+    bgp_evpn_vxlan_export_target = (
+        bgp_evpn_vxlan.BgpExportRouteTargetList.find())
+    for attr in BGPV4_EVPN_VXLAN_EXPORT_TARGET:
+        assert BGPV4_EVPN_VXLAN_EXPORT_TARGET[attr] == (
+            (getattr(bgp_evpn_vxlan_export_target, attr).Values)[0]
+        )
+
+    bgp_evpn_vxlan_import_target = (
+        bgp_evpn_vxlan.BgpImportRouteTargetList.find())
+    for attr in BGPV4_EVPN_VXLAN_IMPORT_TARGET:
+        assert BGPV4_EVPN_VXLAN_IMPORT_TARGET[attr] == (
+            (getattr(bgp_evpn_vxlan_import_target, attr).Values)[0]
+        )
+
+    bgp_evpn_vxlan_l3_export_target = (
+        bgp_evpn_vxlan.BgpL3VNIExportRouteTargetList.find())
+    for attr in BGPV4_EVPN_VXLAN_L3_EXPORT_TARGET:
+        assert BGPV4_EVPN_VXLAN_L3_EXPORT_TARGET[attr] == (
+            (getattr(bgp_evpn_vxlan_l3_export_target, attr).Values)[0]
+        )
+
+    bgp_evpn_vxlan_l3_import_target = (
+        bgp_evpn_vxlan.BgpL3VNIImportRouteTargetList.find())
+    for attr in BGPV4_EVPN_VXLAN_L3_IMPORT_TARGET:
+        assert BGPV4_EVPN_VXLAN_L3_IMPORT_TARGET[attr] == (
+            (getattr(bgp_evpn_vxlan_l3_import_target, attr).Values)[0]
+        )
+
+    bgp_eth_seg_vxlan_comm_list = (
+        bgps[0].BgpIPv4EvpnVXLAN.find().BgpCommunitiesList.find())
+    for attr in BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST:
+        assert BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST[attr] == (
+            (getattr(bgp_eth_seg_vxlan_comm_list, attr).Values)[0]
+        )
+
+    bgp_eth_seg_vxlan_ext_comm_list = (
+        bgps[0].BgpIPv4EvpnVXLAN.find().BgpExtendedCommunitiesList.find())
+    for attr in BGPV4_EVPN_ETH_SEGMENT_EXT_COMMUNITIES_lIST:
+        assert BGPV4_EVPN_ETH_SEGMENT_EXT_COMMUNITIES_lIST[attr] == (
+            (getattr(bgp_eth_seg_vxlan_ext_comm_list, attr).Values)[0]
+        )
+
+    bgp_eth_seg_vxlan_aspath_segments_list = (
+        bgps[0].BgpIPv4EvpnVXLAN.find().BgpAsPathSegmentList.find())
+    for attr in BGPV4_EVPN_ETH_SEGMENT_ASPATH_SEGMENTS_lIST:
+        assert BGPV4_EVPN_ETH_SEGMENT_ASPATH_SEGMENTS_lIST[attr] == (
+            (getattr(bgp_eth_seg_vxlan_aspath_segments_list, attr).Values)[0]
+        )
+
+    bgp_eth_seg_vxlan_broadcast_domain = (
+        bgps[0].BgpIPv4EvpnVXLAN.find().BroadcastDomainV4)
+    for attr in BROADCAST_DOMAIN:
+        assert BROADCAST_DOMAIN[attr] == (
+            (getattr(bgp_eth_seg_vxlan_broadcast_domain, attr).Values)[0]
+        )
+
+    mac = (ixn.Topology.find().DeviceGroup.find()
+           .DeviceGroup.find().NetworkGroup.find().MacPools.find())
+    for attr in MAC_ADDRESS:
+        assert MAC_ADDRESS[attr] == (
+            (getattr(mac, attr).Values)[0]
+        )
+
+    ipv4 = (mac.Ipv4PrefixPools.find())
+    for attr in IP_ADDRESS:
+        assert IP_ADDRESS[attr] == (
+            (getattr(ipv4, attr).Values)[0]
+        )
+
+    ipv6 = (mac.Ipv6PrefixPools.find())
+    for attr in IPV6_ADDRESS:
+        assert IPV6_ADDRESS[attr] == (
+            (getattr(ipv6, attr).Values)[0]
+        )
+
+    cmac = (mac.CMacProperties.find())
+    for attr in CMAC_PROPERTIES:
+        assert CMAC_PROPERTIES[attr] == (
+            (getattr(cmac, attr).Values)[0]
+        )
+
+    cmac_comm_list = (
+        cmac.BgpCommunitiesList.find())
+    for attr in BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST:
+        assert BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST[attr] == (
+            (getattr(cmac_comm_list, attr).Values)[0]
+        )
+
+    cmac_ext_comm_list = (
+        cmac.BgpExtendedCommunitiesList.find())
+    for attr in BGPV4_EVPN_ETH_SEGMENT_EXT_COMMUNITIES_lIST:
+        assert BGPV4_EVPN_ETH_SEGMENT_EXT_COMMUNITIES_lIST[attr] == (
+            (getattr(cmac_ext_comm_list, attr).Values)[0]
+        )
+
+    cmac_aspath_segments_list = (
+        cmac.BgpAsPathSegmentList.find())
+    for attr in BGPV4_EVPN_ETH_SEGMENT_ASPATH_SEGMENTS_lIST:
+        assert BGPV4_EVPN_ETH_SEGMENT_ASPATH_SEGMENTS_lIST[attr] == (
+            (getattr(cmac_aspath_segments_list, attr).Values)[0]
+        )
 
 
 if __name__ == "__main__":
