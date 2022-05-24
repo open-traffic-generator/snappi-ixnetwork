@@ -349,7 +349,7 @@ class BgpEvpn(Base):
         ixn_xvlan["rdEvi"] = self.multivalue(convert_values.assign_num)
         ixn_xvlan["rdIpAddress"] = self.multivalue(convert_values.ip_addr)
         ixn_xvlan["autoConfigureRdIpAddress"] = distinguisher_info.get_multivalues(
-            "auto_config_rd_ip_addr"
+            "auto_config_rd_ip_addr", default=True
         )
 
         # Configure route_target_export
