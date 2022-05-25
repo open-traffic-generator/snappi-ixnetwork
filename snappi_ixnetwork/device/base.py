@@ -225,17 +225,30 @@ class NodesInfo(object):
 
     def get_group_nodes(self, tab_name):
         """We will pass a attribute names which is array in type
+        Fill with other nodes and active_list as False
         It will raise error if all elements are not same length
         Finally return list of NodesInfo
         It will use some IxNetwork tab which do not have enable/disable features"""
+        dummy_tab = None
+        for node in self._symmetric_nodes:
+            dummy_tab = node.get(tab_name)
+            if dummy_tab is not None:
+                break
         tab_lengths = []
         group_nodes = []
+        active_list = []
         for node in self._symmetric_nodes:
             tab = node.get(tab_name)
             if tab is None:
-                tab_lengths.append(0)
+                active_list.append(False)
+                if dummy_tab is None:
+                    tab_lengths.append(0)
+                else:
+                    tab_lengths.append(len(dummy_tab))
+                    tab = dummy_tab
             else:
                 tab_lengths.append(len(tab))
+                active_list.append(True)
             if len(set(tab_lengths)) > 1:
                 raise Exception("All the attributes %s should have same lengths" % tab_name)
             for idx in range(tab_lengths[-1]):
@@ -243,9 +256,22 @@ class NodesInfo(object):
                     group_nodes.append([tab[idx]])
                 else:
                     group_nodes[idx].append(tab[idx])
-        return [NodesInfo(
+
+        return active_list, [NodesInfo(
             1,  # use dummy one
             self._active_list,
             group_node
         ) for group_node in group_nodes]
+
+    def get_active_group_nodes(self, tab_name):
+        """It will cover get_group_nodes
+        At the same time it will raise error if None node
+        because IxNetwork do not have active field for those"""
+        active_list, node_info_list = self.get_group_nodes(
+            tab_name
+        )
+        if len(set(active_list)) > 1:
+            raise Exception("All the attributes %s should configure with equal length"
+                            % tab_name)
+        return node_info_list
 

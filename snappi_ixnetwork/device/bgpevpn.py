@@ -165,12 +165,14 @@ class BgpEvpn(Base):
             )
 
     def _config_communities(self, parent_info, ixn_parent):
-        communities_info_list = parent_info.get_group_nodes("communities")
+        active_list, communities_info_list = parent_info.get_group_nodes(
+            "communities"
+        )
         if len(communities_info_list) == 0:
             return None
 
         ixn_parent["noOfCommunities"] = len(communities_info_list)
-        ixn_parent["enableCommunity"] = self.multivalue(True)
+        ixn_parent["enableCommunity"] = self.multivalue(active_list)
         for communities_info in communities_info_list:
             ixn_communities = self.create_node_elemet(ixn_parent, "bgpCommunitiesList")
             communities_info.config_values(
@@ -178,14 +180,16 @@ class BgpEvpn(Base):
             )
 
     def _config_ext_communities(self, parent_info, ixn_parent):
-        ext_communitiesinfo_list = parent_info.get_group_nodes("ext_communities")
+        active_list, ext_communitiesinfo_list = parent_info.get_group_nodes(
+            "ext_communities"
+        )
         if len(ext_communitiesinfo_list) == 0:
             return None
 
         ixn_parent["noOfExtendedCommunity"] = len(
             ext_communitiesinfo_list
         )
-        ixn_parent["enableExtendedCommunity"] = self.multivalue(True)
+        ixn_parent["enableExtendedCommunity"] = self.multivalue(active_list)
         for ext_communitiesinfo in ext_communitiesinfo_list:
             ixn_ext_communities = self.create_node_elemet(
                 ixn_parent, "bgpExtendedCommunitiesList"
@@ -268,9 +272,9 @@ class BgpEvpn(Base):
         ixn_parent["asSetMode"] = as_path.get_multivalues(
             "as_set_mode", BgpEvpn._AS_SET_MODE
         )
-        segments_info_list = as_path.get_group_nodes("segments")
+        active_list, segments_info_list = as_path.get_group_nodes("segments")
         if len(segments_info_list) > 0:
-            ixn_parent["enableAsPathSegments"] = self.multivalue(True)
+            ixn_parent["enableAsPathSegments"] = self.multivalue(active_list)
             ixn_parent["noOfASPathSegmentsPerRouteRange"] = len(
                 segments_info_list
             )
@@ -281,7 +285,7 @@ class BgpEvpn(Base):
                 ixn_segments["segmentType"] = segments_info.get_multivalues(
                     "type", BgpEvpn._SEGMENT_TYPE
                 )
-                numbers_info_list = segments_info.get_group_nodes("as_numbers")
+                active_list, numbers_info_list = segments_info.get_group_nodes("as_numbers")
                 if len(numbers_info_list) > 0:
                     ixn_segments["numberOfAsNumberInSegment"] = len(
                         numbers_info_list
@@ -353,7 +357,7 @@ class BgpEvpn(Base):
         )
 
         # Configure route_target_export
-        exports_info_list = vxlan_info.get_group_nodes("route_target_export")
+        exports_info_list = vxlan_info.get_active_group_nodes("route_target_export")
         if len(exports_info_list) > 0:
             ixn_xvlan["numRtInExportRouteTargetList"] = len(
                 exports_info_list
@@ -371,7 +375,7 @@ class BgpEvpn(Base):
             self._set_target(ixn_export, rt_types, convert_rt_values)
 
         # Configure route_target_import
-        import_info_list = vxlan_info.get_group_nodes("route_target_import")
+        import_info_list = vxlan_info.get_active_group_nodes("route_target_import")
         if len(import_info_list) > 0:
             ixn_xvlan["importRtListSameAsExportRtList"] = False
             ixn_xvlan["numRtInImportRouteTargetList"] = len(
@@ -390,7 +394,7 @@ class BgpEvpn(Base):
             self._set_target(ixn_import, rt_types, convert_rt_values)
 
         # Configure l3_route_target_export
-        l3exports_info_list = vxlan_info.get_group_nodes("l3_route_target_export")
+        l3exports_info_list = vxlan_info.get_active_group_nodes("l3_route_target_export")
         if len(l3exports_info_list) > 0:
             ixn_xvlan["numRtInL3vniExportRouteTargetList"] = len(
                 l3exports_info_list
@@ -408,7 +412,7 @@ class BgpEvpn(Base):
             self._set_target(ixn_l3export, rt_types, convert_rt_values)
 
         # Configure l3_route_target_import
-        l3import_info_list = vxlan_info.get_group_nodes("l3_route_target_import")
+        l3import_info_list = vxlan_info.get_active_group_nodes("l3_route_target_import")
         if len(l3import_info_list) > 0:
             ixn_xvlan["l3vniImportRtListSameAsL3vniExportRtList"] = False
             ixn_xvlan["numRtInL3vniImportRouteTargetList"] = len(
@@ -545,22 +549,5 @@ class BgpEvpn(Base):
                 ipv6_info.active_list
             )
             ipv6_info.config_values(ixn_ipv6, BgpEvpn._IP_ADDRESS)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
