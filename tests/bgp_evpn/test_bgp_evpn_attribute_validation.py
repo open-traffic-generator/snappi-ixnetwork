@@ -198,9 +198,9 @@ def test_bgp_evpn_validation(api, utils):
         BGPV4_EVPN_VXLAN["MultiExitDiscriminator"])
     tx_evi_vxlan_comm = tx_evi_vxlan.communities.add()
     tx_evi_vxlan_comm.type = tx_evi_vxlan_comm.MANUAL_AS_NUMBER
-    tx_evi_vxlan_comm.as_number = (
+    tx_evi_vxlan_comm.as_number = int(
         BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST["AsNumber"])
-    tx_evi_vxlan_comm.as_custom = (
+    tx_evi_vxlan_comm.as_custom = int(
         BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST["LastTwoOctets"])
     tx_evi_vxlan_ext_comm = tx_evi_vxlan.ext_communities.add()
     tx_evi_vxlan_ext_comm.type = "opaque"
@@ -228,9 +228,9 @@ def test_bgp_evpn_validation(api, utils):
 
     cmac_comm = tx_broadcast_macrange.communities.add()
     cmac_comm.type = cmac_comm.MANUAL_AS_NUMBER
-    cmac_comm.as_number = (
+    cmac_comm.as_number = int(
         BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST["AsNumber"])
-    cmac_comm.as_custom = (
+    cmac_comm.as_custom = int(
         BGPV4_EVPN_ETH_SEGMENT_COMMUNITIES_lIST["LastTwoOctets"])
     cmac_ext_comm = tx_broadcast_macrange.ext_communities.add()
     cmac_ext_comm.type = "opaque"
