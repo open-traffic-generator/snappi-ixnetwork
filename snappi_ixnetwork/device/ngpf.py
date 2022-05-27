@@ -3,6 +3,7 @@ import json, re
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.device.bgp import Bgp
+from snappi_ixnetwork.logger import get_logger
 from snappi_ixnetwork.device.vxlan import VXLAN
 from snappi_ixnetwork.device.interface import Ethernet
 from snappi_ixnetwork.device.loopbackint import LoopbackInt
@@ -39,6 +40,7 @@ class Ngpf(Base):
         self._ixn_topo_objects = {}
         self.ether_v4gateway_map = {}
         self.ether_v6gateway_map = {}
+        self.logger = get_logger(__name__)
         self._ethernet = Ethernet(self)
         self._bgp = Bgp(self)
         self._vxlan = VXLAN(self)

@@ -1,3 +1,5 @@
+from snappi_ixnetwork.logger import get_logger
+
 __all__ = ['Base', 'MultiValue', 'PostCalculated']
 
 
@@ -25,7 +27,7 @@ class PostCalculated(object):
 
 class Base(object):
     def __init__(self):
-        pass
+        self.logger = get_logger(__name__)
 
     def create_node(self, ixn_obj, name):
         """It will check/ create a node with name"""
@@ -49,6 +51,7 @@ class Base(object):
         - We are setting name as multivalue for farther processing
         - It will return that newly created dict
         """
+        self.logger.debug("Creating node for %s" %node_name)
         node = self.create_node(ixn_obj, node_name)
         return self.add_element(node, name)
 

@@ -1,4 +1,5 @@
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.logger import get_logger
 
 class Ethernet(Base):
     _ETHERNET = {
@@ -30,6 +31,7 @@ class Ethernet(Base):
     def __init__(self, ngpf):
         super(Ethernet, self).__init__()
         self._ngpf = ngpf
+        self.logger = get_logger(__name__)
 
     def config(self, ethernet, ixn_dg):
         ixn_eth = self.create_node_elemet(

@@ -1,9 +1,11 @@
 from snappi_ixnetwork.device.base import *
+from snappi_ixnetwork.logger import get_logger
 
 class CreateIxnConfig(Base):
     def __init__(self, ngpf):
         super(CreateIxnConfig, self).__init__()
         self._ngpf = ngpf
+        self.logger = get_logger(__name__)
 
     def create(self, node, node_name, parent_xpath=""):
         if not isinstance(node, list):

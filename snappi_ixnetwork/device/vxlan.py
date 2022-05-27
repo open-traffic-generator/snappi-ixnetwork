@@ -1,4 +1,5 @@
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.logger import get_logger
 from snappi_ixnetwork.device.utils import namedtuple_with_defaults
 
 class VXLAN(Base):
@@ -9,6 +10,7 @@ class VXLAN(Base):
     def __init__(self, ngpf):
         super(VXLAN, self).__init__()
         self._ngpf = ngpf
+        self.logger = get_logger(__name__)
         self._source_interfaces = VXLAN.SourceInterface()
 
     @property
