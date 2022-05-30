@@ -12,7 +12,8 @@ def setup_applevel_logger(log_level, file_name=None, module_name=None):
                                   datefmt="%Y-%m-%d %H:%M:%S")
     sh = logging.StreamHandler(sys.stdout)
     sh.setFormatter(formatter)
-    logger.handlers.clear()
+    if len(logger.handlers) > 0:
+        del logger.handlers[:]
     logger.addHandler(sh)
     if file_name:
         fh = logging.FileHandler(file_name)
