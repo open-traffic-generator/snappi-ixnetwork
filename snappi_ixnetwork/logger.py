@@ -7,7 +7,7 @@ APP_LOGGER_NAME = 'snappi_ixnetwork'
 
 def setup_applevel_logger(log_level, file_name=None, module_name=None):
     logger = logging.getLogger(APP_LOGGER_NAME)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(log_level)
     formatter = logging.Formatter(fmt="%(asctime)s [%(name)s] [%(levelname)s] %(message)s",
                                   datefmt="%Y-%m-%d %H:%M:%S")
     sh = logging.StreamHandler(sys.stdout)
