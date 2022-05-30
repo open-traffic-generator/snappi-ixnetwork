@@ -1254,7 +1254,7 @@ class TrafficItem(CustomField):
         elif len(flow_names) > 1:
             regex = "^(%s)$" % "|".join(self._api.special_char(flow_names))
 
-        self.logger("These %s flows will go into %s state" % (
+        self.logger.debug("These %s flows will go into %s state" % (
             flow_names, request.state
         ))
         if request.state == "start":
