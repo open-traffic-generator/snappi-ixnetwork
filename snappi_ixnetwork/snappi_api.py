@@ -47,7 +47,8 @@ class Api(snappi.Api):
         username = kwargs.get("username")
         password = kwargs.get("password")
         license_servers = kwargs.get("license_servers")
-        self._log_level = kwargs.get("loglevel")
+        self._log_level = logging.INFO if kwargs.get("loglevel") is None \
+            else kwargs.get("loglevel")
         self.logger = setup_applevel_logger(
             self.log_level, module_name=__name__
         )
