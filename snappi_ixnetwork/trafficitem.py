@@ -1010,6 +1010,7 @@ class TrafficItem(CustomField):
             "decrement": "decrement",
             "auto": "auto",
             "generated": "auto",
+            "custom": "singleValue"
         }
 
         def get_value(field_value):
@@ -1052,6 +1053,9 @@ class TrafficItem(CustomField):
                 # TODO currently added some dummy value for bad generated value
                 # Need to add some logic to generate bad value
                 field_json["value"] = "0001"
+        if choice == "custom":
+            value = snappi_field.get(choice)
+            field_json[ixn_pattern[choice]] = value
         field_json["activeFieldChoice"] = active_field
         field_json["auto"] = True if choice == "auto" else False
         return
