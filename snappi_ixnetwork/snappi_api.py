@@ -178,6 +178,12 @@ class Api(snappi.Api):
                                 )
                             )
         # request_detail.errors = errors
+
+        # Need to add this hack as dumping json config throws this exception
+        # Traffic regeneration will be part of set_transmit_state
+        errors = [error for error in errors
+                  if "before trying to generate BGP EVPN traffic" not in error]
+
         if len(errors) > 0:
             self._errors = []
             raise SnappiIxnException(500, errors)
