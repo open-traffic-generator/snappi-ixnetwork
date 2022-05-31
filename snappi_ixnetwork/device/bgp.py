@@ -137,10 +137,6 @@ class Bgp(Base):
 
     def _is_valid(self, ip_name):
         is_invalid = True
-        config_obj = self._ngpf.api.get_config_object(
-            ip_name
-        )
-
         same_dg_ips, invalid_ips = self._get_interface_info()
         if ip_name in invalid_ips:
             self._ngpf.api.add_error("Multiple IP {name} on top of name Ethernet".format(
@@ -172,7 +168,6 @@ class Bgp(Base):
         if ipv6_interfaces is None:
             return
         for ipv6_interface in ipv6_interfaces:
-            is_invalid = False
             ipv6_name = ipv6_interface.get("ipv6_name")
             self._ngpf.working_dg = self._ngpf.api.ixn_objects.get_working_dg(
                 ipv6_name
@@ -210,7 +205,6 @@ class Bgp(Base):
                 self.configure_multivalues(capability, ixn_bgpv4, Bgp._CAPABILITY)
             self._bgp_route_builder(bgp_peer, ixn_bgpv4)
             self._bgp_evpn.config(bgp_peer, ixn_bgpv4)
-            pass
 
     def _config_bgpv6(self, bgp_peers, ixn_ipv6):
         if bgp_peers is None:
