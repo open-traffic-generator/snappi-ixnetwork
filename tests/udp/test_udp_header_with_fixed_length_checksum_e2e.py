@@ -1,9 +1,4 @@
-import pytest
-
-
-@pytest.mark.skip("skip until migrated to snappi")
-@pytest.mark.e2e
-def test_udp_header_with_fixed_length_checksum_e2e(api, b2b_raw_config):
+def test_udp_header_with_fixed_length_checksum_e2e(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,
     - fixed src and dst Port address, length, checksum
@@ -14,45 +9,38 @@ def test_udp_header_with_fixed_length_checksum_e2e(api, b2b_raw_config):
     - tx/rx frame count is as expected
     - all captured frames have expected src and dst Port address
     """
-    flow = b2b_raw_config.flows[0]
+    f = b2b_raw_config.flows[0]
     packets = 1000
     size = 74
 
-    flow.packet = [
-        Flow.Header(
-            Flow.Ethernet(
-                src=Flow.Pattern("00:0c:29:1d:10:67"),
-                dst=Flow.Pattern("00:0c:29:1d:10:71"),
-            )
-        ),
-        Flow.Header(
-            Flow.Ipv4(
-                src=Flow.Pattern("10.10.10.1"),
-                dst=Flow.Pattern("10.10.10.2"),
-            )
-        ),
-        Flow.Header(
-            Flow.Udp(
-                src_port=Flow.Pattern("3000"),
-                dst_port=Flow.Pattern("4000"),
-                length=Flow.Pattern("38"),
-                checksum=Flow.Pattern("5"),
-            )
-        ),
-    ]
-    flow.duration = Flow.Duration(Flow.FixedPackets(packets=packets))
-    flow.size = Flow.Size(size)
-    flow.rate = Flow.Rate(value=10, unit="line")
+    f.packet.ethernet().ipv4().udp()
+    eth, ip, udp = f.packet[0], f.packet[1], f.packet[2]
+
+    eth.src.value = "00:0c:29:1d:10:67"
+    eth.dst.value = "00:0c:29:1d:10:71"
+    ip.src.value = "10.10.10.1"
+    ip.dst.value = "10.10.10.2"
+    udp.src_port.value = 3000
+    udp.dst_port.value = 4000
+    udp.length.value = 38
+    udp.checksum.custom = 5
+
+    f.duration.fixed_packets.packets = packets
+    f.size.fixed = size
+    f.rate.percentage = 10
+
+    f.metrics.enable = True
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: results_ok(api, size, packets), "stats to be as expected"
+        lambda: results_ok(api, size, packets, utils),
+        "stats to be as expected",
     )
 
-    captures_ok(api, b2b_raw_config, size)
+    captures_ok(api, b2b_raw_config, size, utils)
 
 
-def results_ok(api, size, packets):
+def results_ok(api, size, packets, utils):
     """
     Returns true if stats are as expected, false otherwise.
     """
@@ -62,7 +50,7 @@ def results_ok(api, size, packets):
     return frames_ok and bytes_ok
 
 
-def captures_ok(api, cfg, size):
+def captures_ok(api, cfg, size, utils):
     """
     Returns normally if patterns in captured packets are as expected.
     """
