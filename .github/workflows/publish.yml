@@ -80,7 +80,7 @@ jobs:
     steps:
       - name: Trigger CI/CD snappi-tests
         run: |
-          git clone https://github.com/open-traffic-generator/snappi-tests.git@e2e-scripts
+          git clone -b e2e-scripts https://github.com/open-traffic-generator/snappi-tests.git
           mv version.txt snappi-tests
           cd snappi-tests
           git add version.txt
