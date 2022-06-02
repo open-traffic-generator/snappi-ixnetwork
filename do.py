@@ -251,7 +251,6 @@ def check_release_flag(release_flag=None, release_version=None):
         with open("version.txt", "w+") as f:
             f.write("version: {}\n".format(release_version))
             f.write("snappi_convergence: {}\n".format(snappi_convergence))
-            f.close()
     else:
         workflow_id = get_workflow_id()
         with open("version.txt", "w+") as f:

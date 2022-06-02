@@ -37,9 +37,9 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py install
           ${{steps.path.outputs.pythonv}} do.py init
-      - name: Run tests
-        run: |
-          ${{steps.path.outputs.pythonv}} do.py test
+      #- name: Run tests
+      #  run: |
+      #    ${{steps.path.outputs.pythonv}} do.py test
       - name: Get package version
         id: get_version
         run: |
@@ -57,19 +57,19 @@ jobs:
         run: |
           export RELEASE_FLAG=1
           echo "::set-output name=release_flag::${RELEASE_FLAG}"
-          PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
-      - name: Create release and publish artifacts
-        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "dist/*"
-          tag: ${{ steps.get_version.outputs.version }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload artifacts if release didn't happen
-        if: steps.check_tag.outputs.exists == 'true'
-        uses: actions/upload-artifact@v3
-        with:
-          path: dist
+      #PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
+      #- name: Create release and publish artifacts
+      #  if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+      #  uses: ncipollo/release-action@v1
+      #  with:
+      #    artifacts: "dist/*"
+      #    tag: ${{ steps.get_version.outputs.version }}
+      #    token: ${{ secrets.GITHUB_TOKEN }}
+      #- name: Upload artifacts if release didn't happen
+      #  if: steps.check_tag.outputs.exists == 'true'
+      #  uses: actions/upload-artifact@v3
+      #  with:
+      #    path: dist
       - name: Set the release version/workflow id
         run: |
           ${{steps.path.outputs.pythonv}} do.py install_requests ${{steps.path.outputs.pythonv}}
@@ -80,10 +80,16 @@ jobs:
     steps:
       - name: Trigger CI/CD snappi-tests
         run: |
-          git clone https://github.com/open-traffic-generator/snappi-tests.git
+          git clone https://github.com/open-traffic-generator/snappi-tests.git@e2e-scripts
           mv version.txt snappi-tests
           cd snappi-tests
           git add version.txt
-          git commit --allow-empty -m "Trigger Snappi test from snappi-ixnetwork"
+          if git status --porcelain | grep .
+            then
+              git commit -m "Trigger Snappi test from snappi-ixnetwork"
+              git push
+            else
+              echo "No change in version.txt file"
+          fi
           git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
           git push origin main
