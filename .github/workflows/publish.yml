@@ -86,5 +86,6 @@ jobs:
           git add version.txt
           git commit -m "Trigger Snappi test from snappi-ixnetwork"
           git push
-          git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git HEAD:e2e-scripts
-          git push origin main
+          git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
+          git push origin HEAD:e2e-scripts
+    #git push origin main
