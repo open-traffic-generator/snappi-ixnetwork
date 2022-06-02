@@ -84,8 +84,16 @@ jobs:
           mv version.txt snappi-tests
           cd snappi-tests
           git add version.txt
-          git commit -m "Trigger Snappi test from snappi-ixnetwork"
-          git push
+          git commit --allow-empty -m "Trigger Snappi test from snappi-ixnetwork"
           git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
           git push origin HEAD:e2e-scripts
+
+    #git clone -b e2e-scripts https://github.com/open-traffic-generator/snappi-tests.git
+    #mv version.txt snappi-tests
+    #cd snappi-tests
+    #git add version.txt
+    #git commit -m "Trigger Snappi test from snappi-ixnetwork"
+    #git push
+    #git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
+    #git push origin HEAD:e2e-scripts
     #git push origin main
