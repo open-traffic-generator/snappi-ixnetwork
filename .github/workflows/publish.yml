@@ -11,7 +11,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        python-version: [python27, python38]
+        python-version: [python38]
 
     steps:
       - name: Checkout source
@@ -23,20 +23,20 @@ jobs:
       - name: Set python path
         id: path
         run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
-      - name: Install dependencies
-        run: |
-          rm -rf .env
-          ${{steps.path.outputs.pythonv}} do.py setup
-          ${{steps.path.outputs.pythonv}} do.py init
-      - name: Build distribution
-        run: |
-          ${{steps.path.outputs.pythonv}} do.py dist
-      - name: Install package on clean env
-        run: |
-          rm -rf .env
-          ${{steps.path.outputs.pythonv}} do.py setup
-          ${{steps.path.outputs.pythonv}} do.py install
-          ${{steps.path.outputs.pythonv}} do.py init
+      #- name: Install dependencies
+      #  run: |
+      #    rm -rf .env
+      #    ${{steps.path.outputs.pythonv}} do.py setup
+      #    ${{steps.path.outputs.pythonv}} do.py init
+      #- name: Build distribution
+      #  run: |
+      #    ${{steps.path.outputs.pythonv}} do.py dist
+      #- name: Install package on clean env
+      #  run: |
+      #    rm -rf .env
+      #    ${{steps.path.outputs.pythonv}} do.py setup
+      #    ${{steps.path.outputs.pythonv}} do.py install
+      #    ${{steps.path.outputs.pythonv}} do.py init
       #- name: Run tests
       #  run: |
       #    ${{steps.path.outputs.pythonv}} do.py test
@@ -84,12 +84,7 @@ jobs:
           mv version.txt snappi-tests
           cd snappi-tests
           git add version.txt
-          if git status --porcelain | grep .
-            then
-              git commit -m "Trigger Snappi test from snappi-ixnetwork"
-              git push
-            else
-              echo "No change in version.txt file"
-          fi
+          git commit -m "Trigger Snappi test from snappi-ixnetwork"
+          git push
           git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
           git push origin main
