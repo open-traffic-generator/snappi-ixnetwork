@@ -89,7 +89,7 @@ class Ngpf(Base):
 
     def set_ixn_routes(self, snappi_obj, ixn_obj):
         name = snappi_obj.get("name")
-        self.logger.debug("set_ixn_routes for ", name)
+        self.logger.debug("set_ixn_routes for %s " % name)
         self.api.ixn_routes.set(name, ixn_obj)
 
     def _get_topology_name(self, port_name):
@@ -247,7 +247,7 @@ class Ngpf(Base):
     def set_protocol_state(self,request):
         if request.state is None:
             raise Exception("state is None within set_protocol_state")
-        self.logger.debug("Setting protocol with ", request.state)
+        self.logger.debug("Setting protocol with %s" % request.state)
         if request.state == "start":
             if len(self.api._topology.find()) > 0:
                 self.api._ixnetwork.StartAllProtocols("sync")
@@ -264,7 +264,7 @@ class Ngpf(Base):
             names = self.api.ixn_routes.names
         ixn_obj_idx_list = {}
         names = list(set(names))
-        self.logger.debug("set route state for ", names)
+        self.logger.debug("set route state for %s" % names)
         for name in names:
             route_info = self.api.ixn_routes.get(name)
             ixn_obj = None
@@ -299,7 +299,7 @@ class Ngpf(Base):
         return names
 
     def get_states(self, request):
-        self.logger.debug("get_states for ",  request.choice)
+        self.logger.debug("get_states for %s" % request.choice)
         if request.choice == "ipv4_neighbors":
             ip_objs = self.api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv4.find()
             resolved_mac_list = self._get_ether_resolved_mac(
@@ -351,7 +351,7 @@ class Ngpf(Base):
                         "ipv6_address": gateway_ip,
                         "link_layer_address": arp_entries[gateway_ip]
                     })
-        self.logger.debug("These are resolved_mac_list: ", resolved_mac_list)
+        self.logger.debug("These are resolved_mac_list: %s" % resolved_mac_list)
         return resolved_mac_list
 
     def _get_href(self, xpath):

@@ -38,7 +38,7 @@ class IxNetObjects(object):
         try:
             return self._ixnet_infos[name]
         except KeyError:
-            self.logger.debug("These are existing names ", self.names)
+            self.logger.debug("These are existing names %s" % self.names)
             raise NameError(
                 "snappi object named {0} not found in internal db".format(
                     name
@@ -56,7 +56,7 @@ class IxNetObjects(object):
 
     def set_scalable(self, ixnobject):
         names = ixnobject.get("name")
-        self.logger.debug("set_scalable names : ", names)
+        self.logger.debug("set_scalable names : %s" % names)
         set_names = []
         for index, name in enumerate(names):
             if name is None or name in set_names:
