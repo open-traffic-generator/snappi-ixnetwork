@@ -6,6 +6,7 @@ class CreateIxnConfig(Base):
         super(CreateIxnConfig, self).__init__()
         self._ngpf = ngpf
         self.logger = get_logger(__name__)
+        self._post_calculated_info = list()
 
     def create(self, node, node_name, parent_xpath=""):
         if not isinstance(node, list):
@@ -21,6 +22,10 @@ class CreateIxnConfig(Base):
             element["xpath"] = xpath
             self._process_element(element, xpath)
 
+    def post_calculate(self):
+        for element, key, value in self._post_calculated_info:
+            element[key] = value.value
+
     def _process_element(self, element, parent_xpath, child_name=None):
         if child_name is not None and "xpath" in element:
             child_xpath = """{parent_xpath}/{child_name}""".format(
@@ -33,20 +38,23 @@ class CreateIxnConfig(Base):
             if key == "name":
                 element["name"] = self.get_name(element)
             elif isinstance(value, MultiValue):
-                value = self._get_ixn_multivalue(value, key, parent_xpath)
+                value = self._get_ixn_multivalue(value, key, element["xpath"])
                 if value is None:
                     key_to_remove.append(key)
                 else:
                     element[key] = value
             elif isinstance(value, PostCalculated):
-                element[key] = value.value
+                self._post_calculated_info.append(
+                    [element, key, value]
+                )
             elif isinstance(value, dict):
                 self._process_element(value, parent_xpath, key)
             elif isinstance(value, list) and len(value) > 0 and \
                     isinstance(value[0], dict):
                 if child_name is not None:
-                    raise Exception("Add support node within element")
-                self.create(value, key, parent_xpath)
+                    self.create(value, key, element["xpath"])
+                else:
+                    self.create(value, key, parent_xpath)
 
         for key in key_to_remove:
             element.pop(key)

@@ -61,6 +61,7 @@ class LoopbackInt(Base):
         )
         ixn_dg["multiplier"] = 1
         self._ngpf.working_dg = ixn_dg
+        self._ngpf.set_device_info(device, ixn_dg)
         return ixn_dg
 
     def _config_ipv4_loopbacks(self, ipv4_loopbacks, device, vxlan_source_int_list):

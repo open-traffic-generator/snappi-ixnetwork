@@ -24,7 +24,8 @@ class Ngpf(Base):
         "DeviceIpv4Loopback": "ipv4",
         "DeviceIpv6Loopback": "ipv6",
         "VxlanV4Tunnel": "ipv4",
-        "VxlanV6Tunnel": "ipv6"
+        "VxlanV6Tunnel": "ipv6",
+        "BgpCMacIpRange": "ethernetVlan",
     }
 
     _ROUTE_STATE = {
@@ -64,6 +65,7 @@ class Ngpf(Base):
             self._createixnconfig.create(
                 self._ixn_config["topology"], "topology"
             )
+            self._createixnconfig.post_calculate()
         with Timer(self.api, "Push IxNetwork device config :"):
             self._pushixnconfig()
 
@@ -110,7 +112,6 @@ class Ngpf(Base):
 
         # We need to configure all interface before configure protocols
         for device in self.api.snappi_config.devices:
-            self.working_dg = self.api.ixn_objects.get_working_dg(device.name)
             self._bgp.config(device)
 
 
@@ -156,7 +157,10 @@ class Ngpf(Base):
         device_chain_dgs = {}
         for device in self.api.snappi_config.devices:
             chin_dgs = {}
-            for ethernet in device.get("ethernets"):
+            ethernets = device.get("ethernets")
+            if ethernets is None:
+                continue
+            for ethernet in ethernets:
                 if ethernet.get("connection") and ethernet.get("port_name"):
                     raise Exception(
                         "port_name and connection for ethernet configuration cannot be passed together, use either connection or port_name property. \
@@ -206,7 +210,9 @@ class Ngpf(Base):
 
         # Wait till all primary DG will configure
         for device in self.api.snappi_config.devices:
-            chin_dgs = device_chain_dgs[device.name]
+            chin_dgs = device_chain_dgs.get(device.name)
+            if chin_dgs is None:
+                continue
             for connected_to, ethernet_list in chin_dgs.items():
                 ixn_working_dg = self.api.ixn_objects.get_working_dg(connected_to)
                 self._chain_parent_dgs.append(ixn_working_dg)
