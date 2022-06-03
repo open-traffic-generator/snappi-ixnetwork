@@ -1376,6 +1376,9 @@ class TrafficItem(CustomField):
             raise Exception(msg)
         req_flow_names = self._api.special_char(req_flow_names)
         # initialize result values
+        self.logger.debug("Fetching these column %s for flows %s" %(
+            self._column_names, req_flow_names
+        ))
         flow_names = []
         flow_rows = {}
         regfilter = {"property": "name", "regex": ".*"}
@@ -1449,6 +1452,7 @@ class TrafficItem(CustomField):
         ).Page
         if ixn_page.PageSize < flow_count:
             ixn_page.PageSize = flow_count
+        self.logger.debug("These are the current flow stats:")
         if self._api._flow_tracking:
             table = self._api.assistant.StatViewAssistant("Flow Statistics")
             for row in table.Rows:
@@ -1458,6 +1462,7 @@ class TrafficItem(CustomField):
                     and row["Traffic Item"] not in flow_names
                 ):
                     continue
+                self.logger.debug(str(row))
                 if (
                     row["Traffic Item"] + row["Tx Port"] + row["Rx Port"]
                     in flow_rows
@@ -1505,6 +1510,7 @@ class TrafficItem(CustomField):
                 name = row["Traffic Item"]
                 if len(flow_names) > 0 and name not in flow_names:
                     continue
+                self.logger.debug(str(row))
                 if name in flow_rows:
                     flow_row = flow_rows[name]
                     if (

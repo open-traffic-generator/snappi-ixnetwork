@@ -1,19 +1,27 @@
+from snappi_ixnetwork.logger import get_logger
 
 
 class IxNetObjects(object):
     def __init__(self, ixnetworkapi):
         self._ixnet_infos = {}
+        self.logger = get_logger(__name__)
         self._api = ixnetworkapi
 
     # get_ixn_href
     def get_href(self, name):
         """Returns an href given a unique configuration name"""
         obj = self.get(name)
+        self.logger.debug("get_href %s : %s" %(
+            name, obj.href
+        ))
         return obj.href
 
     def get_xpath(self, name):
         """Returns an xpath given a unique configuration name"""
         obj = self.get(name)
+        self.logger.debug("get_xpath %s : %s" %(
+            name, obj.xpath
+        ))
         return obj.xpath
 
     def get_object(self, name):
@@ -30,6 +38,7 @@ class IxNetObjects(object):
         try:
             return self._ixnet_infos[name]
         except KeyError:
+            self.logger.debug("These are existing names ", self.names)
             raise NameError(
                 "snappi object named {0} not found in internal db".format(
                     name
@@ -47,6 +56,7 @@ class IxNetObjects(object):
 
     def set_scalable(self, ixnobject):
         names = ixnobject.get("name")
+        self.logger.debug("set_scalable names : ", names)
         set_names = []
         for index, name in enumerate(names):
             if name is None or name in set_names:

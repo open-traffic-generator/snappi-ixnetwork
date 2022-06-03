@@ -18,11 +18,17 @@ class PostCalculated(object):
         self._key = key
         self._ref_obj = ref_ixnobj
         self._parent_obj = ixnobj
+        self.logger = get_logger(__name__)
 
     @property
     def value(self):
+        value = None
         if self._key == "connectedTo":
-            return self._ref_obj.get("xpath")
+            value = self._ref_obj.get("xpath")
+        self.logger.debug("Post Calculated %s - %s" % (
+            self._key, value
+        ))
+        return value
 
 
 class Base(object):
@@ -89,6 +95,7 @@ class Base(object):
 
     def configure_multivalues(self, snappi_obj, ixn_obj, attr_map):
         """attr_map contains snappi_key : ixn_key/ ixn_info in dict format"""
+        self.logger.debug("configuring multivalues:")
         for snappi_attr, ixn_map in attr_map.items():
             if isinstance(ixn_map, dict):
                 ixn_attr = ixn_map.get("ixn_attr")
@@ -98,7 +105,13 @@ class Base(object):
                 value = snappi_obj.get(snappi_attr)
                 if enum_map is not None and value is not None:
                     value = enum_map[value]
+                self.logger.debug("ixn_attr %s with enum value %s" % (
+                    ixn_attr, value
+                ))
             else:
                 ixn_attr = ixn_map
                 value = snappi_obj.get(snappi_attr)
+                self.logger.debug("ixn_attr %s with value %s" % (
+                    ixn_attr, value
+                ))
             ixn_obj[ixn_attr] = self.multivalue(value)

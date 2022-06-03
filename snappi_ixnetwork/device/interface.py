@@ -48,12 +48,14 @@ class Ethernet(Base):
         self._configure_ipv6(ixn_eth, ethernet)
 
     def _configure_vlan(self, ixn_eth, vlans):
+        self.logger.debug("Configuring VLAN")
         for vlan in vlans:
             ixn_vlan = self.create_node_elemet(
                 ixn_eth, "vlan", vlan.get("name"))
             self.configure_multivalues(vlan, ixn_vlan, Ethernet._VLAN)
 
     def _configure_ipv4(self, ixn_eth, ethernet):
+        self.logger.debug("Configuring IPv4 interface")
         ipv4_addresses = ethernet.get("ipv4_addresses")
         if ipv4_addresses is None:
             return
@@ -73,6 +75,7 @@ class Ethernet(Base):
             self.configure_multivalues(ipv4_address, ixn_ip, Ethernet._IP)
 
     def _configure_ipv6(self, ixn_eth, ethernet):
+        self.logger.debug("Configuring IPv6 interface")
         ipv6_addresses = ethernet.get("ipv6_addresses")
         if ipv6_addresses is None:
             return
