@@ -1,5 +1,4 @@
 import sys
-import time
 import logging
 
 APP_LOGGER_NAME = 'snappi_ixnetwork'
