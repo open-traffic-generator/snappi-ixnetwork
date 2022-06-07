@@ -566,6 +566,9 @@ class Api(snappi.Api):
     def _connect(self):
         """Connect to an IxNetwork API Server."""
         self._errors = []
+        self.logger = setup_applevel_logger(
+            self.log_level, module_name=__name__
+        )
         if self._assistant is None:
             platform = TestPlatform(self._address, rest_port=self._port)
             platform.Authenticate(self._username, self._password)
