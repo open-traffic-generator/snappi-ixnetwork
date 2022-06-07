@@ -71,9 +71,7 @@ def settings():
 def api():
     # handle to make API calls
     api = snappi.api(
-        location=utl.settings.location,
-        ext=utl.settings.ext,
-        loglevel=logging.DEBUG
+        location=utl.settings.location, ext=utl.settings.ext
     )
     yield api
     if getattr(api, "assistant", None) is not None:
@@ -84,13 +82,25 @@ def api():
 def cvg_api():
     # handle to make Convergence API calls
     api = snappi_convergence.api(
-        location=utl.settings.location, ext=utl.settings.ext
+        location=utl.settings.location, ext=utl.settings.ext, loglevel=logging.DEBUG
     )
 
     yield api
     if getattr(api, "assistant", None) is not None:
         api.assistant.Session.remove()
 
+
+@pytest.fixture(scope="session")
+def api_with_debug():
+    # handle to make API calls
+    api = snappi.api(
+        location=utl.settings.location,
+        ext=utl.settings.ext,
+        loglevel=logging.DEBUG
+    )
+    yield api
+    if getattr(api, "assistant", None) is not None:
+        api.assistant.Session.remove()
 
 @pytest.fixture
 def b2b_raw_config(api):

@@ -136,6 +136,7 @@ class Vport(object):
         4) set /vport/l1Config/... properties using the corrected /vport -type
         5) connectPorts to use new l1Config settings and clearownership
         """
+        self.logger.debug("Configuring Vports")
         self._resource_manager = self._api._ixnetwork.ResourceManager
         self._ixn_vport = self._api._vport
         self._layer1_check = []
@@ -150,6 +151,7 @@ class Vport(object):
             self._set_layer1()
 
     def set_link_state(self, link_state):
+        self.logger.debug("Vport setting link state")
         with Timer(self._api, "Link State operation"):
             payload = {
                 "arg1": [],
@@ -163,6 +165,7 @@ class Vport(object):
             self._api._request("POST", url, payload)
 
     def _import(self, imports):
+        self.logger.debug("Importing vport configs")
         if len(imports) > 0:
             errata = self._resource_manager.ImportConfig(
                 json.dumps(imports), False
@@ -174,10 +177,12 @@ class Vport(object):
 
     def _delete_vports(self):
         """Delete any vports from the api server that do not exist in the new config"""
+        self.logger.debug("Deleting vports")
         self._api._remove(self._ixn_vport, self._api.snappi_config.ports)
 
     def _create_vports(self):
         """Add any vports to the api server that do not already exist"""
+        self.logger.debug("Creating vports")
         vports = self._api.select_vports()
         imports = []
         for port in self._api.snappi_config.ports:
@@ -199,6 +204,7 @@ class Vport(object):
             self._api.ixn_objects.set(name, vport)
 
     def _add_hosts(self, HostReadyTimeout):
+        self.logger.debug("Adding hosts in vport")
         chassis = self._api._ixnetwork.AvailableHardware.Chassis
         add_addresses = []
         check_addresses = []
@@ -631,7 +637,9 @@ class Vport(object):
             )
         except Exception:
             force_ownership = False
+        self.logger.debug("location_preemption is %s" % force_ownership)
         if force_ownership is True:
+            self.logger.debug("We are clearing ownership")
             available_hardware_hrefs = {}
             location_hrefs = {}
             for location in locations:
@@ -700,6 +708,9 @@ class Vport(object):
             )
             raise Exception(msg)
 
+        self.logger.debug("Extracting %s stats for these ports %s" % (
+            self._column_names, port_names
+        ))
         port_filter = {"property": "name", "regex": ".*"}
         port_filter["regex"] = "^(%s)$" % "|".join(
             self._api.special_char(port_names)
@@ -743,11 +754,13 @@ class Vport(object):
             self._api.warning("Could not retrive the port statistics viewer")
             return list(port_rows.values())
 
+        self.logger.debug("These are port results:")
         for row in table.Rows:
             vport_name = row["Port Name"]
             if vport_name is None:
                 raise Exception("Could not retrive 'Port Name' from stats")
             port_row = port_rows.get(vport_name)
+            self.logger.debug(str(port_row))
             if port_row is None:
                 continue
             for ext_name, int_name, typ in self._RESULT_COLUMNS:
