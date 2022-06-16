@@ -2,7 +2,7 @@ import json
 import time
 import re
 from snappi_ixnetwork.timer import Timer
-from snappi_ixnetwork.logger import get_logger
+from snappi_ixnetwork.logger import get_ixnet_logger
 
 
 class Vport(object):
@@ -126,7 +126,7 @@ class Vport(object):
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         self._layer1_check = []
-        self.logger = get_logger(__name__)
+        self.logger = get_ixnet_logger(__name__)
 
     def config(self):
         """Transform config.ports into Ixnetwork.Vport

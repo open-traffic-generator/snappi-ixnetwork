@@ -3,7 +3,7 @@ import time
 from collections import namedtuple
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.timer import Timer
-from snappi_ixnetwork.logger import get_logger
+from snappi_ixnetwork.logger import get_ixnet_logger
 
 try:
     import snappi_convergence
@@ -34,7 +34,7 @@ class Api(snappi_convergence.Api):
         self._convergence_timeout = 3
         self._api = snappiApi(**kwargs)
         self._event_info = None
-        self.logger = get_logger(__name__)
+        self.logger = get_ixnet_logger(__name__)
 
     def enable_scaling(self, do_compact=False):
         self._api.do_compact = do_compact

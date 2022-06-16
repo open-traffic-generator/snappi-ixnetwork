@@ -1,5 +1,5 @@
 from snappi_ixnetwork.device.base import Base
-from snappi_ixnetwork.logger import get_logger
+from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.device.bgpevpn import BgpEvpn
 
 class Bgp(Base):
@@ -108,7 +108,7 @@ class Bgp(Base):
     def __init__(self, ngpf):
         super(Bgp, self).__init__()
         self._ngpf = ngpf
-        self.logger = get_logger(__name__)
+        self.logger = get_ixnet_logger(__name__)
         self._bgp_evpn = BgpEvpn(ngpf)
         self._router_id = None
 

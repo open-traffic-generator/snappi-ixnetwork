@@ -1,5 +1,5 @@
 from snappi_ixnetwork.device.base import Base
-from snappi_ixnetwork.logger import get_logger
+from snappi_ixnetwork.logger import get_ixnet_logger
 
 
 class LoopbackInt(Base):
@@ -7,7 +7,7 @@ class LoopbackInt(Base):
         super(LoopbackInt, self).__init__()
         self._ngpf = ngpf
         self._ixn_parent_dgs = []
-        self.logger = get_logger(__name__)
+        self.logger = get_ixnet_logger(__name__)
 
     def config(self):
         self._ixn_parent_dgs = []

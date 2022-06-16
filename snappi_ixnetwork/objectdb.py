@@ -1,10 +1,10 @@
-from snappi_ixnetwork.logger import get_logger
+from snappi_ixnetwork.logger import get_ixnet_logger
 
 
 class IxNetObjects(object):
     def __init__(self, ixnetworkapi):
         self._ixnet_infos = {}
-        self.logger = get_logger(__name__)
+        self.logger = get_ixnet_logger(__name__)
         self._api = ixnetworkapi
 
     # get_ixn_href

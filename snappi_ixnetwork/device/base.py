@@ -1,4 +1,4 @@
-from snappi_ixnetwork.logger import get_logger
+from snappi_ixnetwork.logger import get_ixnet_logger
 
 __all__ = ['Base', 'MultiValue', 'PostCalculated']
 
@@ -18,7 +18,7 @@ class PostCalculated(object):
         self._key = key
         self._ref_obj = ref_ixnobj
         self._parent_obj = ixnobj
-        self.logger = get_logger(__name__)
+        self.logger = get_ixnet_logger(__name__)
 
     @property
     def value(self):
@@ -33,7 +33,7 @@ class PostCalculated(object):
 
 class Base(object):
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_ixnet_logger(__name__)
 
     def create_node(self, ixn_obj, name):
         """It will check/ create a node with name"""

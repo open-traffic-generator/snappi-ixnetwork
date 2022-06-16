@@ -7,7 +7,7 @@ from collections import namedtuple
 import snappi
 from ixnetwork_restpy import TestPlatform, SessionAssistant
 
-from snappi_ixnetwork.logger import setup_applevel_logger
+from snappi_ixnetwork.logger import setup_ixnet_logger
 from snappi_ixnetwork.capture import Capture
 from snappi_ixnetwork.device.ngpf import Ngpf
 from snappi_ixnetwork.exceptions import SnappiIxnException
@@ -49,7 +49,7 @@ class Api(snappi.Api):
         license_servers = kwargs.get("license_servers")
         self._log_level = logging.INFO if kwargs.get("loglevel") is None \
             else kwargs.get("loglevel")
-        self.logger = setup_applevel_logger(
+        self.logger = setup_ixnet_logger(
             self.log_level, module_name=__name__
         )
         location = "https://127.0.0.1:11009" if location is None else location
@@ -566,7 +566,7 @@ class Api(snappi.Api):
     def _connect(self):
         """Connect to an IxNetwork API Server."""
         self._errors = []
-        self.logger = setup_applevel_logger(
+        self.logger = setup_ixnet_logger(
             self.log_level, module_name=__name__
         )
         if self._assistant is None:

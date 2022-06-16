@@ -1,5 +1,5 @@
 from snappi_ixnetwork.device.base import *
-from snappi_ixnetwork.logger import get_logger
+from snappi_ixnetwork.logger import get_ixnet_logger
 
 
 class Compactor(object):
@@ -9,7 +9,7 @@ class Compactor(object):
         self._ignore_keys = [
             "xpath", "name"
         ]
-        self.logger = get_logger(__name__)
+        self.logger = get_ixnet_logger(__name__)
 
     def compact(self, roots):
         if roots is None or len(roots) == 0:

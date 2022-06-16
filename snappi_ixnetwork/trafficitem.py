@@ -1,7 +1,7 @@
 import json
 import snappi
 from snappi_ixnetwork.timer import Timer
-from snappi_ixnetwork.logger import get_logger
+from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.customfield import CustomField
 
@@ -372,7 +372,7 @@ class TrafficItem(CustomField):
         self.flows_has_latency = []
         self.flows_has_timestamp = []
         self.flows_has_loss = []
-        self.logger = get_logger(__name__)
+        self.logger = get_ixnet_logger(__name__)
 
     def _get_search_payload(self, parent, child, properties, filters):
         self.logger.debug("Searching parent {} child {} with properties {} filters {}".format(
