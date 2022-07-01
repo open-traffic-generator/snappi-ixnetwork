@@ -261,13 +261,25 @@ class Api(snappi.Api):
 
     def _protocols_exists(self):
         total_dev = len(self._ixnetwork.GetTopologyStatus())
-        eth_dev = len(self._ixnetwork.Topology.find().DeviceGroup.find()
-                      .Ethernet.find())
-        v4_dev = len(self._ixnetwork.Topology.find().DeviceGroup.find()
-                     .Ethernet.find().Ipv4.find())
-        v6_dev = len(self._ixnetwork.Topology.find().DeviceGroup.find()
-                     .Ethernet.find().Ipv6.find())
-        if (total_dev > eth_dev + v4_dev + v6_dev):
+        topos = self._ixnetwork.Topology.find()
+        ethv4v6_dev_count = 0
+        if len(topos) > 0:
+            dgs = topos.DeviceGroup.find()
+            if len(dgs) > 0:
+                eth_dev = len(self._ixnetwork.Topology.find()
+                              .DeviceGroup.find()
+                              .Ethernet.find())
+                ethv4v6_dev_count = ethv4v6_dev_count + eth_dev
+                if eth_dev > 0:
+                    v4_dev = len(self._ixnetwork.Topology.find()
+                                 .DeviceGroup.find()
+                                 .Ethernet.find().Ipv4.find())
+                    ethv4v6_dev_count = ethv4v6_dev_count + v4_dev
+                    v6_dev = len(self._ixnetwork.Topology.find()
+                                 .DeviceGroup.find()
+                                 .Ethernet.find().Ipv6.find())
+                    ethv4v6_dev_count = ethv4v6_dev_count + v6_dev
+        if (total_dev > ethv4v6_dev_count):
             return True
         else:
             return False
