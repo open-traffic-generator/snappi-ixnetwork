@@ -254,12 +254,12 @@ class Api(snappi.Api):
         with Timer(self, "Start interfaces"):
             # Start all protocols is workaround for pCPU crash reported by
             # Microsoft, need to revert once fix is available for pCPU crash
-            if self._check_protocols_exists():
+            if self._protocols_exists():
                 self._start_interface()
             else:
                 self._ixnetwork.StartAllProtocols()
 
-    def _check_protocols_exists(self):
+    def _protocols_exists(self):
         total_dev = len(self._ixnetwork.GetTopologyStatus())
         eth_dev = len(self._ixnetwork.Topology.find().DeviceGroup.find()
                       .Ethernet.find())
