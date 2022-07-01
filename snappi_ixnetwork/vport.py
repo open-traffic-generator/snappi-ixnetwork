@@ -152,14 +152,8 @@ class Vport(object):
             self._api.capture.config()
         with Timer(self._api, "Location configuration"):
             self._set_location()
-        # with Timer(self._api, "Reboot ports"):
-        #     self._reboot_ports()
         with Timer(self._api, "Layer1 configuration"):
             self._set_layer1()
-
-    def _reboot_ports(self):
-        vport = self._api._ixnetwork.Vport.find()
-        vport.ResetPortCpu()
 
     def _wait_for(self, func, exp_msg, interval, timeout):
         end_time = round(time.time()) + timeout
