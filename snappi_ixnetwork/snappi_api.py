@@ -257,7 +257,8 @@ class Api(snappi.Api):
             if self._protocols_exists():
                 self._start_interface()
             else:
-                self._ixnetwork.StartAllProtocols()
+                if len(self._ixnetwork.Topology.find()) > 0:
+                    self._ixnetwork.StartAllProtocols()
 
     def _protocols_exists(self):
         total_dev = len(self._ixnetwork.GetTopologyStatus())
