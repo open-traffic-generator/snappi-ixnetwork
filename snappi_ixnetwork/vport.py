@@ -125,6 +125,8 @@ class Vport(object):
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         self._layer1_check = []
+        self._interval = 1
+        self._timeout = 10
 
     def config(self):
         """Transform config.ports into Ixnetwork.Vport
@@ -137,6 +139,12 @@ class Vport(object):
         self._resource_manager = self._api._ixnetwork.ResourceManager
         self._ixn_vport = self._api._vport
         self._layer1_check = []
+        self._api._ixnetwork.StopAllProtocols(arg1="sync")
+        self._wait_for(lambda: self.is_protocols_stopped(),
+                       """"Protocols are not stopped in {} seconds""".format(
+                           self._interval * self._timeout),
+                       self._interval,
+                       self._timeout)
         with Timer(self._api, "Ports configuration"):
             self._delete_vports()
             self._create_vports()
@@ -146,6 +154,32 @@ class Vport(object):
             self._set_location()
         with Timer(self._api, "Layer1 configuration"):
             self._set_layer1()
+
+    def _wait_for(self, func, exp_msg, interval, timeout):
+        end_time = round(time.time()) + timeout
+        while True:
+            res = func()
+            if round(time.time()) >= end_time:
+                raise Exception(exp_msg)
+            if res:
+                return res
+            time.sleep(interval)
+
+    def is_protocols_stopped(self):
+        topos = self._api._ixnetwork.Topology.find()
+        stopped = True
+        if len(topos) > 0:
+            dgs = topos.DeviceGroup.find()
+            if len(dgs) > 0:
+                eth_list = dgs.Ethernet.find()
+                if len(eth_list) > 0:
+                    if len(eth_list.Ipv4.find()) > 0:
+                        if any('up' in status or 'down' in status
+                                for status in
+                                dgs.Ethernet.find().SessionStatus):
+                            stopped = False
+
+        return stopped
 
     def set_link_state(self, link_state):
         with Timer(self._api, "Link State operation"):
