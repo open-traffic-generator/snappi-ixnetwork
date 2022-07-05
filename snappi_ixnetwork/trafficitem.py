@@ -371,6 +371,7 @@ class TrafficItem(CustomField):
         self.flows_has_latency = []
         self.flows_has_timestamp = []
         self.flows_has_loss = []
+        self.tracking = True
 
     def _get_search_payload(self, parent, child, properties, filters):
         payload = {
@@ -636,15 +637,32 @@ class TrafficItem(CustomField):
             stack_name = self._HEADER_TO_TYPE.get(
                 self._getUhdHeader(header.parent.choice)
             )
-            header_xpath = "%s/stack[@alias = '%s-%d']" % (
-                ce_path,
-                stack_name,
-                i + 1,
-            )
-            self._append_header(
-                header, header_xpath, config_elem["stack"], is_raw_traffic=True
-            )
+            # TODO: Need to remove custom payload for UHD when
+            # custom stack support is available
+            if stack_name == "custom" and self.isUhd is True:
+                payload_xpath = ce_path + "/framePayload"
+                config_elem["framePayload"] = (
+                    self._append_payload(header, payload_xpath))
+                self.tracking = False
+            else:
+                header_xpath = "%s/stack[@alias = '%s-%d']" % (
+                    ce_path,
+                    stack_name,
+                    i + 1,
+                )
+                self._append_header(
+                    header, header_xpath, config_elem["stack"],
+                    is_raw_traffic=True
+                )
         return [config_elem]
+
+    def _append_payload(self, header, payload_xpath):
+        frame_payload = {}
+        frame_payload["xpath"] = payload_xpath
+        frame_payload["type"] = "custom"
+        frame_payload["customRepeat"] = "false"
+        frame_payload["customPattern"] = header.bytes
+        return frame_payload
 
     def _get_mesh_type(self, flow):
         if flow.tx_rx.choice == "port":
@@ -813,7 +831,13 @@ class TrafficItem(CustomField):
         """Set tracking options"""
         xpath = tr_item_json["xpath"]
         if tr_item_json.get("trafficType") == "raw":
-            trackBy = ["trackingenabled0"]
+            # TODO: Instrumentation is turned off for UHD to support
+            # custom payload, add Instrumentation back once custom stack is
+            # supported in UHD
+            if self.tracking:
+                trackBy = ["trackingenabled0"]
+            else:
+                trackBy = []
         else:
             trackBy = ["trackingenabled0", "sourceDestPortPair0"]
         tracking = [{"xpath": "%s/tracking" % xpath, "trackBy": trackBy}]
