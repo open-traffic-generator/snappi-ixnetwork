@@ -1,20 +1,25 @@
 import json
-import time, re
+import re
+import time
+import logging
 from collections import namedtuple
-from ixnetwork_restpy import TestPlatform, SessionAssistant
+
 import snappi
-from snappi_ixnetwork.validation import Validation
-from snappi_ixnetwork.vport import Vport
-from snappi_ixnetwork.lag import Lag
-from snappi_ixnetwork.trafficitem import TrafficItem
+from ixnetwork_restpy import TestPlatform, SessionAssistant
+
+from snappi_ixnetwork.logger import setup_ixnet_logger
 from snappi_ixnetwork.capture import Capture
+from snappi_ixnetwork.device.ngpf import Ngpf
+from snappi_ixnetwork.exceptions import SnappiIxnException
+from snappi_ixnetwork.lag import Lag
+from snappi_ixnetwork.objectdb import IxNetObjects
 from snappi_ixnetwork.ping import Ping
-from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.protocolmetrics import ProtocolMetrics
 from snappi_ixnetwork.resourcegroup import ResourceGroup
-from snappi_ixnetwork.exceptions import SnappiIxnException
-from snappi_ixnetwork.device.ngpf import Ngpf
-from snappi_ixnetwork.objectdb import IxNetObjects
+from snappi_ixnetwork.timer import Timer
+from snappi_ixnetwork.trafficitem import TrafficItem
+from snappi_ixnetwork.validation import Validation
+from snappi_ixnetwork.vport import Vport
 
 
 class Api(snappi.Api):
@@ -29,7 +34,6 @@ class Api(snappi.Api):
     - password (str): The password for Linux IxNetwork API Server
         This is not required when connecting to single session environments
     """
-
     def __init__(self, **kwargs):
         """Create a session
         - address (str): The ip address of the TestPlatform to connect to
@@ -43,7 +47,11 @@ class Api(snappi.Api):
         username = kwargs.get("username")
         password = kwargs.get("password")
         license_servers = kwargs.get("license_servers")
-        log_level = kwargs.get("log_level")
+        self._log_level = logging.INFO if kwargs.get("loglevel") is None \
+            else kwargs.get("loglevel")
+        self.logger = setup_ixnet_logger(
+            self.log_level, module_name=__name__
+        )
         location = "https://127.0.0.1:11009" if location is None else location
         self._address, self._port = self._get_addr_port(location)
         self._username = "admin" if username is None else username
@@ -51,7 +59,6 @@ class Api(snappi.Api):
         self._license_servers = (
             [] if license_servers is None else license_servers
         )
-        self._log_level = "info" if log_level is None else log_level
         self._running_config = None
         self._config = None
         self._assistant = None
@@ -99,6 +106,10 @@ class Api(snappi.Api):
                 return addr, "443"
             else:
                 return addr, "80"
+
+    @property
+    def log_level(self):
+        return self._log_level
 
     def enable_scaling(self, do_compact=False):
         self.do_compact = do_compact
@@ -166,17 +177,17 @@ class Api(snappi.Api):
                     ]
                     if len(match) == 0:
                         if error.ErrorLevel == "kWarning":
-                            warnings.append(
-                                "IxNet - {0}".format(
+                            warning = "IxNet - {0}".format(
                                     error.Name if error.Description == "" else error.Description
-                                )
                             )
+                            self.info(warning)
+                            warnings.append(warning)
                         if error.ErrorLevel == "kError":
-                            errors.append(
-                                "IxNet - {0}".format(
+                            error = "IxNet - {0}".format(
                                     error.Name if error.Description == "" else error.Description
-                                )
                             )
+                            self.info(error)
+                            errors.append(error)
         # request_detail.errors = errors
 
         # Need to add this hack as dumping json config throws this exception
@@ -576,9 +587,19 @@ class Api(snappi.Api):
         else:
             return ret_list[0]
 
+    def _get_restpy_trace(self, log_level):
+        if log_level == logging.DEBUG:
+            return SessionAssistant.LOGLEVEL_ALL
+        elif log_level == logging.WARNING:
+            return SessionAssistant.LOGLEVEL_WARNING
+        return SessionAssistant.LOGLEVEL_INFO
+
     def _connect(self):
         """Connect to an IxNetwork API Server."""
         self._errors = []
+        self.logger = setup_ixnet_logger(
+            self.log_level, module_name=__name__
+        )
         if self._assistant is None:
             platform = TestPlatform(self._address, rest_port=self._port)
             platform.Authenticate(self._username, self._password)
@@ -598,7 +619,9 @@ class Api(snappi.Api):
                 RestPort=self._port,
                 UserName=self._username,
                 Password=self._password,
-                LogLevel=self._log_level,
+                LogLevel=self._get_restpy_trace(
+                    self._log_level
+                )
             )
             self._ixnetwork = self._assistant.Session.Ixnetwork
             self._vport = self._ixnetwork.Vport
@@ -736,6 +759,7 @@ class Api(snappi.Api):
                             ip6_list.Start()
 
     def _request(self, method, url, payload=None):
+        self.debug("Request and Response ...")
         connection, url = self._assistant.Session._connection._normalize_url(
             url
         )
@@ -745,10 +769,12 @@ class Api(snappi.Api):
         }
         if payload is not None:
             payload = json.dumps(payload)
+        self.debug("%s %s %s" % (method, url, payload))
         response = self._assistant.Session._connection._session.request(
             method, url, headers=headers, data=payload, verify=False
         )
         response.raise_for_status()
+        self.debug("Response %s" % response)
         if response.status_code == 202:
             content = response.json()
             while content["state"] == "IN_PROGRESS":
@@ -779,6 +805,7 @@ class Api(snappi.Api):
         for item in ixn_obj.find():
             if item.Name not in valid_names:
                 invalid_names.append(item.Name)
+        self.debug("Removing these %s" % invalid_names)
         if len(invalid_names) > 0:
             if ixn_obj._SDM_NAME == "trafficItem":
                 # can't remove traffic items that are started
@@ -1049,6 +1076,9 @@ class Api(snappi.Api):
         return results[0]["chassis"][0]["card"][0]["port"][0]["xpath"]
 
     def clear_ownership(self, available_hardware_hrefs, location_hrefs):
+        self.debug("Clearing ownership %s from %s" % (
+            available_hardware_hrefs, location_hrefs
+        ))
         hrefs = list(available_hardware_hrefs.values()) + list(
             location_hrefs.values()
         )
@@ -1077,7 +1107,10 @@ class Api(snappi.Api):
                     check = True
 
     def info(self, message):
-        self._ixnetwork.info("[ixn-otg] %s" % message)
+        self.logger.info(message)
+
+    def debug(self, message):
+        self.logger.debug(message)
 
     def warning(self, message):
-        self._ixnetwork.warn("[ixn-otg] %s" % message)
+        logging.warning(message)

@@ -2,6 +2,7 @@ import json
 import time
 import io
 from snappi_ixnetwork.timer import Timer
+from snappi_ixnetwork.logger import get_ixnet_logger
 
 
 class Capture(object):
@@ -51,6 +52,7 @@ class Capture(object):
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         self._capture_request = None
+        self.logger = get_ixnet_logger(__name__)
 
     def _import(self, imports):
         if len(imports) > 0:

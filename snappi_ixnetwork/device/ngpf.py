@@ -3,6 +3,7 @@ import json, re
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.device.bgp import Bgp
+from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.device.vxlan import VXLAN
 from snappi_ixnetwork.device.interface import Ethernet
 from snappi_ixnetwork.device.loopbackint import LoopbackInt
@@ -40,6 +41,7 @@ class Ngpf(Base):
         self._ixn_topo_objects = {}
         self.ether_v4gateway_map = {}
         self.ether_v6gateway_map = {}
+        self.logger = get_ixnet_logger(__name__)
         self._ethernet = Ethernet(self)
         self._bgp = Bgp(self)
         self._vxlan = VXLAN(self)
@@ -70,6 +72,9 @@ class Ngpf(Base):
     def set_device_info(self, snappi_obj, ixn_obj):
         name = snappi_obj.get("name")
         class_name = snappi_obj.__class__.__name__
+        self.logger.debug("set_device_info name %s and class_name %s" % (
+            name, class_name
+        ))
         try:
             encap = Ngpf._DEVICE_ENCAP_MAP[class_name]
         except KeyError:
@@ -84,6 +89,7 @@ class Ngpf(Base):
 
     def set_ixn_routes(self, snappi_obj, ixn_obj):
         name = snappi_obj.get("name")
+        self.logger.debug("set_ixn_routes for %s " % name)
         self.api.ixn_routes.set(name, ixn_obj)
 
     def _get_topology_name(self, port_name):
@@ -221,6 +227,7 @@ class Ngpf(Base):
 
 
     def _pushixnconfig(self):
+        self.logger.debug("pushing ixnet config")
         erros = self.api.get_errors()
         if len(erros) > 0:
             return
@@ -234,11 +241,13 @@ class Ngpf(Base):
     def stop_topology(self):
         glob_topo = self.api._globals.Topology.refresh()
         if glob_topo.Status == "started":
+            self.logger.debug("Stopping topology")
             self.api._ixnetwork.StopAllProtocols("sync")
 
     def set_protocol_state(self,request):
         if request.state is None:
             raise Exception("state is None within set_protocol_state")
+        self.logger.debug("Setting protocol with %s" % request.state)
         if request.state == "start":
             if len(self.api._topology.find()) > 0:
                 self.api._ixnetwork.StartAllProtocols("sync")
@@ -255,6 +264,7 @@ class Ngpf(Base):
             names = self.api.ixn_routes.names
         ixn_obj_idx_list = {}
         names = list(set(names))
+        self.logger.debug("set route state for %s" % names)
         for name in names:
             route_info = self.api.ixn_routes.get(name)
             ixn_obj = None
@@ -289,6 +299,7 @@ class Ngpf(Base):
         return names
 
     def get_states(self, request):
+        self.logger.debug("get_states for %s" % request.choice)
         if request.choice == "ipv4_neighbors":
             ip_objs = self.api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv4.find()
             resolved_mac_list = self._get_ether_resolved_mac(
@@ -340,6 +351,7 @@ class Ngpf(Base):
                         "ipv6_address": gateway_ip,
                         "link_layer_address": arp_entries[gateway_ip]
                     })
+        self.logger.debug("These are resolved_mac_list: %s" % resolved_mac_list)
         return resolved_mac_list
 
     def _get_href(self, xpath):
@@ -371,6 +383,7 @@ class Ngpf(Base):
             raise Exception("Problem to select %s" % href)
 
     def imports(self, imports):
+        self.logger.debug("imports of portion of config")
         if len(imports) > 0:
             errata = self._resource_manager.ImportConfig(
                 json.dumps(imports), False

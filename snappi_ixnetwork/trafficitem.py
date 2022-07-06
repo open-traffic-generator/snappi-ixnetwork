@@ -1,7 +1,8 @@
 import json
 import snappi
-from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.timer import Timer
+from snappi_ixnetwork.logger import get_ixnet_logger
+from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.customfield import CustomField
 
 
@@ -371,8 +372,12 @@ class TrafficItem(CustomField):
         self.flows_has_latency = []
         self.flows_has_timestamp = []
         self.flows_has_loss = []
+        self.logger = get_ixnet_logger(__name__)
 
     def _get_search_payload(self, parent, child, properties, filters):
+        self.logger.debug("Searching parent {} child {} with properties {} filters {}".format(
+            parent, child, properties, filters
+        ))
         payload = {
             "selects": [
                 {
@@ -392,9 +397,13 @@ class TrafficItem(CustomField):
         url = "{}/operations/select?xpath=true".format(
             self._api.assistant._ixnetwork.href
         )
+        self.logger.debug("Return of _get_search_payload:")
+        self.logger.debug("\turl : %s" %url)
+        self.logger.debug("\tpayload : %s" % payload)
         return (url, payload)
 
     def _export_config(self):
+        self.logger.debug("Exporting config")
         href = "%sresourceManager" % self._api._ixnetwork.href
         url = "%s/operations/exportconfig" % href
         payload = {
@@ -410,10 +419,12 @@ class TrafficItem(CustomField):
         imports["xpath"] = "/"
         href = "%sresourceManager" % self._api._ixnetwork.href
         url = "%s/operations/importconfig" % href
-
+        json_dump = json.dumps(imports)
+        self.logger.debug("import traffic config")
+        self.logger.debug("{}".format(json_dump))
         payload = {
             "arg1": href,
-            "arg2": json.dumps(imports),
+            "arg2": json_dump,
             "arg3": False,
             "arg4": "suppressNothing",
             "arg5": True,
@@ -427,6 +438,7 @@ class TrafficItem(CustomField):
             response = self._api._request("POST", url=url, payload=payload)
         except Exception:
             return
+        self.logger.debug(str(response))
         if (
             response["result"].get("errata") is not None
             and response["result"]["errata"] != []
@@ -437,6 +449,7 @@ class TrafficItem(CustomField):
             )
 
     def get_ports_encap(self, config):
+        self.logger.debug("Extracting Port Encapsulation")
         ixn = self._api.assistant._ixnetwork
         myfilter = [{"property": "name", "regex": ".*"}]
         url, payload = self._get_search_payload(
@@ -447,14 +460,17 @@ class TrafficItem(CustomField):
         )
         result = ixn._connection._execute(url, payload)
         vports = {}
+        self.logger.debug(str(result))
         for vp in result:
             if vp.get("vport") is None:
                 continue
             for v in vp["vport"]:
                 vports[v["name"]] = v["xpath"]
+        self.logger.debug("Encapsulated VPorts : %s" % vports)
         return vports
 
     def get_device_info(self, config):
+        self.logger.debug("Extracting device information")
         if len(config.devices) == 0:
             return {}
         dev_names = []
@@ -470,9 +486,11 @@ class TrafficItem(CustomField):
         for i, dev_name in enumerate(dev_names):
             paths[dev_name] = {"dev_info": self._api.ixn_objects.get(dev_name)}
             paths[dev_name]["type"] = self._api.get_device_encap(dev_name)
+        self.logger.debug("Device Information : %s" % paths)
         return paths
 
     def get_ixn_config(self, config):
+        self.logger.debug("getting ixn config")
         ixn = self._api.assistant._ixnetwork
         myfilter = [{"property": "name", "regex": ".*"}]
         url, payload = self._get_search_payload(
@@ -499,6 +517,7 @@ class TrafficItem(CustomField):
         return ixn._connection._execute(url, payload)
 
     def remove_ixn_traffic(self):
+        self.logger.debug("Removing Traffic Items")
         if len(self._api._ixnetwork.Traffic.TrafficItem.find()) > 0:
             # with Timer(self._api, "Remove Flows"):
             start_states = [
@@ -518,6 +537,9 @@ class TrafficItem(CustomField):
         self.traffic_index = 1
 
     def _gen_dev_endpoint(self, devices, names, endpoints, scalable_endpoints):
+        self.logger.debug(
+            "Generating Device Endpoints with names %s" % names
+        )
         while len(names) > 0:
             gen_name = None
             name = names[0]
@@ -547,14 +569,21 @@ class TrafficItem(CustomField):
             if not isinstance(gen_name, set):
                 gen_name = {gen_name}
             names = list(set(names).difference(gen_name))
+        self.logger.debug("endpoints : %s" % endpoints)
+        self.logger.debug("scalable_endpoints : %s" % scalable_endpoints)
 
     def create_traffic(self, config):
+        self.logger.debug("Creating Traffic")
         flows = config.flows
         tr = {"xpath": "/traffic", "trafficItem": []}
         ports = self.get_ports_encap(config)
         devices = self.get_device_info(config)
         for index, flow in enumerate(flows):
-            if flow._properties.get("name") is None:
+            flow_name = flow._properties.get("name")
+            self.logger.debug(
+                "Creating Traffic Item %s" % flow_name
+            )
+            if flow_name is None:
                 raise Exception("name shall not be null for flows")
             if flow._properties.get("tx_rx") is None:
                 msg = (
@@ -627,6 +656,9 @@ class TrafficItem(CustomField):
                     tr_xpath, self._flows_packet[index]
                 )
             self.traffic_index += 1
+            self.logger.debug(
+                "Flow %s converted to %s" % (flow_name, tr["trafficItem"][-1])
+            )
         return tr
 
     def config_raw_stack(self, xpath, packet):
@@ -647,6 +679,7 @@ class TrafficItem(CustomField):
         return [config_elem]
 
     def _get_mesh_type(self, flow):
+        self.logger.debug("Getting mesh type")
         if flow.tx_rx.choice == "port":
             mesh_type = "oneToOne"
         else:
@@ -661,6 +694,7 @@ class TrafficItem(CustomField):
                         "must be same for device mode ONE_TO_ONE in flow %s"
                         % flow.name
                     )
+        self.logger.debug("mesh type : %s" % mesh_type)
         return mesh_type
 
     def _endpoint_validation(self, flow):
@@ -817,6 +851,7 @@ class TrafficItem(CustomField):
         else:
             trackBy = ["trackingenabled0", "sourceDestPortPair0"]
         tracking = [{"xpath": "%s/tracking" % xpath, "trackBy": trackBy}]
+        self.logger.debug("tracking : %s" % tracking)
         return {"tracking": tracking}
 
     def _configure_options(self):
@@ -1223,6 +1258,9 @@ class TrafficItem(CustomField):
         elif len(flow_names) > 1:
             regex = "^(%s)$" % "|".join(self._api.special_char(flow_names))
 
+        self.logger.debug("These %s flows will go into %s state" % (
+            flow_names, request.state
+        ))
         if request.state == "start":
             if len(self._api._topology.find()) > 0:
                 glob_topo = self._api._globals.Topology.refresh()
@@ -1342,6 +1380,9 @@ class TrafficItem(CustomField):
             raise Exception(msg)
         req_flow_names = self._api.special_char(req_flow_names)
         # initialize result values
+        self.logger.debug("Fetching these column %s for flows %s" %(
+            self._column_names, req_flow_names
+        ))
         flow_names = []
         flow_rows = {}
         regfilter = {"property": "name", "regex": ".*"}
@@ -1415,6 +1456,7 @@ class TrafficItem(CustomField):
         ).Page
         if ixn_page.PageSize < flow_count:
             ixn_page.PageSize = flow_count
+        self.logger.debug("These are the current flow stats:")
         if self._api._flow_tracking:
             table = self._api.assistant.StatViewAssistant("Flow Statistics")
             for row in table.Rows:
@@ -1424,6 +1466,7 @@ class TrafficItem(CustomField):
                     and row["Traffic Item"] not in flow_names
                 ):
                     continue
+                self.logger.debug(str(row))
                 if (
                     row["Traffic Item"] + row["Tx Port"] + row["Rx Port"]
                     in flow_rows
@@ -1471,6 +1514,7 @@ class TrafficItem(CustomField):
                 name = row["Traffic Item"]
                 if len(flow_names) > 0 and name not in flow_names:
                     continue
+                self.logger.debug(str(row))
                 if name in flow_rows:
                     flow_row = flow_rows[name]
                     if (

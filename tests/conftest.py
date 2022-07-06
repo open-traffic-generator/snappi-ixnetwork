@@ -1,5 +1,6 @@
 import pytest
 import snappi
+import logging
 import utils as utl
 import snappi_convergence
 
@@ -69,7 +70,9 @@ def settings():
 @pytest.fixture(scope="session")
 def api():
     # handle to make API calls
-    api = snappi.api(location=utl.settings.location, ext=utl.settings.ext)
+    api = snappi.api(
+        location=utl.settings.location, ext=utl.settings.ext
+    )
     yield api
     if getattr(api, "assistant", None) is not None:
         api.assistant.Session.remove()

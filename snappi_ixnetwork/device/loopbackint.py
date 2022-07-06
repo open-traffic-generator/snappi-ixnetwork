@@ -1,4 +1,5 @@
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.logger import get_ixnet_logger
 
 
 class LoopbackInt(Base):
@@ -6,6 +7,7 @@ class LoopbackInt(Base):
         super(LoopbackInt, self).__init__()
         self._ngpf = ngpf
         self._ixn_parent_dgs = []
+        self.logger = get_ixnet_logger(__name__)
 
     def config(self):
         self._ixn_parent_dgs = []
@@ -45,6 +47,7 @@ class LoopbackInt(Base):
         return  vxlan_source_int_list
 
     def _create_dg(self, loop_back, device):
+        self.logger.debug("Configuring DG for loopback interface")
         eth_name = loop_back.get("eth_name")
         if eth_name not in self._ngpf.api.ixn_objects.names:
             raise Exception("Ethernet %s not present within configuration"
@@ -62,6 +65,7 @@ class LoopbackInt(Base):
         return ixn_dg
 
     def _config_ipv4_loopbacks(self, ipv4_loopbacks, device, vxlan_source_int_list):
+        self.logger.debug("Configuring IPv4 loopback interface")
         for ipv4_loopback in ipv4_loopbacks:
             ixn_dg = self._create_dg(ipv4_loopback, device)
             name = ipv4_loopback.get("name")
@@ -82,6 +86,7 @@ class LoopbackInt(Base):
                 ixn_v4lb["address"] = self.as_multivalue(ipv4_loopback, "address")
 
     def _config_ipv6_loopbacks(self, ipv6_loopbacks, device, vxlan_source_int_list):
+        self.logger.debug("Configuring IPv6 loopback interface")
         for ipv6_loopback in ipv6_loopbacks:
             ixn_dg = self._create_dg(ipv6_loopback, device)
             name = ipv6_loopback.get("name")

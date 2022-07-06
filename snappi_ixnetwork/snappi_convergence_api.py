@@ -3,6 +3,7 @@ import time
 from collections import namedtuple
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.timer import Timer
+from snappi_ixnetwork.logger import get_ixnet_logger
 
 try:
     import snappi_convergence
@@ -33,6 +34,7 @@ class Api(snappi_convergence.Api):
         self._convergence_timeout = 3
         self._api = snappiApi(**kwargs)
         self._event_info = None
+        self.logger = get_ixnet_logger(__name__)
 
     def enable_scaling(self, do_compact=False):
         self._api.do_compact = do_compact
@@ -41,6 +43,7 @@ class Api(snappi_convergence.Api):
         return self._api.send_ping(ping_request, self)
 
     def set_config(self, payload):
+        self.logger.debug("convergence set_config")
         try:
             cvg_config = self.convergence_config()
             if isinstance(payload, (type(cvg_config), str)) is False:
@@ -94,6 +97,7 @@ class Api(snappi_convergence.Api):
         return self._request_detail()
 
     def set_state(self, payload):
+        self.logger.debug("convergence set_state")
         try:
             cvg_state = self.convergence_state()
             if isinstance(payload, (type(cvg_state), str)) is False:
@@ -111,6 +115,7 @@ class Api(snappi_convergence.Api):
             EventInfo = namedtuple(
                 "EventInfo", ["event_type", "event_state", "event_names"]
             )
+            self.logger.debug("set_state of %s" % event_type)
             if payload.choice == "transmit":
                 transmit = payload.transmit
                 self._api.traffic_item.transmit(transmit)
@@ -139,6 +144,7 @@ class Api(snappi_convergence.Api):
         return self._request_detail()
 
     def get_results(self, payload):
+        self.logger.debug("convergence get_results")
         try:
             self._api._connect()
             cvg_req = self.convergence_request()
@@ -150,6 +156,7 @@ class Api(snappi_convergence.Api):
                 payload = cvg_req.deserialize(payload)
             if payload.choice is None:
                 raise Exception("state [metrics/ convergence] must configure")
+            self.logger.debug("convergence get_result of %s" % payload.choice)
             cvg_res = self.convergence_response()
             if payload.choice == "metrics":
                 response = self._api.traffic_item.results(payload.metrics)

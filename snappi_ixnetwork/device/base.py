@@ -1,5 +1,7 @@
+from snappi_ixnetwork.logger import get_ixnet_logger
 
 __all__ = ['Base', 'MultiValue', 'PostCalculated']
+
 
 
 class MultiValue(object):
@@ -16,16 +18,22 @@ class PostCalculated(object):
         self._key = key
         self._ref_obj = ref_ixnobj
         self._parent_obj = ixnobj
+        self.logger = get_ixnet_logger(__name__)
 
     @property
     def value(self):
+        value = None
         if self._key == "connectedTo":
-            return self._ref_obj.get("xpath")
+            value = self._ref_obj.get("xpath")
+        self.logger.debug("Post Calculated %s - %s" % (
+            self._key, value
+        ))
+        return value
 
 
 class Base(object):
     def __init__(self):
-        pass
+        self.logger = get_ixnet_logger(__name__)
 
     def create_node(self, ixn_obj, name):
         """It will check/ create a node with name"""
@@ -49,6 +57,7 @@ class Base(object):
         - We are setting name as multivalue for farther processing
         - It will return that newly created dict
         """
+        self.logger.debug("Creating node for %s" %node_name)
         node = self.create_node(ixn_obj, node_name)
         return self.add_element(node, name)
 
@@ -85,6 +94,7 @@ class Base(object):
 
     def configure_multivalues(self, snappi_obj, ixn_obj, attr_map):
         """attr_map contains snappi_key : ixn_key/ ixn_info in dict format"""
+        self.logger.debug("configuring multivalues:")
         for snappi_attr, ixn_map in attr_map.items():
             if isinstance(ixn_map, dict):
                 ixn_attr = ixn_map.get("ixn_attr")
@@ -101,9 +111,15 @@ class Base(object):
                     value = default_value
                 if enum_map is not None and value is not None:
                     value = enum_map[value]
+                self.logger.debug("ixn_attr %s with enum value %s" % (
+                    ixn_attr, value
+                ))
             else:
                 ixn_attr = ixn_map
                 value = snappi_obj.get(snappi_attr)
+                self.logger.debug("ixn_attr %s with value %s" % (
+                    ixn_attr, value
+                ))
             ixn_obj[ixn_attr] = self.multivalue(value)
 
     def get_symmetric_nodes(self, parent_list, node_name):

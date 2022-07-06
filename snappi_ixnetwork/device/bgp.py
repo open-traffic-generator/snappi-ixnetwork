@@ -1,4 +1,5 @@
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.device.bgpevpn import BgpEvpn
 
 class Bgp(Base):
@@ -107,10 +108,12 @@ class Bgp(Base):
     def __init__(self, ngpf):
         super(Bgp, self).__init__()
         self._ngpf = ngpf
+        self.logger = get_ixnet_logger(__name__)
         self._bgp_evpn = BgpEvpn(ngpf)
         self._router_id = None
 
     def config(self, device):
+        self.logger.debug("Configuring BGP")
         bgp = device.get("bgp")
         if bgp is None:
             return
@@ -138,6 +141,9 @@ class Bgp(Base):
     def _is_valid(self, ip_name):
         is_invalid = True
         same_dg_ips, invalid_ips = self._get_interface_info()
+        self.logger.debug("Validating %s against interface same_dg_ips : %s invalid_ips %s" % (
+            ip_name, same_dg_ips, invalid_ips
+        ))
         if ip_name in invalid_ips:
             self._ngpf.api.add_error("Multiple IP {name} on top of name Ethernet".format(
                 name=ip_name
@@ -149,6 +155,7 @@ class Bgp(Base):
         return is_invalid
 
     def _config_ipv4_interfaces(self, bgp):
+        self.logger.debug("Configuring BGP IPv4 interfaces")
         ipv4_interfaces = bgp.get("ipv4_interfaces")
         if ipv4_interfaces is None:
             return
@@ -164,6 +171,7 @@ class Bgp(Base):
                                ixn_ipv4)
 
     def _config_ipv6_interfaces(self, bgp):
+        self.logger.debug("Configuring BGP IPv6 interfaces")
         ipv6_interfaces = bgp.get("ipv6_interfaces")
         if ipv6_interfaces is None:
             return
@@ -190,6 +198,7 @@ class Bgp(Base):
     def _config_bgpv4(self, bgp_peers, ixn_ipv4):
         if bgp_peers is None:
             return
+        self.logger.debug("Configuring BGPv4 Peer")
         for bgp_peer in bgp_peers:
             ixn_bgpv4 = self.create_node_elemet(
                 ixn_ipv4, "bgpIpv4Peer", bgp_peer.get("name")
@@ -207,6 +216,7 @@ class Bgp(Base):
             self._bgp_evpn.config(bgp_peer, ixn_bgpv4)
 
     def _config_bgpv6(self, bgp_peers, ixn_ipv6):
+        self.logger.debug("Configuring BGPv6 Peer")
         if bgp_peers is None:
             return
         for bgp_peer in bgp_peers:
@@ -242,6 +252,7 @@ class Bgp(Base):
     def _configure_bgpv4_route(self, v4_routes, ixn_bgp):
         if v4_routes is None:
             return
+        self.logger.debug("Configuring BGPv4 Route")
         for route in v4_routes:
             addresses = route.get("addresses")
             for addresse in addresses:
@@ -266,6 +277,7 @@ class Bgp(Base):
     def _configure_bgpv6_route(self, v6_routes, ixn_bgp):
         if v6_routes is None:
             return
+        self.logger.debug("Configuring BGPv6 Route")
         for route in v6_routes:
             addresses = route.get("addresses")
             for addresse in addresses:
@@ -291,6 +303,7 @@ class Bgp(Base):
 
         advanced = route.get("advanced")
         if advanced is not None:
+            self.logger.debug("Configuring BGP route advance")
             multi_exit_discriminator = advanced.get("multi_exit_discriminator")
             if multi_exit_discriminator is not None:
                 ixn_route["enableMultiExitDiscriminator"] = self.multivalue(True)
@@ -301,6 +314,7 @@ class Bgp(Base):
 
         communities = route.get("communities")
         if communities is not None and len(communities) > 0:
+            self.logger.debug("Configuring BGP route community")
             ixn_route["enableCommunity"] = self.multivalue(True)
             ixn_route["noOfCommunities"] = len(communities)
             for community in communities:
@@ -311,6 +325,7 @@ class Bgp(Base):
 
         as_path = route.get("as_path")
         if as_path is not None:
+            self.logger.debug("Configuring BGP route AS path")
             ixn_route["enableAsPathSegments"] = self.multivalue(True)
             ixn_route["asSetMode"] = self.multivalue(
                 as_path.get("as_set_mode"), Bgp._BGP_AS_MODE
