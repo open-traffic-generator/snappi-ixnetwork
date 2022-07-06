@@ -263,7 +263,38 @@ class Api(snappi.Api):
         self._running_config = self._config
         self._apply_change()
         with Timer(self, "Start interfaces"):
-            self._start_interface()
+            # Start all protocols is workaround for pCPU crash reported by
+            # Microsoft, need to revert once fix is available for pCPU crash
+            if self._protocols_exists():
+                self._start_interface()
+            else:
+                if len(self._ixnetwork.Topology.find()) > 0:
+                    self._ixnetwork.StartAllProtocols()
+
+    def _protocols_exists(self):
+        total_dev = len(self._ixnetwork.GetTopologyStatus())
+        topos = self._ixnetwork.Topology.find()
+        ethv4v6_dev_count = 0
+        if len(topos) > 0:
+            dgs = topos.DeviceGroup.find()
+            if len(dgs) > 0:
+                eth_dev = len(self._ixnetwork.Topology.find()
+                              .DeviceGroup.find()
+                              .Ethernet.find())
+                ethv4v6_dev_count = ethv4v6_dev_count + eth_dev
+                if eth_dev > 0:
+                    v4_dev = len(self._ixnetwork.Topology.find()
+                                 .DeviceGroup.find()
+                                 .Ethernet.find().Ipv4.find())
+                    ethv4v6_dev_count = ethv4v6_dev_count + v4_dev
+                    v6_dev = len(self._ixnetwork.Topology.find()
+                                 .DeviceGroup.find()
+                                 .Ethernet.find().Ipv6.find())
+                    ethv4v6_dev_count = ethv4v6_dev_count + v6_dev
+        if (total_dev > ethv4v6_dev_count):
+            return True
+        else:
+            return False
 
     def set_protocol_state(self, payload):
         """Set the transmit state of flows"""
