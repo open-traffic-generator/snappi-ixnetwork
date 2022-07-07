@@ -47,11 +47,6 @@ class Lag(object):
 
     _LACP = {
         "actor_key": {"ixn_attr": "actorKey", "default": "1"},
-        "actor_port_number": {"ixn_attr": "actorPortNumber", "default": "1"},
-        "actor_port_priority": {
-            "ixn_attr": "actorPortPriority",
-            "default": "1",
-        },
         "actor_system_id": {
             "ixn_attr": "actorSystemId",
             "default": "00 00 00 00 00 01",
@@ -59,6 +54,14 @@ class Lag(object):
         },
         "actor_system_priority": {
             "ixn_attr": "actorSystemPriority",
+            "default": "1",
+        },
+    }
+
+    _LACP_PORT_PROTOCOL = {
+        "actor_port_number": {"ixn_attr": "actorPortNumber", "default": "1"},
+        "actor_port_priority": {
+            "ixn_attr": "actorPortPriority",
             "default": "1",
         },
         "lacpdu_periodic_time_interval": {
@@ -249,28 +252,57 @@ class Lag(object):
                         )
         self._import(imports)
 
+    def _lacp_ports_config(self, name, ports):
+        imports = []
+        ixn_lags = self._select_lags()
+        ixn_lag = self._ixn_lag.find(
+            Name="^%s$" % self._api.special_char(name)
+        )
+        ixn_eth = ixn_lag.ProtocolStack.find().Ethernet.find()
+        ixn_static = ixn_eth.Lagportstaticlag.find()
+        lacp_port_protocols = []
+        for port in ports:
+            lacp_port_protocol = port.lacp
+            lacp_port_protocols.append(lacp_port_protocol)
+        if len(ixn_static) > 0:
+            ixn_static.remove()
+        lacp_xpath = (
+            "{0}/protocolStack/ethernet[1]/lagportlacp[1]".format(
+                ixn_lags[name]["xpath"]
+            )
+        )
+        imports.append(
+            self._set_multivalue(lacp_xpath, "active", True)
+        )
+        for lacp_attr in Lag._LACP_PORT_PROTOCOL:
+            attr_values = self._configure_attribute(
+                lacp_attr, Lag._LACP_PORT_PROTOCOL, lacp_port_protocols
+            )
+            imports.append(
+                self._set_multivalue(
+                    lacp_xpath,
+                    attr_values.ixn_attribute,
+                    attr_values.config_value,
+                )
+            )
+        return imports
+
     def _protocol_config(self):
         imports = []
         ixn_lags = self._select_lags()
-        for name, ports in self._lag_ports.items():
+        for snappi_lag in self._lags_config:
             ixn_lag = self._ixn_lag.find(
-                Name="^%s$" % self._api.special_char(name)
+                Name="^%s$" % self._api.special_char(snappi_lag.name)
             )
             ixn_eth = ixn_lag.ProtocolStack.find().Ethernet.find()
             ixn_lacp = ixn_eth.Lagportlacp.find()
             ixn_static = ixn_eth.Lagportstaticlag.find()
             choice = None
             protocols = []
-            for port in ports:
-                protocol = port.protocol
-                if choice is None:
-                    choice = protocol.choice
-                elif choice != protocol.choice:
-                    raise Exception(
-                        "Please configure same protocol "
-                        "[static, lacp] within same Lag ports"
-                    )
-                protocols.append(protocol)
+            protocol = snappi_lag.protocol
+            if choice is None:
+                choice = protocol.choice
+            protocols.append(protocol)
             if choice is None:
                 if len(ixn_static) > 0:
                     ixn_static.Active.Single(False)
@@ -282,7 +314,7 @@ class Lag(object):
                     ixn_static.remove()
                 lacp_xpath = (
                     "{0}/protocolStack/ethernet[1]/lagportlacp[1]".format(
-                        ixn_lags[name]["xpath"]
+                        ixn_lags[snappi_lag.name]["xpath"]
                     )
                 )
                 imports.append(
@@ -299,12 +331,15 @@ class Lag(object):
                             attr_values.config_value,
                         )
                     )
+                lacp_port_imports = self._lacp_ports_config(
+                    snappi_lag.name, snappi_lag.ports)
+                imports += lacp_port_imports
             else:
                 if len(ixn_lacp) > 0:
                     ixn_lacp.remove()
                 static_xpath = (
                     "{0}/protocolStack/ethernet[1]/lagportstaticlag[1]".format(
-                        ixn_lags[name]["xpath"]
+                        ixn_lags[snappi_lag.name]["xpath"]
                     )
                 )
                 imports.append(
