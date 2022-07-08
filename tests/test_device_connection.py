@@ -51,7 +51,7 @@ def test_device_lag_name(api, utils):
     config.options.port_options.location_preemption = True
     lag1 = config.lags.lag(name="lag-1")[-1]
     lp1 = lag1.ports.port(port_name=p1.name)[-1]
-    lp1.protocol.static.lag_id = 1
+    lag1.protocol.static.lag_id = 1
     lp1.ethernet.name = "lp1-e"
     lp1.ethernet.mac = "aa:aa:aa:aa:aa:aa"
     d1 = config.devices.device(name="d1")[-1]
