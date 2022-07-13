@@ -288,6 +288,36 @@ class Ngpf(Base):
         self.api._ixnetwork.Globals.Topology.ApplyOnTheFly()
         return names
 
+    def set_device_state(self, payload):
+        lmp_names = payload.lacp_member_state.lag_member_port_names
+        state = payload.lacp_member_state.state
+        if lmp_names is None:
+            self._lacp_start_stop_pdu(state, 1)
+        else:
+            for lag, ports in self.api.lag._lag_ports.items():
+                for index, port in enumerate(ports):
+                    for lmp_n in lmp_names:
+                        if port.port_name == lmp_n:
+                            self._lacp_start_stop_pdu(state, index + 1, lag)
+
+    def _lacp_start_stop_pdu(self, state, index=1, lag_name=None):
+        if lag_name is None:
+            lag_port_lacp = (self.api._ixnetwork.Lag.find()
+                             .ProtocolStack.find().Ethernet.find()
+                             .Lagportlacp.find())
+            if state == 'up':
+                lag_port_lacp.LacpStartPDU()
+            elif state == 'down':
+                lag_port_lacp.LacpStopPDU()
+        else:
+            lag_port_lacp = (self.api._ixnetwork.Lag.find(Name=lag_name)
+                             .ProtocolStack.find().Ethernet.find()
+                             .Lagportlacp.find())
+            if state == 'up':
+                lag_port_lacp.LacpStartPDU(SessionIndices=index)
+            elif state == 'down':
+                lag_port_lacp.LacpStopPDU(SessionIndices=index)
+
     def get_states(self, request):
         if request.choice == "ipv4_neighbors":
             ip_objs = self.api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv4.find()

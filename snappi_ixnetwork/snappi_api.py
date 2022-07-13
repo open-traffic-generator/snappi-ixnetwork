@@ -362,6 +362,22 @@ class Api(snappi.Api):
         except Exception as err:
             raise SnappiIxnException(err)
 
+    def set_device_state(self, payload):
+        try:
+            device_state = self.device_state()
+            if isinstance(payload, (type(device_state), str)) is False:
+                raise TypeError(
+                    "The content must be of type Union[DeviceState, str]"
+                )
+            if isinstance(payload, str) is True:
+                payload = device_state.deserialize(payload)
+            self._connect()
+            with Timer(self, "Setting device state"):
+                self.ngpf.set_device_state(payload)
+            return self._request_detail()
+        except Exception as err:
+            raise SnappiIxnException(err)
+
     def send_ping(self, ping_request, cvg_api=None):
         try:
             if cvg_api:

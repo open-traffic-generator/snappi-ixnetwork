@@ -116,7 +116,7 @@ def test_lacp_lag(api, utils):
         "ActorKey": ["10", "10"],
         "ActorPortNumber": ["30", "40"],
         "ActorPortPriority": ["100", "101"],
-        "LacpActivity": ["active", "passive"],
+        "LacpActivity": ["active", "active"],
         "LacpduPeriodicTimeInterval": ["5", "6"],
         "LacpduTimeout": ["12", "13"]
     }
@@ -127,15 +127,15 @@ def test_lacp_lag(api, utils):
         "ActorKey": ["20", "20"],
         "ActorPortNumber": ["50", "60"],
         "ActorPortPriority": ["200", "201"],
-        "LacpActivity": ["active", "passive"],
+        "LacpActivity": ["active", "active"],
         "LacpduPeriodicTimeInterval": ["7", "8"],
         "LacpduTimeout": ["14", "15"]
     }
     config = api.config()
     p1, p2, p3, p4 = (
         config.ports.port(name="txp1", location=utils.settings.ports[0])
-        .port(name="txp2", location=utils.settings.ports[1])
-        .port(name="rxp1", location=utils.settings.ports[2])
+        .port(name="txp2", location=utils.settings.ports[2])
+        .port(name="rxp1", location=utils.settings.ports[1])
         .port(name="rxp2", location=utils.settings.ports[3])
     )
 
@@ -216,7 +216,36 @@ def test_lacp_lag(api, utils):
     ip2.gateway = "10.1.1.1"
 
     api.set_config(config)
+
+    utils.wait_for(
+        lambda: lacp_pdu_status_ok(api, 'up'), "port state as expected"
+    )
+
+    ds = api.device_state()
+    ds.lacp_member_state.lag_member_port_names = ["rxp2"]
+    ds.lacp_member_state.state = ds.lacp_member_state.DOWN
+    api.set_device_state(ds)
+
+    utils.wait_for(
+        lambda: lacp_pdu_status_ok(api, 'down'), "port state as expected"
+    )
+
+    ds = api.device_state()
+    ds.lacp_member_state.lag_member_port_names = ["rxp2"]
+    ds.lacp_member_state.state = ds.lacp_member_state.UP
+    api.set_device_state(ds)
+
+    utils.wait_for(
+        lambda: lacp_pdu_status_ok(api, 'up'), "port state as expected"
+    )
+
     validate_lacp_config(api, LAG1_ATTR, LAG2_ATTR)
+
+
+def lacp_pdu_status_ok(api, state):
+    return (api._ixnetwork.Lag.find()
+            .ProtocolStack.find().Ethernet.find()
+            .Lagportlacp.find().SessionStatus)[1] == state
 
 
 def validate_lacp_config(api, LAG1_ATTR, LAG2_ATTR):
@@ -249,8 +278,8 @@ def test_static_and_lacp_lag(api, utils):
     config = api.config()
     p1, p2, p3, p4 = (
         config.ports.port(name="txp1", location=utils.settings.ports[0])
-        .port(name="txp2", location=utils.settings.ports[1])
-        .port(name="rxp1", location=utils.settings.ports[2])
+        .port(name="txp2", location=utils.settings.ports[2])
+        .port(name="rxp1", location=utils.settings.ports[1])
         .port(name="rxp2", location=utils.settings.ports[3])
     )
 
