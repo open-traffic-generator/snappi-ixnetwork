@@ -179,11 +179,6 @@ class Lag(object):
         self._ixn_lag.find()
         existing_lags = [ixn_lag.Name for ixn_lag in self._ixn_lag]
         for lag in self._lags_config:
-            if lag.min_links > len(lag.ports):
-                raise SnappiIxnException(
-                    500, "ports in lag {0} should be more than configured minimum links {1}".format(
-                        lag.name, lag.min_links))
-        for lag in self._lags_config:
             self._lag_ports[lag.name] = lag.ports
             if lag.name not in existing_lags:
                 self._ixn_lag.add(Name=lag.name)

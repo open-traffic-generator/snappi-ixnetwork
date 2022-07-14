@@ -259,6 +259,12 @@ class Api(snappi.Api):
             else:
                 if len(self._ixnetwork.Topology.find()) > 0:
                     self._ixnetwork.StartAllProtocols()
+        if len(self.lag._lags_config) > 0:
+            for lag in self.lag._lags_config:
+                if lag.min_links > len(lag.ports):
+                    self.warning("ports in {0} are less than configured minimum links {1} so {0} is inactive ".format(
+                        lag.name, lag.min_links))
+                    self._ixnetwork.Lag.find(Name=lag.name).Stop()
 
     def _protocols_exists(self):
         total_dev = len(self._ixnetwork.GetTopologyStatus())
