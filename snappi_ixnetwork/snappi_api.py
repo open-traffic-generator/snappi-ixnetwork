@@ -270,6 +270,12 @@ class Api(snappi.Api):
             else:
                 if len(self._ixnetwork.Topology.find()) > 0:
                     self._ixnetwork.StartAllProtocols()
+        if len(self.lag._lags_config) > 0:
+            for lag in self.lag._lags_config:
+                if lag.min_links > len(lag.ports):
+                    self.warning("ports in {0} are less than configured minimum links {1} so {0} is inactive ".format(
+                        lag.name, lag.min_links))
+                    self._ixnetwork.Lag.find(Name=lag.name).Stop()
 
     def _protocols_exists(self):
         total_dev = len(self._ixnetwork.GetTopologyStatus())
@@ -369,6 +375,22 @@ class Api(snappi.Api):
             self._connect()
             with Timer(self, "Setting route state"):
                 self.ngpf.set_route_state(payload)
+            return self._request_detail()
+        except Exception as err:
+            raise SnappiIxnException(err)
+
+    def set_device_state(self, payload):
+        try:
+            device_state = self.device_state()
+            if isinstance(payload, (type(device_state), str)) is False:
+                raise TypeError(
+                    "The content must be of type Union[DeviceState, str]"
+                )
+            if isinstance(payload, str) is True:
+                payload = device_state.deserialize(payload)
+            self._connect()
+            with Timer(self, "Setting device state"):
+                self.ngpf.set_device_state(payload)
             return self._request_detail()
         except Exception as err:
             raise SnappiIxnException(err)

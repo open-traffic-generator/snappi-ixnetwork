@@ -102,8 +102,8 @@ def static_lag(api, utils):
     lag1, lag2 = config.lags.lag(name="lag1").lag(name="lag2")
     lp1 = lag1.ports.port(port_name=p1.name)[-1]
     lp2 = lag2.ports.port(port_name=p2.name)[-1]
-    lp1.protocol.static.lag_id = 1
-    lp2.protocol.static.lag_id = 2
+    lag1.protocol.static.lag_id = 1
+    lag2.protocol.static.lag_id = 2
 
     lp1.ethernet.name, lp2.ethernet.name = "eth1", "eth2"
 
