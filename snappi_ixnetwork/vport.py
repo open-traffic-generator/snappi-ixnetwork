@@ -128,6 +128,10 @@ class Vport(object):
         self._interval = 1
         self._timeout = 10
 
+    @property
+    def isUhd(self):
+        return "UHD" in self._api._ixnetwork.Globals.ProductVersion
+
     def config(self):
         """Transform config.ports into Ixnetwork.Vport
         1) delete any vport that is not part of the config
@@ -626,9 +630,16 @@ class Vport(object):
             vport["xpath"],
             vport["type"].replace("Fcoe", ""),
         )
-        imports.append(
-            {"xpath": l1_xpath, "flowControlDirectedAddress": directed_address}
-        )
+        if self.isUhd:
+            imports.append(
+                {"xpath": l1_xpath, "enabledFlowControl": True}
+            )
+        else:
+            imports.append(
+                {"xpath": l1_xpath,
+                 "flowControlDirectedAddress": directed_address,
+                 "enabledFlowControl": True}
+            )
         xpath = "%s/l1Config/%s/fcoe" % (
             vport["xpath"],
             vport["type"].replace("Fcoe", ""),
