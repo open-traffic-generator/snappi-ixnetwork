@@ -690,9 +690,10 @@ class Api(snappi.Api):
                 if port.location is None:
                     continue
                 if ";" in port.location:
-                    (_, card, port_info) = port.location.split(";")
-                    port_info = "{}.{}".format(card, port_info)
+                    # Ex: 10.36.70.66;localuhd;1 or 10.36.70.66;localuhd;17.1
+                    (_, _, port_info) = port.location.split(";")
                 elif "/" in port.location:
+                    # Ex: localuhd/1
                     (_, port_info) = port.location.split("/")
                 else:
                     raise SnappiIxnException(400, "port location is not valid")
