@@ -13,7 +13,7 @@ def test_uhd_port_locations():
     api._traffic.State = "Stopped"
     config = snappi.Api().config()
     api._config = config
-    port = config.ports.port(location="a;b;c", name="p1").port(
+    port = config.ports.port(location="a;localuhd;b.c", name="p1").port(
         location="localuhd/a", name="p2"
     )
     api._validate_instance(config)
