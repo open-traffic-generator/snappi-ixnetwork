@@ -37,8 +37,8 @@ setuptools.setup(
     install_requires=["ixnetwork-restpy>=1.0.52"],
     extras_require={
         "testing": [
-            "snappi==0.8.9",
-            "snappi_convergence==0.3.4",
+            "snappi==0.9.1",
+            "snappi_convergence==0.4.1",
             "pytest",
             "mock",
             "dpkt==1.9.4",
