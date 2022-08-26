@@ -122,6 +122,19 @@ class Base(object):
                 ))
             ixn_obj[ixn_attr] = self.multivalue(value)
 
+    def configure_multivalues_with_choice(self, snappi_obj, ixn_obj, attr_map):
+        """attr_map contains snappi_key : ixn_key/ ixn_info in dict format"""
+        self.logger.debug("configuring multivalues:")
+        for snappi_attr, ixn_map in attr_map.items():
+            ixn_attr = ixn_map
+            value = snappi_obj.get(snappi_attr).get("value")
+            if snappi_attr == "gateway_mac":
+                ixn_obj["resolveGateway"] = self.multivalue(False)
+            self.logger.debug("ixn_attr %s with value %s" % (
+                ixn_attr, value
+            ))
+            ixn_obj[ixn_attr] = self.multivalue(value)
+
     def get_symmetric_nodes(self, parent_list, node_name):
         nodes_list = []
         max_len = 0

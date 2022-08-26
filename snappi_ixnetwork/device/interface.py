@@ -28,6 +28,10 @@ class Ethernet(Base):
         "prefix": "prefix"
     }
 
+    _GATEWAY_MAC = {
+        "gateway_mac": "manualGatewayMac",
+    }
+
     def __init__(self, ngpf):
         super(Ethernet, self).__init__()
         self._ngpf = ngpf
@@ -73,6 +77,9 @@ class Ethernet(Base):
             )
             self._ngpf.set_device_info(ipv4_address, ixn_ip)
             self.configure_multivalues(ipv4_address, ixn_ip, Ethernet._IP)
+            if ipv4_address.gateway_mac.choice == "value":
+                self.configure_multivalues_with_choice(ipv4_address, ixn_ip,
+                                                       Ethernet._GATEWAY_MAC)
 
     def _configure_ipv6(self, ixn_eth, ethernet):
         self.logger.debug("Configuring IPv6 interface")
@@ -93,4 +100,7 @@ class Ethernet(Base):
             )
             self._ngpf.set_device_info(ipv6_address, ixn_ip)
             self.configure_multivalues(ipv6_address, ixn_ip, Ethernet._IP)
+            if ipv6_address.gateway_mac.choice == "value":
+                self.configure_multivalues_with_choice(ipv6_address, ixn_ip,
+                                                       Ethernet._GATEWAY_MAC)
 
