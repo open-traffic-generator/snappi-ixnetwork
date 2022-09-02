@@ -65,7 +65,7 @@ class Bgp(Base):
             "ixn_attr": "nextHopType",
             "enum_map": {
                 "local_ip": "sameaslocalip",
-                "manual": "manually"
+                "manual": "manual"
             }
         },
         "next_hop_address_type": "nextHopIPType",
@@ -335,7 +335,7 @@ class Bgp(Base):
             for segment in segments:
                 ixn_segment = self.create_node_elemet(ixn_route, "bgpAsPathSegmentList")
                 ixn_segment["segmentType"] = self.multivalue(
-                    segment.get(type), Bgp._BGP_SEG_TYPE
+                    segment.get("type"), Bgp._BGP_SEG_TYPE
                 )
                 as_numbers = segment.get("as_numbers")
                 ixn_segment["numberOfAsNumberInSegment"] = len(as_numbers)

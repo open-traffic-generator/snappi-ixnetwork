@@ -4,9 +4,11 @@ def test_bgp_attributes(api, utils):
     """
     config = api.config()
     community = "1:2"
-    aspaths = [1, 2]
+    aspaths = [100, 200]
     med = 50
     origin = "egp"
+    v4_next_hop = "20.1.1.1"
+    v6_next_hop = "::1:1:1:3"
 
     v4_rr_attr = {
         "address": "200.1.0.1",
@@ -71,6 +73,7 @@ def test_bgp_attributes(api, utils):
 
     # AS Path
     as_path = rr.as_path
+    as_path.as_set_mode = rr.as_path.INCLUDE_AS_SET
     as_path_segment = as_path.segments.add()
     as_path_segment.type = as_path_segment.AS_SEQ
     as_path_segment.as_numbers = aspaths
@@ -81,6 +84,10 @@ def test_bgp_attributes(api, utils):
     # Origin
     rr.advanced.origin = rr.advanced.EGP
 
+    rr.next_hop_ipv4_address = v4_next_hop
+    rr.next_hop_address_type = rr.IPV4
+    rr.next_hop_mode = rr.MANUAL
+
     # v6
     ipv6 = eth.ipv6_addresses.add()
     ipv6.name = "ipv6"
@@ -89,7 +96,7 @@ def test_bgp_attributes(api, utils):
     ipv6.gateway = "2000::2"
     bgpv6 = device.bgp
     bgpv6.router_id = "192.0.0.1"
-    bgpv6_int =  bgpv6.ipv6_interfaces.add()
+    bgpv6_int = bgpv6.ipv6_interfaces.add()
     bgpv6_int.ipv6_name = ipv6.name
     bgp6_peer = bgpv6_int.peers.add()
     bgp6_peer.name = "rx_bgpv6"
@@ -113,6 +120,7 @@ def test_bgp_attributes(api, utils):
 
     # As Path
     as_path = rrv6.as_path
+    as_path.as_set_mode = rrv6.as_path.INCLUDE_AS_SET
     as_path_segment = as_path.segments.add()
     as_path_segment.type = as_path_segment.AS_SEQ
     as_path_segment.as_numbers = aspaths
@@ -123,11 +131,17 @@ def test_bgp_attributes(api, utils):
     # Origin
     rrv6.advanced.origin = rr.advanced.EGP
 
+    rrv6.next_hop_ipv6_address = v6_next_hop
+    rrv6.next_hop_address_type = rr.IPV6
+    rrv6.next_hop_mode = rr.MANUAL
+
     api.set_config(config)
 
     validate_route_range(api, v4_rr_attr, v6_rr_attr)
 
-    validate_community_config(api, community, aspaths, med, origin)
+    validate_community_config(api, community, aspaths, med, origin,
+                              v4_next_hop,
+                              v6_next_hop)
 
 
 def validate_route_range(api, v4_rr_attr, v6_rr_attr):
@@ -154,7 +168,8 @@ def validate_route_range(api, v4_rr_attr, v6_rr_attr):
     assert v6_rr.PrefixLength == v6_rr_attr["prefix"]
 
 
-def validate_community_config(api, community, aspaths, med, origin):
+def validate_community_config(api, community, aspaths, med,
+                              origin, v4_next_hop, v6_next_hop):
     """
     Validate BGP Attributes Config
     """
@@ -182,14 +197,20 @@ def validate_community_config(api, community, aspaths, med, origin):
     assert as_number == community.split(":")[0]
     assert last_two_octets == community.split(":")[1]
 
-    as_paths = bgpv4.AsPathASString
-    as_paths = as_paths[0].replace('}', '').replace('{', '')
-    as_paths = as_paths.split(',')
+    as_paths = []
+    for v in bgpv4.BgpAsPathSegmentList.find().BgpAsNumberList.find():
+        as_paths.append(v.AsNumber.Values[0])
     as_paths = [int(ele) for ele in as_paths]
+    segment_type = bgpv4.BgpAsPathSegmentList.find().SegmentType
     assert as_paths == aspaths
+    assert segment_type == "asseq"
 
     assert int(bgpv4.MultiExitDiscriminator.Values[0]) == med
     assert bgpv4.Origin.Values[0] == origin
+    assert bgpv4.Ipv4NextHop == v4_next_hop
+    assert bgpv4.NextHopIPType == "ipv4"
+    assert bgpv4.NextHopType == "manual"
+    assert bgpv4.AsSetMode == "includelocalasasasset"
 
     # bgpv6_attributes validation
     as_number = bgpv6.BgpCommunitiesList.find().AsNumber
@@ -197,11 +218,20 @@ def validate_community_config(api, community, aspaths, med, origin):
     assert as_number == community.split(":")[0]
     assert last_two_octets == community.split(":")[1]
 
-    as_paths = bgpv6.AsPathASString
-    as_paths = as_paths[0].replace('}', '').replace('{', '')
-    as_paths = as_paths.split(',')
+    as_paths = []
+    for v in bgpv6.BgpAsPathSegmentList.find().BgpAsNumberList.find():
+        as_paths.append(v.AsNumber.Values[0])
     as_paths = [int(ele) for ele in as_paths]
+    segment_type = bgpv6.BgpAsPathSegmentList.find().SegmentType
     assert as_paths == aspaths
+    assert segment_type == "asseq"
+
+    assert int(bgpv6.MultiExitDiscriminator.Values[0]) == med
+    assert bgpv6.Origin.Values[0] == origin
+    assert bgpv6.Ipv6NextHop == v6_next_hop
+    assert bgpv6.NextHopIPType == "ipv6"
+    assert bgpv6.NextHopType == "manual"
+    assert bgpv6.AsSetMode == "includelocalasasasset"
 
     assert int(bgpv6.MultiExitDiscriminator.Values[0]) == med
     assert bgpv6.Origin.Values[0] == origin
