@@ -593,10 +593,25 @@ class Vport(object):
             "{0}".format(auto_field_name): False
             if auto_negotiate is None
             else auto_negotiate,
-            "enableRsFec": False if rs_fec is None else rs_fec,
             "linkTraining": False if link_training is None else link_training,
             "speedAuto": advertise,
         }
+        if auto_negotiate:
+            proposed_import.update(
+                useANResults=True,
+                firecodeForceOn=False,
+                rsFecForceOn=False,
+                forceDisableFEC=False,
+                rsFecAdvertise=False if rs_fec is None else rs_fec,
+                rsFecRequest=False if rs_fec is None else rs_fec,
+            )
+        else:
+            proposed_import.update(
+                useANResults=False,
+                firecodeForceOn=False,
+                rsFecForceOn=False if rs_fec is None else rs_fec,
+                forceDisableFEC=True if rs_fec is None else not rs_fec,
+            )
         proposed_import["media"] = layer1.get("media", with_default=True)
         self._add_l1config_import(vport, proposed_import, imports)
 
