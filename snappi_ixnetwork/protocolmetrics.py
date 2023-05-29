@@ -387,5 +387,5 @@ class ProtocolMetrics(object):
         if len(self.columns) > 0:
             self.columns.append("name") if "name" not in self.columns else None
             self.columns = list(set(self.columns))
-        with Timer(self._api, "Fetching {} Metrics".format(protocol)):
-            return self._filter_stats(protocol)
+        #with Timer(self._api, "Fetching {} Metrics".format(protocol)):
+        return self._filter_stats(protocol)

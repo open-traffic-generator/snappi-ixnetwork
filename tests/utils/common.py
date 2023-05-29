@@ -123,41 +123,41 @@ def start_traffic(api, cfg, start_capture=True):
     capture_names = get_capture_port_names(cfg)
     if capture_names and start_capture:
         print("Starting capture on ports %s ..." % str(capture_names))
-        cs = api.capture_state()
-        cs.state = cs.START
-        api.set_capture_state(cs)
+        cs = api.control_state()
+        cs.port.capture.state = cs.port.capture.START
+        api.set_control_state(cs)
+
     print("Starting all protocols ...")
-    ps = api.protocol_state()
-    ps.state = ps.START
-    api.set_protocol_state(ps)
+    cs = api.control_state()
+    cs.protocol.all.state = cs.protocol.all.START
+    api.set_control_state(cs)
 
     print("Starting transmit on all flows ...")
-    ts = api.transmit_state()
-    ts.state = ts.START
-    api.set_transmit_state(ts)
 
+    cs = api.control_state()
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
+    api.set_control_state(cs)
 
 def stop_traffic(api, cfg, stop_capture=True):
     """
     Stops flows
     """
     print("Stopping transmit on all flows ...")
-    ts = api.transmit_state()
-    ts.state = ts.STOP
-    api.set_transmit_state(ts)
-
-    print("Starting all protocols ...")
-    ps = api.protocol_state()
-    ps.state = ps.STOP
-    api.set_protocol_state(ps)
+    cs = api.control_state()
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.STOP
+    api.set_control_state(cs)
+    
+    print("Stopping all protocols ...")
+    cs = api.control_state()
+    cs.protocol.all.state = cs.protocol.all.STOP
+    api.set_control_state(cs)
 
     capture_names = get_capture_port_names(cfg)
     if capture_names and stop_capture:
         print("Stopping capture on ports %s ..." % str(capture_names))
-        cs = api.capture_state()
-        cs.state = cs.STOP
-        api.set_capture_state(cs)
-
+        cs = api.control_state()
+        cs.port.capture.state = cs.port.capture.STOP
+        api.set_control_state(cs)
 
 def seconds_elapsed(start_seconds):
     return int(round(time.time() - start_seconds))

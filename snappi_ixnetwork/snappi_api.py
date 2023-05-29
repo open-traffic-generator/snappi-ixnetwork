@@ -67,6 +67,8 @@ class Api(snappi.Api):
         self._device_encap = {}
         self.ixn_objects = None
         self._config_type = self.config()
+        self._control_state = self.control_state()
+        self._control_action = self.control_action()
         self._protocol_state = self.protocol_state()
         self._flows_update = self.flows_update()
         self._transmit_state = self.transmit_state()
@@ -160,7 +162,7 @@ class Api(snappi.Api):
         return o
 
     def _request_detail(self):
-        request_detail = snappi.ResponseWarning()
+        request_detail = snappi.Warning()
         errors = self._errors
         warnings = list()
         app_errors = self._globals.AppErrors.find()
@@ -301,136 +303,94 @@ class Api(snappi.Api):
             return True
         else:
             return False
-
-    def set_protocol_state(self, payload):
-        """Set the transmit state of flows"""
+    
+    def set_control_state(self, payload):
         try:
-            if isinstance(payload, (type(self._protocol_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[TransmitState, str]"
-                )
-            if isinstance(payload, str) is True:
-                payload = self._protocol_state.deserialize(payload)
+            control_option = payload.choice
+            control_obj = getattr(payload, control_option)
+            control_choice = control_obj.get("choice")
+            request_payload = getattr(control_obj, control_choice)
             self._connect()
-            with Timer(self, "Setting Protocol state"):
-                self.ngpf.set_protocol_state(payload)
+            if control_option == "port":
+                if control_choice == "capture":
+                    self.capture.set_capture_state(request_payload)
+                elif control_choice == "link":
+                    self.vport.set_link_state(request_payload)
+            elif control_option == "protocol":
+                if control_choice == "all":
+                    self.ngpf.set_protocol_state(request_payload)
+                elif control_choice == "route":
+                    self.ngpf.set_route_state(request_payload)
+                elif control_choice == "lacp":
+                    self.ngpf.set_device_state(request_payload)
+            elif control_option == "traffic":
+                self.traffic_item.transmit(request_payload)
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()
+    
+    def set_control_action(self, payload):
+        try:
+            control_option = payload.choice
+            control_obj = getattr(payload, control_option)
+            control_choice = control_obj.get("choice")
+            choice_obj = getattr(control_obj, control_choice)
+            if control_choice == "ipv4":
+                choice = choice_obj.get("choice")
+                request_payload = getattr(choice_obj, choice)
+                if choice == "ping":
+                    res = self.control_action_response()
+                    self._connect()
+                    res.response.protocol.ipv4.ping.responses.deserialize(self.ping.results(control_choice, request_payload))
+            elif control_choice == "ipv6":
+                choice = choice_obj.get("choice")
+                request_payload = getattr(choice_obj, choice)
+                if choice == "ping":
+                    res = self.control_action_response()
+                    self._connect()
+                    res.response.protocol.ipv6.ping.responses.deserialize(self.ping.results(control_choice, request_payload))
+            res.warnings=snappi.Warning()
+            return res
+        except Exception as err:
+            raise SnappiIxnException(err)
+               
+    def set_protocol_state(self, payload):
+        """Set the transmit state of flows"""
+        self.add_warnings(
+            "set_protocol_state api is deprecated, Please use `set_control_state` with `protocol.all` choice instead"
+        )
 
     def set_transmit_state(self, payload):
         """Set the transmit state of flows"""
-        try:
-            if isinstance(payload, (type(self._transmit_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[TransmitState, str]"
-                )
-            if isinstance(payload, str) is True:
-                payload = self._transmit_state.deserialize(payload)
-            self._connect()
-            self.traffic_item.transmit(payload)
-        except Exception as err:
-            raise SnappiIxnException(err)
-        return self._request_detail()
+        self.add_warnings(
+            "set_transmit_state api is deprecated, Please use `set_control_state` with `traffic` choice instead"
+        )
 
     def set_link_state(self, link_state):
-        try:
-            if isinstance(link_state, (type(self._link_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[LinkState, str]"
-                )
-            if isinstance(link_state, str):
-                link_state = self._link_state.deserialize(link_state)
-            self._connect()
-            if link_state.port_names is not None:
-                self.vport.set_link_state(link_state)
-        except Exception as err:
-            raise SnappiIxnException(err)
-        return self._request_detail()
+        self.add_warnings(
+            "set_link_state api is deprecated, Please use `set_control_state` with `port.link` choice instead"
+        )
 
     def set_capture_state(self, payload):
         """Starts capture on all ports that have capture enabled."""
-        try:
-            if isinstance(payload, (type(self._capture_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[CaptureState, str]"
-                )
-            if isinstance(payload, str) is True:
-                payload = self._capture_state.deserialize(payload)
-            self._connect()
-            self.capture.set_capture_state(payload)
-        except Exception as err:
-            raise SnappiIxnException(err)
-        return self._request_detail()
+        self.add_warnings(
+            "set_capture_state api is deprecated, Please use `set_control_state` with `port.capture` choice instead"
+        )
 
     def set_route_state(self, payload):
-        try:
-            route_state = self.route_state()
-            if isinstance(payload, (type(route_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[RouteState, str]"
-                )
-            if isinstance(payload, str) is True:
-                payload = route_state.deserialize(payload)
-            self._connect()
-            with Timer(self, "Setting route state"):
-                self.ngpf.set_route_state(payload)
-            return self._request_detail()
-        except Exception as err:
-            raise SnappiIxnException(err)
+        self.add_warnings(
+            "set_route_state api is deprecated, Please use `set_control_state` with `protocol.all` choice instead"
+        )
 
     def set_device_state(self, payload):
-        try:
-            device_state = self.device_state()
-            if isinstance(payload, (type(device_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[DeviceState, str]"
-                )
-            if isinstance(payload, str) is True:
-                payload = device_state.deserialize(payload)
-            self._connect()
-            with Timer(self, "Setting device state"):
-                self.ngpf.set_device_state(payload)
-            return self._request_detail()
-        except Exception as err:
-            raise SnappiIxnException(err)
+        self.add_warnings(
+            "set_device_state api is deprecated, Please use `set_control_state` with `protocol.link` choice instead"
+        )
 
     def send_ping(self, ping_request, cvg_api=None):
-        try:
-            if cvg_api:
-                if isinstance(ping_request, type(cvg_api.ping_request())):
-                    if (
-                        isinstance(
-                            ping_request, (type(cvg_api.ping_request()), str)
-                        )
-                        is False
-                    ):
-                        raise TypeError(
-                            "The content must be of type Union[PingRequest, str]"
-                        )
-                    if isinstance(ping_request, str):
-                        ping_request = cvg_api.ping_request().deserialize(
-                            ping_request
-                        )
-                    ping_res = cvg_api.ping_response()
-                    cvg_api.ping_request().serialize()
-            else:
-                if (
-                    isinstance(ping_request, (type(self._ping_request), str))
-                    is False
-                ):
-                    raise TypeError(
-                        "The content must be of type Union[PingRequest, str]"
-                    )
-                if isinstance(ping_request, str):
-                    ping_request = self._ping_request.deserialize(ping_request)
-                ping_res = self.ping_response()
-                ping_request.serialize()
-            self._connect()
-            ping_res.responses.deserialize(self.ping.results(ping_request))
-            return ping_res
-        except Exception as err:
-            raise SnappiIxnException(err)
+        self.add_warnings(
+            "send_ping api is deprecated, Please use `set_control_action` with `protocol.ipv4.ping` choice instead"
+        )
 
     def get_capture(self, request):
         """Gets capture file and returns it as a byte stream"""
@@ -1136,3 +1096,23 @@ class Api(snappi.Api):
 
     def warning(self, message):
         logging.warning(message)
+
+    def get_version(self):
+        try:
+            import pkg_resources
+            sdk_version = (
+                    "snappi-"
+                    + pkg_resources.get_distribution("snappi").version
+            )
+            app_version = (
+                    "snappi_ixnetwork-"
+                    + pkg_resources.get_distribution(
+                        "snappi_ixnetwork"
+                    ).version
+                )
+            
+            return {"api_spec_version" : "open-api-models-" + snappi.Api.get_local_version(self).api_spec_version,
+                    "sdk_version" : sdk_version,
+                    "app_version" : app_version}
+        except:
+           raise SnappiIxnException("unable to get version") 

@@ -19,7 +19,7 @@ class Ping(object):
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
 
-    def results(self, ping_request):
+    def results(self, req_type, ping_request):
         responses = []
         v4_names = []
         for device in self._api._config.devices:
@@ -33,9 +33,9 @@ class Ping(object):
                     v6_names.append(ip.name)
 
         with Timer(self._api, "Ping requests completed in"):
-            for endpoint in ping_request.endpoints:
+            for endpoint in ping_request.requests:
                 response = {}
-                req_type = endpoint.parent.choice
+                #req_type = endpoint.parent.choice
                 src_name = endpoint.get("src_name")
                 dst_ip = endpoint.get("dst_ip")
                 if req_type == "ipv4":
@@ -71,9 +71,9 @@ class Ping(object):
                 for reply in ping_status:
                     if dst_ip in reply["arg3"]:
                         if reply["arg2"]:
-                            response["result"] = "success"
+                            response["result"] = "succeeded"
                         else:
-                            response["result"] = "failure"
+                            response["result"] = "failed"
                 response["src_name"] = src_name
                 response["dst_ip"] = dst_ip
                 responses.append(response)
