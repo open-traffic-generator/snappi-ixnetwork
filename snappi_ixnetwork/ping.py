@@ -35,7 +35,6 @@ class Ping(object):
         with Timer(self._api, "Ping requests completed in"):
             for endpoint in ping_request.requests:
                 response = {}
-                #req_type = endpoint.parent.choice
                 src_name = endpoint.get("src_name")
                 dst_ip = endpoint.get("dst_ip")
                 if req_type == "ipv4":
