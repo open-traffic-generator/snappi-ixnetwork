@@ -34,7 +34,7 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py init
       - name: Run tests
         run: |
-          ${{steps.path.outputs.pythonv}} do.py test ${{secrets.TEST_USERNAME}} ${{secrets.TEST_PASSWORD}}
+          ${{steps.path.outputs.pythonv}} do.py test ${{secrets.TEST_USERNAME}} "${{secrets.TEST_PASSWORD}}"
       - name: Get package version
         id: get_version
         run: |
