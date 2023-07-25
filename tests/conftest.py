@@ -73,6 +73,8 @@ def api():
     api = snappi.api(
         location=utl.settings.location, ext=utl.settings.ext
     )
+    api.username = "admin"
+    api.password = "1x14c0m!X!$C)M"
     yield api
     if getattr(api, "assistant", None) is not None:
         api.assistant.Session.remove()

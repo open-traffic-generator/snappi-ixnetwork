@@ -139,6 +139,22 @@ class Api(snappi.Api):
         self._device_encap[name] = type
 
     @property
+    def username(self):
+        return self._username
+
+    @username.setter
+    def username(self, value):
+        self._username = value
+
+    @property
+    def password(self):
+        return self._password
+
+    @username.setter
+    def password(self, value):
+        self._password = value
+
+    @property
     def assistant(self):
         return self._assistant
 
