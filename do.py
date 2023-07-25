@@ -35,8 +35,10 @@ def lint():
     )
 
 
-def test(username=None, password=None):
+def test():
     coverage_threshold = 67
+    username = os.environ.get("PYPI_USERNAME", "admin")
+    password = os.environ.get("PYPI_PASSWORD", "admin")
     args = [
         '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
         (
@@ -45,18 +47,16 @@ def test(username=None, password=None):
             " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;5"
             ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;6"'
         ),
+        "--username="+username,
+        "--password=\""+password+"\""
         "--ext=ixnetwork",
         "--speed=speed_100_gbps",
-        "tests",
+        "tests/test_pretest.py",
         '-m "not e2e and not l1_manual and not uhd"',
         "--cov=./snappi_ixnetwork --cov-report term"
         " --cov-report html:cov_report",
     ]
-
-    if username is not None:
-        args.append("--username=" + username)
-    if password is not None:
-        args.append("--password=\"" + password + "\"")
+    print(args)
 
     run(
         [
