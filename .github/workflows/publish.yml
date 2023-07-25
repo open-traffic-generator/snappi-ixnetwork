@@ -8,11 +8,6 @@ on:
 jobs:
   cicd:
     runs-on: [snappi-ixn-ci-novus100g]
-    strategy:
-      max-parallel: 1
-      matrix:
-        python-version: [python38]
-
     steps:
       - name: Checkout source
         uses: actions/checkout@v2
@@ -22,7 +17,7 @@ jobs:
           submodules: recursive
       - name: Set python path
         id: path
-        run: echo "::set-output name=pythonv::python3"
+        run: echo "::set-output name=pythonv::/home/github-runner/pyenv/.env/bin/python"
       - name: Install dependencies
         run: |
           rm -rf .env
