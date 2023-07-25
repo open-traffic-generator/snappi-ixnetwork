@@ -57,8 +57,7 @@ def test(username=None, password=None):
         args.append("--username=" + username)
     if password is not None:
         args.append("--password=" + password)
-    print(args)
-    return
+
     run(
         [
             py() + " -m pip install pytest-cov",
