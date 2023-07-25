@@ -49,7 +49,7 @@ def test():
         "--username="+username,
         "--ext=ixnetwork",
         "--speed=speed_100_gbps",
-        "tests/test_pretest.py",
+        "tests",
         '-m "not e2e and not l1_manual and not uhd"',
         "--cov=./snappi_ixnetwork --cov-report term"
         " --cov-report html:cov_report",
