@@ -35,6 +35,10 @@ class Api(snappi_convergence.Api):
         self._event_info = None
         self.logger = get_ixnet_logger(__name__)
 
+    def configure_credentials(self, uid, psd):
+        self._api.username = uid
+        self._api.password = psd
+
     def enable_scaling(self, do_compact=False):
         self._api.do_compact = do_compact
 

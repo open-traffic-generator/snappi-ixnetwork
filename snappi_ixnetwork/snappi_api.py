@@ -152,7 +152,7 @@ class Api(snappi.Api):
     def password(self):
         return self._password
 
-    @username.setter
+    @password.setter
     def password(self, value):
         self._password = value
 

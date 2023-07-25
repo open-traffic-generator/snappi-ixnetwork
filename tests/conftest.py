@@ -83,9 +83,8 @@ def cvg_api():
     api = snappi_convergence.api(
         location=utl.settings.location,
         ext=utl.settings.ext,
-        username=utl.settings.username,
-        password=utl.settings.psd,
     )
+    api.configure_credentials(utl.settings.username, utl.settings.psd)
     yield api
     if getattr(api, "assistant", None) is not None:
         api.assistant.Session.remove()
