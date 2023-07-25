@@ -48,7 +48,7 @@ def test():
             ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;6"'
         ),
         "--username="+username,
-        "--password=\""+password+"\""
+        "--password=\""+password+"\"",
         "--ext=ixnetwork",
         "--speed=speed_100_gbps",
         "tests/test_pretest.py",
