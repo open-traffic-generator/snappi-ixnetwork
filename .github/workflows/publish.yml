@@ -22,7 +22,7 @@ jobs:
           submodules: recursive
       - name: Set python path
         id: path
-        run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
+        run: echo "::set-output name=pythonv::python3"
       - name: Install dependencies
         run: |
           rm -rf .env
