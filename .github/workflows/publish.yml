@@ -7,7 +7,7 @@ on:
 
 jobs:
   cicd:
-    runs-on: [self-hosted, Linux, Ubuntu, x64]
+    runs-on: [snappi-ixn-ci-novus100g]
     strategy:
       max-parallel: 1
       matrix:
