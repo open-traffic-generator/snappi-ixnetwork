@@ -65,9 +65,14 @@ def wait_for_arp(snappi_api, max_attempts=10, poll_interval_sec=1):
     print("Attempts: ", attempts)
     print("Maxmimum Attempts:", max_attempts)
     if attempts >= max_attempts:
-        import pdb;pdb.set_trace()
-        raise Exception("ARP is not resolved in {} seconds".format(
-            max_attempts * poll_interval_sec))
+        import pdb
+
+        pdb.set_trace()
+        raise Exception(
+            "ARP is not resolved in {} seconds".format(
+                max_attempts * poll_interval_sec
+            )
+        )
 
     return attempts
 
@@ -87,10 +92,9 @@ def static_lag(api, utils):
         ------+
     """
     config = api.config()
-    p1, p2 = (
-        config.ports.port(name="txp1", location=utils.settings.ports[0])
-        .port(name="rxp2", location=utils.settings.ports[1])
-    )
+    p1, p2 = config.ports.port(
+        name="txp1", location=utils.settings.ports[0]
+    ).port(name="rxp2", location=utils.settings.ports[1])
 
     config.layer1.layer1(
         name="layer1",

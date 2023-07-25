@@ -2,10 +2,11 @@ from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.device.utils import namedtuple_with_defaults
 
+
 class VXLAN(Base):
-    SourceInterface = namedtuple_with_defaults("SourceInterface",
-                                        ("ipv4", "ipv6"),
-                                        ([], []))
+    SourceInterface = namedtuple_with_defaults(
+        "SourceInterface", ("ipv4", "ipv6"), ([], [])
+    )
 
     def __init__(self, ngpf):
         super(VXLAN, self).__init__()
@@ -19,13 +20,11 @@ class VXLAN(Base):
 
     def config(self, vxlan):
         v4_tunnels = vxlan.get("v4_tunnels")
-        if v4_tunnels is not None and len(
-                v4_tunnels) > 0:
+        if v4_tunnels is not None and len(v4_tunnels) > 0:
             self._config_v4_tunnels(v4_tunnels)
 
         v6_tunnels = vxlan.get("v6_tunnels")
-        if v6_tunnels is not None and len(
-                v6_tunnels) > 0:
+        if v6_tunnels is not None and len(v6_tunnels) > 0:
             self._config_v6_tunnels(v6_tunnels)
 
     def _store_source_interface(self, ixn_inter, ip_type):
@@ -44,9 +43,11 @@ class VXLAN(Base):
             self._ngpf.working_dg = ixnet_info.working_dg
             ip_type = self._ngpf.api.get_device_encap(source_interface)
             if ip_type != "ipv4":
-                raise TypeError("source_interface {} should support IPv4".format(
-                    source_interface
-                ))
+                raise TypeError(
+                    "source_interface {} should support IPv4".format(
+                        source_interface
+                    )
+                )
             self._store_source_interface(ixn_inter, ip_type)
             ixn_vxlan = self.create_node_elemet(
                 ixn_inter, "vxlan", v4_tunnel.get("name")
@@ -57,9 +58,7 @@ class VXLAN(Base):
             destination_ip_mode = v4_tunnel.destination_ip_mode
             if destination_ip_mode.choice == "unicast":
                 ixn_vxlan["enableStaticInfo"] = True
-                self._config_v4_unicast(
-                    destination_ip_mode.unicast, ixn_vxlan
-                )
+                self._config_v4_unicast(destination_ip_mode.unicast, ixn_vxlan)
             else:
                 ixn_vxlan["enableStaticInfo"] = False
                 ixn_vxlan["ipv4_multicast"] = self.as_multivalue(
@@ -74,9 +73,11 @@ class VXLAN(Base):
             self._ngpf.working_dg = ixnet_info.working_dg
             ip_type = self._ngpf.api.get_device_encap(source_interface)
             if ip_type != "ipv6":
-                raise TypeError("source_interface {} should support IPv6".format(
-                    source_interface
-                ))
+                raise TypeError(
+                    "source_interface {} should support IPv6".format(
+                        source_interface
+                    )
+                )
             self._store_source_interface(ixn_inter, ip_type)
             ixn_vxlan6 = self.create_node_elemet(
                 ixn_inter, "vxlanv6", v6_tunnel.get("name")
@@ -98,12 +99,16 @@ class VXLAN(Base):
 
     def _get_all_info(self, unicast):
         ixn_info_count = 0
-        AllInfo = namedtuple_with_defaults("AllInfo",
-                                           ("remote_vtep_address",
-                                            "suppress_arp",
-                                            "remote_vm_mac",
-                                            "remote_vm_ipv4"),
-                                           ([], [], [], []))
+        AllInfo = namedtuple_with_defaults(
+            "AllInfo",
+            (
+                "remote_vtep_address",
+                "suppress_arp",
+                "remote_vm_mac",
+                "remote_vm_ipv4",
+            ),
+            ([], [], [], []),
+        )
         all_info = AllInfo()
         vteps = unicast.vteps
         for vtep in vteps:
@@ -129,11 +134,20 @@ class VXLAN(Base):
         ixn_vxlan["staticInfoCount"] = ixn_info_count
         if v4_tunnel is True:
             ixn_unicast = self.create_node_elemet(ixn_vxlan, "vxlanStaticInfo")
-            ixn_unicast["remoteVtepIpv4"] = self.multivalue(all_info.remote_vtep_address)
+            ixn_unicast["remoteVtepIpv4"] = self.multivalue(
+                all_info.remote_vtep_address
+            )
         else:
-            ixn_unicast = self.create_node_elemet(ixn_vxlan, "vxlanIPv6StaticInfo")
-            ixn_unicast["remoteVtepUnicastIpv6"] = self.multivalue(all_info.remote_vtep_address)
+            ixn_unicast = self.create_node_elemet(
+                ixn_vxlan, "vxlanIPv6StaticInfo"
+            )
+            ixn_unicast["remoteVtepUnicastIpv6"] = self.multivalue(
+                all_info.remote_vtep_address
+            )
         ixn_unicast["suppressArp"] = self.multivalue(all_info.suppress_arp)
-        ixn_unicast["remoteVmStaticMac"] = self.multivalue(all_info.remote_vm_mac)
-        ixn_unicast["remoteVmStaticIpv4"] = self.multivalue(all_info.remote_vm_ipv4)
-        
+        ixn_unicast["remoteVmStaticMac"] = self.multivalue(
+            all_info.remote_vm_mac
+        )
+        ixn_unicast["remoteVmStaticIpv4"] = self.multivalue(
+            all_info.remote_vm_ipv4
+        )

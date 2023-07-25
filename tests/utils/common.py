@@ -65,6 +65,7 @@ def configure_credentials(api, usr, psd):
     api.username = usr
     api.password = psd
 
+
 class Settings(object):
     """
     Singleton for global settings
@@ -143,6 +144,7 @@ def start_traffic(api, cfg, start_capture=True):
     cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
     api.set_control_state(cs)
 
+
 def stop_traffic(api, cfg, stop_capture=True):
     """
     Stops flows
@@ -151,7 +153,7 @@ def stop_traffic(api, cfg, stop_capture=True):
     cs = api.control_state()
     cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.STOP
     api.set_control_state(cs)
-    
+
     print("Stopping all protocols ...")
     cs = api.control_state()
     cs.protocol.all.state = cs.protocol.all.STOP
@@ -163,6 +165,7 @@ def stop_traffic(api, cfg, stop_capture=True):
         cs = api.control_state()
         cs.port.capture.state = cs.port.capture.STOP
         api.set_control_state(cs)
+
 
 def seconds_elapsed(start_seconds):
     return int(round(time.time() - start_seconds))

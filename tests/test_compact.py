@@ -195,7 +195,6 @@ def test_compact(api, utils):
         rx_peer.peer_address = config_values["tx_adds"][i - 1]
         rx_peer.as_number = 65200
 
-
         if i == rx_device_with_rr:
             rx_rr = rx_peer.v4_routes.add(name="Rx RR {0}".format(i))
             rx_rr.addresses.add(

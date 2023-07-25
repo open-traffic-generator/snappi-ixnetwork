@@ -30,7 +30,6 @@ class Api(snappi_convergence.Api):
     _TRIGGERED_EVENT = ""
 
     def __init__(self, **kwargs):
-
         self._convergence_timeout = 3
         self._api = snappiApi(**kwargs)
         self._event_info = None

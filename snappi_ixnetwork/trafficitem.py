@@ -375,9 +375,11 @@ class TrafficItem(CustomField):
         self.logger = get_ixnet_logger(__name__)
 
     def _get_search_payload(self, parent, child, properties, filters):
-        self.logger.debug("Searching parent {} child {} with properties {} filters {}".format(
-            parent, child, properties, filters
-        ))
+        self.logger.debug(
+            "Searching parent {} child {} with properties {} filters {}".format(
+                parent, child, properties, filters
+            )
+        )
         payload = {
             "selects": [
                 {
@@ -398,7 +400,7 @@ class TrafficItem(CustomField):
             self._api.assistant._ixnetwork.href
         )
         self.logger.debug("Return of _get_search_payload:")
-        self.logger.debug("\turl : %s" %url)
+        self.logger.debug("\turl : %s" % url)
         self.logger.debug("\tpayload : %s" % payload)
         return (url, payload)
 
@@ -537,9 +539,7 @@ class TrafficItem(CustomField):
         self.traffic_index = 1
 
     def _gen_dev_endpoint(self, devices, names, endpoints, scalable_endpoints):
-        self.logger.debug(
-            "Generating Device Endpoints with names %s" % names
-        )
+        self.logger.debug("Generating Device Endpoints with names %s" % names)
         while len(names) > 0:
             gen_name = None
             name = names[0]
@@ -580,9 +580,7 @@ class TrafficItem(CustomField):
         devices = self.get_device_info(config)
         for index, flow in enumerate(flows):
             flow_name = flow._properties.get("name")
-            self.logger.debug(
-                "Creating Traffic Item %s" % flow_name
-            )
+            self.logger.debug("Creating Traffic Item %s" % flow_name)
             if flow_name is None:
                 raise Exception("name shall not be null for flows")
             if flow._properties.get("tx_rx") is None:
@@ -1045,7 +1043,7 @@ class TrafficItem(CustomField):
             "decrement": "decrement",
             "auto": "auto",
             "generated": "auto",
-            "custom": "singleValue"
+            "custom": "singleValue",
         }
 
         def get_value(field_value):
@@ -1258,9 +1256,10 @@ class TrafficItem(CustomField):
         elif len(flow_names) > 1:
             regex = "^(%s)$" % "|".join(self._api.special_char(flow_names))
 
-        self.logger.debug("These %s flows will go into %s state" % (
-            flow_names, request.state
-        ))
+        self.logger.debug(
+            "These %s flows will go into %s state"
+            % (flow_names, request.state)
+        )
         if request.state == "start":
             if len(self._api._topology.find()) > 0:
                 glob_topo = self._api._globals.Topology.refresh()
@@ -1380,9 +1379,10 @@ class TrafficItem(CustomField):
             raise Exception(msg)
         req_flow_names = self._api.special_char(req_flow_names)
         # initialize result values
-        self.logger.debug("Fetching these column %s for flows %s" %(
-            self._column_names, req_flow_names
-        ))
+        self.logger.debug(
+            "Fetching these column %s for flows %s"
+            % (self._column_names, req_flow_names)
+        )
         flow_names = []
         flow_rows = {}
         regfilter = {"property": "name", "regex": ".*"}

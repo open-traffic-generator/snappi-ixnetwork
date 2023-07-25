@@ -10,7 +10,7 @@ def test_mac_addrs(b2b_raw_config_vports):
     api = snappi.api(
         location=utl.settings.location,
         ext=utl.settings.ext,
-        loglevel=logging.DEBUG
+        loglevel=logging.DEBUG,
     )
     utl.configure_credentials(api, utl.settings.username, utl.settings.psd)
 

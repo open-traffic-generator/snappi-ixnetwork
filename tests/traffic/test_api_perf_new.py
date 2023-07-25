@@ -5,6 +5,7 @@ import utils
 
 CSV_DIR = utils.new_logs_dir()
 
+
 @pytest.mark.skip(reason="skip to CICD faster")
 @pytest.mark.parametrize("iterations", [1, 10])
 @pytest.mark.parametrize("num_of_flows", [100])

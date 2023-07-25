@@ -56,7 +56,9 @@ class Validation(object):
                                 continue
                             if getattr(item, "parent", None) is not None:
                                 item_ids.append(item_id)
-                                self.__check_config_objects(item.parent, item_ids)
+                                self.__check_config_objects(
+                                    item.parent, item_ids
+                                )
                             else:
                                 self.__check_config_objects(item, item_ids)
                     else:
