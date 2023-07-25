@@ -37,8 +37,8 @@ def lint():
 
 def test():
     coverage_threshold = 67
-    username = os.environ.get("PYPI_USERNAME", "admin")
-    password = os.environ.get("PYPI_PASSWORD", "admin")
+    username = os.environ.get("TEST_USERNAME", "admin")
+    password = os.environ.get("TEST_PASSWORD", "admin")
     args = [
         '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
         (
