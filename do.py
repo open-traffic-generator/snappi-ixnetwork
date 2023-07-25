@@ -35,7 +35,7 @@ def lint():
     )
 
 
-def test():
+def test(username=None, password=None):
     coverage_threshold = 67
     args = [
         '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
@@ -52,6 +52,13 @@ def test():
         "--cov=./snappi_ixnetwork --cov-report term"
         " --cov-report html:cov_report",
     ]
+
+    if username is not None:
+        args.append("--username=" + username)
+    if password is not None:
+        args.append("--password=" + password)
+    print(args)
+    return
     run(
         [
             py() + " -m pip install pytest-cov",

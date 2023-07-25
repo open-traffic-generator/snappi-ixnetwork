@@ -61,6 +61,10 @@ def load_dict_from_json_file(path):
         return json.load(fp, object_hook=byteify)
 
 
+def configure_credentials(api, usr, psd):
+    api.username = usr
+    api.password = psd
+
 class Settings(object):
     """
     Singleton for global settings
@@ -69,6 +73,7 @@ class Settings(object):
     def __init__(self):
         # these not be defined and are here only for documentation
         self.username = None
+        self.password = None
         self.location = None
         self.ports = None
         self.speed = None
