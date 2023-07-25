@@ -13,6 +13,9 @@ def test_mac_addrs(b2b_raw_config_vports):
         loglevel=logging.DEBUG
     )
 
+    api.username = "admin"
+    api.password = "1x14c0m!X!$C)M"
+
     api.set_config(b2b_raw_config_vports)
     assert api.log_level == logging.DEBUG
 
