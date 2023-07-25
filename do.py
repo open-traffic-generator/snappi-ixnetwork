@@ -58,12 +58,8 @@ def test():
     ]
     print(args)
 
-    run(
-        [
-            py() + " -m pip install pytest-cov",
-            py() + " -m pytest -sv {}".format(" ".join(args)),
-        ], shell=False
-    )
+    run([py() + " -m pip install pytest-cov"])
+    run([py() + " -m pytest -sv {}".format(" ".join(args))],shell=False)
     import re
 
     with open("./cov_report/index.html") as fp:
