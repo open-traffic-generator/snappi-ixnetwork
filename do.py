@@ -56,7 +56,7 @@ def test(username=None, password=None):
     if username is not None:
         args.append("--username=" + username)
     if password is not None:
-        args.append("--password=" + password)
+        args.append("--password=\"" + password + "\"")
 
     run(
         [
