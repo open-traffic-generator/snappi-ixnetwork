@@ -73,7 +73,7 @@ class Settings(object):
     def __init__(self):
         # these not be defined and are here only for documentation
         self.username = None
-        self.password = None
+        self.psd = None
         self.location = None
         self.ports = None
         self.speed = None

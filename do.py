@@ -58,8 +58,12 @@ def test():
     ]
     print(args)
 
-    run([py() + " -m pip install pytest-cov"])
-    run([py() + " -m pytest -sv {}".format(" ".join(args))],shell=False)
+    run(
+        [
+            py() + " -m pip install pytest-cov",
+            py() + " -m pytest -sv {}".format(" ".join(args)),
+        ]
+    )
     import re
 
     with open("./cov_report/index.html") as fp:
@@ -209,7 +213,7 @@ def py():
         return py.path
 
 
-def run(commands, shell=True):
+def run(commands):
     """
     Executes a list of commands in a native shell and raises exception upon
     failure.
@@ -219,7 +223,7 @@ def run(commands, shell=True):
             print(cmd)
             if sys.platform != "win32":
                 cmd = cmd.encode("utf-8", errors="ignore")
-            subprocess.check_call(cmd, shell=shell)
+            subprocess.check_call(cmd, shell=True)
     except Exception:
         sys.exit(1)
 
