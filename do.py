@@ -62,7 +62,7 @@ def test():
         [
             py() + " -m pip install pytest-cov",
             py() + " -m pytest -sv {}".format(" ".join(args)),
-        ]
+        ], shell=False
     )
     import re
 
@@ -213,7 +213,7 @@ def py():
         return py.path
 
 
-def run(commands):
+def run(commands, shell=True):
     """
     Executes a list of commands in a native shell and raises exception upon
     failure.
@@ -223,7 +223,7 @@ def run(commands):
             print(cmd)
             if sys.platform != "win32":
                 cmd = cmd.encode("utf-8", errors="ignore")
-            subprocess.check_call(cmd, shell=True)
+            subprocess.check_call(cmd, shell=shell)
     except Exception:
         sys.exit(1)
 
