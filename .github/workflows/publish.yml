@@ -64,7 +64,7 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py init
       - name: Run tests
         run: |
-          TEST_USERNAME=${{secrets.TEST_USERNAME}} TEST_PASSWORD='${{secrets.TEST_PASSWORD}}' ${{steps.path.outputs.pythonv}} do.py test novus10g
+          TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
 
   publish_artifacts:
     runs-on: [snappi-ixn-ci-novus100g]
