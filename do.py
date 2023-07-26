@@ -35,22 +35,40 @@ def lint():
     )
 
 
-def test():
+def test(card="novus100g"):
     coverage_threshold = 67
     username = os.environ.get("TEST_USERNAME", "admin")
     psd = os.environ.get("TEST_PASSWORD", "admin")
-    args = [
-        '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
-        (
-            '--ports="snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;1'
-            " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;2"
-            " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;5"
-            ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;6"'
-        ),
+
+    if card == "novus100g":
+        args = [
+            '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
+            (
+                '--ports="snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;1'
+                " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;2"
+                " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;5"
+                ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;6"'
+            ),
+            "--speed=speed_100_gbps",
+        ]
+    elif card == "novus10g":
+        args = [
+            '--location="https://novus1-715849.ccu.is.keysight.com:5000"',
+            (
+                '--ports="novus1-715849.ccu.is.keysight.com;1;1'
+                " novus1-715849.ccu.is.keysight.com;1;2"
+                " novus1-715849.ccu.is.keysight.com;1;5"
+                ' novus1-715849.ccu.is.keysight.com;1;6"'
+            ),
+            "--speed=speed_10_gbps",
+        ]
+    else:
+        raise Exception("card %s is not supported for testing" % card)
+
+    args += [
+        "--ext=ixnetwork",
         "--username=" + username,
         "--psd='" + psd + "'",
-        "--ext=ixnetwork",
-        "--speed=speed_100_gbps",
         "tests",
         '-m "not e2e and not l1_manual and not uhd"',
         "--cov=./snappi_ixnetwork --cov-report term"
