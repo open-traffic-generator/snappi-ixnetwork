@@ -34,7 +34,7 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py init
       - name: Run tests
         run: |
-          TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test
+          TEST_USERNAME=${{secrets.TEST_USERNAME}} TEST_PASSWORD='1x14c0m!X!$C)M' ${{steps.path.outputs.pythonv}} do.py test
       - name: Get package version
         id: get_version
         run: |

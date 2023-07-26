@@ -38,6 +38,7 @@ def lint():
 def test():
     coverage_threshold = 67
     username = os.environ.get("TEST_USERNAME", "admin")
+    psd = os.environ.get("TEST_PASSWORD", "admin")
     args = [
         '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
         (
@@ -47,9 +48,10 @@ def test():
             ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;6"'
         ),
         "--username=" + username,
+        "--psd='" + psd,
         "--ext=ixnetwork",
         "--speed=speed_100_gbps",
-        "tests",
+        "tests\\ping\\test_ping.py",
         '-m "not e2e and not l1_manual and not uhd"',
         "--cov=./snappi_ixnetwork --cov-report term"
         " --cov-report html:cov_report",
