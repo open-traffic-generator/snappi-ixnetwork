@@ -378,7 +378,7 @@ class Api(snappi.Api):
                     res = self.control_action_response()
                     self._connect()
                     res.response.protocol.ipv4.ping.responses.deserialize(
-                        self.ping.results(control_choice, request_payload)
+                        self.ping.results(request_payload, control_choice)
                     )
             elif control_choice == "ipv6":
                 choice = choice_obj.get("choice")
@@ -387,7 +387,7 @@ class Api(snappi.Api):
                     res = self.control_action_response()
                     self._connect()
                     res.response.protocol.ipv6.ping.responses.deserialize(
-                        self.ping.results(control_choice, request_payload)
+                        self.ping.results(request_payload, control_choice)
                     )
             res.warnings = snappi.Warning()
             return res
