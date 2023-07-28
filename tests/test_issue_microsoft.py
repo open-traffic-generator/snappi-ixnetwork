@@ -155,9 +155,9 @@ def static_lag(api, utils):
     wait_for_arp(api, max_attempts=10, poll_interval_sec=2)
 
     print("Starting transmit on all flows ...")
-    ts = api.transmit_state()
-    ts.state = ts.START
-    api.set_transmit_state(ts)
+    cs = api.control_state()
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
+    api.set_control_state(cs)
 
     utils.wait_for(lambda: utils.is_traffic_stopped(api), "traffic to stop")
 
