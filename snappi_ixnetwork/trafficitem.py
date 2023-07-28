@@ -1127,6 +1127,13 @@ class TrafficItem(CustomField):
                 ce["frameSize"]["incrementFrom"] = size.increment.start
                 ce["frameSize"]["incrementTo"] = size.increment.end
                 ce["frameSize"]["incrementStep"] = size.increment.step
+            elif size.choice == "weight_pairs":
+                if size.weight_pairs.choice == "predefined":
+                    ce["frameSize"]["type"] = "presetDistribution"
+                    ce["frameSize"]["presetDistribution"] = size.weight_pairs.predefined
+                elif size.weight_pairs.choice == "custom":
+                    ce["frameSize"]["type"] = "weightedPairs"
+                    ce["frameSize"]["weightedPairs"]=[item for t in zip(size.weight_pairs.custom.size,size.weight_pairs.custom.weight) for item in t]
             else:
                 print(
                     "Warning - We need to implement this %s choice"
