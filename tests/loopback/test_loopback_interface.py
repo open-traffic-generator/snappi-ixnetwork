@@ -61,18 +61,18 @@ def test_loopback_interface(b2b_raw_config, api):
 def validate_result(api):
     validate_v4 = {
         "loop1": {
-            "address": ['20.20.0.1', '20.20.0.3'],
+            "address": ["20.20.0.1", "20.20.0.3"],
         },
         "loop2": {
-            "address": ['20.20.0.2', '20.20.0.4'],
+            "address": ["20.20.0.2", "20.20.0.4"],
         },
     }
     validate_v6 = {
         "loop5": {
-            "address": ['2222::1', '2222::3'],
+            "address": ["2222::1", "2222::3"],
         },
         "loop6": {
-            "address": ['2222::2', '2222::4'],
+            "address": ["2222::2", "2222::4"],
         },
     }
     ixn = api._ixnetwork

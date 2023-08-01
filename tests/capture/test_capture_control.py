@@ -1,10 +1,10 @@
 import pytest
 import dpkt
 
+
 @pytest.mark.skip(
     reason="https://github.com/open-traffic-generator/snappi-ixnetwork/issues/525"
 )
-
 def test_capture_control(api, utils):
     """
     The test is to check if capture has control packets included.

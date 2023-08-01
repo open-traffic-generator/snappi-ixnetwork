@@ -28,10 +28,7 @@ class Ngpf(Base):
         "BgpCMacIpRange": "ethernetVlan",
     }
 
-    _ROUTE_STATE = {
-        "advertise": True,
-        "withdraw": False
-    }
+    _ROUTE_STATE = {"advertise": True, "withdraw": False}
 
     def __init__(self, ixnetworkapi):
         super(Ngpf, self).__init__()
@@ -72,19 +69,15 @@ class Ngpf(Base):
     def set_device_info(self, snappi_obj, ixn_obj):
         name = snappi_obj.get("name")
         class_name = snappi_obj.__class__.__name__
-        self.logger.debug("set_device_info name %s and class_name %s" % (
-            name, class_name
-        ))
+        self.logger.debug(
+            "set_device_info name %s and class_name %s" % (name, class_name)
+        )
         try:
             encap = Ngpf._DEVICE_ENCAP_MAP[class_name]
         except KeyError:
-            raise NameError(
-                "Mapping is missing for {0}".format(class_name)
-            )
+            raise NameError("Mapping is missing for {0}".format(class_name))
         self.api.set_device_encap(name, encap)
-        self.api.set_device_encap(
-            self.get_name(self.working_dg), encap
-        )
+        self.api.set_device_encap(self.get_name(self.working_dg), encap)
         self.api.ixn_objects.set(name, ixn_obj)
 
     def set_ixn_routes(self, snappi_obj, ixn_obj):
@@ -114,42 +107,27 @@ class Ngpf(Base):
         for device in self.api.snappi_config.devices:
             self._bgp.config(device)
 
-
         # Compaction will take place in this order
         # Step-1: Compact chain DGs
         for chain_parent_dg in self._chain_parent_dgs:
-            self.compactor.compact(chain_parent_dg.get(
-                "deviceGroup"
-            ))
-            self._set_dev_compacted(chain_parent_dg.get(
-                "deviceGroup"
-            ))
+            self.compactor.compact(chain_parent_dg.get("deviceGroup"))
+            self._set_dev_compacted(chain_parent_dg.get("deviceGroup"))
 
         # Step-2: Compact VXLAN
         source_interfaces = self._vxlan.source_interfaces
         for v4_int in source_interfaces.ipv4:
-            self.compactor.compact(v4_int.get(
-                "vxlan"
-            ))
+            self.compactor.compact(v4_int.get("vxlan"))
         for v6_int in source_interfaces.ipv6:
-            self.compactor.compact(v6_int.get(
-                "vxlanv6"
-            ))
+            self.compactor.compact(v6_int.get("vxlanv6"))
 
         # Step-3: First compact all loopback interfaces
         for ix_parent_dg in self.loopback_parent_dgs:
-            self.compactor.compact(ix_parent_dg.get(
-                "deviceGroup"
-            ))
+            self.compactor.compact(ix_parent_dg.get("deviceGroup"))
 
         # Step-4: Compact root Topology
         for ixn_topo in self._ixn_topo_objects.values():
-            self.compactor.compact(ixn_topo.get(
-                "deviceGroup"
-            ))
-            self._set_dev_compacted(ixn_topo.get(
-                "deviceGroup"
-            ))
+            self.compactor.compact(ixn_topo.get("deviceGroup"))
+            self._set_dev_compacted(ixn_topo.get("deviceGroup"))
 
     def _configure_device_group(self, ixn_topos):
         """map ethernet with a ixn deviceGroup with multiplier = 1"""
@@ -164,7 +142,8 @@ class Ngpf(Base):
                 if ethernet.get("connection") and ethernet.get("port_name"):
                     raise Exception(
                         "port_name and connection for ethernet configuration cannot be passed together, use either connection or port_name property. \
-                            port_name is deprecated and will be removed in future releases.")
+                            port_name is deprecated and will be removed in future releases."
+                    )
                 if ethernet.get("connection"):
                     connection_choice = ethernet.get("connection").choice
                     if connection_choice == "port_name":
@@ -181,13 +160,19 @@ class Ngpf(Base):
                 else:
                     port_name = ethernet.get("port_name")
                 if port_name is None:
-                    raise Exception("port_name is not passed for the device {}".format(device.get("name")))
+                    raise Exception(
+                        "port_name is not passed for the device {}".format(
+                            device.get("name")
+                        )
+                    )
                 if port_name in self._ixn_topo_objects:
                     ixn_topo = self._ixn_topo_objects[port_name]
                 else:
                     ixn_topo = self.add_element(ixn_topos)
                     ixn_topo["name"] = self._get_topology_name(port_name)
-                    ixn_topo["ports"] = [self.api.ixn_objects.get_xpath(port_name)]
+                    ixn_topo["ports"] = [
+                        self.api.ixn_objects.get_xpath(port_name)
+                    ]
                     self._ixn_topo_objects[port_name] = ixn_topo
                 ixn_dg = self.create_node_elemet(
                     ixn_topo, "deviceGroup", device.get("name")
@@ -214,7 +199,9 @@ class Ngpf(Base):
             if chin_dgs is None:
                 continue
             for connected_to, ethernet_list in chin_dgs.items():
-                ixn_working_dg = self.api.ixn_objects.get_working_dg(connected_to)
+                ixn_working_dg = self.api.ixn_objects.get_working_dg(
+                    connected_to
+                )
                 self._chain_parent_dgs.append(ixn_working_dg)
                 for ethernet in ethernet_list:
                     ixn_dg = self.create_node_elemet(
@@ -225,16 +212,13 @@ class Ngpf(Base):
                     self.set_device_info(device, ixn_dg)
                     self._ethernet.config(ethernet, ixn_dg)
 
-
     def _pushixnconfig(self):
         self.logger.debug("pushing ixnet config")
         erros = self.api.get_errors()
         if len(erros) > 0:
             return
         ixn_cnf = json.dumps(self._ixn_config, indent=2)
-        errata = self._resource_manager.ImportConfig(
-            ixn_cnf, False
-        )
+        errata = self._resource_manager.ImportConfig(ixn_cnf, False)
         for item in errata:
             self.api.warning(item)
 
@@ -244,7 +228,7 @@ class Ngpf(Base):
             self.logger.debug("Stopping topology")
             self.api._ixnetwork.StopAllProtocols("sync")
 
-    def set_protocol_state(self,request):
+    def set_protocol_state(self, request):
         if request.state is None:
             raise Exception("state is None within set_protocol_state")
         self.logger.debug("Setting protocol with %s" % request.state)
@@ -273,27 +257,31 @@ class Ngpf(Base):
                     ixn_obj = obj
                     break
             if ixn_obj is None:
-                ixn_obj_idx_list[route_info] = list(range(
-                    route_info.index, route_info.index + route_info.multiplier
-                ))
+                ixn_obj_idx_list[route_info] = list(
+                    range(
+                        route_info.index,
+                        route_info.index + route_info.multiplier,
+                    )
+                )
             else:
-                ixn_obj_idx_list[route_info].extend(list(range(
-                    route_info.index, route_info.index + route_info.multiplier
-                )))
+                ixn_obj_idx_list[route_info].extend(
+                    list(
+                        range(
+                            route_info.index,
+                            route_info.index + route_info.multiplier,
+                        )
+                    )
+                )
         imports = []
         for obj, index_list in ixn_obj_idx_list.items():
             xpath = obj.xpath
             active = "active"
             index_list = list(set(index_list))
-            object_info = self.select_properties(
-                xpath, properties=[active]
-            )
+            object_info = self.select_properties(xpath, properties=[active])
             values = object_info[active]["values"]
             for idx in index_list:
                 values[idx] = Ngpf._ROUTE_STATE[payload.state]
-            imports.append(self.configure_value(
-                xpath, active, values
-            ))
+            imports.append(self.configure_value(xpath, active, values))
         self.imports(imports)
         self.api._ixnetwork.Globals.Topology.ApplyOnTheFly()
         return names
@@ -312,43 +300,66 @@ class Ngpf(Base):
 
     def _lacp_start_stop_pdu(self, state, index=1, lag_name=None):
         if lag_name is None:
-            lag_port_lacp = (self.api._ixnetwork.Lag.find()
-                             .ProtocolStack.find().Ethernet.find()
-                             .Lagportlacp.find())
-            if state == 'up':
+            lag_port_lacp = (
+                self.api._ixnetwork.Lag.find()
+                .ProtocolStack.find()
+                .Ethernet.find()
+                .Lagportlacp.find()
+            )
+            if state == "up":
                 lag_port_lacp.LacpStartPDU()
-            elif state == 'down':
+            elif state == "down":
                 lag_port_lacp.LacpStopPDU()
         else:
-            lag_port_lacp = (self.api._ixnetwork.Lag.find(Name=lag_name)
-                             .ProtocolStack.find().Ethernet.find()
-                             .Lagportlacp.find())
-            if state == 'up':
+            lag_port_lacp = (
+                self.api._ixnetwork.Lag.find(Name=lag_name)
+                .ProtocolStack.find()
+                .Ethernet.find()
+                .Lagportlacp.find()
+            )
+            if state == "up":
                 lag_port_lacp.LacpStartPDU(SessionIndices=index)
-            elif state == 'down':
+            elif state == "down":
                 lag_port_lacp.LacpStopPDU(SessionIndices=index)
 
     def get_states(self, request):
         self.logger.debug("get_states for %s" % request.choice)
         if request.choice == "ipv4_neighbors":
-            ip_objs = self.api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv4.find()
+            ip_objs = (
+                self.api._ixnetwork.Topology.find()
+                .DeviceGroup.find()
+                .Ethernet.find()
+                .Ipv4.find()
+            )
             resolved_mac_list = self._get_ether_resolved_mac(
-                ip_objs, self.ether_v4gateway_map, request.ipv4_neighbors, "ipv4"
+                ip_objs,
+                self.ether_v4gateway_map,
+                request.ipv4_neighbors,
+                "ipv4",
             )
         elif request.choice == "ipv6_neighbors":
-            ip_objs = self.api._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv6.find()
+            ip_objs = (
+                self.api._ixnetwork.Topology.find()
+                .DeviceGroup.find()
+                .Ethernet.find()
+                .Ipv6.find()
+            )
             resolved_mac_list = self._get_ether_resolved_mac(
-                ip_objs, self.ether_v6gateway_map, request.ipv6_neighbors, "ipv6"
+                ip_objs,
+                self.ether_v6gateway_map,
+                request.ipv6_neighbors,
+                "ipv6",
             )
         else:
-            raise TypeError("get_states only accept ipv4_neighbors or ipv6_neighbors")
+            raise TypeError(
+                "get_states only accept ipv4_neighbors or ipv6_neighbors"
+            )
 
-        return {
-            "choice": request.choice,
-            request.choice: resolved_mac_list
-        }
+        return {"choice": request.choice, request.choice: resolved_mac_list}
 
-    def _get_ether_resolved_mac(self, ip_objs, ether_gateway_map, ip_neighbors, choice):
+    def _get_ether_resolved_mac(
+        self, ip_objs, ether_gateway_map, ip_neighbors, choice
+    ):
         arp_entries = {}
         for ip_obj in ip_objs:
             resolved_mac_list = ip_obj.ResolvedGatewayMac
@@ -366,27 +377,34 @@ class Ngpf(Base):
             gateway_ips = ether_gateway_map[ethernet_name]
             for gateway_ip in gateway_ips:
                 if gateway_ip not in arp_entries:
-                    raise Exception("{} not found within current configured gateway ips".format(
-                        gateway_ip
-                    ))
+                    raise Exception(
+                        "{} not found within current configured gateway ips".format(
+                            gateway_ip
+                        )
+                    )
                 if choice == "ipv4":
-                    resolved_mac_list.append({
-                        "ethernet_name": ethernet_name,
-                        "ipv4_address": gateway_ip,
-                        "link_layer_address": arp_entries[gateway_ip]
-                    })
+                    resolved_mac_list.append(
+                        {
+                            "ethernet_name": ethernet_name,
+                            "ipv4_address": gateway_ip,
+                            "link_layer_address": arp_entries[gateway_ip],
+                        }
+                    )
                 elif choice == "ipv6":
-                    resolved_mac_list.append({
-                        "ethernet_name": ethernet_name,
-                        "ipv6_address": gateway_ip,
-                        "link_layer_address": arp_entries[gateway_ip]
-                    })
-        self.logger.debug("These are resolved_mac_list: %s" % resolved_mac_list)
+                    resolved_mac_list.append(
+                        {
+                            "ethernet_name": ethernet_name,
+                            "ipv6_address": gateway_ip,
+                            "link_layer_address": arp_entries[gateway_ip],
+                        }
+                    )
+        self.logger.debug(
+            "These are resolved_mac_list: %s" % resolved_mac_list
+        )
         return resolved_mac_list
 
     def _get_href(self, xpath):
-        return xpath.replace('[', '/').\
-            replace(']', '')
+        return xpath.replace("[", "/").replace("]", "")
 
     def select_properties(self, xpath, properties=[]):
         href = self._get_href(xpath)
@@ -399,9 +417,9 @@ class Ngpf(Base):
                     "inlines": [
                         {
                             "child": "multivalue",
-                            "properties": ["format", "pattern", "values"]
+                            "properties": ["format", "pattern", "values"],
                         }
-                    ]
+                    ],
                 }
             ]
         }
@@ -445,5 +463,3 @@ class Ngpf(Base):
                 "value": value,
             }
         return ixn_value
-
-

@@ -1,6 +1,7 @@
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.logger import get_ixnet_logger
 
+
 class Ethernet(Base):
     _ETHERNET = {
         "mac": "mac",
@@ -16,17 +17,13 @@ class Ethernet(Base):
                 "x9100": "ethertype9100",
                 "x9200": "ethertype9200",
                 "x9300": "ethertype9300",
-            }
+            },
         },
         "priority": "priority",
-        "id": "vlanId"
+        "id": "vlanId",
     }
 
-    _IP = {
-        "address": "address",
-        "gateway": "gatewayIp",
-        "prefix": "prefix"
-    }
+    _IP = {"address": "address", "gateway": "gatewayIp", "prefix": "prefix"}
 
     _GATEWAY_MAC = {
         "gateway_mac": "manualGatewayMac",
@@ -55,7 +52,8 @@ class Ethernet(Base):
         self.logger.debug("Configuring VLAN")
         for vlan in vlans:
             ixn_vlan = self.create_node_elemet(
-                ixn_eth, "vlan", vlan.get("name"))
+                ixn_eth, "vlan", vlan.get("name")
+            )
             self.configure_multivalues(vlan, ixn_vlan, Ethernet._VLAN)
 
     def _configure_ipv4(self, ixn_eth, ethernet):
@@ -78,8 +76,9 @@ class Ethernet(Base):
             self._ngpf.set_device_info(ipv4_address, ixn_ip)
             self.configure_multivalues(ipv4_address, ixn_ip, Ethernet._IP)
             if ipv4_address.gateway_mac.choice == "value":
-                self.configure_multivalues_with_choice(ipv4_address, ixn_ip,
-                                                       Ethernet._GATEWAY_MAC)
+                self.configure_multivalues_with_choice(
+                    ipv4_address, ixn_ip, Ethernet._GATEWAY_MAC
+                )
 
     def _configure_ipv6(self, ixn_eth, ethernet):
         self.logger.debug("Configuring IPv6 interface")
@@ -101,6 +100,6 @@ class Ethernet(Base):
             self._ngpf.set_device_info(ipv6_address, ixn_ip)
             self.configure_multivalues(ipv6_address, ixn_ip, Ethernet._IP)
             if ipv6_address.gateway_mac.choice == "value":
-                self.configure_multivalues_with_choice(ipv6_address, ixn_ip,
-                                                       Ethernet._GATEWAY_MAC)
-
+                self.configure_multivalues_with_choice(
+                    ipv6_address, ixn_ip, Ethernet._GATEWAY_MAC
+                )

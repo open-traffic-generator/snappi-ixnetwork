@@ -85,8 +85,10 @@ def test_ping(api, b2b_raw_config):
 
     cs = api.control_action()
     cs.protocol.ipv4.ping.requests.add(src_name=ip1.name, dst_ip="10.1.1.2")
-    cs.protocol.ipv4.ping.requests.add(src_name=ip1.name, dst_ip = "10.1.1.3")
-    responses = api.set_control_action(cs).response.protocol.ipv4.ping.responses
+    cs.protocol.ipv4.ping.requests.add(src_name=ip1.name, dst_ip="10.1.1.3")
+    responses = api.set_control_action(
+        cs
+    ).response.protocol.ipv4.ping.responses
     for resp in responses:
         if resp.src_name == ip1.name and resp.dst_ip == "10.1.1.2":
             assert resp.result == "succeeded"
@@ -94,15 +96,18 @@ def test_ping(api, b2b_raw_config):
             assert resp.result == "failed"
 
     cs = api.control_action()
-    cs.protocol.ipv6.ping.requests.add(src_name=ipv62.name, dst_ip= "3000::1")
-    cs.protocol.ipv6.ping.requests.add(src_name=ipv62.name, dst_ip = "3000::9")
-    responses = api.set_control_action(cs).response.protocol.ipv6.ping.responses
+    cs.protocol.ipv6.ping.requests.add(src_name=ipv62.name, dst_ip="3000::1")
+    cs.protocol.ipv6.ping.requests.add(src_name=ipv62.name, dst_ip="3000::9")
+    responses = api.set_control_action(
+        cs
+    ).response.protocol.ipv6.ping.responses
 
     for resp in responses:
         if resp.src_name == ipv62.name and resp.dst_ip == "3000::1":
             assert resp.result == "succeeded"
         elif resp.src_name == ipv62.name and resp.dst_ip == "3000::9":
             assert resp.result == "failed"
+
 
 if __name__ == "__main__":
     pytest.main(["-vv", "-s", __file__])

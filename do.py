@@ -37,6 +37,8 @@ def lint():
 
 def test():
     coverage_threshold = 67
+    username = os.environ.get("TEST_USERNAME", "admin")
+    psd = os.environ.get("TEST_PASSWORD", "admin")
     args = [
         '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
         (
@@ -45,6 +47,8 @@ def test():
             " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;5"
             ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;6"'
         ),
+        "--username=" + username,
+        "--psd='" + psd + "'",
         "--ext=ixnetwork",
         "--speed=speed_100_gbps",
         "tests",
@@ -52,6 +56,8 @@ def test():
         "--cov=./snappi_ixnetwork --cov-report term"
         " --cov-report html:cov_report",
     ]
+    print(args)
+
     run(
         [
             py() + " -m pip install pytest-cov",
@@ -232,11 +238,13 @@ def get_workflow_id():
 
 
 def check_release_flag(release_flag=None, release_version=None):
-    if release_flag == '1':
+    if release_flag == "1":
         with open("setup.py") as f:
             out = f.read()
-            snappi_convergence = re.findall(r"\"snappi_convergence==(.+)\"",out)[0]
-        release_version = release_version.replace('v', "")
+            snappi_convergence = re.findall(
+                r"\"snappi_convergence==(.+)\"", out
+            )[0]
+        release_version = release_version.replace("v", "")
         with open("version.txt", "w+") as f:
             f.write("version: {}\n".format(release_version))
             f.write("snappi_convergence: {}\n".format(snappi_convergence))

@@ -1,7 +1,6 @@
 from snappi_ixnetwork.logger import get_ixnet_logger
 
-__all__ = ['Base', 'MultiValue', 'PostCalculated']
-
+__all__ = ["Base", "MultiValue", "PostCalculated"]
 
 
 class MultiValue(object):
@@ -25,9 +24,7 @@ class PostCalculated(object):
         value = None
         if self._key == "connectedTo":
             value = self._ref_obj.get("xpath")
-        self.logger.debug("Post Calculated %s - %s" % (
-            self._key, value
-        ))
+        self.logger.debug("Post Calculated %s - %s" % (self._key, value))
         return value
 
 
@@ -57,7 +54,7 @@ class Base(object):
         - We are setting name as multivalue for farther processing
         - It will return that newly created dict
         """
-        self.logger.debug("Creating node for %s" %node_name)
+        self.logger.debug("Creating node for %s" % node_name)
         node = self.create_node(ixn_obj, node_name)
         return self.add_element(node, name)
 
@@ -75,14 +72,10 @@ class Base(object):
         return MultiValue(value)
 
     def as_multivalue(self, snappi_obj, name, enum=None):
-        return self.multivalue(
-            snappi_obj.get(name), enum
-        )
+        return self.multivalue(snappi_obj.get(name), enum)
 
     def post_calculated(self, key, ref_ixnobj=None, ixnobj=None):
-        return PostCalculated(
-            key, ref_ixnobj, ixnobj
-        )
+        return PostCalculated(key, ref_ixnobj, ixnobj)
 
     def get_name(self, object):
         name = object.get("name")
@@ -106,20 +99,21 @@ class Base(object):
                     # We need to specify product default if model not specify
                     default_value = ixn_map.get("default_value")
                     if default_value is None:
-                        raise NameError("Please specify default_value for ",
-                                        snappi_attr)
+                        raise NameError(
+                            "Please specify default_value for ", snappi_attr
+                        )
                     value = default_value
                 if enum_map is not None and value is not None:
                     value = enum_map[value]
-                self.logger.debug("ixn_attr %s with enum value %s" % (
-                    ixn_attr, value
-                ))
+                self.logger.debug(
+                    "ixn_attr %s with enum value %s" % (ixn_attr, value)
+                )
             else:
                 ixn_attr = ixn_map
                 value = snappi_obj.get(snappi_attr)
-                self.logger.debug("ixn_attr %s with value %s" % (
-                    ixn_attr, value
-                ))
+                self.logger.debug(
+                    "ixn_attr %s with value %s" % (ixn_attr, value)
+                )
             ixn_obj[ixn_attr] = self.multivalue(value)
 
     def configure_multivalues_with_choice(self, snappi_obj, ixn_obj, attr_map):
@@ -130,9 +124,7 @@ class Base(object):
             value = snappi_obj.get(snappi_attr).get("value")
             if snappi_attr == "gateway_mac":
                 ixn_obj["resolveGateway"] = self.multivalue(False)
-            self.logger.debug("ixn_attr %s with value %s" % (
-                ixn_attr, value
-            ))
+            self.logger.debug("ixn_attr %s with value %s" % (ixn_attr, value))
             ixn_obj[ixn_attr] = self.multivalue(value)
 
     def get_symmetric_nodes(self, parent_list, node_name):
@@ -198,8 +190,9 @@ class NodesInfo(object):
             value = node.get(attr_name)
             if value is None:
                 if default is None:
-                    raise NameError("Please specify default_value for ",
-                                    attr_name)
+                    raise NameError(
+                        "Please specify default_value for ", attr_name
+                    )
                 value = default
             if enum_map is not None:
                 value = enum_map[value]
@@ -207,9 +200,9 @@ class NodesInfo(object):
         return values
 
     def get_multivalues(self, attr_name, enum_map=None, default=None):
-        return self._base.multivalue(self.get_values(
-            attr_name, enum_map=enum_map, default=default
-        ))
+        return self._base.multivalue(
+            self.get_values(attr_name, enum_map=enum_map, default=default)
+        )
 
     def config_values(self, ixn_obj, attr_map):
         for snappi_attr, ixn_map in attr_map.items():
@@ -219,9 +212,9 @@ class NodesInfo(object):
                     raise NameError("ixn_attr is missing within ", ixn_map)
                 enum_map = ixn_map.get("enum_map")
                 values = self.get_multivalues(
-                    snappi_attr, enum_map=enum_map, default=ixn_map.get(
-                        "default_value"
-                    )
+                    snappi_attr,
+                    enum_map=enum_map,
+                    default=ixn_map.get("default_value"),
                 )
             else:
                 ixn_attr = ixn_map
@@ -241,23 +234,18 @@ class NodesInfo(object):
             if tab_node is None and dummy_value is not None:
                 tab_nodes[idx] = dummy_value
 
-        return NodesInfo(
-            self._max_len,
-            self._active_list,
-            tab_nodes
-        )
+        return NodesInfo(self._max_len, self._active_list, tab_nodes)
 
     def get_symmetric_nodes(self, node_name):
-        return self._base.get_symmetric_nodes(
-            self._symmetric_nodes, node_name
-        )
+        return self._base.get_symmetric_nodes(self._symmetric_nodes, node_name)
 
     def get_group_nodes(self, tab_name):
         """We will pass a attribute names which is array in type
         Fill with other nodes and active_list as False
         It will raise error if all elements are not same length
         Finally return list of NodesInfo
-        It will use some IxNetwork tab which do not have enable/disable features"""
+        It will use some IxNetwork tab which do not have enable/disable features
+        """
         dummy_tab = None
         for node in self._symmetric_nodes:
             dummy_tab = node.get(tab_name)
@@ -279,28 +267,28 @@ class NodesInfo(object):
                 tab_lengths.append(len(tab))
                 active_list.append(True)
             if len(set(tab_lengths)) > 1:
-                raise Exception("All the attributes %s should have same lengths" % tab_name)
+                raise Exception(
+                    "All the attributes %s should have same lengths" % tab_name
+                )
             for idx in range(tab_lengths[-1]):
                 if len(group_nodes) <= idx:
                     group_nodes.append([tab[idx]])
                 else:
                     group_nodes[idx].append(tab[idx])
 
-        return active_list, [NodesInfo(
-            1,  # use dummy one
-            self._active_list,
-            group_node
-        ) for group_node in group_nodes]
+        return active_list, [
+            NodesInfo(1, self._active_list, group_node)  # use dummy one
+            for group_node in group_nodes
+        ]
 
     def get_active_group_nodes(self, tab_name):
         """It will cover get_group_nodes
         At the same time it will raise error if None node
         because IxNetwork do not have active field for those"""
-        active_list, node_info_list = self.get_group_nodes(
-            tab_name
-        )
+        active_list, node_info_list = self.get_group_nodes(tab_name)
         if len(set(active_list)) > 1:
-            raise Exception("All the attributes %s should configure with equal length"
-                            % tab_name)
+            raise Exception(
+                "All the attributes %s should configure with equal length"
+                % tab_name
+            )
         return node_info_list
-

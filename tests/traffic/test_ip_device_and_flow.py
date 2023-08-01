@@ -51,9 +51,7 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
         ip = eth.ipv4_addresses.add()
         ip.name = "%s_ipv4_%d" % (node, i + 1)
         ip.address = addrs["ip_%s" % node][i]
-        ip.gateway = addrs[
-            "ip_%s" % ("rx" if node == "tx" else "tx")
-        ][i]
+        ip.gateway = addrs["ip_%s" % ("rx" if node == "tx" else "tx")][i]
         ip.prefix = 24
     f1, f2 = b2b_raw_config.flows.flow(name="TxFlow-2")
     f1.name = "TxFlow-1"

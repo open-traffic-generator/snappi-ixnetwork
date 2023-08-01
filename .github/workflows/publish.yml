@@ -34,7 +34,7 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py init
       - name: Run tests
         run: |
-          ${{steps.path.outputs.pythonv}} do.py test
+          TEST_USERNAME=${{secrets.TEST_USERNAME}} TEST_PASSWORD='${{secrets.TEST_PASSWORD}}' ${{steps.path.outputs.pythonv}} do.py test
       - name: Get package version
         id: get_version
         run: |
@@ -70,7 +70,7 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py install_requests ${{steps.path.outputs.pythonv}}
           ${{steps.path.outputs.pythonv}} do.py check_release_flag ${{ steps.release.outputs.release_flag }} ${{ steps.get_version.outputs.version }}
   cicd_snappitest:
-    runs-on: [self-hosted, Linux, Ubuntu, x64]
+    runs-on: [snappi-ixn-ci-novus100g]
     needs: cicd
     steps:
       - name: Trigger CI/CD snappi-tests
