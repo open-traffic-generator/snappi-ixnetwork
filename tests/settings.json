@@ -1,5 +1,6 @@
 {
-    "username": "common",
+    "username": "admin",
+    "psd": "admin",
     "location": "https://localhost:443",
     "ports": [
         "localhost;1;1",

@@ -2,15 +2,13 @@ from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.device.bgpevpn import BgpEvpn
 
+
 class Bgp(Base):
     _BGP = {
         "peer_address": "dutIp",
         "as_type": {
             "ixn_attr": "type",
-            "enum_map": {
-                "ibgp": "internal",
-                "ebgp": "external"
-            }
+            "enum_map": {"ibgp": "internal", "ebgp": "external"},
         },
     }
 
@@ -19,7 +17,7 @@ class Bgp(Base):
         "keep_alive_interval": "keepaliveTimer",
         "update_interval": "updateInterval",
         "time_to_live": "ttl",
-        "md5_key": "md5Key"
+        "md5_key": "md5Key",
     }
 
     _CAPABILITY = {
@@ -45,7 +43,7 @@ class Bgp(Base):
         "ipv6_multicast_mpls_vpn": "ipv6MulticastBgpMplsVpn",
         "ipv6_unicast_flow_spec": "capabilityipv6UnicastFlowSpec",
         "ipv6_sr_te_policy": "capabilitySRTEPoliciesV6",
-        "ipv6_unicast_add_path": "capabilityIpv6UnicastAddPath"
+        "ipv6_unicast_add_path": "capabilityIpv6UnicastAddPath",
     }
 
     _CAPABILITY_IPv6 = {
@@ -57,16 +55,13 @@ class Bgp(Base):
         "address": "networkAddress",
         "prefix": "prefixLength",
         "count": "numberOfAddressesAsy",
-        "step": "prefixAddrStep"
+        "step": "prefixAddrStep",
     }
 
     _ROUTE = {
-        "next_hop_mode" : {
+        "next_hop_mode": {
             "ixn_attr": "nextHopType",
-            "enum_map": {
-                "local_ip": "sameaslocalip",
-                "manual": "manually"
-            }
+            "enum_map": {"local_ip": "sameaslocalip", "manual": "manually"},
         },
         "next_hop_address_type": "nextHopIPType",
         "next_hop_ipv4_address": "ipv4NextHop",
@@ -74,7 +69,7 @@ class Bgp(Base):
     }
 
     _COMMUNITY = {
-        "type" : {
+        "type": {
             "ixn_attr": "type",
             "enum_map": {
                 "manual_as_number": "manual",
@@ -83,10 +78,10 @@ class Bgp(Base):
                 "no_export_subconfed": "noexport_subconfed",
                 "llgr_stale": "llgr_stale",
                 "no_llgr": "no_llgr",
-            }
+            },
         },
         "as_number": "asNumber",
-        "as_custom": "lastTwoOctets"
+        "as_custom": "lastTwoOctets",
     }
 
     _BGP_AS_MODE = {
@@ -141,16 +136,21 @@ class Bgp(Base):
     def _is_valid(self, ip_name):
         is_invalid = True
         same_dg_ips, invalid_ips = self._get_interface_info()
-        self.logger.debug("Validating %s against interface same_dg_ips : %s invalid_ips %s" % (
-            ip_name, same_dg_ips, invalid_ips
-        ))
+        self.logger.debug(
+            "Validating %s against interface same_dg_ips : %s invalid_ips %s"
+            % (ip_name, same_dg_ips, invalid_ips)
+        )
         if ip_name in invalid_ips:
-            self._ngpf.api.add_error("Multiple IP {name} on top of name Ethernet".format(
-                name=ip_name
-            ))
+            self._ngpf.api.add_error(
+                "Multiple IP {name} on top of name Ethernet".format(
+                    name=ip_name
+                )
+            )
             is_invalid = False
         if len(same_dg_ips) > 0 and ip_name not in same_dg_ips:
-            self._ngpf.api.add_error("BGP should not configured on top of different device")
+            self._ngpf.api.add_error(
+                "BGP should not configured on top of different device"
+            )
             is_invalid = False
         return is_invalid
 
@@ -167,8 +167,7 @@ class Bgp(Base):
             if not self._is_valid(ipv4_name):
                 continue
             ixn_ipv4 = self._ngpf.api.ixn_objects.get_object(ipv4_name)
-            self._config_bgpv4(ipv4_interface.get("peers"),
-                               ixn_ipv4)
+            self._config_bgpv4(ipv4_interface.get("peers"), ixn_ipv4)
 
     def _config_ipv6_interfaces(self, bgp):
         self.logger.debug("Configuring BGP IPv6 interfaces")
@@ -183,8 +182,7 @@ class Bgp(Base):
             if not self._is_valid(ipv6_name):
                 continue
             ixn_ipv6 = self._ngpf.api.ixn_objects.get_object(ipv6_name)
-            self._config_bgpv6(ipv6_interface.get("peers"),
-                               ixn_ipv6)
+            self._config_bgpv6(ipv6_interface.get("peers"), ixn_ipv6)
 
     def _config_as_number(self, bgp_peer, ixn_bgp):
         as_number_width = bgp_peer.get("as_number_width")
@@ -211,7 +209,9 @@ class Bgp(Base):
                 self.configure_multivalues(advanced, ixn_bgpv4, Bgp._ADVANCED)
             capability = bgp_peer.get("capability")
             if capability is not None:
-                self.configure_multivalues(capability, ixn_bgpv4, Bgp._CAPABILITY)
+                self.configure_multivalues(
+                    capability, ixn_bgpv4, Bgp._CAPABILITY
+                )
             self._bgp_route_builder(bgp_peer, ixn_bgpv4)
             self._bgp_evpn.config(bgp_peer, ixn_bgpv4)
 
@@ -231,7 +231,9 @@ class Bgp(Base):
                 self.configure_multivalues(advanced, ixn_bgpv6, Bgp._ADVANCED)
             capability = bgp_peer.get("capability")
             if capability is not None:
-                self.configure_multivalues(capability, ixn_bgpv6, Bgp._CAPABILITY)
+                self.configure_multivalues(
+                    capability, ixn_bgpv6, Bgp._CAPABILITY
+                )
                 self.configure_multivalues(
                     capability, ixn_bgpv6, Bgp._CAPABILITY_IPv6
                 )
@@ -245,9 +247,7 @@ class Bgp(Base):
         v6_routes = bgp_peer.get("v6_routes")
         if v6_routes is not None:
             self._configure_bgpv6_route(v6_routes, ixn_bgp)
-        self._ngpf.compactor.compact(self._ngpf.working_dg.get(
-            "networkGroup"
-        ))
+        self._ngpf.compactor.compact(self._ngpf.working_dg.get("networkGroup"))
 
     def _configure_bgpv4_route(self, v4_routes, ixn_bgp):
         if v4_routes is None:
@@ -293,7 +293,9 @@ class Bgp(Base):
                     "connectedTo", ref_ixnobj=ixn_bgp
                 )
                 self.configure_multivalues(addresse, ixn_ip_pool, Bgp._IP_POOL)
-                ixn_route = self.create_node_elemet(ixn_ip_pool, "bgpV6IPRouteProperty")
+                ixn_route = self.create_node_elemet(
+                    ixn_ip_pool, "bgpV6IPRouteProperty"
+                )
                 self._ngpf.set_device_info(route, ixn_ip_pool)
                 self._configure_route(route, ixn_route)
 
@@ -306,7 +308,9 @@ class Bgp(Base):
             self.logger.debug("Configuring BGP route advance")
             multi_exit_discriminator = advanced.get("multi_exit_discriminator")
             if multi_exit_discriminator is not None:
-                ixn_route["enableMultiExitDiscriminator"] = self.multivalue(True)
+                ixn_route["enableMultiExitDiscriminator"] = self.multivalue(
+                    True
+                )
                 ixn_route["multiExitDiscriminator"] = self.multivalue(
                     multi_exit_discriminator
                 )
@@ -321,7 +325,9 @@ class Bgp(Base):
                 ixn_community = self.create_node_elemet(
                     ixn_route, "bgpCommunitiesList"
                 )
-                self.configure_multivalues(community, ixn_community, Bgp._COMMUNITY)
+                self.configure_multivalues(
+                    community, ixn_community, Bgp._COMMUNITY
+                )
 
         as_path = route.get("as_path")
         if as_path is not None:
@@ -333,7 +339,9 @@ class Bgp(Base):
             segments = as_path.get("segments")
             ixn_route["noOfASPathSegmentsPerRouteRange"] = len(segments)
             for segment in segments:
-                ixn_segment = self.create_node_elemet(ixn_route, "bgpAsPathSegmentList")
+                ixn_segment = self.create_node_elemet(
+                    ixn_route, "bgpAsPathSegmentList"
+                )
                 ixn_segment["segmentType"] = self.multivalue(
                     segment.get(type), Bgp._BGP_SEG_TYPE
                 )

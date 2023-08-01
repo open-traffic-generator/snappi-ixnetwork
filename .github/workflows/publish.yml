@@ -6,13 +6,8 @@ on:
   pull_request:
 
 jobs:
-  cicd:
-    runs-on: [self-hosted, Linux, Ubuntu, x64]
-    strategy:
-      max-parallel: 1
-      matrix:
-        python-version: [python27, python38]
-
+  test_novus_100g:
+    runs-on: [snappi-ixn-ci-novus100g]
     steps:
       - name: Checkout source
         uses: actions/checkout@v2
@@ -22,7 +17,7 @@ jobs:
           submodules: recursive
       - name: Set python path
         id: path
-        run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
+        run: echo "::set-output name=pythonv::/home/github-runner/pyenv/.env/bin/python"
       - name: Install dependencies
         run: |
           rm -rf .env
@@ -39,7 +34,59 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py init
       - name: Run tests
         run: |
-          ${{steps.path.outputs.pythonv}} do.py test
+          TEST_USERNAME=${{secrets.TEST_USERNAME}} TEST_PASSWORD='${{secrets.TEST_PASSWORD}}' ${{steps.path.outputs.pythonv}} do.py test
+
+  test_novus_10g:
+    runs-on: [snappi-ixn-ci-novus10g]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ env.BASE_BRANCH }}
+          # ref: ${{ github.head_ref }}
+          submodules: recursive
+      - name: Set python path
+        id: path
+        run: echo "::set-output name=pythonv::/home/github-runner/pyenv/.env/bin/python"
+      - name: Install dependencies
+        run: |
+          rm -rf .env
+          ${{steps.path.outputs.pythonv}} do.py setup
+          ${{steps.path.outputs.pythonv}} do.py init
+      - name: Build distribution
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py dist
+      - name: Install package on clean env
+        run: |
+          rm -rf .env
+          ${{steps.path.outputs.pythonv}} do.py setup
+          ${{steps.path.outputs.pythonv}} do.py install
+          ${{steps.path.outputs.pythonv}} do.py init
+      - name: Run tests
+        run: |
+          TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
+
+  publish_artifacts:
+    runs-on: [snappi-ixn-ci-novus100g]
+    needs: [test_novus_100g, test_novus_10g]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ env.BASE_BRANCH }}
+          # ref: ${{ github.head_ref }}
+          submodules: recursive
+      - name: Set python path
+        id: path
+        run: echo "::set-output name=pythonv::/home/github-runner/pyenv/.env/bin/python"
+      - name: Install dependencies
+        run: |
+          rm -rf .env
+          ${{steps.path.outputs.pythonv}} do.py setup
+          ${{steps.path.outputs.pythonv}} do.py init
+      - name: Build distribution
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py dist
       - name: Get package version
         id: get_version
         run: |
@@ -74,9 +121,10 @@ jobs:
         run: |
           ${{steps.path.outputs.pythonv}} do.py install_requests ${{steps.path.outputs.pythonv}}
           ${{steps.path.outputs.pythonv}} do.py check_release_flag ${{ steps.release.outputs.release_flag }} ${{ steps.get_version.outputs.version }}
+
   cicd_snappitest:
-    runs-on: [self-hosted, Linux, Ubuntu, x64]
-    needs: cicd
+    runs-on: [snappi-ixn-ci-novus100g]
+    needs: test_novus_100g
     steps:
       - name: Trigger CI/CD snappi-tests
         run: |

@@ -19,7 +19,7 @@ def test_flow_tracking_stats(api, utils):
     layer1.name = "test"
 
     config.options.port_options.location_preemption = True
-    
+
     d1, d2, d3, d4 = (
         config.devices.device(name="Device1")
         .device(name="Device2")

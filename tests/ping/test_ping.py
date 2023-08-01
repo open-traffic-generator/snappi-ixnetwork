@@ -8,6 +8,9 @@ def test_ping(api, b2b_raw_config):
 
     Return the ping responses and validate as per user's expectation
     """
+    version = api.get_version()
+    print(version)
+
     port1, port2 = b2b_raw_config.ports
     d1, d2 = b2b_raw_config.devices.device(name="tx_bgp").device(name="rx_bgp")
     eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
@@ -80,28 +83,30 @@ def test_ping(api, b2b_raw_config):
             time.sleep(1)
             retry_count = retry_count + 1
 
-    # Ping Requests once ARP is resolved
-    req = api.ping_request()
-    p1, p2, p3, p4 = req.endpoints.ipv4().ipv4().ipv6().ipv6()
-    p1.src_name = ip1.name
-    p1.dst_ip = "10.1.1.2"
-    p2.src_name = ip1.name
-    p2.dst_ip = "10.1.1.3"
-    p3.src_name = ipv62.name
-    p3.dst_ip = "3000::1"
-    p4.src_name = ipv62.name
-    p4.dst_ip = "3000::9"
-
-    responses = api.send_ping(req).responses
+    cs = api.control_action()
+    cs.protocol.ipv4.ping.requests.add(src_name=ip1.name, dst_ip="10.1.1.2")
+    cs.protocol.ipv4.ping.requests.add(src_name=ip1.name, dst_ip="10.1.1.3")
+    responses = api.set_control_action(
+        cs
+    ).response.protocol.ipv4.ping.responses
     for resp in responses:
         if resp.src_name == ip1.name and resp.dst_ip == "10.1.1.2":
-            assert resp.result == "success"
+            assert resp.result == "succeeded"
         elif resp.src_name == ip1.name and resp.dst_ip == "10.1.1.3":
-            assert resp.result == "failure"
-        elif resp.src_name == ipv62.name and resp.dst_ip == "3000::1":
-            assert resp.result == "success"
+            assert resp.result == "failed"
+
+    cs = api.control_action()
+    cs.protocol.ipv6.ping.requests.add(src_name=ipv62.name, dst_ip="3000::1")
+    cs.protocol.ipv6.ping.requests.add(src_name=ipv62.name, dst_ip="3000::9")
+    responses = api.set_control_action(
+        cs
+    ).response.protocol.ipv6.ping.responses
+
+    for resp in responses:
+        if resp.src_name == ipv62.name and resp.dst_ip == "3000::1":
+            assert resp.result == "succeeded"
         elif resp.src_name == ipv62.name and resp.dst_ip == "3000::9":
-            assert resp.result == "failure"
+            assert resp.result == "failed"
 
 
 if __name__ == "__main__":
