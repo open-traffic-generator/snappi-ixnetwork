@@ -863,6 +863,9 @@ class TrafficItem(CustomField):
             ):
                 enable_min_frame_size = True
                 break
+            if flow.size.choice == "weight_pairs":
+               enable_min_frame_size = True
+               break
         if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:
             self._api._traffic.EnableMinFrameSize = enable_min_frame_size
 
@@ -1130,10 +1133,19 @@ class TrafficItem(CustomField):
             elif size.choice == "weight_pairs":
                 if size.weight_pairs.choice == "predefined":
                     ce["frameSize"]["type"] = "presetDistribution"
-                    ce["frameSize"]["presetDistribution"] = size.weight_pairs.predefined
+                    if size.weight_pairs.predefined == "ipv6_imix":
+                        ce["frameSize"]["presetDistribution"] = "ipV6Imix"
+                    elif size.weight_pairs.predefined == "standard_imix":
+                        ce["frameSize"]["presetDistribution"] = "standardImix"
+                    elif size.weight_pairs.predefined == "tcp_imix":
+                        ce["frameSize"]["presetDistribution"] = "tcpImix"
+                    elif size.weight_pairs.predefined == "ipsec_imix":
+                        ce["frameSize"]["presetDistribution"] = "ipSecImix"    
+                    else :
+                        ce["frameSize"]["presetDistribution"] = size.weight_pairs.predefined
                 elif size.weight_pairs.choice == "custom":
                     ce["frameSize"]["type"] = "weightedPairs"
-                    ce["frameSize"]["weightedPairs"]=[item for t in zip(size.weight_pairs.custom.size,size.weight_pairs.custom.weight) for item in t]
+                    ce["frameSize"]["weightedPairs"]=[item for t in size.weight_pairs.custom for item in (t.size, t.weight)]
             else:
                 print(
                     "Warning - We need to implement this %s choice"
