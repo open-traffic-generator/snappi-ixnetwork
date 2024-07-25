@@ -16,7 +16,7 @@ IxNetwork, (one of) Keysight's implementation of [Open Traffic Generator](https:
 
 To start contributing, please see [contributing.md](contributing.md).
 
-## Install on a client
+## Install on a client 
 
 ```sh
 python -m pip install --upgrade "snappi[ixnetwork]"
