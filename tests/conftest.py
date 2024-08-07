@@ -70,9 +70,8 @@ def settings():
 @pytest.fixture(scope="session")
 def api():
     # handle to make API calls
-    api = snappi.api(
-        location=utl.settings.location, ext=utl.settings.ext
-    )
+    api = snappi.api(location=utl.settings.location, ext=utl.settings.ext)
+    utl.configure_credentials(api, utl.settings.username, utl.settings.psd)
     yield api
     if getattr(api, "assistant", None) is not None:
         api.assistant.Session.remove()
@@ -82,9 +81,10 @@ def api():
 def cvg_api():
     # handle to make Convergence API calls
     api = snappi_convergence.api(
-        location=utl.settings.location, ext=utl.settings.ext
+        location=utl.settings.location,
+        ext=utl.settings.ext,
     )
-
+    api.configure_credentials(utl.settings.username, utl.settings.psd)
     yield api
     if getattr(api, "assistant", None) is not None:
         api.assistant.Session.remove()
