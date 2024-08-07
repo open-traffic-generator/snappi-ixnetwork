@@ -122,16 +122,16 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py install_requests ${{steps.path.outputs.pythonv}}
           ${{steps.path.outputs.pythonv}} do.py check_release_flag ${{ steps.release.outputs.release_flag }} ${{ steps.get_version.outputs.version }}
 
-  # cicd_snappitest:
-  #   runs-on: [snappi-ixn-ci-novus100g]
-  #   needs: test_novus_100g
-  #   steps:
-  #     - name: Trigger CI/CD snappi-tests
-  #       run: |
-  #         git clone https://github.com/open-traffic-generator/snappi-tests.git
-  #         mv version.txt snappi-tests
-  #         cd snappi-tests
-  #         git add version.txt
-  #         git commit --allow-empty -m "Trigger Snappi test from snappi-ixnetwork"
-  #         git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
-  #         git push origin main
+  cicd_snappitest:
+    runs-on: [snappi-ixn-ci-novus100g]
+    needs: test_novus_100g
+    steps:
+      - name: Trigger CI/CD snappi-tests
+        run: |
+          git clone https://github.com/open-traffic-generator/snappi-tests.git
+          mv version.txt snappi-tests
+          cd snappi-tests
+          git add version.txt
+          git commit --allow-empty -m "Trigger Snappi test from snappi-ixnetwork"
+          git remote set-url origin https://${{secrets.CI_TOKEN}}@github.com/open-traffic-generator/snappi-tests.git
+          git push origin main
