@@ -41,16 +41,16 @@ def test(card="novus100g"):
     psd = os.environ.get("TEST_PASSWORD", "admin")
 
     if card == "novus100g":
-        # args = [
-        #     '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
-        #     (
-        #         '--ports="snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;1'
-        #         " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;2"
-        #         " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;5"
-        #         ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;6"'
-        #     ),
-        #     "--speed=speed_100_gbps",
-        # ]
+        args = [
+            '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
+            (
+                '--ports="snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;1'
+                " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;2"
+                " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;5"
+                ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;6"'
+            ),
+            "--speed=speed_100_gbps",
+        ]
     elif card == "novus10g":
         args = [
             '--location="https://novus1-715849.ccu.is.keysight.com:5000"',
