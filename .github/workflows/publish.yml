@@ -6,36 +6,6 @@ on:
   pull_request:
 
 jobs:
-  # test_novus_100g:
-  #   runs-on: [snappi-ixn-ci-novus100g]
-  #   steps:
-  #     - name: Checkout source
-  #       uses: actions/checkout@v2
-  #       with:
-  #         ref: ${{ env.BASE_BRANCH }}
-  #         # ref: ${{ github.head_ref }}
-  #         submodules: recursive
-  #     - name: Set python path
-  #       id: path
-  #       run: echo "::set-output name=pythonv::/home/github-runner/pyenv/.env/bin/python"
-  #     - name: Install dependencies
-  #       run: |
-  #         rm -rf .env
-  #         ${{steps.path.outputs.pythonv}} do.py setup
-  #         ${{steps.path.outputs.pythonv}} do.py init
-  #     - name: Build distribution
-  #       run: |
-  #         ${{steps.path.outputs.pythonv}} do.py dist
-  #     - name: Install package on clean env
-  #       run: |
-  #         rm -rf .env
-  #         ${{steps.path.outputs.pythonv}} do.py setup
-  #         ${{steps.path.outputs.pythonv}} do.py install
-  #         ${{steps.path.outputs.pythonv}} do.py init
-  #     - name: Run tests
-  #       run: |
-  #         TEST_USERNAME=${{secrets.TEST_USERNAME}} TEST_PASSWORD='${{secrets.TEST_PASSWORD}}' ${{steps.path.outputs.pythonv}} do.py test
-
   test_novus_10g:
     runs-on: [snappi-ixn-ci-novus10g]
     steps:
