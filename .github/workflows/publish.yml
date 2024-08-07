@@ -5,6 +5,9 @@ on:
     # branches: [main]
   pull_request:
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
 jobs:
   # test_novus_100g:
   #   runs-on: [snappi-ixn-ci-novus100g]
