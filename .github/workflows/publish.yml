@@ -70,7 +70,8 @@ jobs:
           TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
 
   publish_artifacts:
-    runs-on: [snappi-ixn-ci-novus100g]
+    # runs-on: [snappi-ixn-ci-novus100g]
+    runs-on: [snappi-ixn-ci-novus10g]
     needs: [test_novus_10g]
     # needs: [test_novus_100g, test_novus_10g]
     steps:
