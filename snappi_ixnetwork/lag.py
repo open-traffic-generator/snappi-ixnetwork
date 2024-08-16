@@ -51,7 +51,7 @@ class Lag(object):
         "actor_system_id": {
             "ixn_attr": "actorSystemId",
             "default": "00 00 00 00 00 01",
-            "translate": "_translate_actor_system_id"
+            "translate": "_translate_actor_system_id",
         },
         "actor_system_priority": {
             "ixn_attr": "actorSystemPriority",
@@ -267,14 +267,10 @@ class Lag(object):
             lacp_port_protocols.append(lacp_port_protocol)
         if len(ixn_static) > 0:
             ixn_static.remove()
-        lacp_xpath = (
-            "{0}/protocolStack/ethernet[1]/lagportlacp[1]".format(
-                ixn_lags[name]["xpath"]
-            )
+        lacp_xpath = "{0}/protocolStack/ethernet[1]/lagportlacp[1]".format(
+            ixn_lags[name]["xpath"]
         )
-        imports.append(
-            self._set_multivalue(lacp_xpath, "active", True)
-        )
+        imports.append(self._set_multivalue(lacp_xpath, "active", True))
         for lacp_attr in Lag._LACP_PORT_PROTOCOL:
             attr_values = self._configure_attribute(
                 lacp_attr, Lag._LACP_PORT_PROTOCOL, lacp_port_protocols
@@ -333,7 +329,8 @@ class Lag(object):
                         )
                     )
                 lacp_port_imports = self._lacp_ports_config(
-                    snappi_lag.name, snappi_lag.ports)
+                    snappi_lag.name, snappi_lag.ports
+                )
                 imports += lacp_port_imports
             else:
                 if len(ixn_lacp) > 0:
