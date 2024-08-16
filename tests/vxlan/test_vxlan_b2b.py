@@ -1,6 +1,6 @@
 import pytest
 
-
+@pytest.mark.skip("skip until migrated to snappi")
 def test_vxlan_b2b(api, utils):
     config = api.config()
 
