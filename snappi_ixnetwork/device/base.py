@@ -1,7 +1,6 @@
 from snappi_ixnetwork.logger import get_ixnet_logger
 
-__all__ = ['Base', 'MultiValue', 'PostCalculated']
-
+__all__ = ["Base", "MultiValue", "PostCalculated"]
 
 
 class MultiValue(object):
@@ -25,9 +24,7 @@ class PostCalculated(object):
         value = None
         if self._key == "connectedTo":
             value = self._ref_obj.get("xpath")
-        self.logger.debug("Post Calculated %s - %s" % (
-            self._key, value
-        ))
+        self.logger.debug("Post Calculated %s - %s" % (self._key, value))
         return value
 
 
@@ -57,7 +54,7 @@ class Base(object):
         - We are setting name as multivalue for farther processing
         - It will return that newly created dict
         """
-        self.logger.debug("Creating node for %s" %node_name)
+        self.logger.debug("Creating node for %s" % node_name)
         node = self.create_node(ixn_obj, node_name)
         return self.add_element(node, name)
 
@@ -75,14 +72,10 @@ class Base(object):
         return MultiValue(value)
 
     def as_multivalue(self, snappi_obj, name, enum=None):
-        return self.multivalue(
-            snappi_obj.get(name), enum
-        )
+        return self.multivalue(snappi_obj.get(name), enum)
 
     def post_calculated(self, key, ref_ixnobj=None, ixnobj=None):
-        return PostCalculated(
-            key, ref_ixnobj, ixnobj
-        )
+        return PostCalculated(key, ref_ixnobj, ixnobj)
 
     def get_name(self, object):
         name = object.get("name")
@@ -219,9 +212,9 @@ class NodesInfo(object):
                     raise NameError("ixn_attr is missing within ", ixn_map)
                 enum_map = ixn_map.get("enum_map")
                 values = self.get_multivalues(
-                    snappi_attr, enum_map=enum_map, default=ixn_map.get(
-                        "default_value"
-                    )
+                    snappi_attr,
+                    enum_map=enum_map,
+                    default=ixn_map.get("default_value"),
                 )
             else:
                 ixn_attr = ixn_map
@@ -257,7 +250,8 @@ class NodesInfo(object):
         Fill with other nodes and active_list as False
         It will raise error if all elements are not same length
         Finally return list of NodesInfo
-        It will use some IxNetwork tab which do not have enable/disable features"""
+        It will use some IxNetwork tab which don't have enable/disable features
+        """
         dummy_tab = None
         for node in self._symmetric_nodes:
             dummy_tab = node.get(tab_name)
@@ -279,7 +273,9 @@ class NodesInfo(object):
                 tab_lengths.append(len(tab))
                 active_list.append(True)
             if len(set(tab_lengths)) > 1:
-                raise Exception("All the attributes %s should have same lengths" % tab_name)
+                raise Exception(
+                    "All the attributes %s should have same lengths" % tab_name
+                )
             for idx in range(tab_lengths[-1]):
                 if len(group_nodes) <= idx:
                     group_nodes.append([tab[idx]])
@@ -300,7 +296,8 @@ class NodesInfo(object):
             tab_name
         )
         if len(set(active_list)) > 1:
-            raise Exception("All the attributes %s should configure with equal length"
-                            % tab_name)
+            raise Exception(
+                "All the attributes %s should configure with equal length"
+                % tab_name
+            )
         return node_info_list
-

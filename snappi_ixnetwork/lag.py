@@ -1,6 +1,5 @@
 import json
 from snappi_ixnetwork.timer import Timer
-from snappi_ixnetwork.exceptions import SnappiIxnException
 
 
 class Lag(object):
@@ -12,12 +11,15 @@ class Lag(object):
     """
 
     """
-    These are supported keys to defined field (_ETHERNET/ _VLAN/ _LACP/ new one...)
+    These are supported keys to defined field 
+    (_ETHERNET/ _VLAN/ _LACP/ new one...)
     <stack_name> = {
         <key> : {
             "ixn_attr" : name in IxNetwork SDM
-            "default" : default IxNetwork value. Consider snappi default already taken care.
-            "translate" : translate snappi value to ixnetwork value help of self method 
+            "default" : default IxNetwork value. 
+                        Consider snappi default already taken care.
+            "translate" : translate snappi value to ixnetwork 
+                          value help of self method 
             "enum_map" : enum map with snappi with ixnetwork
         }
     }
@@ -51,7 +53,7 @@ class Lag(object):
         "actor_system_id": {
             "ixn_attr": "actorSystemId",
             "default": "00 00 00 00 00 01",
-            "translate": "_translate_actor_system_id"
+            "translate": "_translate_actor_system_id",
         },
         "actor_system_priority": {
             "ixn_attr": "actorSystemPriority",
@@ -82,8 +84,10 @@ class Lag(object):
     def config(self):
         """Transform config.ports into Ixnetwork.Vport
         1) delete any vport that is not part of the config
-        2) create a vport for every config.ports[] that is not present in IxNetwork
-        3) set config.ports[].location to /vport -location using resourcemanager
+        2) create a vport for every config.ports[] that is
+          not present in IxNetwork
+        3) set config.ports[].location to /vport -location 
+          using resourcemanager
         4) set /vport/l1Config/... properties using the corrected /vport -type
         5) connectPorts to use new l1Config settings and clearownership
         """
@@ -112,7 +116,9 @@ class Lag(object):
         return True
 
     def _delete_lags(self):
-        """Delete any Lags from the api server that do not exist in the new config"""
+        """
+        Delete any Lags from the api server that do not exist in the new config
+        """
         self._api._remove(self._ixn_lag, self._lags_config)
 
     def _select_lags(self):
@@ -272,9 +278,7 @@ class Lag(object):
                 ixn_lags[name]["xpath"]
             )
         )
-        imports.append(
-            self._set_multivalue(lacp_xpath, "active", True)
-        )
+        imports.append(self._set_multivalue(lacp_xpath, "active", True))
         for lacp_attr in Lag._LACP_PORT_PROTOCOL:
             attr_values = self._configure_attribute(
                 lacp_attr, Lag._LACP_PORT_PROTOCOL, lacp_port_protocols
@@ -333,7 +337,8 @@ class Lag(object):
                         )
                     )
                 lacp_port_imports = self._lacp_ports_config(
-                    snappi_lag.name, snappi_lag.ports)
+                    snappi_lag.name, snappi_lag.ports
+                )
                 imports += lacp_port_imports
             else:
                 if len(ixn_lacp) > 0:

@@ -6,9 +6,7 @@ class Compactor(object):
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         self._unsupported_nodes = []
-        self._ignore_keys = [
-            "xpath", "name"
-        ]
+        self._ignore_keys = ["xpath", "name"]
         self.logger = get_ixnet_logger(__name__)
 
     def compact(self, roots):
@@ -29,13 +27,11 @@ class Compactor(object):
         for similar_objs in similar_objs_list:
             if len(similar_objs.objects) > 0:
                 similar_objs.compact(roots)
-                self.set_scalable(
-                    similar_objs.primary_obj
-                )
+                self.set_scalable(similar_objs.primary_obj)
 
     def _comparator(self, src, dst):
         if type(src) != type(dst):
-            raise Exception("comparision issue")
+            raise Exception("comparison issue")
         src_node_keys = [
             k for k, v in src.items() if not isinstance(v, MultiValue)
         ]
@@ -56,7 +52,7 @@ class Compactor(object):
             if isinstance(src_value, dict):
                 if self._comparator(src_value, dst_value) is False:
                     return False
-            # todo: we need to restructure if same element in different position
+            # todo: Need to restructure if same element in different position
             elif isinstance(src_value, list):
                 if len(src_value) != len(dst_value):
                     return False
@@ -117,9 +113,7 @@ class SimilarObjects(Base):
     def compact(self, roots):
         multiplier = len(self._objects) + 1
         for object in self._objects:
-            self._value_compactor(
-                self._primary_obj, object
-            )
+            self._value_compactor(self._primary_obj, object)
             roots.remove(object)
         self._primary_obj["multiplier"] = multiplier
 
@@ -130,10 +124,16 @@ class SimilarObjects(Base):
             src_value = src.get(key)
             dst_value = dst.get(key)
             if key == "name":
-                src_value = src_value if isinstance(src_value, MultiValue) \
+                src_value = (
+                    src_value 
+                    if isinstance(src_value, MultiValue) 
                     else self.multivalue(src_value)
-                dst_value = dst_value if isinstance(dst_value, MultiValue) \
+                )
+                dst_value = (
+                    dst_value
+                    if isinstance(dst_value, MultiValue)
                     else self.multivalue(dst_value)
+                )
             # todo: fill with product default value for
             # if dst_value is None:
             #     dst_value = obj.get(key, with_default=True)
@@ -141,9 +141,7 @@ class SimilarObjects(Base):
                 for index, dst_dict in enumerate(dst_value):
                     if not isinstance(dst_dict, dict):
                         continue
-                    self._value_compactor(
-                        src_value[index], dst_dict
-                    )
+                    self._value_compactor(src_value[index], dst_dict)
             elif isinstance(dst_value, dict):
                 self._value_compactor(src_value, dst_value)
             elif isinstance(src_value, MultiValue):

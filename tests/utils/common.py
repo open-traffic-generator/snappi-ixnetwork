@@ -138,7 +138,6 @@ def start_traffic(api, cfg, start_capture=True):
     cs.protocol.all.state = cs.protocol.all.START
     api.set_control_state(cs)
 
-
     print("Starting transmit on all flows ...")
     cs = api.control_state()
     cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START

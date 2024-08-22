@@ -40,10 +40,10 @@ def test(card="novus100g"):
     coverage_threshold = 0
     username = os.environ.get("TEST_USERNAME", "admin")
     psd = os.environ.get("TEST_PASSWORD", "admin")
-   
     if card == "novus100g":
         args = [
-            '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
+            '--location=\
+                "https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
             (
                 '--ports="snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;1'
                 " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;2"
@@ -65,7 +65,6 @@ def test(card="novus100g"):
         ]
     else:
         raise Exception("card %s is not supported for testing" % card)
-    
     args += [
         "--ext=ixnetwork",
         "--username=" + username,

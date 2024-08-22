@@ -1,5 +1,7 @@
 import re
-from collections import namedtuple, Mapping
+from collections import namedtuple
+from collections.abc import Mapping
+
 
 def namedtuple_with_defaults(typename, field_names, default_values=()):
     T = namedtuple(typename, field_names)
@@ -14,8 +16,8 @@ def namedtuple_with_defaults(typename, field_names, default_values=()):
 
 def asdot2plain(asdot):
     """This returns an ASPLAIN formated ASN given an ASDOT+ format"""
-    if re.findall(r'\.|\:', asdot):
-        left, right = re.split(r'\.|\:', asdot)
+    if re.findall(r"\.|\:", asdot):
+        left, right = re.split(r"\.|\:", asdot)
         ret = int(left) * 65536 + int(right)
         return ret
     else:
@@ -23,9 +25,11 @@ def asdot2plain(asdot):
 
 
 def convert_as_values(as_types, as_values):
-    ConvertedAsValues = namedtuple_with_defaults("ConvertedAsValues",
-                                                 ("as_num", "as4_num", "ip_addr", "assign_num", "common_num"),
-                                                 ([], [], [], [], []))
+    ConvertedAsValues = namedtuple_with_defaults(
+        "ConvertedAsValues",
+        ("as_num", "as4_num", "ip_addr", "assign_num", "common_num"),
+        ([], [], [], [], []),
+    )
 
     convert_values = ConvertedAsValues()
     for idx, as_type in enumerate(as_types):
@@ -44,6 +48,7 @@ def convert_as_values(as_types, as_values):
         else:
             convert_values.ip_addr[idx] = num
     return convert_values
+
 
 def hex_to_ipv4(hex_value):
     bytes = ["".join(x) for x in zip(*[iter(hex_value)] * 2)]
