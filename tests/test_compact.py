@@ -254,23 +254,37 @@ def test_compact(api, utils):
 
     validate_compact_config(api, config_values, rx_device_with_rr)
     print("Starting all protocols ...")
-    ps = api.protocol_state()
-    ps.state = ps.START
-    api.set_protocol_state(ps)
+    # ps = api.protocol_state()
+    # ps.state = ps.START
+    # api.set_protocol_state(ps)
+
+    cs = api.control_state()
+    cs.protocol.all.state = cs.protocol.all.START
+    api.set_control_state(cs)
 
     print("Starting transmit on all flows ...")
-    ts = api.transmit_state()
-    ts.state = ts.START
-    api.set_transmit_state(ts)
+    # ts = api.transmit_state()
+    # ts.state = ts.START
+    # api.set_transmit_state(ts)
+    cs = api.control_state()
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
+    api.set_control_state(cs)
+
     # utils.start_traffic(api, config, start_capture=False)
     utils.wait_for(
         lambda: stats_ok(api, PACKETS * 3, utils), "stats to be as expected"
     )
 
-    rs = api.route_state()
-    rs.names = ["Tx RR 4", "Rx RR 3"]
-    rs.state = rs.WITHDRAW
-    api.set_route_state(rs)
+    # rs = api.route_state()
+    # rs.names = ["Tx RR 4", "Rx RR 3"]
+    # rs.state = rs.WITHDRAW
+    # api.set_route_state(rs)
+
+    cs = api.control_state()
+    cs.protocol.route.state = cs.protocol.route.WITHDRAW
+    cs.protocol.route.names = ["Tx RR 4", "Rx RR 3"]
+    api.set_control_state(cs)
+
 
     validate_route_withdraw(api, config_values)
 

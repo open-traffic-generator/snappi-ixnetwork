@@ -54,12 +54,8 @@ def test_arp_packet(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     target_hardware_addr_list = utils.mac_or_ip_addr_from_counter_pattern(
         "00:0c:29:e3:53:f4", flow3_step, flow3_count, True
     )
-    sender_protocol_addr_list = [
-        "10.10.0.1", "10.10.0.2", "10.10.0.3"
-    ]
-    target_protocol_addr_list = [
-        "20.20.0.1", "20.20.0.2", "20.20.0.3"
-    ]
+    sender_protocol_addr_list = ["10.10.0.1", "10.10.0.2", "10.10.0.3"]
+    target_protocol_addr_list = ["20.20.0.1", "20.20.0.2", "20.20.0.3"]
     flow3.tx_rx.port.tx_name = tx_vport.name
     flow3.tx_rx.port.rx_name = rx_vport.name
     flow3.packet.ethernet().arp()
@@ -82,12 +78,28 @@ def test_arp_packet(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     f2_attrs = {
         "ethernetARP.header.hardwareType": "{:x}".format(int(hardware_type)),
         "ethernetARP.header.protocolType": "{:x}".format(int(protocol_type)),
-        "ethernetARP.header.hardwareAddressLength": "{:x}".format(int(hardware_length)),
-        "ethernetARP.header.protocolAddressLength": "{:x}".format(int(protocol_length)),
+        "ethernetARP.header.hardwareAddressLength": "{:x}".format(
+            int(hardware_length)
+        ),
+        "ethernetARP.header.protocolAddressLength": "{:x}".format(
+            int(protocol_length)
+        ),
         "ethernetARP.header.opCode": str(operation),
-        "ethernetARP.header.srcHardwareAddress": (sender_hardware_addr.lower(), mac_step, str(count)),
-        "ethernetARP.header.dstHardwareAddress": (target_hardware_addr.lower(), mac_step, str(count)),
-        "ethernetARP.header.srcIP": (sender_protocol_addr, ip_step, str(count)),
+        "ethernetARP.header.srcHardwareAddress": (
+            sender_hardware_addr.lower(),
+            mac_step,
+            str(count)
+        ),
+        "ethernetARP.header.dstHardwareAddress": (
+            target_hardware_addr.lower(),
+            mac_step,
+            str(count)
+        ),
+        "ethernetARP.header.srcIP": (
+            sender_protocol_addr,
+            ip_step,
+            str(count)
+        ),
         "ethernetARP.header.dstIP": (target_protocol_addr, ip_step, str(count)),
     }
     utils.validate_config(api, "f2", "ethernetARP", **f2_attrs)
@@ -99,6 +111,7 @@ def test_arp_packet(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
         "ethernetARP.header.dstIP": target_protocol_addr_list,
     }
     utils.validate_config(api, "f3", "ethernetARP", **f3_attrs)
+
 
 if __name__ == "__main__":
     pytest.main(["-s", __file__])

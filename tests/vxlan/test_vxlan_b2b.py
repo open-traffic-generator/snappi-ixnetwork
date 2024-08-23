@@ -1,6 +1,7 @@
 import pytest
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_vxlan_b2b(api, utils):
     config = api.config()
 
@@ -9,12 +10,12 @@ def test_vxlan_b2b(api, utils):
         .port(name="tx", location=utils.settings.ports[0])
         .port(name="rx", location=utils.settings.ports[1]))
 
-    d1, d2 = config.devices.device(name='d1').device(name='d2')
+    d1, d2 = config.devices.device(name="d1").device(name="d2")
 
     e1, e2 = d1.ethernets.ethernet()[-1], d2.ethernets.ethernet()[-1]
     e1.port_name, e2.port_name = p1.name, p2.name
-    e1.name, e2.name = 'e1', 'e2'
-    e1.mac, e2.mac = '00:01:00:00:00:01', '00:01:00:00:00:02'
+    e1.name, e2.name = "e1", "e2"
+    e1.mac, e2.mac = "00:01:00:00:00:01", "00:01:00:00:00:02"
 
     ip1, ip2 = e1.ipv4_addresses.add(), e2.ipv4_addresses.add()
     ip1.name, ip2.name = "ip_d1", "ip_d2"

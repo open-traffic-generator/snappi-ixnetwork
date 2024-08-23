@@ -118,7 +118,7 @@ def test_lacp_lag(api, utils):
         "ActorPortPriority": ["100", "101"],
         "LacpActivity": ["active", "active"],
         "LacpduPeriodicTimeInterval": ["5", "6"],
-        "LacpduTimeout": ["12", "13"]
+        "LacpduTimeout": ["12", "13"],
     }
 
     LAG2_ATTR = {
@@ -129,7 +129,7 @@ def test_lacp_lag(api, utils):
         "ActorPortPriority": ["200", "201"],
         "LacpActivity": ["active", "active"],
         "LacpduPeriodicTimeInterval": ["7", "8"],
-        "LacpduTimeout": ["14", "15"]
+        "LacpduTimeout": ["14", "15"],
     }
     config = api.config()
     p1, p2, p3, p4 = (
@@ -153,7 +153,8 @@ def test_lacp_lag(api, utils):
 
     lag1.protocol.lacp.actor_system_id = "00:11:03:00:00:03"
     lag1.protocol.lacp.actor_system_priority = int(
-        LAG1_ATTR["ActorSystemPriority"][0])
+        LAG1_ATTR["ActorSystemPriority"][0]
+    )
     lag1.protocol.lacp.actor_key = int(LAG1_ATTR["ActorKey"][0])
 
     lag2.protocol.lacp.actor_system_id = "00:22:03:00:00:03"
@@ -177,13 +178,17 @@ def test_lacp_lag(api, utils):
     l2_p2.lacp.actor_activity = LAG2_ATTR["LacpActivity"][1]
 
     l1_p1.lacp.lacpdu_periodic_time_interval = int(
-        LAG1_ATTR["LacpduPeriodicTimeInterval"][0])
+        LAG1_ATTR["LacpduPeriodicTimeInterval"][0]
+    )
     l1_p2.lacp.lacpdu_periodic_time_interval = int(
-        LAG1_ATTR["LacpduPeriodicTimeInterval"][1])
+        LAG1_ATTR["LacpduPeriodicTimeInterval"][1]
+    )
     l2_p1.lacp.lacpdu_periodic_time_interval = int(
-        LAG2_ATTR["LacpduPeriodicTimeInterval"][0])
+        LAG2_ATTR["LacpduPeriodicTimeInterval"][0]
+    )
     l2_p2.lacp.lacpdu_periodic_time_interval = int(
-        LAG2_ATTR["LacpduPeriodicTimeInterval"][1])
+        LAG2_ATTR["LacpduPeriodicTimeInterval"][1]
+    )
 
     l1_p1.lacp.lacpdu_timeout = int(LAG1_ATTR["LacpduTimeout"][0])
     l1_p2.lacp.lacpdu_timeout = int(LAG1_ATTR["LacpduTimeout"][1])
@@ -218,7 +223,7 @@ def test_lacp_lag(api, utils):
     api.set_config(config)
 
     utils.wait_for(
-        lambda: lacp_pdu_status_ok(api, 'up'), "port state as expected"
+        lambda: lacp_pdu_status_ok(api, "up"), "port state as expected"
     )
 
     ds = api.device_state()
@@ -227,7 +232,7 @@ def test_lacp_lag(api, utils):
     api.set_device_state(ds)
 
     utils.wait_for(
-        lambda: lacp_pdu_status_ok(api, 'down'), "port state as expected"
+        lambda: lacp_pdu_status_ok(api, "down"), "port state as expected"
     )
 
     ds = api.device_state()
@@ -236,16 +241,20 @@ def test_lacp_lag(api, utils):
     api.set_device_state(ds)
 
     utils.wait_for(
-        lambda: lacp_pdu_status_ok(api, 'up'), "port state as expected"
+        lambda: lacp_pdu_status_ok(api, "up"), "port state as expected"
     )
 
     validate_lacp_config(api, LAG1_ATTR, LAG2_ATTR)
 
 
 def lacp_pdu_status_ok(api, state):
-    return (api._ixnetwork.Lag.find()
-            .ProtocolStack.find().Ethernet.find()
-            .Lagportlacp.find().SessionStatus)[1] == state
+    return (
+        api._ixnetwork.Lag.find()
+        .ProtocolStack.find()
+        .Ethernet.find()
+        .Lagportlacp.find()
+        .SessionStatus
+    )[1] == state
 
 
 def validate_lacp_config(api, LAG1_ATTR, LAG2_ATTR):
@@ -272,7 +281,7 @@ def test_static_and_lacp_lag(api, utils):
         "ActorPortPriority": ["100", "101"],
         "LacpActivity": ["active", "passive"],
         "LacpduPeriodicTimeInterval": ["5", "6"],
-        "LacpduTimeout": ["12", "13"]
+        "LacpduTimeout": ["12", "13"],
     }
 
     config = api.config()
@@ -312,9 +321,11 @@ def test_static_and_lacp_lag(api, utils):
     l2_p2.lacp.actor_activity = LACP_ATTR["LacpActivity"][1]
 
     l2_p1.lacp.lacpdu_periodic_time_interval = int(
-        LACP_ATTR["LacpduPeriodicTimeInterval"][0])
+        LACP_ATTR["LacpduPeriodicTimeInterval"][0]
+    )
     l2_p2.lacp.lacpdu_periodic_time_interval = int(
-        LACP_ATTR["LacpduPeriodicTimeInterval"][1])
+        LACP_ATTR["LacpduPeriodicTimeInterval"][1]
+    )
 
     l2_p1.lacp.lacpdu_timeout = int(LACP_ATTR["LacpduTimeout"][0])
     l2_p2.lacp.lacpdu_timeout = int(LACP_ATTR["LacpduTimeout"][1])
@@ -364,9 +375,12 @@ def validate_static_lacp_config(api, LACP_ATTR):
     lags = api._ixnetwork.Lag.find()
 
     assert (
-        lags[0].ProtocolStack.find()
+        lags[0]
+        .ProtocolStack.find()
         .Ethernet.find()
-        .Lagportstaticlag.find().LagId.Values)[0] == "5"
+        .Lagportstaticlag.find()
+        .LagId.Values
+    )[0] == "5"
     assert lags[1].LagMode.LagProtocol == "lacp"
 
     lag_lacp = lags[1].ProtocolStack.find().Ethernet.find().Lagportlacp.find()

@@ -92,7 +92,7 @@ def test_ipv6_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     step = [1, 2, 4, 2, 2, "1::", "1::"]
     count = [15, 128, 262144, 128, 128, 1000, 1000]
 
-    eth, ipv6 =flow3.packet.ethernet().ipv6()
+    eth, ipv6 = flow3.packet.ethernet().ipv6()
     eth.src.value = src
     eth.dst.value = dst
     for i, field in enumerate(fields):

@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.skip(reason="Revisit CI/CD fail")
+# @pytest.mark.skip(reason="Revisit CI/CD fail")
 def test_bgpv4_stats(api, b2b_raw_config, utils):
     """
     Test for the bgpv4 metrics

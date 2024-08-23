@@ -178,14 +178,20 @@ def test_manual_gateway_mac(api, utils):
 
     assert (
         api._ixnetwork.Topology.find()[0]
-        .DeviceGroup.find()[0].Ethernet.find()[0]
-        .Ipv4.find().ManualGatewayMac.Values[0]
+        .DeviceGroup.find()[0]
+        .Ethernet.find()[0]
+        .Ipv4.find()
+        .ManualGatewayMac.Values[0]
     ) == "aa:aa:aa:aa:aa:aa"
 
     assert (
-        api._ixnetwork.Topology.find()[0].DeviceGroup.find()
-        .DeviceGroup.find().DeviceGroup.find()
-        .Ethernet.find()[0].Ipv4.find().ManualGatewayMac.Values
+        api._ixnetwork.Topology.find()[0]
+        .DeviceGroup.find()
+        .DeviceGroup.find()
+        .DeviceGroup.find()
+        .Ethernet.find()[0]
+        .Ipv4.find()
+        .ManualGatewayMac.Values
     ) == edge2_macs[1:]
 
 
