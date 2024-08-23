@@ -375,9 +375,11 @@ class TrafficItem(CustomField):
         self.logger = get_ixnet_logger(__name__)
 
     def _get_search_payload(self, parent, child, properties, filters):
-        self.logger.debug("Searching parent {} child {} with properties {} filters {}".format(
-            parent, child, properties, filters
-        ))
+        self.logger.debug(
+            "Searching parent {} child {} with properties {} filters {}".format(
+                parent, child, properties, filters
+            )
+        )
         payload = {
             "selects": [
                 {
@@ -398,7 +400,7 @@ class TrafficItem(CustomField):
             self._api.assistant._ixnetwork.href
         )
         self.logger.debug("Return of _get_search_payload:")
-        self.logger.debug("\turl : %s" %url)
+        self.logger.debug("\turl : %s" % url)
         self.logger.debug("\tpayload : %s" % payload)
         return (url, payload)
 
@@ -537,9 +539,7 @@ class TrafficItem(CustomField):
         self.traffic_index = 1
 
     def _gen_dev_endpoint(self, devices, names, endpoints, scalable_endpoints):
-        self.logger.debug(
-            "Generating Device Endpoints with names %s" % names
-        )
+        self.logger.debug("Generating Device Endpoints with names %s" % names)
         while len(names) > 0:
             gen_name = None
             name = names[0]
@@ -580,9 +580,7 @@ class TrafficItem(CustomField):
         devices = self.get_device_info(config)
         for index, flow in enumerate(flows):
             flow_name = flow._properties.get("name")
-            self.logger.debug(
-                "Creating Traffic Item %s" % flow_name
-            )
+            self.logger.debug("Creating Traffic Item %s" % flow_name)
             if flow_name is None:
                 raise Exception("name shall not be null for flows")
             if flow._properties.get("tx_rx") is None:
@@ -865,6 +863,9 @@ class TrafficItem(CustomField):
             ):
                 enable_min_frame_size = True
                 break
+            if flow.size.choice == "weight_pairs":
+                enable_min_frame_size = True
+                break
         if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:
             self._api._traffic.EnableMinFrameSize = enable_min_frame_size
 
@@ -1045,7 +1046,7 @@ class TrafficItem(CustomField):
             "decrement": "decrement",
             "auto": "auto",
             "generated": "auto",
-            "custom": "singleValue"
+            "custom": "singleValue",
         }
 
         def get_value(field_value):
@@ -1129,6 +1130,22 @@ class TrafficItem(CustomField):
                 ce["frameSize"]["incrementFrom"] = size.increment.start
                 ce["frameSize"]["incrementTo"] = size.increment.end
                 ce["frameSize"]["incrementStep"] = size.increment.step
+            elif size.choice == "weight_pairs":
+                if size.weight_pairs.choice == "predefined":
+                    ce["frameSize"]["type"] = "presetDistribution"
+                    if size.weight_pairs.predefined == "ipv6_imix":
+                        ce["frameSize"]["presetDistribution"] = "ipV6Imix"
+                    elif size.weight_pairs.predefined == "standard_imix":
+                        ce["frameSize"]["presetDistribution"] = "standardImix"
+                    elif size.weight_pairs.predefined == "tcp_imix":
+                        ce["frameSize"]["presetDistribution"] = "tcpImix"
+                    elif size.weight_pairs.predefined == "ipsec_imix":
+                        ce["frameSize"]["presetDistribution"] = "ipSecImix"    
+                    else:
+                        ce["frameSize"]["presetDistribution"] = size.weight_pairs.predefined
+                elif size.weight_pairs.choice == "custom":
+                    ce["frameSize"]["type"] = "weightedPairs"
+                    ce["frameSize"]["weightedPairs"]=[item for t in size.weight_pairs.custom for item in (t.size, t.weight)]
             else:
                 print(
                     "Warning - We need to implement this %s choice"
@@ -1258,9 +1275,10 @@ class TrafficItem(CustomField):
         elif len(flow_names) > 1:
             regex = "^(%s)$" % "|".join(self._api.special_char(flow_names))
 
-        self.logger.debug("These %s flows will go into %s state" % (
-            flow_names, request.state
-        ))
+        self.logger.debug(
+            "These %s flows will go into %s state"
+            % (flow_names, request.state)
+        )
         if request.state == "start":
             if len(self._api._topology.find()) > 0:
                 glob_topo = self._api._globals.Topology.refresh()
@@ -1380,9 +1398,10 @@ class TrafficItem(CustomField):
             raise Exception(msg)
         req_flow_names = self._api.special_char(req_flow_names)
         # initialize result values
-        self.logger.debug("Fetching these column %s for flows %s" %(
-            self._column_names, req_flow_names
-        ))
+        self.logger.debug(
+            "Fetching these column %s for flows %s"
+            % (self._column_names, req_flow_names)
+        )
         flow_names = []
         flow_rows = {}
         regfilter = {"property": "name", "regex": ".*"}

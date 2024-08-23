@@ -47,11 +47,12 @@ class Api(snappi.Api):
         username = kwargs.get("username")
         password = kwargs.get("password")
         license_servers = kwargs.get("license_servers")
-        self._log_level = logging.INFO if kwargs.get("loglevel") is None \
+        self._log_level = (
+            logging.INFO
+            if kwargs.get("loglevel") is None
             else kwargs.get("loglevel")
-        self.logger = setup_ixnet_logger(
-            self.log_level, module_name=__name__
         )
+        self.logger = setup_ixnet_logger(self.log_level, module_name=__name__)
         location = "https://127.0.0.1:11009" if location is None else location
         self._address, self._port = self._get_addr_port(location)
         self._username = "admin" if username is None else username
@@ -67,6 +68,8 @@ class Api(snappi.Api):
         self._device_encap = {}
         self.ixn_objects = None
         self._config_type = self.config()
+        self._control_state = self.control_state()
+        self._control_action = self.control_action()
         self._protocol_state = self.protocol_state()
         self._flows_update = self.flows_update()
         self._transmit_state = self.transmit_state()
@@ -137,6 +140,22 @@ class Api(snappi.Api):
         self._device_encap[name] = type
 
     @property
+    def username(self):
+        return self._username
+
+    @username.setter
+    def username(self, value):
+        self._username = value
+
+    @property
+    def password(self):
+        return self._password
+
+    @password.setter
+    def password(self, value):
+        self._password = value
+
+    @property
     def assistant(self):
         return self._assistant
 
@@ -160,7 +179,7 @@ class Api(snappi.Api):
         return o
 
     def _request_detail(self):
-        request_detail = snappi.ResponseWarning()
+        request_detail = snappi.Warning()
         errors = self._errors
         warnings = list()
         app_errors = self._globals.AppErrors.find()
@@ -178,13 +197,17 @@ class Api(snappi.Api):
                     if len(match) == 0:
                         if error.ErrorLevel == "kWarning":
                             warning = "IxNet - {0}".format(
-                                    error.Name if error.Description == "" else error.Description
+                                error.Name
+                                if error.Description == ""
+                                else error.Description
                             )
                             self.info(warning)
                             warnings.append(warning)
                         if error.ErrorLevel == "kError":
                             error = "IxNet - {0}".format(
-                                    error.Name if error.Description == "" else error.Description
+                                error.Name
+                                if error.Description == ""
+                                else error.Description
                             )
                             self.info(error)
                             errors.append(error)
@@ -192,8 +215,10 @@ class Api(snappi.Api):
 
         # Need to add this hack as dumping json config throws this exception
         # Traffic regeneration will be part of set_transmit_state
-        errors = [error for error in errors
-                  if "before trying to generate BGP EVPN traffic" not in error]
+        errors = [
+            error
+            for error in errors
+            if "before trying to generate BGP EVPN traffic" not in error]
 
         if len(errors) > 0:
             self._errors = []
@@ -273,8 +298,11 @@ class Api(snappi.Api):
         if len(self.lag._lags_config) > 0:
             for lag in self.lag._lags_config:
                 if lag.min_links > len(lag.ports):
-                    self.warning("ports in {0} are less than configured minimum links {1} so {0} is inactive ".format(
-                        lag.name, lag.min_links))
+                    self.warning(
+                        "ports in {0} are less than configured minimum links {1} so {0} is inactive ".format(
+                            lag.name, lag.min_links
+                        )
+                    )
                     self._ixnetwork.Lag.find(Name=lag.name).Stop()
 
     def _protocols_exists(self):
@@ -284,26 +312,91 @@ class Api(snappi.Api):
         if len(topos) > 0:
             dgs = topos.DeviceGroup.find()
             if len(dgs) > 0:
-                eth_dev = len(self._ixnetwork.Topology.find()
-                              .DeviceGroup.find()
-                              .Ethernet.find())
+                eth_dev = len(
+                    self._ixnetwork.Topology.find()
+                    .DeviceGroup.find()
+                    .Ethernet.find()
+                )
                 ethv4v6_dev_count = ethv4v6_dev_count + eth_dev
                 if eth_dev > 0:
-                    v4_dev = len(self._ixnetwork.Topology.find()
-                                 .DeviceGroup.find()
-                                 .Ethernet.find().Ipv4.find())
+                    v4_dev = len(
+                        self._ixnetwork.Topology.find()
+                        .DeviceGroup.find()
+                        .Ethernet.find()
+                        .Ipv4.find()
+                    )
                     ethv4v6_dev_count = ethv4v6_dev_count + v4_dev
-                    v6_dev = len(self._ixnetwork.Topology.find()
-                                 .DeviceGroup.find()
-                                 .Ethernet.find().Ipv6.find())
+                    v6_dev = len(
+                        self._ixnetwork.Topology.find()
+                        .DeviceGroup.find()
+                        .Ethernet.find()
+                        .Ipv6.find()
+                    )
                     ethv4v6_dev_count = ethv4v6_dev_count + v6_dev
-        if (total_dev > ethv4v6_dev_count):
+        if total_dev > ethv4v6_dev_count:
             return True
         else:
             return False
 
+    def set_control_state(self, payload):
+        try:
+            control_option = payload.choice
+            control_obj = getattr(payload, control_option)
+            control_choice = control_obj.get("choice")
+            request_payload = getattr(control_obj, control_choice)
+            self._connect()
+            if control_option == "port":
+                if control_choice == "capture":
+                    self.capture.set_capture_state(request_payload)
+                elif control_choice == "link":
+                    self.vport.set_link_state(request_payload)
+            elif control_option == "protocol":
+                if control_choice == "all":
+                    self.ngpf.set_protocol_state(request_payload)
+                elif control_choice == "route":
+                    self.ngpf.set_route_state(request_payload)
+                elif control_choice == "lacp":
+                    self.ngpf.set_device_state(request_payload)
+            elif control_option == "traffic":
+                self.traffic_item.transmit(request_payload)
+        except Exception as err:
+            raise SnappiIxnException(err)
+        return self._request_detail()
+
+    def set_control_action(self, payload):
+        try:
+            control_option = payload.choice
+            control_obj = getattr(payload, control_option)
+            control_choice = control_obj.get("choice")
+            choice_obj = getattr(control_obj, control_choice)
+            if control_choice == "ipv4":
+                choice = choice_obj.get("choice")
+                request_payload = getattr(choice_obj, choice)
+                if choice == "ping":
+                    res = self.control_action_response()
+                    self._connect()
+                    res.response.protocol.ipv4.ping.responses.deserialize(
+                        self.ping.results(request_payload, control_choice)
+                    )
+            elif control_choice == "ipv6":
+                choice = choice_obj.get("choice")
+                request_payload = getattr(choice_obj, choice)
+                if choice == "ping":
+                    res = self.control_action_response()
+                    self._connect()
+                    res.response.protocol.ipv6.ping.responses.deserialize(
+                        self.ping.results(request_payload, control_choice)
+                    )
+            res.warnings = snappi.Warning()
+            return res
+        except Exception as err:
+            raise SnappiIxnException(err)
+ 
     def set_protocol_state(self, payload):
         """Set the transmit state of flows"""
+        self.add_warnings(
+            "set_protocol_state api is deprecated, Please use `set_control_state` with `protocol.all` choice instead"
+        )
         try:
             if isinstance(payload, (type(self._protocol_state), str)) is False:
                 raise TypeError(
@@ -320,6 +413,9 @@ class Api(snappi.Api):
 
     def set_transmit_state(self, payload):
         """Set the transmit state of flows"""
+         self.add_warnings(
+            "set_transmit_state api is deprecated, Please use `set_control_state` with `traffic` choice instead"
+        )
         try:
             if isinstance(payload, (type(self._transmit_state), str)) is False:
                 raise TypeError(
@@ -334,6 +430,9 @@ class Api(snappi.Api):
         return self._request_detail()
 
     def set_link_state(self, link_state):
+        self.add_warnings(
+            "set_link_state api is deprecated, Please use `set_control_state` with `port.link` choice instead"
+        )
         try:
             if isinstance(link_state, (type(self._link_state), str)) is False:
                 raise TypeError(
@@ -350,6 +449,9 @@ class Api(snappi.Api):
 
     def set_capture_state(self, payload):
         """Starts capture on all ports that have capture enabled."""
+        self.add_warnings(
+            "set_link_state api is deprecated, Please use `set_control_state` with `port.link` choice instead"
+        )
         try:
             if isinstance(payload, (type(self._capture_state), str)) is False:
                 raise TypeError(
@@ -364,6 +466,9 @@ class Api(snappi.Api):
         return self._request_detail()
 
     def set_route_state(self, payload):
+        self.add_warnings(
+            "set_route_state api is deprecated, Please use `set_control_state` with `protocol.all` choice instead"
+        )
         try:
             route_state = self.route_state()
             if isinstance(payload, (type(route_state), str)) is False:
@@ -380,6 +485,9 @@ class Api(snappi.Api):
             raise SnappiIxnException(err)
 
     def set_device_state(self, payload):
+        self.add_warnings(
+            "set_device_state api is deprecated, Please use `set_control_state` with `protocol.link` choice instead"
+        )
         try:
             device_state = self.device_state()
             if isinstance(payload, (type(device_state), str)) is False:
@@ -396,6 +504,9 @@ class Api(snappi.Api):
             raise SnappiIxnException(err)
 
     def send_ping(self, ping_request, cvg_api=None):
+        self.add_warnings(
+            "send_ping api is deprecated, Please use `set_control_action` with `protocol.ipv4.ping` choice instead"
+        )
         try:
             if cvg_api:
                 if isinstance(ping_request, type(cvg_api.ping_request())):
@@ -619,9 +730,7 @@ class Api(snappi.Api):
     def _connect(self):
         """Connect to an IxNetwork API Server."""
         self._errors = []
-        self.logger = setup_ixnet_logger(
-            self.log_level, module_name=__name__
-        )
+        self.logger = setup_ixnet_logger(self.log_level, module_name=__name__)
         if self._assistant is None:
             platform = TestPlatform(self._address, rest_port=self._port)
             platform.Authenticate(self._username, self._password)
@@ -641,9 +750,7 @@ class Api(snappi.Api):
                 RestPort=self._port,
                 UserName=self._username,
                 Password=self._password,
-                LogLevel=self._get_restpy_trace(
-                    self._log_level
-                )
+                LogLevel=self._get_restpy_trace(self._log_level)
             )
             self._ixnetwork = self._assistant.Session.Ixnetwork
             self._vport = self._ixnetwork.Vport
@@ -1098,9 +1205,10 @@ class Api(snappi.Api):
         return results[0]["chassis"][0]["card"][0]["port"][0]["xpath"]
 
     def clear_ownership(self, available_hardware_hrefs, location_hrefs):
-        self.debug("Clearing ownership %s from %s" % (
-            available_hardware_hrefs, location_hrefs
-        ))
+        self.debug(
+            "Clearing ownership %s from %s" 
+            % (available_hardware_hrefs, location_hrefs)
+        )
         hrefs = list(available_hardware_hrefs.values()) + list(
             location_hrefs.values()
         )
@@ -1136,3 +1244,24 @@ class Api(snappi.Api):
 
     def warning(self, message):
         logging.warning(message)
+
+    def get_version(self):
+        try:
+            import pkg_resources
+
+            sdk_version = (
+                "snappi-" + pkg_resources.get_distribution("snappi").version
+            )
+            app_version = (
+                "snappi_ixnetwork-"
+                + pkg_resources.get_distribution("snappi_ixnetwork").version
+            )
+
+            return {
+                "api_spec_version": "open-api-models-"
+                + snappi.Api.get_local_version(self).api_spec_version,
+                "sdk_version": sdk_version,
+                "app_version": app_version,
+            }
+        except:
+            raise SnappiIxnException("unable to get version")

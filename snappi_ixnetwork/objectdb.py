@@ -11,17 +11,13 @@ class IxNetObjects(object):
     def get_href(self, name):
         """Returns an href given a unique configuration name"""
         obj = self.get(name)
-        self.logger.debug("get_href %s : %s" %(
-            name, obj.href
-        ))
+        self.logger.debug("get_href %s : %s" % (name, obj.href))
         return obj.href
 
     def get_xpath(self, name):
         """Returns an xpath given a unique configuration name"""
         obj = self.get(name)
-        self.logger.debug("get_xpath %s : %s" %(
-            name, obj.xpath
-        ))
+        self.logger.debug("get_xpath %s : %s" % (name, obj.xpath))
         return obj.xpath
 
     def get_object(self, name):
@@ -40,9 +36,7 @@ class IxNetObjects(object):
         except KeyError:
             self.logger.debug("These are existing names %s" % self.names)
             raise NameError(
-                "snappi object named {0} not found in internal db".format(
-                    name
-                )
+                "snappi object named {0} not found in internal db".format(name)
             )
 
     def get_working_dg(self, name):
@@ -74,13 +68,15 @@ class IxNetObjects(object):
                 self.get_working_dg(names[0]),
                 index=index,
                 multiplier=names.count(name),
-                names=names
+                names=names,
             )
 
 
 class IxNetInfo(object):
     # index start with 0 and use multiplier for count
-    def __init__(self, ixnobject, working_dg, index=0, multiplier=1, names=None):
+    def __init__(
+            self, ixnobject, working_dg, index=0, multiplier=1, names=None
+    ):
         self.ixnobject = ixnobject
         self.working_dg = working_dg
         self.index = int(index)
@@ -94,4 +90,3 @@ class IxNetInfo(object):
     @property
     def href(self):
         return self.ixnobject.get("href")
-

@@ -143,11 +143,14 @@ class Vport(object):
         self._ixn_vport = self._api._vport
         self._layer1_check = []
         self._api._ixnetwork.StopAllProtocols(arg1="sync")
-        self._wait_for(lambda: self.is_protocols_stopped(),
-                       """"Protocols are not stopped in {} seconds""".format(
-                           self._interval * self._timeout),
-                       self._interval,
-                       self._timeout)
+        self._wait_for(
+            lambda: self.is_protocols_stopped(),
+            """"Protocols are not stopped in {} seconds""".format(
+                self._interval * self._timeout
+            ),
+            self._interval,
+            self._timeout
+        )
         with Timer(self._api, "Ports configuration"):
             self._delete_vports()
             self._create_vports()
@@ -177,9 +180,10 @@ class Vport(object):
                 eth_list = dgs.Ethernet.find()
                 if len(eth_list) > 0:
                     if len(eth_list.Ipv4.find()) > 0:
-                        if any('up' in status or 'down' in status
-                                for status in
-                                dgs.Ethernet.find().SessionStatus):
+                        if any(
+                            "up" in status or "down" in status
+                            for status in dgs.Ethernet.find().SessionStatus
+                        ):
                             stopped = False
 
         return stopped
@@ -742,9 +746,10 @@ class Vport(object):
             )
             raise Exception(msg)
 
-        self.logger.debug("Extracting %s stats for these ports %s" % (
-            self._column_names, port_names
-        ))
+        self.logger.debug(
+            "Extracting %s stats for these ports %s" 
+            % (self._column_names, port_names)
+        )
         port_filter = {"property": "name", "regex": ".*"}
         port_filter["regex"] = "^(%s)$" % "|".join(
             self._api.special_char(port_names)
