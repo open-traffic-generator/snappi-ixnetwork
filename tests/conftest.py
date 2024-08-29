@@ -1,6 +1,6 @@
 import pytest
 import snappi
-# import logging
+import logging
 import utils as utl
 # import snappi_convergence
 
