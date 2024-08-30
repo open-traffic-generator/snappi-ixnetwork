@@ -7,12 +7,7 @@ on:
 
 jobs:
   cicd:
-    runs-on: [self-hosted, Linux, Ubuntu, x64]
-    strategy:
-      max-parallel: 1
-      matrix:
-        python-version: [python27, python38]
-
+    runs-on: [snappi-ixn-ci-novus100g]
     steps:
       - name: Checkout source
         uses: actions/checkout@v2
@@ -22,7 +17,7 @@ jobs:
           submodules: recursive
       - name: Set python path
         id: path
-        run: echo "::set-output name=pythonv::/home/otg/${{matrix.python-version}}/bin/python"
+        run: echo "::set-output name=pythonv::/home/github-runner/pyenv/.env/bin/python"
       - name: Install dependencies
         run: |
           rm -rf .env

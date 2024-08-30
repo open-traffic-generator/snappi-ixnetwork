@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.skip(reason="Revisit CI/CD fail")
+#@pytest.mark.skip(reason="Revisit CI/CD fail")
 def test_bgpv4_stats(api, b2b_raw_config, utils):
     """
     Test for the bgpv4 metrics
@@ -68,7 +68,6 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     req.bgpv4.peer_names = []
     req.bgpv4.column_names = enums[:3]
     results = api.get_metrics(req)
-
     assert len(results.bgpv4_metrics) == 2
     for bgp_res in results.bgpv4_metrics:
         for i, enum in enumerate(enums[:3]):
