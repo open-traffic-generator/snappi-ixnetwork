@@ -2,7 +2,7 @@ import pytest
 import snappi
 import logging
 import utils as utl
-# import snappi_convergence
+import snappi_convergence
 
 
 def pytest_exception_interact(node, call, report):
@@ -77,17 +77,17 @@ def api():
         api.assistant.Session.remove()
 
 
-# @pytest.fixture(scope="session")
-# def cvg_api():
-#     # handle to make Convergence API calls
-#     api = snappi_convergence.api(
-#         location=utl.settings.location,
-#         ext=utl.settings.ext,
-#     )
-#     api.configure_credentials(utl.settings.username, utl.settings.psd)
-#     yield api
-#     if getattr(api, "assistant", None) is not None:
-#         api.assistant.Session.remove()
+@pytest.fixture(scope="session")
+def cvg_api():
+    # handle to make Convergence API calls
+    api = snappi_convergence.api(
+        location=utl.settings.location,
+        ext=utl.settings.ext,
+    )
+    api.configure_credentials(utl.settings.username, utl.settings.psd)
+    yield api
+    if getattr(api, "assistant", None) is not None:
+        api.assistant.Session.remove()
 
 
 @pytest.fixture
