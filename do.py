@@ -53,7 +53,7 @@ def test(card="novus100g"):
         ]
     elif card == "novus10g":
         args = [
-            '--location="https://novus1-715849.ccu.is.keysight.com:5000"',
+            '--location="https://novus1-715849.ccu.is.keysight.com:443"',
             (
                 '--ports="novus1-715849.ccu.is.keysight.com;1;1'
                 " novus1-715849.ccu.is.keysight.com;1;2"
