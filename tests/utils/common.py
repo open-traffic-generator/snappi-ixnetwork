@@ -130,8 +130,14 @@ def start_traffic(api, cfg, start_capture=True):
     if capture_names and start_capture:
         print("Starting capture on ports %s ..." % str(capture_names))
         cs = api.control_state()
+        # cs.port.capture.state = cs.port.capture.START
+        # api.set_control_state(cs)
+        cs.choice = cs.PORT
+        cs.port.choice = cs.port.CAPTURE
         cs.port.capture.state = cs.port.capture.START
-        api.set_control_state(cs)
+        res = api.set_control_state(cs)
+        if len(res.warnings) > 0:
+            print("Warnings: {}".format(res.warnings))
 
     print("Starting all protocols ...")
     cs = api.control_state()
@@ -141,8 +147,14 @@ def start_traffic(api, cfg, start_capture=True):
     print("Starting transmit on all flows ...")
 
     cs = api.control_state()
-    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
-    api.set_control_state(cs)
+    # cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
+    # api.set_control_state(cs)
+    cs.choice = cs.TRAFFIC
+    cs.traffic.choice = cs.traffic.FLOW_TRANSMIT
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START  # noqa
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
 
 
 def stop_traffic(api, cfg, stop_capture=True):
