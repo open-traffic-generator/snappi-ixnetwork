@@ -287,8 +287,8 @@ class Ngpf(Base):
         return names
 
     def set_device_state(self, payload):
-        lmp_names = payload.lacp_member_state.lag_member_port_names
-        state = payload.lacp_member_state.state
+        lmp_names = payload.member_ports.lag_member_names
+        state = payload.member_ports.state
         if lmp_names is None:
             self._lacp_start_stop_pdu(state, 1)
         else:
