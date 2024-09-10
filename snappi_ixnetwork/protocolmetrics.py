@@ -25,7 +25,7 @@ class ProtocolMetrics(object):
             # TODO session_flap_count can't be added now
             # it needs to be added by creating new view.
             # currently facing an issue in protocol view creation.
-            ("session_flap_count", "Session Flap Count", int, _SKIP),
+            ("session_flap_count", "Session Flap Count", int),
             ("routes_advertised", "Routes Advertised", int),
             ("routes_received", "Routes Rx", int),
             ("route_withdraws_sent", "Routes Withdrawn", int),
@@ -43,7 +43,7 @@ class ProtocolMetrics(object):
             ("name", "Device Group", str),
             ("session_state", "Status", str),
             # TODO session_flap_count can't be added now
-            ("session_flap_count", "Session Flap Count", int, _SKIP),
+            ("session_flap_count", "Session Flap Count", int),
             ("routes_advertised", "Routes Advertised", int),
             ("routes_received", "Routes Rx", int),
             ("route_withdraws_sent", "Routes Withdrawn", int),
