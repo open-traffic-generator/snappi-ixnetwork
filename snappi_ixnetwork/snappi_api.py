@@ -71,6 +71,7 @@ class Api(snappi.Api):
         self._config_type = self.config()
         self._control_state = self.control_state()
         self._control_action = self.control_action()
+        self._flows_update = self.config_update()
         self._capture_request = self.capture_request()
         self.ixn_routes = []
         self.validation = Validation(self)
@@ -582,11 +583,6 @@ class Api(snappi.Api):
             self._connect()
             response = self.ngpf.get_states(request)
             states_response = self.states_response()
-            # if request.choice == "ipv4_neighbors":
-            #     ip_neighbors = states_response.ipv4_neighbors
-            # else:
-            #     ip_neighbors = states_response.ipv6_neighbors
-            # ip_neighbors.deserialize(response)
             states_response.deserialize(response)
             return states_response
         except Exception as err:
@@ -656,10 +652,6 @@ class Api(snappi.Api):
           See the docs/openapi.yaml document for all model details
         """
         try:
-            if isinstance(payload, (type(self._flows_update), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[UpdateFlows, str]"
-                )
             if isinstance(payload, str) is True:
                 payload = self._flows_update.deserialize(payload)
             self._connect()

@@ -1,7 +1,6 @@
 import pytest
 
 
-@pytest.mark.skip(reason="Fix -breaks build - needs investigation")
 def test_update_flows(api, b2b_raw_config, utils):
     """
     This test is to validate update_flows API
@@ -61,7 +60,7 @@ def test_update_flows(api, b2b_raw_config, utils):
         lambda: stats_ok(api, 2 * 1000, utils), "stats to be as expected"
     )
 
-    req = api.flows_update()
+    req = api.config_update().flows
     req.property_names = [req.RATE, req.SIZE]
 
     update_flow1 = b2b_raw_config.flows[0]
@@ -86,7 +85,7 @@ def test_update_flows(api, b2b_raw_config, utils):
     )
 
     # Negative test
-    req = api.flows_update()
+    req = api.config_update().flows
     req.property_names = [req.RATE, req.SIZE]
 
     update_flow1 = b2b_raw_config.flows[0]
