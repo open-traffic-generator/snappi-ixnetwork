@@ -66,9 +66,13 @@ flw.packet.ethernet().vlan().ipv4().tcp()
 # push configuration
 api.set_config(config)
 # start transmitting configured flows
-ts = api.transmit_state()
-ts.state = ts.START
-api.set_transmit_state(ts)
+control_state = api.control_state()
+control_state.choice = control_state.TRAFFIC
+control_state.traffic.choice = control_state.traffic.FLOW_TRANSMIT
+control_state.traffic.flow_transmit.state = control_state.traffic.flow_transmit.START  # noqa
+res = api.set_control_state(control_state)
+if len(res.warnings) > 0:
+    print("Warnings: {}".format(res.warnings))
 # create a query for flow metrics
 req = api.metrics_request()
 req.flow.flow_names = [flw.name]

@@ -71,13 +71,7 @@ class Api(snappi.Api):
         self._config_type = self.config()
         self._control_state = self.control_state()
         self._control_action = self.control_action()
-        # self._protocol_state = self.protocol_state()
-        # self._flows_update = self.flows_update()
-        # self._transmit_state = self.transmit_state()
-        # self._link_state = self.link_state()
-        # self._capture_state = self.capture_state()
         self._capture_request = self.capture_request()
-        # self._ping_request = self.ping_request()
         self.ixn_routes = []
         self.validation = Validation(self)
         self.vport = Vport(self)
