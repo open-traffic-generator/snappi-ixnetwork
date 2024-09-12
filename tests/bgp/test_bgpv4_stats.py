@@ -91,19 +91,19 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
             else:
                 assert getattr(bgp_res, enum) >= val
 
-    # req = api.metrics_request()
-    # req.bgpv4.peer_names = ["rx_bgp"]
-    # results = api.get_metrics(req)
+    req = api.metrics_request()
+    req.bgpv4.peer_names = ["rx_bgp"]
+    results = api.get_metrics(req)
     
-    # assert len(results.bgpv4_metrics) == 1
-    # assert results.bgpv4_metrics[0].name == "rx_bgp"
-    # for bgp_res in results.bgpv4_metrics:
-    #     for i, enum in enumerate(enums):
-    #         val = expected_results[bgp_res.name][i]
-    #         if "session_state" in enum:
-    #             assert getattr(bgp_res, enum) == val
-    #         else:
-    #             assert getattr(bgp_res, enum) >= val
+    assert len(results.bgpv4_metrics) == 1
+    assert results.bgpv4_metrics[0].name == "rx_bgp"
+    for bgp_res in results.bgpv4_metrics:
+        for i, enum in enumerate(enums):
+            val = expected_results[bgp_res.name][i]
+            if "session_state" in enum:
+                assert getattr(bgp_res, enum) == val
+            else:
+                assert getattr(bgp_res, enum) >= val
 
     req = api.metrics_request()
     req.bgpv4.column_names = ["session_state"]

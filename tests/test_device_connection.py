@@ -1,3 +1,21 @@
+def test_device_lag_name(api, utils):
+    config = api.config()
+    p1 = config.ports.port(name="p1", location=utils.settings.ports[0])[-1]
+    config.options.port_options.location_preemption = True
+    lag1 = config.lags.lag(name="lag-1")[-1]
+    lp1 = lag1.ports.port(port_name=p1.name)[-1]
+    lag1.protocol.static.lag_id = 1
+    lp1.ethernet.name = "lp1-e"
+    lp1.ethernet.mac = "aa:aa:aa:aa:aa:aa"
+    d1 = config.devices.device(name="d1")[-1]
+    eth1 = d1.ethernets.ethernet()[-1]
+    eth1.connection.lag_name = lag1.name
+    eth1.name = "eth1"
+    eth1.mac = "00:01:00:00:00:02"
+    api.set_config(config)
+    assert (api._ixnetwork.Lag.find()[0].Name) == lag1.name
+    
+
 def test_port_name(api, utils):
     config = api.config()
     p1 = config.ports.port(name="p1", location=utils.settings.ports[0])[-1]
@@ -44,24 +62,6 @@ def test_device_connection(api, utils):
         api.set_config(config)
     except Exception as err:
         assert err.args[0] == 500
-
-# TBD: Issue assinging ports to lag
-# def test_device_lag_name(api, utils):
-#     config = api.config()
-#     p1 = config.ports.port(name="p1", location=utils.settings.ports[0])[-1]
-#     config.options.port_options.location_preemption = True
-#     lag1 = config.lags.lag(name="lag-1")[-1]
-#     lp1 = lag1.ports.port(port_name=p1.name)[-1]
-#     lag1.protocol.static.lag_id = 1
-#     lp1.ethernet.name = "lp1-e"
-#     lp1.ethernet.mac = "aa:aa:aa:aa:aa:aa"
-#     d1 = config.devices.device(name="d1")[-1]
-#     eth1 = d1.ethernets.ethernet()[-1]
-#     eth1.connection.lag_name = lag1.name
-#     eth1.name = "eth1"
-#     eth1.mac = "00:01:00:00:00:02"
-#     api.set_config(config)
-#     assert (api._ixnetwork.Lag.find()[0].Name) == lag1.name
 
 
 def test_device_without_port_name(api, utils):

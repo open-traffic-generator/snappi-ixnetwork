@@ -8,7 +8,6 @@ class ProtocolMetrics(object):
     # more than one page.
 
     _SUPPORTED_PROTOCOLS_ = ["bgpv4", "bgpv6"]
-    _SKIP = True
 
     _TOPO_STATS = {
         "name": "name",
@@ -22,9 +21,6 @@ class ProtocolMetrics(object):
         "bgpv4": [
             ("name", "Device Group", str),
             ("session_state", "Status", str),
-            # TODO session_flap_count can't be added now
-            # it needs to be added by creating new view.
-            # currently facing an issue in protocol view creation.
             ("session_flap_count", "Session Flap Count", int),
             ("routes_advertised", "Routes Advertised", int),
             ("routes_received", "Routes Rx", int),
@@ -42,7 +38,6 @@ class ProtocolMetrics(object):
         "bgpv6": [
             ("name", "Device Group", str),
             ("session_state", "Status", str),
-            # TODO session_flap_count can't be added now
             ("session_flap_count", "Session Flap Count", int),
             ("routes_advertised", "Routes Advertised", int),
             ("routes_received", "Routes Rx", int),
@@ -193,7 +188,8 @@ class ProtocolMetrics(object):
             if ethernets is None:
                 continue
             for eth in ethernets:
-                port_list.append(eth.get("port_name"))
+                if eth.get("connection") is not None:
+                    port_list.append(eth.get("connection").get("port_name"))
         return port_list
 
     def _do_drill_down(self, view, per_port, row_index, drill_option):

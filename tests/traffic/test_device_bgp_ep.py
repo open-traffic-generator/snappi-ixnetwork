@@ -95,12 +95,12 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     req.bgpv6.peer_names = ["rx_bgp"]
     results = api.get_metrics(req)
 
-    # assert len(results.bgpv6_metrics) == 1
-    # assert results.bgpv6_metrics[0].name == "rx_bgp"
-    # for bgp_res in results.bgpv6_metrics:
-    #     for i, enum in enumerate(enums):
-    #         val = expected_results[bgp_res.name][i]
-    #         assert getattr(bgp_res, enum) == val
+    assert len(results.bgpv6_metrics) == 1
+    assert results.bgpv6_metrics[0].name == "rx_bgp"
+    for bgp_res in results.bgpv6_metrics:
+        for i, enum in enumerate(enums):
+            val = expected_results[bgp_res.name][i]
+            assert getattr(bgp_res, enum) == val
 
     req = api.metrics_request()
     req.bgpv6.column_names = ["session_state"]

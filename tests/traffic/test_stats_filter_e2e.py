@@ -1,7 +1,7 @@
 import pytest
 import time
 
-
+@pytest.mark.e2e
 def test_stats_filter_e2e(api, b2b_raw_config, utils):
     """
     configure two flows f1 and f2
@@ -68,12 +68,12 @@ def test_stats_filter_e2e(api, b2b_raw_config, utils):
         validate_flow_stats_based_on_flow_name(flow_results, flow_name)
 
     # Validation on Flow statistics based on column names
-    # column_names = ["frames_tx_rate", "frames_rx_rate"]
-    # for column_name in column_names:
-    #     req = api.metrics_request()
-    #     req.flow.metric_names = ["name", column_name]
-    #     flow_results = api.get_metrics(req).flow_metrics
-    #     validate_flow_stats_based_on_column_name(flow_results, column_name)
+    column_names = ["frames_tx_rate", "frames_rx_rate"]
+    for column_name in column_names:
+        req = api.metrics_request()
+        req.flow.metric_names = ["name", column_name]
+        flow_results = api.get_metrics(req).flow_metrics
+        validate_flow_stats_based_on_column_name(flow_results, column_name)
 
     utils.stop_traffic(api, b2b_raw_config)
 
