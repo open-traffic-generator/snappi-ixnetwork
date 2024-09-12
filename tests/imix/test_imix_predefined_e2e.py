@@ -2,7 +2,6 @@ import pytest
 import time
 
 
-@pytest.mark.e2e
 def test_stats_filter_e2e(api, b2b_raw_config, utils):
     """
     configure flows with ipv4 imix
@@ -25,12 +24,12 @@ def test_stats_filter_e2e(api, b2b_raw_config, utils):
 
     eth1 = d1.ethernets.add()
     eth1.name = "eth1"
-    eth1.port_name = config.ports[0].name
+    eth1.connection.port_name = config.ports[0].name
     eth1.mac = "00:ad:aa:13:11:01"
 
     eth2 = d2.ethernets.add()
     eth2.name = "eth2"
-    eth2.port_name = config.ports[1].name
+    eth2.connection.port_name = config.ports[1].name
     eth2.mac = "00:ad:aa:13:11:02"
 
     ip1 = eth1.ipv4_addresses.add()

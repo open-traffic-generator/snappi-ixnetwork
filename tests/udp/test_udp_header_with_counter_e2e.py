@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.e2e
+# @pytest.mark.e2e
 def test_udp_header_with_counter_e2e(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,

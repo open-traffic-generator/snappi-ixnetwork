@@ -2,9 +2,9 @@ import pytest
 import dpkt
 
 
-@pytest.mark.skip(
-    reason="https://github.com/open-traffic-generator/snappi-ixnetwork/issues/525"
-)
+# @pytest.mark.skip(
+#     reason="https://github.com/open-traffic-generator/snappi-ixnetwork/issues/525"
+# )
 def test_capture_control(api, utils):
     """
     The test is to check if capture has control packets included.
@@ -34,7 +34,7 @@ def test_capture_control(api, utils):
 
     # tx_device config
     tx_eth = tx_device.ethernets.add()
-    tx_eth.port_name = tx.name
+    tx_eth.connection.port_name = tx.name
     tx_eth.name = "tx_eth"
     tx_eth.mac = "00:00:00:00:00:aa"
     tx_ipv4 = tx_eth.ipv4_addresses.add()
@@ -54,7 +54,7 @@ def test_capture_control(api, utils):
 
     # rx_device config
     rx_eth = rx_device.ethernets.add()
-    rx_eth.port_name = rx.name
+    rx_eth.connection.port_name = rx.name
     rx_eth.name = "rx_eth"
     rx_eth.mac = "00:00:00:00:00:bb"
     rx_ipv4 = rx_eth.ipv4_addresses.add()

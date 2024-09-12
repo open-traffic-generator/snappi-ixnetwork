@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.e2e
+# @pytest.mark.e2e
 def test_list_tcp_ports_e2e(api, utils, b2b_raw_config):
     """
     Configure a raw TCP flow with,
