@@ -263,9 +263,7 @@ def test_compact(api, utils):
     api.set_control_state(cs)
 
     print("Starting transmit on all flows ...")
-    # ts = api.transmit_state()
-    # ts.state = ts.START
-    # api.set_transmit_state(ts)
+
     cs = api.control_state()
     cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
     api.set_control_state(cs)
@@ -274,11 +272,6 @@ def test_compact(api, utils):
     utils.wait_for(
         lambda: stats_ok(api, PACKETS * 3, utils), "stats to be as expected"
     )
-
-    # rs = api.route_state()
-    # rs.names = ["Tx RR 4", "Rx RR 3"]
-    # rs.state = rs.WITHDRAW
-    # api.set_route_state(rs)
 
     cs = api.control_state()
     cs.protocol.route.state = cs.protocol.route.WITHDRAW

@@ -355,6 +355,13 @@ class Api(snappi.Api):
                     self.ngpf.set_device_state(request_payload)
             elif control_option == "traffic":
                 self.traffic_item.transmit(request_payload)
+            elif control_option is not None:
+                msg = "{} is not a supported choice for metrics; \
+                the supported choices are \
+                ['port', 'protocol', traffic]".format(
+                    control_option
+                )
+                raise SnappiIxnException(400, msg)
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()
@@ -383,6 +390,13 @@ class Api(snappi.Api):
                     res.response.protocol.ipv6.ping.responses.deserialize(
                         self.ping.results(request_payload, control_choice)
                     )
+            elif control_option is not None:
+                msg = "{} is not a supported choice for metrics; \
+                the supported choices are \
+                ['ipv4', 'ipv6']".format(
+                    control_option
+                )
+                raise SnappiIxnException(400, msg)
             res.warnings = snappi.Warning()
             return res
         except Exception as err:
