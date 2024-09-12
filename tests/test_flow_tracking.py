@@ -89,17 +89,26 @@ def test_flow_tracking_stats(api, utils):
     flow.rate.percentage = 1
     api.set_config(config)
 
-    print("Starting all protocols ...")
-    ps = api.protocol_state()
-    ps.state = ps.START
-    api.set_protocol_state(ps)
+    print("Starting all protocols ...")  
+    ps = api.control_state()
+    ps.choice = ps.PROTOCOL
+    ps.protocol.choice = ps.protocol.ALL
+    ps.protocol.all.state = ps.protocol.all.START
+    res = api.set_control_state(ps)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
     time.sleep(5)
 
     print("Start Traffic ...")
     # start traffic
-    ts = api.transmit_state()
-    ts.state = ts.START
-    api.set_transmit_state(ts)
+    control_state = api.control_state()
+    control_state.choice = control_state.TRAFFIC
+    control_state.traffic.choice = control_state.traffic.FLOW_TRANSMIT
+    control_state.traffic.flow_transmit.state = control_state.traffic.flow_transmit.START  # noqa
+    res = api.set_control_state(control_state)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
+
     # check stats
     time.sleep(5)
     config = api.get_config()
@@ -109,16 +118,25 @@ def test_flow_tracking_stats(api, utils):
     assert len(results) == 12
 
     print("Stop all protocols ...")
-    ps = api.protocol_state()
-    ps.state = ps.STOP
-    api.set_protocol_state(ps)
+    ps = api.control_state()
+    ps.choice = ps.PROTOCOL
+    ps.protocol.choice = ps.protocol.ALL
+    ps.protocol.all.state = ps.protocol.all.STOP
+    res = api.set_control_state(ps)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
     time.sleep(5)
 
     print("Stop Traffic ...")
-    # start traffic
-    ts = api.transmit_state()
-    ts.state = ts.STOP
-    api.set_transmit_state(ts)
+    # stop traffic
+    control_state = api.control_state()
+    control_state.choice = control_state.TRAFFIC
+    control_state.traffic.choice = control_state.traffic.FLOW_TRANSMIT
+    control_state.traffic.flow_transmit.state = control_state.traffic.flow_transmit.STOP  # noqa
+    res = api.set_control_state(control_state)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
+
 
 
 @pytest.mark.skip(reason="run for 8 ports")
