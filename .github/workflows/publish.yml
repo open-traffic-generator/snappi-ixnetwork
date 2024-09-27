@@ -66,6 +66,7 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py install
           ${{steps.path.outputs.pythonv}} do.py init
       - name: Run tests
+        if: always()
         run: |
           TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
 
