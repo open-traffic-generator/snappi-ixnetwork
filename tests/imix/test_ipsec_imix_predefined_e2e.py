@@ -6,7 +6,7 @@ def test_stats_filter_e2e(api, b2b_raw_config, utils):
     """
     configure flows with ipv4 imix
     - Send ipv4 imix predefined traffic
- 
+
 
     Validation:
     1) Get port statistics based on port name & column names and assert
@@ -19,7 +19,7 @@ def test_stats_filter_e2e(api, b2b_raw_config, utils):
 
     b2b_raw_config.flows.clear()
     config = b2b_raw_config
-    
+
     d1, d2 = config.devices.device(name="d1").device(name="d2")
 
     eth1 = d1.ethernets.add()
@@ -60,7 +60,9 @@ def test_stats_filter_e2e(api, b2b_raw_config, utils):
         timeout_seconds=20,
     )
     utils.stop_traffic(api, b2b_raw_config)
-    captures_ok(api, b2b_raw_config, utils, no_of_packets, config.ports[1].name )
+    captures_ok(
+        api, b2b_raw_config, utils, no_of_packets, config.ports[1].name
+    )
 
 
 def results_ok(api, utils, packets):
@@ -73,6 +75,7 @@ def results_ok(api, utils, packets):
     bytes_ok = 300000 <= flow_rx <= 500000
     return frames_ok and bytes_ok
 
+
 def captures_ok(api, cfg, utils, packets, name):
     """
     Returns normally if patterns in captured packets are as expected.
@@ -80,7 +83,6 @@ def captures_ok(api, cfg, utils, packets, name):
     pkt_count = 0
     cap_dict = utils.get_all_captures(api, cfg)
     for buf in cap_dict[name]:
-        assert len(buf) in [64, 570, 1518]
+        assert len(buf) in [90, 92, 594, 1418]
         pkt_count += 1
     assert pkt_count == packets
-

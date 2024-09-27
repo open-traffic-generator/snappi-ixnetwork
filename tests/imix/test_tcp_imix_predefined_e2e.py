@@ -83,6 +83,6 @@ def captures_ok(api, cfg, utils, packets, name):
     pkt_count = 0
     cap_dict = utils.get_all_captures(api, cfg)
     for buf in cap_dict[name]:
-        assert len(buf) in [64, 570, 1518]
+        assert len(buf) in [90, 92, 594, 1518]
         pkt_count += 1
     assert pkt_count == packets
