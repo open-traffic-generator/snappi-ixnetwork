@@ -45,7 +45,7 @@ def test_stats_filter_e2e(api, b2b_raw_config, utils):
     f1 = config.flows.flow(name="f1")[-1]
     f1.tx_rx.device.tx_names = [ip1.name]
     f1.tx_rx.device.rx_names = [ip2.name]
-    f1.size.weight_pairs.predefined = "imix"
+    f1.size.weight_pairs.predefined = "ipsec_imix"
     f1.rate.pps = 1000
     f1.duration.fixed_packets.packets = no_of_packets
     f1.metrics.enable = True
