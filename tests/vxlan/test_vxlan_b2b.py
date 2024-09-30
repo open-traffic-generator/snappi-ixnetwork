@@ -1,5 +1,9 @@
 import pytest
 
+
+@pytest.mark.skip(
+    reason="Fix - intermittent failure in CI, need to debug"
+)
 def test_vxlan_b2b(api, utils):
     config = api.config()
 

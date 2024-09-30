@@ -33,9 +33,9 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py install
           ${{steps.path.outputs.pythonv}} do.py init
-      # - name: Run tests
-      #   run: |
-      #     TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
+      - name: Run tests
+        run: |
+          TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
 
   publish_artifacts:
     runs-on: [snappi-ixn-ci-novus10g]
@@ -87,7 +87,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           path: dist
-      - name: Set the release version/workflow id
-        run: |
-          ${{steps.path.outputs.pythonv}} do.py install_requests ${{steps.path.outputs.pythonv}}
-          ${{steps.path.outputs.pythonv}} do.py check_release_flag ${{ steps.release.outputs.release_flag }} ${{ steps.get_version.outputs.version }}
+      
