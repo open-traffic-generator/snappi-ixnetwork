@@ -4,10 +4,10 @@ import logging
 import utils as utl
 # import snappi_convergence
 
-
-def pytest_exception_interact(node, call, report):
-    # end all pytests on first exception that is encountered
-    pytest.exit(call.excinfo.traceback[0])
+# TODO: uncomment this if we want pipeline to fail instantly 
+# def pytest_exception_interact(node, call, report):
+#     # end all pytests on first exception that is encountered
+#     pytest.exit(call.excinfo.traceback[0])
 
 
 def pytest_addoption(parser):
