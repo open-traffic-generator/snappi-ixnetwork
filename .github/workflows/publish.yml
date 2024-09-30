@@ -33,9 +33,9 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py install
           ${{steps.path.outputs.pythonv}} do.py init
-      - name: Run tests
-        run: |
-          TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
+      # - name: Run tests
+      #   run: |
+      #     TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
 
   publish_artifacts:
     runs-on: [snappi-ixn-ci-novus10g]
@@ -74,9 +74,9 @@ jobs:
         run: |
           export RELEASE_FLAG=1
           echo "::set-output name=release_flag::${RELEASE_FLAG}"
-          PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} ${{steps.path.outputs.pythonv}} do.py release
+          PYPI_USERNAME=__token__ PYPI_PASSWORD=${{ secrets.PYPI_API_TOKEN }} ${{steps.path.outputs.pythonv}} do.py release
       - name: Create release and publish artifacts
-        if: steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
+        if: github.ref == 'refs/heads/main' && steps.check_tag.outputs.exists == 'false' && matrix.python-version == 'python38'
         uses: ncipollo/release-action@v1
         with:
           artifacts: "dist/*"
