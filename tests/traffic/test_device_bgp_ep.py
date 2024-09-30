@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.skip(reason="will be updating the test with new snappi version")
+# @pytest.mark.skip(reason="will be updating the test with new snappi version")
 def test_bgpv6_routes(api, b2b_raw_config, utils):
     """
     Test for the bgpv6 routes
@@ -14,7 +14,7 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     p1, p2 = b2b_raw_config.ports
     d1, d2 = b2b_raw_config.devices.device(name="tx_bgp").device(name="rx_bgp")
     eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
-    eth1.port_name, eth2.port_name = p1.name, p2.name
+    eth1.connection.port_name, eth2.connection.port_name = p1.name, p2.name
     eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
     ip1, ip2 = eth1.ipv6_addresses.add(), eth2.ipv6_addresses.add()
     bgp1, bgp2 = d1.bgp, d2.bgp
@@ -78,7 +78,7 @@ def test_bgpv6_routes(api, b2b_raw_config, utils):
     enums = [
         "session_state",
         "routes_advertised",
-        "routes_withdrawn",
+        "route_withdraws_sent",
     ]
     expected_results = {
         "tx_bgp": ["up", 0, 0],

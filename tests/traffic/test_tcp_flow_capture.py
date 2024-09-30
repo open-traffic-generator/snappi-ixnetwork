@@ -24,12 +24,13 @@ def test_tcp_flow_capture(api, b2b_raw_config, utils):
     ip.src.value = "1.1.1.2"
     ip.dst.value = "1.1.1.1"
 
-    tcp.src_port.values = ["5000", "5050", "5015", "5040", "5032", "5021"]
-    tcp.dst_port.values = ["6000", "6015", "6050"]
+    tcp.src_port.values = [5000, 5050, 5015, 5040, 5032, 5021]
+    tcp.dst_port.values = [6000, 6015, 6050]
 
     flow.duration.fixed_packets.packets = packets
     flow.size.fixed = size
     flow.rate.percentage = 10
+    flow.metrics.enable = True
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(

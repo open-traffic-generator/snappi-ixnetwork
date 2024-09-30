@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.skip(reason="Revisit CI/CD fail")
+# @pytest.mark.skip(reason="Revisit CI/CD fail")
 def test_bgpv4_stats(api, b2b_raw_config, utils):
     """
     Test for the bgpv4 metrics
@@ -13,7 +13,7 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     d1, d2 = b2b_raw_config.devices.device(name="tx_bgp").device(name="rx_bgp")
 
     eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
-    eth1.port_name, eth2.port_name = p1.name, p2.name
+    eth1.connection.port_name, eth2.connection.port_name = p1.name, p2.name
     eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
     ip1, ip2 = eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
     bgp1, bgp2 = d1.bgp, d2.bgp
@@ -68,7 +68,6 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     req.bgpv4.peer_names = []
     req.bgpv4.column_names = enums[:3]
     results = api.get_metrics(req)
-
     assert len(results.bgpv4_metrics) == 2
     for bgp_res in results.bgpv4_metrics:
         for i, enum in enumerate(enums[:3]):
@@ -95,7 +94,7 @@ def test_bgpv4_stats(api, b2b_raw_config, utils):
     req = api.metrics_request()
     req.bgpv4.peer_names = ["rx_bgp"]
     results = api.get_metrics(req)
-
+    
     assert len(results.bgpv4_metrics) == 1
     assert results.bgpv4_metrics[0].name == "rx_bgp"
     for bgp_res in results.bgpv4_metrics:

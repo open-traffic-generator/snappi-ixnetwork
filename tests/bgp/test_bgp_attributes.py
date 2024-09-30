@@ -38,7 +38,7 @@ def test_bgp_attributes(api, utils):
     # device config
     eth = device.ethernets.add()
     eth.name = "eth"
-    eth.port_name = port.name
+    eth.connection.port_name = port.name
     eth.mac = "00:00:00:00:00:11"
     ipv4 = eth.ipv4_addresses.add()
     ipv4.name = "ipv4"
@@ -89,7 +89,7 @@ def test_bgp_attributes(api, utils):
     ipv6.gateway = "2000::2"
     bgpv6 = device.bgp
     bgpv6.router_id = "192.0.0.1"
-    bgpv6_int =  bgpv6.ipv6_interfaces.add()
+    bgpv6_int = bgpv6.ipv6_interfaces.add()
     bgpv6_int.ipv6_name = ipv6.name
     bgp6_peer = bgpv6_int.peers.add()
     bgp6_peer.name = "rx_bgpv6"
@@ -183,8 +183,8 @@ def validate_community_config(api, community, aspaths, med, origin):
     assert last_two_octets == community.split(":")[1]
 
     as_paths = bgpv4.AsPathASString
-    as_paths = as_paths[0].replace('}', '').replace('{', '')
-    as_paths = as_paths.split(',')
+    as_paths = as_paths[0].replace("}", "").replace("{", "")
+    as_paths = as_paths.split(",")
     as_paths = [int(ele) for ele in as_paths]
     assert as_paths == aspaths
 
@@ -198,8 +198,8 @@ def validate_community_config(api, community, aspaths, med, origin):
     assert last_two_octets == community.split(":")[1]
 
     as_paths = bgpv6.AsPathASString
-    as_paths = as_paths[0].replace('}', '').replace('{', '')
-    as_paths = as_paths.split(',')
+    as_paths = as_paths[0].replace("}", "").replace("{", "")
+    as_paths = as_paths.split(",")
     as_paths = [int(ele) for ele in as_paths]
     assert as_paths == aspaths
 

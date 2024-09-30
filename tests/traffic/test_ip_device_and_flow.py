@@ -44,16 +44,14 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
 
         dev.name = "%s_dev_%d" % (node, i + 1)
         eth = dev.ethernets.add()
-        eth.port_name = b2b_raw_config.ports[port].name
+        eth.connection.port_name = b2b_raw_config.ports[port].name
         eth.name = "%s_eth_%d" % (node, i + 1)
         eth.mac = addrs["mac_%s" % node][i]
 
         ip = eth.ipv4_addresses.add()
         ip.name = "%s_ipv4_%d" % (node, i + 1)
         ip.address = addrs["ip_%s" % node][i]
-        ip.gateway = addrs[
-            "ip_%s" % ("rx" if node == "tx" else "tx")
-        ][i]
+        ip.gateway = addrs["ip_%s" % ("rx" if node == "tx" else "tx")][i]
         ip.prefix = 24
     f1, f2 = b2b_raw_config.flows.flow(name="TxFlow-2")
     f1.name = "TxFlow-1"
@@ -67,6 +65,7 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     f1.size.fixed = size
     f1.duration.fixed_packets.packets = packets
     f1.rate.percentage = 10
+    f1.metrics.enable = True
 
     f2.tx_rx.device.tx_names = [
         b2b_raw_config.devices[i].name for i in range(count)
@@ -86,6 +85,7 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     f2.size.fixed = size * 2
     f2.duration.fixed_packets.packets = packets
     f2.rate.percentage = 10
+    f2.metrics.enable = True
 
     utils.start_traffic(api, b2b_raw_config)
 

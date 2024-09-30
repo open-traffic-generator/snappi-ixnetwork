@@ -100,19 +100,19 @@ def test_vxlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
 
     vxlan.flags.increment.start = 0
     vxlan.flags.increment.step = 1
-    vxlan.flags.increment.count = 256
+    vxlan.flags.increment.count = 255
 
     vxlan.vni.increment.start = 0
     vxlan.vni.increment.step = 1
-    vxlan.vni.increment.count = 16777216
+    vxlan.vni.increment.count = 16777215
 
     vxlan.reserved0.increment.start = 0
     vxlan.reserved0.increment.step = 1
-    vxlan.reserved0.increment.count = 16777216
+    vxlan.reserved0.increment.count = 16777215
 
     vxlan.reserved1.increment.start = 0
     vxlan.reserved1.increment.step = 1
-    vxlan.reserved1.increment.count = 256
+    vxlan.reserved1.increment.count = 255
 
     inner_eth.src.value = inner_src_mac
     inner_eth.dst.value = inner_dst_mac

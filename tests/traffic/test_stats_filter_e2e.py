@@ -1,7 +1,6 @@
 import pytest
 import time
 
-
 @pytest.mark.e2e
 def test_stats_filter_e2e(api, b2b_raw_config, utils):
     """
@@ -28,10 +27,12 @@ def test_stats_filter_e2e(api, b2b_raw_config, utils):
     flow1.size.fixed = f1_size
     flow1.rate.percentage = 10
     flow1.duration.continuous
+    flow1.metrics.enable = True
 
     flow2.size.fixed = f2_size
     flow2.rate.percentage = 10
     flow2.duration.continuous
+    flow2.metrics.enable = True
 
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
     time.sleep(5)
@@ -62,7 +63,7 @@ def test_stats_filter_e2e(api, b2b_raw_config, utils):
     for flow_name in flow_names:
         req = api.metrics_request()
         req.flow.flow_names = [flow_name]
-        req.flow.column_names = ["name"]
+        req.flow.metric_names = ["name"]
         flow_results = api.get_metrics(req).flow_metrics
         validate_flow_stats_based_on_flow_name(flow_results, flow_name)
 
@@ -70,7 +71,7 @@ def test_stats_filter_e2e(api, b2b_raw_config, utils):
     column_names = ["frames_tx_rate", "frames_rx_rate"]
     for column_name in column_names:
         req = api.metrics_request()
-        req.flow.column_names = ["name", column_name]
+        req.flow.metric_names = ["name", column_name]
         flow_results = api.get_metrics(req).flow_metrics
         validate_flow_stats_based_on_column_name(flow_results, column_name)
 

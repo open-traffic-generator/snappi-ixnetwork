@@ -321,7 +321,6 @@ expected_device_type = {
 
 
 def test_create_traffic_raw():
-
     config = snappi.Api().config()
     api = MagicMock()
     tr_obj = TrafficItem(api)
@@ -338,7 +337,6 @@ def test_create_traffic_raw():
 
 
 def test_create_traffic_raw2():
-
     config = snappi.Api().config()
     api = MagicMock()
     tr_obj = TrafficItem(api)

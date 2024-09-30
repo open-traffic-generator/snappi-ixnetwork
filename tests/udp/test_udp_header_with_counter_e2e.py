@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.e2e
+# @pytest.mark.e2e
 def test_udp_header_with_counter_e2e(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,
@@ -37,6 +37,7 @@ def test_udp_header_with_counter_e2e(api, b2b_raw_config, utils):
     flow.duration.fixed_packets.packets = packets
     flow.size.fixed = size
     flow.rate.percentage = 10
+    flow.metrics.enable = True
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(

@@ -1,7 +1,6 @@
 import pytest
 
 
-@pytest.mark.skip(reason="need to fix pfcpause")
 def test_flow_sizes(api, settings):
     """
     This will test supported Flow Size

@@ -16,7 +16,7 @@ def config_v4_devices(api, utils):
 
     # tx_device config
     tx_eth = tx_device.ethernets.add()
-    tx_eth.port_name = tx.name
+    tx_eth.connection.port_name = tx.name
     tx_eth.name = "tx_eth"
     tx_eth.mac = "00:00:00:00:00:aa"
     tx_ipv4 = tx_eth.ipv4_addresses.add()
@@ -37,7 +37,7 @@ def config_v4_devices(api, utils):
 
     # rx_device config
     rx_eth = rx_device.ethernets.add()
-    rx_eth.port_name = rx.name
+    rx_eth.connection.port_name = rx.name
     rx_eth.name = "rx_eth"
     rx_eth.mac = "00:00:00:00:00:bb"
     rx_ipv4 = rx_eth.ipv4_addresses.add()
@@ -80,7 +80,7 @@ def test_issue_7(api, config_v4_devices, utils):
 
     # tx_device config
     tx_eth = tx_device.ethernets.add()
-    tx_eth.port_name = tx.name
+    tx_eth.connection.port_name = tx.name
     tx_eth.name = "tx_eth"
     tx_eth.mac = "00:00:00:00:00:aa"
     tx_ipv6 = tx_eth.ipv6_addresses.add()
@@ -100,7 +100,7 @@ def test_issue_7(api, config_v4_devices, utils):
 
     # rx_device config
     rx_eth = rx_device.ethernets.add()
-    rx_eth.port_name = rx.name
+    rx_eth.connection.port_name = rx.name
     rx_eth.name = "rx_eth"
     rx_eth.mac = "00:00:00:00:00:bb"
     rx_ipv6 = rx_eth.ipv6_addresses.add()

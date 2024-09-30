@@ -126,7 +126,7 @@ def test_compact(api, utils):
         tx_device = config.devices.add()
         tx_device.name = "Tx Device {0}".format(i)
         tx_eth = tx_device.ethernets.add()
-        tx_eth.port_name = tx_port.name
+        tx_eth.connection.port_name = tx_port.name
         tx_eth.name = "Tx eth {0}".format(i)
         tx_eth.mac = config_values["tx_macs"][i - 1]
         tx_vlan = tx_eth.vlans.vlan()[-1]
@@ -167,7 +167,7 @@ def test_compact(api, utils):
         rx_device = config.devices.add()
         rx_device.name = "Rx Device {0}".format(i)
         rx_eth = rx_device.ethernets.add()
-        rx_eth.port_name = rx_port.name
+        rx_eth.connection.port_name = rx_port.name
         rx_eth.name = "Rx eth {0}".format(i)
         rx_eth.mac = config_values["rx_macs"][i - 1]
         rx_vlan = rx_eth.vlans.vlan()[-1]
@@ -254,23 +254,30 @@ def test_compact(api, utils):
 
     validate_compact_config(api, config_values, rx_device_with_rr)
     print("Starting all protocols ...")
-    ps = api.protocol_state()
-    ps.state = ps.START
-    api.set_protocol_state(ps)
+    # ps = api.protocol_state()
+    # ps.state = ps.START
+    # api.set_protocol_state(ps)
+
+    cs = api.control_state()
+    cs.protocol.all.state = cs.protocol.all.START
+    api.set_control_state(cs)
 
     print("Starting transmit on all flows ...")
-    ts = api.transmit_state()
-    ts.state = ts.START
-    api.set_transmit_state(ts)
+
+    cs = api.control_state()
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
+    api.set_control_state(cs)
+
     # utils.start_traffic(api, config, start_capture=False)
     utils.wait_for(
         lambda: stats_ok(api, PACKETS * 3, utils), "stats to be as expected"
     )
 
-    rs = api.route_state()
-    rs.names = ["Tx RR 4", "Rx RR 3"]
-    rs.state = rs.WITHDRAW
-    api.set_route_state(rs)
+    cs = api.control_state()
+    cs.protocol.route.state = cs.protocol.route.WITHDRAW
+    cs.protocol.route.names = ["Tx RR 4", "Rx RR 3"]
+    api.set_control_state(cs)
+
 
     validate_route_withdraw(api, config_values)
 

@@ -19,7 +19,7 @@ def test_flow_tracking_stats(api, utils):
     layer1.name = "test"
 
     config.options.port_options.location_preemption = True
-    
+
     d1, d2, d3, d4 = (
         config.devices.device(name="Device1")
         .device(name="Device2")
@@ -35,8 +35,8 @@ def test_flow_tracking_stats(api, utils):
         d3.ethernets.add(),
         d4.ethernets.add(),
     )
-    eth1.port_name, eth2.port_name = p1.name, p2.name
-    eth3.port_name, eth4.port_name = p3.name, p4.name
+    eth1.connection.port_name, eth2.connection.port_name = p1.name, p2.name
+    eth3.connection.port_name, eth4.connection.port_name = p3.name, p4.name
 
     # device1
     eth1.name = "Eth1"
@@ -89,17 +89,26 @@ def test_flow_tracking_stats(api, utils):
     flow.rate.percentage = 1
     api.set_config(config)
 
-    print("Starting all protocols ...")
-    ps = api.protocol_state()
-    ps.state = ps.START
-    api.set_protocol_state(ps)
+    print("Starting all protocols ...")  
+    ps = api.control_state()
+    ps.choice = ps.PROTOCOL
+    ps.protocol.choice = ps.protocol.ALL
+    ps.protocol.all.state = ps.protocol.all.START
+    res = api.set_control_state(ps)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
     time.sleep(5)
 
     print("Start Traffic ...")
     # start traffic
-    ts = api.transmit_state()
-    ts.state = ts.START
-    api.set_transmit_state(ts)
+    control_state = api.control_state()
+    control_state.choice = control_state.TRAFFIC
+    control_state.traffic.choice = control_state.traffic.FLOW_TRANSMIT
+    control_state.traffic.flow_transmit.state = control_state.traffic.flow_transmit.START  # noqa
+    res = api.set_control_state(control_state)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
+
     # check stats
     time.sleep(5)
     config = api.get_config()
@@ -109,16 +118,25 @@ def test_flow_tracking_stats(api, utils):
     assert len(results) == 12
 
     print("Stop all protocols ...")
-    ps = api.protocol_state()
-    ps.state = ps.STOP
-    api.set_protocol_state(ps)
+    ps = api.control_state()
+    ps.choice = ps.PROTOCOL
+    ps.protocol.choice = ps.protocol.ALL
+    ps.protocol.all.state = ps.protocol.all.STOP
+    res = api.set_control_state(ps)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
     time.sleep(5)
 
     print("Stop Traffic ...")
-    # start traffic
-    ts = api.transmit_state()
-    ts.state = ts.STOP
-    api.set_transmit_state(ts)
+    # stop traffic
+    control_state = api.control_state()
+    control_state.choice = control_state.TRAFFIC
+    control_state.traffic.choice = control_state.traffic.FLOW_TRANSMIT
+    control_state.traffic.flow_transmit.state = control_state.traffic.flow_transmit.STOP  # noqa
+    res = api.set_control_state(control_state)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
+
 
 
 @pytest.mark.skip(reason="run for 8 ports")
@@ -151,7 +169,7 @@ def test_flow_tracking_stats_8_ports(api):
     for i in range(1, 9, 2):
         d = config.devices.device(name="Device{}".format(i))[-1]
         eth = d.ethernets.add()
-        eth.port_name = ports[i - 1].name
+        eth.connection.port_name = ports[i - 1].name
         eth.name = "Eth{}".format(i)
         eth.mac = "00:02:00:00:00:1{}".format(i)
         ip = eth.ipv4_addresses.add()
@@ -163,7 +181,7 @@ def test_flow_tracking_stats_8_ports(api):
     for i in range(1, 9, 2):
         d = config.devices.device(name="Device{}".format(i + 1))[-1]
         eth = d.ethernets.add()
-        eth.port_name = ports[i].name
+        eth.connection.port_name = ports[i].name
         eth.name = "Eth{}".format(i + 1)
         eth.mac = "00:02:00:00:00:1{}".format(i + 1)
         ip = eth.ipv4_addresses.add()

@@ -53,7 +53,7 @@ def test_global_unpause_e2e(api, settings, utils):
     tx_ipv4.priority.raw.increment.step = 1
     tx_ipv4.priority.raw.increment.count = 256
     tx_flow.duration.fixed_packets.packets = packets
-    tx_flow.duration.fixed_packets.delay.nanoseconds = 10 ** 9
+    tx_flow.duration.fixed_packets.delay.nanoseconds = 10**9
     tx_flow.size.fixed = size
     tx_flow.rate.percentage = 100
     rx_eth_pause = rx_flow.packet.ethernetpause()[-1]
@@ -71,7 +71,7 @@ def test_global_unpause_e2e(api, settings, utils):
     rx_eth_unpause.control_op_code.value = "01"
     rx_eth_unpause.time.value = "FFFF"
     rx_global_unpause.duration.fixed_seconds.seconds = 10
-    rx_global_unpause.duration.fixed_seconds.delay.nanoseconds = (10 ** 9) * 10
+    rx_global_unpause.duration.fixed_seconds.delay.nanoseconds = (10**9) * 10
     rx_global_unpause.size.fixed = size
     rx_global_unpause.rate.percentage = 50
 

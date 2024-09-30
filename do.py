@@ -35,35 +35,47 @@ def lint():
     )
 
 
-def test():
+def test(card="novus100g"):
     coverage_threshold = 67
-    #     args = [
-    #         '--location="https://10.39.71.97:443"',
-    #         (
-    #             '--ports="10.39.65.230;6;1 10.39.65.230;6;2 10.39.65.230;6;3'
-    #             ' 10.39.65.230;6;4"'
-    #         ),
-    #         '--media="fiber"',
-    #         "tests",
-    #         '-m "not e2e and not l1_manual"',
-    #         '--cov=./snappi_ixnetwork --cov-report term'
-    #         ' --cov-report html:cov_report',
-    #     ]
-    args = [
-        '--location="https://otg-novus100g.lbj.is.keysight.com:5000"',
-        (
-            '--ports="otg-novus100g.lbj.is.keysight.com;1;1'
-            " otg-novus100g.lbj.is.keysight.com;1;2"
-            " otg-novus100g.lbj.is.keysight.com;1;5"
-            ' otg-novus100g.lbj.is.keysight.com;1;6"'
-        ),
+    username = os.environ.get("TEST_USERNAME", "admin")
+    psd = os.environ.get("TEST_PASSWORD", "admin")
+
+    if card == "novus100g":
+        args = [
+            '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
+            (
+                '--ports="snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;1'
+                " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;2"
+                " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;5"
+                ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;6"'
+            ),
+            "--speed=speed_100_gbps",
+        ]
+    elif card == "novus10g":
+        args = [
+            '--location="https://novus1-715849.ccu.is.keysight.com:443"',
+            (
+                '--ports="novus1-715849.ccu.is.keysight.com;1;1'
+                " novus1-715849.ccu.is.keysight.com;1;2"
+                " novus1-715849.ccu.is.keysight.com;1;5"
+                ' novus1-715849.ccu.is.keysight.com;1;6"'
+            ),
+            "--speed=speed_10_gbps",
+        ]
+    else:
+        raise Exception("card %s is not supported for testing" % card)
+
+    args += [
         "--ext=ixnetwork",
-        "--speed=speed_100_gbps",
+        "--username=" + username,
+        "--psd='" + psd + "'",
         "tests",
         '-m "not e2e and not l1_manual and not uhd"',
         "--cov=./snappi_ixnetwork --cov-report term"
         " --cov-report html:cov_report",
     ]
+    print(args)
+
     run(
         [
             py() + " -m pip install pytest-cov",
@@ -244,11 +256,13 @@ def get_workflow_id():
 
 
 def check_release_flag(release_flag=None, release_version=None):
-    if release_flag == '1':
+    if release_flag == "1":
         with open("setup.py") as f:
             out = f.read()
-            snappi_convergence = re.findall(r"\"snappi_convergence==(.+)\"",out)[0]
-        release_version = release_version.replace('v', "")
+            snappi_convergence = re.findall(
+                r"\"snappi_convergence==(.+)\"", out
+            )[0]
+        release_version = release_version.replace("v", "")
         with open("version.txt", "w+") as f:
             f.write("version: {}\n".format(release_version))
             f.write("snappi_convergence: {}\n".format(snappi_convergence))

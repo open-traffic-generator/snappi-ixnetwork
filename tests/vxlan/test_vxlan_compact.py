@@ -16,8 +16,8 @@ def test_vxlan_compact(api, utils):
 
     api.enable_scaling(True)
 
-    e1, e2 = d1.ethernets.ethernet()[-1], d2.ethernets.ethernet()[-1]
-    e1.port_name, e2.port_name = p1.name, p2.name
+    e1, e2 = d1.ethernets.add(), d2.ethernets.add()
+    e1.connection.port_name, e2.connection.port_name = p1.name, p2.name
     e1.name, e2.name = "e1", "e2"
     e1.mac, e2.mac = "00:01:00:00:00:01", "00:01:00:00:00:02"
 

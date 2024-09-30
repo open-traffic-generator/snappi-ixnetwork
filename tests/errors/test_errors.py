@@ -92,15 +92,13 @@ def test_error_list_from_server(api, b2b_raw_config, utils):
 
         eth = dev.ethernets.add()
         eth.name = "%s_eth_%d" % (node, i + 1)
-        eth.port_name = b2b_raw_config.ports[port].name
+        eth.connection.port_name = b2b_raw_config.ports[port].name
         eth.mac = addrs["mac_%s" % node][i]
 
         ipv4 = eth.ipv4_addresses.add()
         ipv4.name = "%s_ipv4_%d" % (node, i + 1)
         ipv4.address = addrs["ip_%s" % node][i]
-        ipv4.gateway = addrs[
-            "ip_%s" % ("rx" if node == "tx" else "tx")
-        ][i]
+        ipv4.gateway = addrs["ip_%s" % ("rx" if node == "tx" else "tx")][i]
         ipv4.prefix = 24
     f1, f2 = b2b_raw_config.flows.flow(name="TxFlow-2")
     f1.name = "TxFlow-1"

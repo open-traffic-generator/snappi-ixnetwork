@@ -14,8 +14,8 @@ def test_manual_gateway_mac(api, utils):
 
     d1, d2 = config.devices.device(name="d1").device(name="d2")
 
-    e1, e2 = d1.ethernets.ethernet()[-1], d2.ethernets.ethernet()[-1]
-    e1.port_name, e2.port_name = p1.name, p2.name
+    e1, e2 = d1.ethernets.add(), d2.ethernets.add()
+    e1.connection.port_name, e2.connection.port_name = p1.name, p2.name
     e1.name, e2.name = "e1", "e2"
     e1.mac, e2.mac = "00:01:00:00:00:01", "00:01:00:00:00:02"
 
@@ -178,14 +178,20 @@ def test_manual_gateway_mac(api, utils):
 
     assert (
         api._ixnetwork.Topology.find()[0]
-        .DeviceGroup.find()[0].Ethernet.find()[0]
-        .Ipv4.find().ManualGatewayMac.Values[0]
+        .DeviceGroup.find()[0]
+        .Ethernet.find()[0]
+        .Ipv4.find()
+        .ManualGatewayMac.Values[0]
     ) == "aa:aa:aa:aa:aa:aa"
 
     assert (
-        api._ixnetwork.Topology.find()[0].DeviceGroup.find()
-        .DeviceGroup.find().DeviceGroup.find()
-        .Ethernet.find()[0].Ipv4.find().ManualGatewayMac.Values
+        api._ixnetwork.Topology.find()[0]
+        .DeviceGroup.find()
+        .DeviceGroup.find()
+        .DeviceGroup.find()
+        .Ethernet.find()[0]
+        .Ipv4.find()
+        .ManualGatewayMac.Values
     ) == edge2_macs[1:]
 
 

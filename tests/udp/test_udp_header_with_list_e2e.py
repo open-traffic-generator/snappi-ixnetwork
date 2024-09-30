@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.e2e
+# @pytest.mark.e2e
 def test_udp_header_with_list_e2e(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,
@@ -23,13 +23,14 @@ def test_udp_header_with_list_e2e(api, b2b_raw_config, utils):
     eth.dst.value = "00:0c:29:1d:10:71"
     ip.src.value = "10.10.10.1"
     ip.dst.value = "10.10.10.2"
-    udp.src_port.values = ["3000", "3001"]
-    udp.dst_port.values = ["4000", "4001"]
-    udp.length.values = ["35", "36"]
+    udp.src_port.values = [3000, 3001]
+    udp.dst_port.values = [4000, 4001]
+    udp.length.values = [35, 36]
     udp.checksum.GOOD
     flow.duration.fixed_packets.packets = packets
     flow.size.fixed = size
     flow.rate.percentage = 10
+    flow.metrics.enable = True
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(

@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.e2e
+# @pytest.mark.e2e
 def test_list_tcp_ports_e2e(api, utils, b2b_raw_config):
     """
     Configure a raw TCP flow with,
@@ -27,6 +27,7 @@ def test_list_tcp_ports_e2e(api, utils, b2b_raw_config):
     f.duration.fixed_packets.packets = packets
     f.size.fixed = size
     f.rate.percentage = 10
+    f.metrics.enable = True
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
         lambda: results_ok(api, utils, size, packets),

@@ -1,10 +1,10 @@
 import pytest
-from bgp_convergence_config import bgp_convergence_config
+# from bgp_convergence_config import bgp_convergence_config
 
 PRIMARY_ROUTES_NAME = "rx_rr"
 PRIMARY_PORT_NAME = "rx"
 
-
+@pytest.mark.skip(reason="Fix -convergence support TBD")
 def test_convergence(utils, cvg_api, bgp_convergence_config):
     """
     1. set convergence config & start traffic

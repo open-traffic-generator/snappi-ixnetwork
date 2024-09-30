@@ -6,7 +6,7 @@ def test_loopback_interface(b2b_raw_config, api):
     d1, d2 = b2b_raw_config.devices.device(name="tx_bgp").device(name="rx_bgp")
 
     eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
-    eth1.port_name, eth2.port_name = p1.name, p2.name
+    eth1.connection.port_name, eth2.connection.port_name = p1.name, p2.name
     eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
     ip1, ip2 = eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
     bgp1, bgp2 = d1.bgp, d2.bgp
@@ -61,18 +61,18 @@ def test_loopback_interface(b2b_raw_config, api):
 def validate_result(api):
     validate_v4 = {
         "loop1": {
-            "address": ['20.20.0.1', '20.20.0.3'],
+            "address": ["20.20.0.1", "20.20.0.3"],
         },
         "loop2": {
-            "address": ['20.20.0.2', '20.20.0.4'],
+            "address": ["20.20.0.2", "20.20.0.4"],
         },
     }
     validate_v6 = {
         "loop5": {
-            "address": ['2222::1', '2222::3'],
+            "address": ["2222::1", "2222::3"],
         },
         "loop6": {
-            "address": ['2222::2', '2222::4'],
+            "address": ["2222::2", "2222::4"],
         },
     }
     ixn = api._ixnetwork

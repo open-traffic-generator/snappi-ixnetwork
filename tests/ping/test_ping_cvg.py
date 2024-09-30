@@ -1,6 +1,6 @@
 import pytest
 
-
+@pytest.mark.skip(reason="Fix -convergence support TBD")
 def test_ping_cvg(cvg_api, utils):
     """
     Demonstrates test to send ipv4 and ipv6 pings

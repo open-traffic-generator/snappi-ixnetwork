@@ -65,9 +65,14 @@ def wait_for_arp(snappi_api, max_attempts=10, poll_interval_sec=1):
     print("Attempts: ", attempts)
     print("Maxmimum Attempts:", max_attempts)
     if attempts >= max_attempts:
-        import pdb;pdb.set_trace()
-        raise Exception("ARP is not resolved in {} seconds".format(
-            max_attempts * poll_interval_sec))
+        import pdb
+
+        pdb.set_trace()
+        raise Exception(
+            "ARP is not resolved in {} seconds".format(
+                max_attempts * poll_interval_sec
+            )
+        )
 
     return attempts
 
@@ -87,10 +92,9 @@ def static_lag(api, utils):
         ------+
     """
     config = api.config()
-    p1, p2 = (
-        config.ports.port(name="txp1", location=utils.settings.ports[0])
-        .port(name="rxp2", location=utils.settings.ports[1])
-    )
+    p1, p2 = config.ports.port(
+        name="txp1", location=utils.settings.ports[0]
+    ).port(name="rxp2", location=utils.settings.ports[1])
 
     config.layer1.layer1(
         name="layer1",
@@ -118,7 +122,7 @@ def static_lag(api, utils):
     f2_size = 1500
     d1, d2 = config.devices.device(name="device1").device(name="device2")
     eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
-    eth1.port_name, eth2.port_name = lag1.name, lag2.name
+    eth1.connection.port_name, eth2.connection.port_name = lag1.name, lag2.name
     eth1.name, eth2.name = "d_eth1", "d_eth2"
     eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
     ip1, ip2 = eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
@@ -151,9 +155,9 @@ def static_lag(api, utils):
     wait_for_arp(api, max_attempts=10, poll_interval_sec=2)
 
     print("Starting transmit on all flows ...")
-    ts = api.transmit_state()
-    ts.state = ts.START
-    api.set_transmit_state(ts)
+    cs = api.control_state()
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
+    api.set_control_state(cs)
 
     utils.wait_for(lambda: utils.is_traffic_stopped(api), "traffic to stop")
 

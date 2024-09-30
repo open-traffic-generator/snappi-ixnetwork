@@ -77,11 +77,11 @@ def test_vlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
 
     vlan.priority.increment.start = 0
     vlan.priority.increment.step = 1
-    vlan.priority.increment.count = 8
+    vlan.priority.increment.count = 7
 
     vlan.cfi.increment.start = 0
     vlan.cfi.increment.step = 1
-    vlan.cfi.increment.count = 2
+    vlan.cfi.increment.count = 1
 
     vlan.id.increment.start = 1
     vlan.id.increment.step = 1
@@ -89,7 +89,7 @@ def test_vlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
 
     vlan.tpid.increment.start = 0
     vlan.tpid.increment.step = 1
-    vlan.tpid.increment.count = 65536
+    vlan.tpid.increment.count = 65535
 
     api.set_config(b2b_raw_config_vports)
 

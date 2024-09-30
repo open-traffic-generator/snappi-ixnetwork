@@ -1,6 +1,7 @@
 import pytest
 
 
+@pytest.mark.skip("skip until migrated to snappi")
 def test_vxlan_b2b_scale(api, utils):
     """
     1. Create 128 loopbacks and advertise them using BGP.
@@ -19,8 +20,8 @@ def test_vxlan_b2b_scale(api, utils):
 
     d1, d2 = config.devices.device(name="d1").device(name="d2")
 
-    e1, e2 = d1.ethernets.ethernet()[-1], d2.ethernets.ethernet()[-1]
-    e1.port_name, e2.port_name = p1.name, p2.name
+    e1, e2 = d1.ethernets.add(), d2.ethernets.add()
+    e1.connection.port_name, e2.connection.port_name = p1.name, p2.name
     e1.name, e2.name = "e1", "e2"
     e1.mac, e2.mac = "00:01:00:00:00:01", "00:01:00:00:00:02"
 

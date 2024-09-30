@@ -64,7 +64,7 @@ def test_pfc_pause_e2e(api, settings, utils, lossless_priorities):
         ipv4.dst.value = "1.1.1.1"
         ipv4.priority.dscp.phb.value = str(i * 8)
         f.duration.fixed_packets.packets = packets
-        f.duration.fixed_packets.delay.nanoseconds = 10 ** 9
+        f.duration.fixed_packets.delay.nanoseconds = 10**9
         f.size.fixed = size
         f.rate.percentage = 10
     rx_pause = config.flows.flow(name="rx_pause")[-1]

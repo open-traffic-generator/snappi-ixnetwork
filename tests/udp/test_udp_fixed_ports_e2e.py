@@ -1,6 +1,5 @@
 import pytest
 
-
 @pytest.mark.e2e
 def test_udp_fixed_ports_e2e(api, b2b_raw_config, utils):
     """
@@ -29,12 +28,13 @@ def test_udp_fixed_ports_e2e(api, b2b_raw_config, utils):
     f.duration.fixed_packets.packets = packets
     f.size.fixed = size
     f.rate.percentage = 10
+    f.metrics.enable = True
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
         lambda: stats_ok(api, size, packets, utils), "stats to be as expected"
     )
-
+    
     captures_ok(api, b2b_raw_config, size, utils)
 
 

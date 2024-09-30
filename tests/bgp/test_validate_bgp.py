@@ -6,7 +6,7 @@ def test_multiple_ips_on_ethernet(b2b_raw_config, api):
     d1, d2 = b2b_raw_config.devices.device(name="tx_bgp").device(name="rx_bgp")
 
     eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
-    eth1.port_name, eth2.port_name = p1.name, p2.name
+    eth1.connection.port_name, eth2.connection.port_name = p1.name, p2.name
     eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
     ip1, ip2 = eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
     ip3, ip4 = eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
@@ -59,7 +59,7 @@ def test_bgp_on_different_dg(b2b_raw_config, api):
     d1, d2 = b2b_raw_config.devices.device(name="tx_bgp").device(name="rx_bgp")
 
     eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
-    eth1.port_name, eth2.port_name = p1.name, p2.name
+    eth1.connection.port_name, eth2.connection.port_name = p1.name, p2.name
     eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
     ip1, ip2 = eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
     bgp1, bgp2 = d1.bgp, d2.bgp

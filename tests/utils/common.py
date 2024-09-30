@@ -61,6 +61,11 @@ def load_dict_from_json_file(path):
         return json.load(fp, object_hook=byteify)
 
 
+def configure_credentials(api, usr, psd):
+    api.username = usr
+    api.password = psd
+
+
 class Settings(object):
     """
     Singleton for global settings
@@ -69,6 +74,7 @@ class Settings(object):
     def __init__(self):
         # these not be defined and are here only for documentation
         self.username = None
+        self.psd = None
         self.location = None
         self.ports = None
         self.speed = None
@@ -123,18 +129,32 @@ def start_traffic(api, cfg, start_capture=True):
     capture_names = get_capture_port_names(cfg)
     if capture_names and start_capture:
         print("Starting capture on ports %s ..." % str(capture_names))
-        cs = api.capture_state()
-        cs.state = cs.START
-        api.set_capture_state(cs)
+        cs = api.control_state()
+        # cs.port.capture.state = cs.port.capture.START
+        # api.set_control_state(cs)
+        cs.choice = cs.PORT
+        cs.port.choice = cs.port.CAPTURE
+        cs.port.capture.state = cs.port.capture.START
+        res = api.set_control_state(cs)
+        if len(res.warnings) > 0:
+            print("Warnings: {}".format(res.warnings))
+
     print("Starting all protocols ...")
-    ps = api.protocol_state()
-    ps.state = ps.START
-    api.set_protocol_state(ps)
+    cs = api.control_state()
+    cs.protocol.all.state = cs.protocol.all.START
+    api.set_control_state(cs)
 
     print("Starting transmit on all flows ...")
-    ts = api.transmit_state()
-    ts.state = ts.START
-    api.set_transmit_state(ts)
+
+    cs = api.control_state()
+    # cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
+    # api.set_control_state(cs)
+    cs.choice = cs.TRAFFIC
+    cs.traffic.choice = cs.traffic.FLOW_TRANSMIT
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START  # noqa
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
 
 
 def stop_traffic(api, cfg, stop_capture=True):
@@ -142,21 +162,21 @@ def stop_traffic(api, cfg, stop_capture=True):
     Stops flows
     """
     print("Stopping transmit on all flows ...")
-    ts = api.transmit_state()
-    ts.state = ts.STOP
-    api.set_transmit_state(ts)
+    cs = api.control_state()
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.STOP
+    api.set_control_state(cs)
 
-    print("Starting all protocols ...")
-    ps = api.protocol_state()
-    ps.state = ps.STOP
-    api.set_protocol_state(ps)
+    print("Stopping all protocols ...")
+    cs = api.control_state()
+    cs.protocol.all.state = cs.protocol.all.STOP
+    api.set_control_state(cs)
 
     capture_names = get_capture_port_names(cfg)
     if capture_names and stop_capture:
         print("Stopping capture on ports %s ..." % str(capture_names))
-        cs = api.capture_state()
-        cs.state = cs.STOP
-        api.set_capture_state(cs)
+        cs = api.control_state()
+        cs.port.capture.state = cs.port.capture.STOP
+        api.set_control_state(cs)
 
 
 def seconds_elapsed(start_seconds):

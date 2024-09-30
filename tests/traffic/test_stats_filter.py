@@ -52,8 +52,6 @@ def test_stats_filter(api, b2b_raw_config, utils):
         req = api.metrics_request()
         req.port.port_names = [port_name]
         port_results = api.get_metrics(req).port_metrics
-        # port_results = api.get_port_results(result.PortRequest(
-        #                                     port_names=[port_name]))
         validate_port_stats_based_on_port_name(port_results, port_name)
 
     # Validation on Port statistics based on column names
@@ -63,9 +61,6 @@ def test_stats_filter(api, b2b_raw_config, utils):
         req.port.column_names = ["name", column_name]
         port_results = api.get_metrics(req).port_metrics
 
-        # port_results = api.get_port_results(result.PortRequest(
-        #                                     column_names=['name',
-        #                                        column_name]))
         validate_port_stats_based_on_column_name(
             port_results, column_name, f1_packets, f2_packets, f1_size, f2_size
         )
@@ -77,9 +72,6 @@ def test_stats_filter(api, b2b_raw_config, utils):
         req.flow.flow_names = [flow_name]
         req.flow.metric_names = ["name"]
         flow_results = api.get_metrics(req).flow_metrics
-        # flow_results = api.get_flow_results(result.FlowRequest(
-        #                                     flow_names=[flow_name],
-        #                                     column_names=['name']))
         validate_flow_stats_based_on_flow_name(flow_results, flow_name)
 
     # Validation on Flow statistics based on metric names
@@ -88,9 +80,6 @@ def test_stats_filter(api, b2b_raw_config, utils):
         req = api.metrics_request()
         req.flow.metric_names = ["name", column_name]
         flow_results = api.get_metrics(req).flow_metrics
-        # flow_results = api.get_flow_results(result.FlowRequest(
-        #                                     column_names=['name',
-        #                                                   column_name]))
         validate_flow_stats_based_on_metric_name(
             flow_results, metric_name, f1_packets, f2_packets, f1_size, f2_size
         )
