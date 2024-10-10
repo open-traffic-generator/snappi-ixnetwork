@@ -36,6 +36,10 @@ jobs:
       - name: Run tests
         run: |
           TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
+      - name: Send Coverage Email
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py coverage
+
 
   publish_artifacts:
     runs-on: [snappi-ixn-ci-novus10g]
