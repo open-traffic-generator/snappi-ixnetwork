@@ -101,6 +101,7 @@ def test(card="novus100g"):
             )
 
 def coverage():
+    coverage_threshold = 67
     import re
 
     with open("./cov_report/index.html") as fp:
