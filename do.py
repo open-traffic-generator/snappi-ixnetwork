@@ -106,7 +106,6 @@ def coverage():
 
     with open("./cov_report/index.html") as fp:
         out = fp.read()
-        print(out)
         result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[0]
         if int(result) < coverage_threshold:
             raise Exception(
