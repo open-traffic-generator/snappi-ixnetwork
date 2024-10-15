@@ -4,6 +4,10 @@ import re
 import sys
 import shutil
 import subprocess
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 
 global ixnexception
 def setup():
@@ -101,8 +105,10 @@ def test(card="novus100g"):
             )
 
 def coverage():
+
     coverage_threshold = 67
-    import re
+    global result
+
 
     with open("./cov_report/index.html") as fp:
         out = fp.read()
@@ -119,6 +125,80 @@ def coverage():
                     coverage_threshold, result
                 )
             )
+
+    sender = "ixnetworksnappi@gmail.com"
+    receiver = "desai.mg@keysight.com"
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = "Snappi-Ixnetwork Coverage Email"
+    msg['From'] = sender
+    msg['To'] = receiver
+
+    val1=200
+    val2=198
+    val3=2
+    
+    # Create the body of the message (a plain-text and an HTML version).
+    text = "Hi!"
+    html = """\
+    <html>
+    <style>
+    table, th, td {
+    border:1px solid black;
+    }
+    </style>
+    <body>
+
+    <p>Hi All,<br><br>
+    Please find the coverage results for the pipline execution<br><br>
+    </p>
+
+    <table style="width:100%">
+    <tr>
+        <td>Total Testcases</td>
+        <td>"""+str(val1)+"""</td>
+    </tr>
+    <tr>
+        <td>Total Test Pass</td>
+        <td>"""+str(val2)+"""</td>
+    </tr>
+    <tr>
+        <td>Total Test Fail</td>
+        <td>"""+str(val3)+"""</td>
+    </tr>
+    <tr>
+        <td>Test Coverage Percentage</td>
+        <td>"""+str(result)+"""</td>
+    </tr>
+    </table>
+
+    <br><p>Thanks,<br>
+        Snappi-Ixnetwork Team<br><br>
+    </p>
+
+    </body>
+    </html>
+    """
+    #.format("200","198","2","99%")
+
+    # Record the MIME types of both parts - text/plain and text/html.
+    part1 = MIMEText(text, 'plain')
+    part2 = MIMEText(html, 'html')
+
+    # Attach parts into message container.
+    # According to RFC 2046, the last part of a multipart message, in this case
+    # the HTML message, is best and preferred.
+    msg.attach(part1)
+    msg.attach(part2)
+
+    # Send the message via local SMTP server.
+    s = smtplib.SMTP('smtp.gmail.com', 587)
+    s.starttls()
+    s.login(sender, "fbgt tiid rduu ajar")
+    # sendmail function takes 3 arguments: sender's address, recipient's address
+    # and message to send - here it is sent as one string.
+    s.sendmail(sender, receiver, msg.as_string())
+    s.quit()
 
 def dist():
     clean()
