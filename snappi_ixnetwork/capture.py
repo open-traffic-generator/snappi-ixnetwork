@@ -138,8 +138,8 @@ class Capture(object):
         pallete_map = getattr(
             self, "_{0}_OFFSET_MAP".format(cap_filter.parent.choice.upper())
         )
-        for field_name in dir(cap_filter):
-            if field_name not in pallete_map:
+        for field_name in pallete_map:
+            if field_name not in dir(cap_filter):
                 raise Exception(
                     "Api not implimented for {0}".format(field_name)
                 )
