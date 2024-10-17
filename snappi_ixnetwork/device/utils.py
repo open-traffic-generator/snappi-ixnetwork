@@ -13,15 +13,15 @@ def namedtuple_with_defaults(typename, field_names, default_values=()):
     T.__new__.__defaults__ = tuple(prototype)
     return T
 
-
-def asdot2plain(asdot):
-    """This returns an ASPLAIN formated ASN given an ASDOT+ format"""
-    if re.findall(r"\.|\:", asdot):
-        left, right = re.split(r"\.|\:", asdot)
-        ret = int(left) * 65536 + int(right)
-        return ret
-    else:
-        return int(asdot)
+# commenting unused libraries
+# def asdot2plain(asdot):
+#     """This returns an ASPLAIN formated ASN given an ASDOT+ format"""
+#     if re.findall(r"\.|\:", asdot):
+#         left, right = re.split(r"\.|\:", asdot)
+#         ret = int(left) * 65536 + int(right)
+#         return ret
+#     else:
+#         return int(asdot)
 
 
 def convert_as_values(as_types, as_values):
@@ -49,8 +49,8 @@ def convert_as_values(as_types, as_values):
             convert_values.ip_addr[idx] = num
     return convert_values
 
-
-def hex_to_ipv4(hex_value):
-    bytes = ["".join(x) for x in zip(*[iter(hex_value)] * 2)]
-    bytes = [int(x, 16) for x in bytes]
-    return ".".join(str(x) for x in reversed(bytes))
+# commenting unused libraries
+# def hex_to_ipv4(hex_value):
+#     bytes = ["".join(x) for x in zip(*[iter(hex_value)] * 2)]
+#     bytes = [int(x, 16) for x in bytes]
+#     return ".".join(str(x) for x in reversed(bytes))
