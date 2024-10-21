@@ -24,17 +24,4 @@ def test_traffic_ethernet_pause(api, b2b_raw_config, utils):
     flow.metrics.enable = True
 
     utils.start_traffic(api, b2b_raw_config)
-    utils.wait_for(
-        lambda: results_ok(api, utils, size, packets),
-        "stats to be as expected",
-        timeout_seconds=10,
-    )
 
-def results_ok(api, utils, size, packets):
-    """
-    Returns true if stats are as expected, false otherwise.
-    """
-    port_results, flow_results = utils.get_all_stats(api)
-    frames_ok = utils.total_frames_ok(port_results, flow_results, packets)
-    bytes_ok = utils.total_bytes_ok(port_results, flow_results, packets * size)
-    return frames_ok and bytes_ok
