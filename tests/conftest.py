@@ -61,6 +61,11 @@ def settings():
     return utl.settings
 
 
+@pytest.fixture
+def dut():
+    return utl.dut
+
+
 @pytest.fixture(scope="session")
 def api():
     # handle to make API calls
@@ -87,6 +92,31 @@ def b2b_raw_config(api):
     l1.port_names = [rx.name, tx.name]
     l1.media = utl.settings.media
     l1.speed = utl.settings.speed
+
+    flow = config.flows.flow(name="f1")[-1]
+    flow.tx_rx.port.tx_name = tx.name
+    flow.tx_rx.port.rx_name = rx.name
+
+    # this will allow us to take over ports that may already be in use
+    config.options.port_options.location_preemption = True
+
+    cap = config.captures.capture(name="c1")[-1]
+    cap.port_names = [rx.name]
+    cap.format = cap.PCAPNG
+
+    return config
+
+
+@pytest.fixture
+def dut_raw_config(api):
+    """
+    back to back raw config
+    """
+    config = api.config()
+
+    tx, rx = config.ports.port(name="tx", location=utl.settings.ports[0]).port(
+        name="rx", location=utl.settings.ports[1]
+    )
 
     flow = config.flows.flow(name="f1")[-1]
     flow.tx_rx.port.tx_name = tx.name

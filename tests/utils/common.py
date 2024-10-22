@@ -5,6 +5,8 @@ import time
 from datetime import datetime
 import csv
 import dpkt
+import pexpect
+import re
 
 
 if sys.version_info[0] >= 3:
@@ -85,6 +87,10 @@ class Settings(object):
         self.dynamic_stats_output = None
         self.license_servers = None
         self.ext = None
+        self.dut_username = None
+        self.dut_password = None
+        self.dut_location = None
+        self.dut_ports = None
 
         self.load_from_settings_file()
 
@@ -116,6 +122,85 @@ class Settings(object):
 
 # shared global settings
 settings = Settings()
+
+
+class DUT(object):
+    """
+    Singleton for DUT settings
+    """
+
+    def __init__(self):
+        self.dut_location = settings.dut_location
+        self.dut_username = settings.dut_username
+        self.dut_password = settings.dut_password
+        self.dut_ports = settings.dut_ports
+
+    def connect_dut(self):
+        try:
+            ssh_channel = pexpect.spawn(
+                "ssh %s@%s" % (self.dut_username, self.dut_location),
+                timeout=10,
+            )
+            ssh_channel.expect(re.compile(b"Password:", re.IGNORECASE))
+            ssh_channel.sendline(self.dut_password)
+            ssh_channel.expect("#")
+            ssh_channel.sendline("terminal length 0")
+            ssh_channel.expect("#")
+
+            if not ssh_channel.isalive():
+                raise Exception(
+                    "SSH connection failed. The process is no longer alive."
+                )
+
+            print("DUT Connection Successful..")
+
+            return ssh_channel
+
+        except pexpect.exceptions.TIMEOUT:
+            print("Connection timed out!")
+            raise
+
+        except pexpect.exceptions.EOF:
+            print("Unexpected end of file. The connection might have failed.")
+            raise
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            raise
+
+    def disconnect_dut(self, ssh_channel: pexpect.spawn):
+        try:
+            ssh_channel.close()
+
+            print(f"DUT Connection closed")
+
+        except pexpect.exceptions.TIMEOUT:
+            print("Command execution timed out!")
+            return ""
+
+        except pexpect.exceptions.EOF:
+            print("Command execution failed!")
+            return ""
+
+    def config_dut(self, dut_config_file, ssh_channel: pexpect.spawn):
+        try:
+            with open(dut_config_file, "r") as file:
+                lines = file.readlines()
+                for line in lines:
+                    ssh_channel.sendline(line.strip())
+                    ssh_channel.expect("#")
+
+        except pexpect.exceptions.TIMEOUT:
+            print("Command execution timed out!")
+            return ""
+
+        except pexpect.exceptions.EOF:
+            print("Command execution failed!")
+            return ""
+
+
+# shared dut settings
+dut = DUT()
 
 
 def start_traffic(api, cfg, start_capture=True):
