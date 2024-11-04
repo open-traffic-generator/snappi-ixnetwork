@@ -36,31 +36,30 @@ jobs:
       - name: Run tests
         run: |
           TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
-      - name: Load Allure test report history
-        uses: actions/checkout@v4
+
+      - name: Load test report history
+        uses: actions/checkout@v3
         if: always()
         continue-on-error: true
         with:
           ref: gh-pages
-          path: gh-pages-dir
+          path: gh-pages
 
-      - name: Generate Allure test report
-        uses: andgineer/allure-report@v3.4
-        id: allure-report
+      - name: Build test report
+        uses: simple-elf/allure-report-action@v1.7
         if: always()
         with:
-          allure-results: allure-results
-          website: gh-pages-dir
-          reports-site-path: builds/tests
+          gh_pages: gh-pages
+          allure_history: allure-history
+          allure_results: build/allure-results
 
-      - name: Publish Allure test report
+      - name: Publish test report
         uses: peaceiris/actions-gh-pages@v3
-        if: ${{ always() && (steps.allure-report.outcome == 'success') }}
+        if: always()
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
-          publish_dir: ${{ steps.allure-report.outputs.reports-site }}
-          destination_dir: ${{ steps.allure-report.outputs.reports-site-path }}
+          publish_dir: allure-history
 
       - name: Send Coverage Email
         run: |
