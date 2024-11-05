@@ -24,7 +24,6 @@ def init():
     run(
         [
             py() + " -m pip install -r requirements.txt",
-            "brew install docker",
         ]
     )
 
