@@ -106,6 +106,16 @@ def test(card="novus100g"):
                 )
             )
 
+def generate_allure_report():
+
+        run(
+        [
+            "allure generate allure-results -c -o allure-report",
+            
+        ]
+    )
+        
+
 def coverage():
 
     coverage_threshold = 67

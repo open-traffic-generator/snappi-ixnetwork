@@ -39,22 +39,9 @@ jobs:
       - name: Send Coverage Email
         run: |
           ${{steps.path.outputs.pythonv}} do.py coverage
-      - name: Generate Allure test report
-        uses: simple-elf/allure-report-action@v1.7
-        id: allure-report
-        if: always()
-        with:
-          allure-results: allure-results
-          website: gh-pages-dir
-          reports-site-path: builds/tests
-      - name: Publish Allure test report
-        uses: peaceiris/actions-gh-pages@v3
-        if: ${{ always() && (steps.allure-report.outcome == 'success') }}
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: ${{ steps.allure-report.outputs.reports-site }}
-          destination_dir: ${{ steps.allure-report.outputs.reports-site-path }}  
+      - name: Generate coverage report
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py generate_allure_report
   
 
 
