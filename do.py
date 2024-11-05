@@ -109,7 +109,7 @@ def test(card="novus100g"):
 def generate_allure_report():
         run(["apt-get install default-jre",
         "wget https://github.com/allure-framework/allure2/releases/tag/2.32.0/allure_2.32.0-1_all.deb",
-        "dpkg -i allure_2.18.1-1_all.deb",])
+        "sudo dpkg -i allure_2.18.1-1_all.deb",])
 
         run(
         [
