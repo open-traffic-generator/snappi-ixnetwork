@@ -33,6 +33,11 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py install
           ${{steps.path.outputs.pythonv}} do.py init
+      - name: Install System Libraries
+        run: |
+          apt-get -y install default-jre
+          wget https://github.com/allure-framework/allure2/releases/tag/2.32.0/allure_2.32.0-1_all.deb
+          dpkg -y -i allure_2.32.0-1_all.deb
       - name: Run tests
         run: |
           TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
