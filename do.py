@@ -110,7 +110,7 @@ def generate_allure_report():
         run(["sudo -S apt-get update"])
         run(["sudo -S apt-get install default-jre"])
         run(["wget https://github.com/allure-framework/allure2/releases/tag/2.32.0/allure_2.32.0-1_all.deb"])
-        run(["sudo dpkg -i allure_2.18.1-1_all.deb"])
+        run(["sudo -S dpkg -i allure_2.18.1-1_all.deb"])
 
         run(
         [
