@@ -39,7 +39,7 @@ jobs:
       - name: Send Coverage Email
         run: |
           ${{steps.path.outputs.pythonv}} do.py coverage
-      - name: Generate coverage report
+      - name: Generate Allure report
         run: |
           ${{steps.path.outputs.pythonv}} do.py generate_allure_report
   
