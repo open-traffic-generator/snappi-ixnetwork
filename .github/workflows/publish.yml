@@ -39,9 +39,8 @@ jobs:
       - name: Send Coverage Email
         run: |
           ${{steps.path.outputs.pythonv}} do.py coverage
-
       - name: Generate Allure test report
-        uses: andgineer/allure-report@v3.4
+        uses: simple-elf/allure-report-action@v1.7
         id: allure-report
         if: always()
         with:
