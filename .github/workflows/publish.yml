@@ -47,14 +47,14 @@ jobs:
           ref: gh-pages
           path: gh-pages
       - name: Build test report
-        uses: simple-elf/allure-report-action
+        uses: simple-elf/allure-report-action@master
         if: always()
         with:
           gh_pages: gh-pages
           allure_history: allure-history
           allure_results: build/allure-results
       - name: Publish test report
-        uses: peaceiris/actions-gh-pages
+        uses: peaceiris/actions-gh-pages@v2
         if: always()
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
