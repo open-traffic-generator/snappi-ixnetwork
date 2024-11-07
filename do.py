@@ -107,6 +107,7 @@ def test(card="novus100g"):
             )
 
 def generate_allure_report():
+        run(['export PATH="$PATH:/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin"'])
         run(["echo $PATH"])
         run(["whoami"])
         run(
