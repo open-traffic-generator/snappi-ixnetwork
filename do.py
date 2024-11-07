@@ -107,6 +107,7 @@ def test(card="novus100g"):
             )
 
 def generate_allure_report():
+        run(["whoami"])
         run(
         [
             "allure generate allure-results -c -o allure-report",
