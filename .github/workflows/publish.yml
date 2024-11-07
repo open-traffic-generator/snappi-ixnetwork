@@ -41,6 +41,7 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py coverage
       - name: Generate Allure report
         run: |
+          source ~/.profile
           ${{steps.path.outputs.pythonv}} do.py generate_allure_report
   
 
