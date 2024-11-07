@@ -108,7 +108,7 @@ def test(card="novus100g"):
 
 def generate_allure_report():
         run(["cat ~/.profile"])
-        run(["source ~/.profile"])
+        run([". ~/.profile"])
         
         run(["echo $PATH"])
         run(["whoami"])
