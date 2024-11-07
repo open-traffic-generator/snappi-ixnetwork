@@ -107,6 +107,7 @@ def test(card="novus100g"):
             )
 
 def generate_allure_report():
+        run(["ifconfig"])
         run(["whoami"])
         run(
         [
