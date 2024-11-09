@@ -123,7 +123,7 @@ def coverage():
     with open("myfile.log") as fp:
         out = fp.read()
         total_selected_tests = re.findall(r"collecting.*(\d+)\s+selected", out)[0]
-        total_passed_tests = re.findall(r"===.*(\d+)\s+passed", out)[0]
+        total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out)[0]
         total_failed_tests = int(total_selected_tests) - int(total_passed_tests)
 
     with open("./cov_report/index.html") as fp:
