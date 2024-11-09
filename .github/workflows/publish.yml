@@ -10,8 +10,6 @@ env:
 jobs:
   test_novus_10g:
     runs-on: [snappi-ixn-ci-novus10g]
-    outputs:
-      steps: ${{ steps.timestamp.outputs }}
     steps:
       - name: Set Timestamp
         id: timestamp

@@ -108,7 +108,7 @@ def test(card="novus100g"):
 
 def generate_allure_report():
 
-        run(["$TIMESTAMP"])
+        run(["echo $TIMESTAMP"])
         run(
         [
             "allure generate allure-results -c -o allure-report",
