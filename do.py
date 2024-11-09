@@ -181,6 +181,9 @@ def coverage():
     </tr>
     </table>
 
+    <p> Click on the url for detailed test execution summary : <a href="https://otg.dev/snappi-ixnetwork/" target="_blank">W3C</a></p>
+    
+
     <br><p>Thanks,<br>
         Snappi-Ixnetwork Team<br><br>
     </p>
