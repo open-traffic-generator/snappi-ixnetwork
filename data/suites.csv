@@ -1,2 +1,2 @@
 "DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
-"","28631","test_arp_packet","","Sat Nov 09 08:32:27 UTC 2024","passed","Sat Nov 09 08:32:55 UTC 2024","","pytest","arp.test_arp_packet",""
+"","28788","test_arp_packet","","Sat Nov 09 08:38:28 UTC 2024","passed","Sat Nov 09 08:38:57 UTC 2024","","pytest","arp.test_arp_packet",""
