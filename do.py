@@ -108,7 +108,6 @@ def test(card="novus100g"):
 
 def generate_allure_report():
 
-        run(["echo $TIMESTAMP"])
         run(
         [
             "allure generate allure-results -c -o allure-report",
@@ -118,6 +117,7 @@ def generate_allure_report():
 
 def coverage():
 
+    teststarttime = run(["echo $TIMESTAMP"])
     coverage_threshold = 67
     global result
     with open("myfile.log") as fp:
@@ -156,8 +156,8 @@ def coverage():
     <body>
 
     <p>Hi All,<br><br>
-    Please find the coverage results for the build execution ID : <b>"""+str(build_number)+"""</b><br><br>
-    Build started on : <br><br>
+    Please find the coverage results for the build execution ID : <b>"""+str(build_number)+"""</b><br>
+    Build started on : <b>"""+str(teststarttime)+"""</b><br><br>
     </p>
 
     <table style="width:100%">
