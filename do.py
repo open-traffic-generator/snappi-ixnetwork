@@ -127,9 +127,6 @@ def coverage():
 
     with open("./cov_report/index.html") as fp:
         out = fp.read()
-        result = re.findall(r"data-ratio.*?[>](\d+)\b", out)
-        print(result)
-
         result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[-1]
 
     sender = "ixnetworksnappi@gmail.com"
@@ -145,7 +142,7 @@ def coverage():
     val3=total_failed_tests
 
     build_number=get_workflow_id()
-    
+
     # Create the body of the message (a plain-text and an HTML version).
     text = "Hi!"
     html = """\
@@ -158,7 +155,7 @@ def coverage():
     <body>
 
     <p>Hi All,<br><br>
-    Please find the coverage results for the build execution ID : """+str(build_number)+"""<br><br>
+    Please find the coverage results for the build execution ID : <b>"""+str(build_number)+"""<\b><br><br>
     Build started on : <br><br>
     </p>
 
@@ -181,7 +178,7 @@ def coverage():
     </tr>
     </table>
 
-    <p> Click on the url for detailed test execution summary : <a href="https://otg.dev/snappi-ixnetwork/" target="_blank">W3C</a></p>
+    <p> Click on the url for detailed test execution summary : <a href="https://otg.dev/snappi-ixnetwork/" target="_blank">Report</a></p>
     
 
     <br><p>Thanks,<br>
