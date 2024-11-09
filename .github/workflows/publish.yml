@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Set Timestamp
         id: timestamp
-        run: echo "TIMESTAMP=$(date +"%Y%m%d%H%M%S")" >> $GITHUB_ENV
+        run: echo "TIMESTAMP=$(date)" >> $GITHUB_ENV
       - name: Checkout source
         uses: actions/checkout@v2
         with:
