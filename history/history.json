@@ -1,1 +1,0 @@
-{"pytest:arp.test_arp_packet#test_arp_packet":{"statistic":{"failed":0,"broken":0,"skipped":0,"passed":1,"unknown":0,"total":1},"items":[{"uid":"5832564818cbb79b","status":"passed","time":{"start":1731144124810,"stop":1731144152420,"duration":27610}}]}}
