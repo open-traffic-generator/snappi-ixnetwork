@@ -117,7 +117,7 @@ def generate_allure_report():
 
 def coverage():
 
-    teststarttime = run(["echo $TIMESTAMP"])
+    test_start = subprocess.check_output("echo $TIMESTAMP", shell=True) 
     coverage_threshold = 67
     global result
     with open("myfile.log") as fp:
@@ -157,7 +157,7 @@ def coverage():
 
     <p>Hi All,<br><br>
     Please find the coverage results for the build execution ID : <b>"""+str(build_number)+"""</b><br>
-    Build started on : <b>"""+str(teststarttime)+"""</b><br><br>
+    Build started on : <b>"""+str(test_start)+"""</b><br><br>
     </p>
 
     <table style="width:100%">
