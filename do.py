@@ -117,7 +117,7 @@ def generate_allure_report():
 
 def coverage():
 
-    test_start = subprocess.check_output("$TIMESTAMP", shell=True) 
+    test_start = (subprocess.check_output("echo $TIMESTAMP", shell=True)).decode('ascii')
     coverage_threshold = 67
     global result
     with open("myfile.log") as fp:
