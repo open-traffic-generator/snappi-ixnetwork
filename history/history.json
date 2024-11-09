@@ -1,1 +1,1 @@
-{"pytest:arp.test_arp_packet#test_arp_packet":{"statistic":{"failed":0,"broken":0,"skipped":0,"passed":1,"unknown":0,"total":1},"items":[{"uid":"e347fc8950fc4bc","status":"passed","time":{"start":1731141508864,"stop":1731141537652,"duration":28788}}]}}
+{"pytest:arp.test_arp_packet#test_arp_packet":{"statistic":{"failed":0,"broken":0,"skipped":0,"passed":1,"unknown":0,"total":1},"items":[{"uid":"5227539eb91ffa4d","status":"passed","time":{"start":1731142008909,"stop":1731142037353,"duration":28444}}]}}
