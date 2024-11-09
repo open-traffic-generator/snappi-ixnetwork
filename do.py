@@ -119,7 +119,11 @@ def coverage():
 
     coverage_threshold = 67
     global result
-    run(["cat myfile.log"])
+    with open("myfile.log") as fp:
+        out = fp.read()
+        total_selected_tests = re.findall(r"collecting.*(\d+)\s+selected", out)[0]
+        total_passed_tests = re.findall(r"===.*(\d+)\s+passed", out)[0]
+        total_failed_tests = int(total_selected_tests) - int(total_passed_tests)
 
     with open("./cov_report/index.html") as fp:
         out = fp.read()
@@ -136,9 +140,11 @@ def coverage():
     msg['From'] = sender
     msg['To'] = receiver
 
-    val1=200
-    val2=198
-    val3=2
+    val1=total_selected_tests
+    val2=total_passed_tests
+    val3=total_failed_tests
+
+    build_number=get_workflow_id()
     
     # Create the body of the message (a plain-text and an HTML version).
     text = "Hi!"
@@ -152,7 +158,8 @@ def coverage():
     <body>
 
     <p>Hi All,<br><br>
-    Please find the coverage results for the pipline execution<br><br>
+    Please find the coverage results for the build execution ID : """+str(build_number)+"""<br><br>
+    Build started on : <br><br>
     </p>
 
     <table style="width:100%">
@@ -352,6 +359,7 @@ def get_workflow_id():
 
     cmd = "https://api.github.com/repos/open-traffic-generator/snappi-ixnetwork/actions/runs"
     res = requests.get(cmd)
+    print(res)
     workflow_id = res.json()["workflow_runs"][0]["workflow_id"]
     return workflow_id
 
