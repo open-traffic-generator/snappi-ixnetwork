@@ -108,6 +108,7 @@ def test(card="novus100g"):
 
 def generate_allure_report():
         run(['echo "TIMESTAMP=$(date +"%Y%m%d%H%M%S")" >> $GITHUB_ENV'])
+        run(["$TIMESTAMP"])
 
         run(
         [
