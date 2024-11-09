@@ -74,8 +74,8 @@ def test(card="novus100g"):
         "--username=" + username,
         "--psd='" + psd + "'",
         "tests",
-        #'-m "not e2e and not l1_manual and not uhd"',
-        '-m "runonly"',
+        '-m "not e2e and not l1_manual and not uhd"',
+        #'-m "runonly"',
         "--cov=./snappi_ixnetwork --cov-report term",
         " --cov-report html:cov_report",
         " -o junit_logging=all --junitxml=allure-results/report-pytest.xml"
