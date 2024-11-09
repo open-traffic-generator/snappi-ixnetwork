@@ -85,7 +85,7 @@ def test(card="novus100g"):
     run(
         [
             py() + " -m pip install pytest-cov",
-            py() + " -m pytest -sv {} |& tee myfile.log ".format(" ".join(args)),
+            py() + " -m pytest -sv {} | tee myfile.log ".format(" ".join(args)),
         ]
     )
     import re
