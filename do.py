@@ -158,7 +158,7 @@ def coverage():
 
     <p>Hi All,<br><br>
     Please find the coverage results for the build execution ID : <b>"""+str(build_number)+"""</b><br>
-    Build started on : <b>"""+str(test_start)+"""</b><br><br>
+    Build started on : <b>"""+str(test_start)+""" IST</b><br><br>
     </p>
 
     <table style="width:100%">
