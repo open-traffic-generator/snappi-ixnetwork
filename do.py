@@ -132,12 +132,12 @@ def coverage():
         result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[-1]
 
     sender = "ixnetworksnappi@gmail.com"
-    receiver = "Snappi-IxNetwork@keysighttech.onmicrosoft.com"
+    receiver = ["arkajyoti.dutta@keysight.com","indrani.bhattacharya@keysight.com","dipendu.ghosh@keysight.com","desai.mg@keysight.com"]
 
     msg = MIMEMultipart('alternative')
     msg['Subject'] = "Snappi-Ixnetwork Coverage Email"
     msg['From'] = sender
-    msg['To'] = receiver
+    msg['To'] = ", ".join(receiver)
 
     val1=total_selected_tests
     val2=total_passed_tests
