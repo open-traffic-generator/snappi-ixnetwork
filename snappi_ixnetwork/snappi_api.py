@@ -1089,7 +1089,7 @@ class Api(snappi.Api):
                             "filters": [],
                         },
                         {
-                            "child": "^(eth.*|novus.*|uhd.*|atlas.*|ares.*|star.*)$",
+                            "child": "^(eth.*|novus.*|uhd.*|atlas.*|ares.*|star.*|ten.*)$",
                             "properties": ["*"],
                             "filters": [],
                         },
