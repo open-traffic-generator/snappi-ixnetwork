@@ -620,6 +620,16 @@ class Api(snappi.Api):
                 metric_res = self.metrics_response()
                 metric_res.flow_metrics.deserialize(response)
                 return metric_res
+            if request.get("choice") == "lag":
+                response = self.traffic_item.results(request.lag)
+                metric_res = self.metrics_response()
+                metric_res.lag_metrics.deserialize(response)
+                return metric_res
+            if request.get("choice") == "lacp":
+                response = self.traffic_item.results(request.lacp)
+                metric_res = self.metrics_response()
+                metric_res.lacp_metrics.deserialize(response)
+                return metric_res
             if (
                 request.get("choice")
                 in self.protocol_metrics.get_supported_protocols()
