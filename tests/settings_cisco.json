@@ -1,13 +1,13 @@
 {
     "username": "admin",
-    "psd": "Keysight123456!",
-    "location": "https://10.39.44.172:443",
+    "psd": "wrinkle#B52#B52",
+    "location": "https://10.36.70.18:443",
     "ports": [
-        "10.39.44.172;1;1",
-        "10.39.44.172;2;1"
+        "10.36.70.18;1;1",
+        "10.36.70.18;1;2"
     ],
     "ext": "ixnetwork",
-    "speed": "speed_1_gbps",
+    "speed": "speed_400_gbps",
     "media": null,
     "timeout_seconds": 30,
     "interval_seconds": 0.5,
