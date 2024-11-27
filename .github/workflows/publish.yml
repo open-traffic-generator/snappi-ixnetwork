@@ -42,10 +42,19 @@ jobs:
       - name: Send Coverage Email
         run: |
           ${{steps.path.outputs.pythonv}} do.py coverage
-      - name: Generate Allure report
-        run: |
-          source ~/.profile
-          ${{steps.path.outputs.pythonv}} do.py generate_allure_report
+      # - name: Generate Allure report
+      #   run: |
+      #     source ~/.profile
+      #     ${{steps.path.outputs.pythonv}} do.py generate_allure_report
+
+      - name: Build test report
+        uses: simple-elf/allure-report-action@v1.7
+        if: always()
+        with:
+          gh_pages: gh-pages
+          allure_history: allure-history
+          allure_results: build/allure-results
+
       - name: Deploy report to Github Pages
         if: always()
         uses: peaceiris/actions-gh-pages@v2
@@ -54,7 +63,6 @@ jobs:
           PUBLISH_BRANCH: gh-pages
           PUBLISH_DIR: allure-report
   
-
 
   publish_artifacts:
     runs-on: [snappi-ixn-ci-novus10g]
