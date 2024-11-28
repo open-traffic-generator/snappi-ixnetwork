@@ -130,7 +130,7 @@ def coverage():
         out = fp.read()
         total_selected_tests = re.findall(r"collecting.*\s+(\d+)\s+selected", out)[0]
         total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out)[0]
-        if re.findall(r"=.*\s(\d+)\s+passed", out)[0]:
+        if re.findall(r"=.*\s(\d+)\s+passed",out):
             total_skipped_tests = re.findall(r"=.*\s(\d+)\s+skipped", out)[0]
         else:
             total_skipped_tests = 0
