@@ -42,10 +42,12 @@ jobs:
       - name: Send Coverage Email
         run: |
           ${{steps.path.outputs.pythonv}} do.py coverage
+        
       - name: Generate Allure report
         run: |
           source ~/.profile
           ${{steps.path.outputs.pythonv}} do.py generate_allure_report
+
       - name: Deploy report to Github Pages
         if: always()
         uses: peaceiris/actions-gh-pages@v2
