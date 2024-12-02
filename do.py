@@ -87,7 +87,7 @@ def test(card="novus100g"):
     # if os.path.exists("allure-report"):
     #     run(["mkdir -p allure-results/history",
     #      "cp -r allure-report/history/* allure-results/history/"])
-
+    run(["ls -l"])
     run(
         [
             py() + " -m pip install pytest-cov",
@@ -113,11 +113,13 @@ def test(card="novus100g"):
             )
 
 def generate_allure_report():
+        run(["ls -l"])
 
         run(
         [
             "allure generate allure-results -c -o allure-report",
         ]
+        run(["ls -l"])
     )
         
 
