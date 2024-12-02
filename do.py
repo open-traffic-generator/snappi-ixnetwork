@@ -119,8 +119,9 @@ def generate_allure_report():
         [
             "allure generate allure-results -c -o allure-report",
         ]
+        
+        )
         run(["ls -l"])
-    )
         
 
 def coverage():
