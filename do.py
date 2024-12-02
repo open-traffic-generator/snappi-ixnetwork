@@ -82,11 +82,11 @@ def test(card="novus100g"):
     ]
     print(args)
 
-    if os.path.exists("allure-results"):
-        run(["rm -rf allure-results"])
-    if os.path.exists("allure-report"):
-        run(["mkdir -p allure-results/history",
-         "cp -r allure-report/history/* allure-results/history/"])
+    # if os.path.exists("allure-results"):
+    #     run(["rm -rf allure-results"])
+    # if os.path.exists("allure-report"):
+    #     run(["mkdir -p allure-results/history",
+    #      "cp -r allure-report/history/* allure-results/history/"])
 
     run(
         [
