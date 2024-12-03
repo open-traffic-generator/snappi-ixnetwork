@@ -116,6 +116,8 @@ def test(card="novus100g"):
             )
 
 def generate_allure_report():
+        if os.path.exists("$HOME/allure-report"):
+            print("Path exists")
 
         run(["mkdir -p allure-results/history"])
         run(["cp -r $HOME/allure-report/history/* allure-results/history/"])
