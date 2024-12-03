@@ -87,7 +87,7 @@ def test(card="novus100g"):
     # if os.path.exists("allure-report"):
     #     run(["mkdir -p allure-results/history",
     #      "cp -r allure-report/history/* allure-results/history/"])
-    run(["ls -l"])
+
     run(
         [
             py() + " -m pip install pytest-cov",
@@ -113,6 +113,7 @@ def test(card="novus100g"):
             )
 
 def generate_allure_report():
+        run(["echo $HOME"])
         run(["ls -l"])
 
         run(
@@ -121,7 +122,7 @@ def generate_allure_report():
         ]
         
         )
-        run(["ls -l"])
+
         
 
 def coverage():
@@ -145,8 +146,8 @@ def coverage():
         result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[-1]
 
     sender = "ixnetworksnappi@gmail.com"
-    receiver = ["arkajyoti.dutta@keysight.com","indrani.bhattacharya@keysight.com","dipendu.ghosh@keysight.com","desai.mg@keysight.com"]
-
+    #receiver = ["arkajyoti.dutta@keysight.com","indrani.bhattacharya@keysight.com","dipendu.ghosh@keysight.com","desai.mg@keysight.com"]
+    receiver = ["desai.mg@keysight.com"]
     msg = MIMEMultipart('alternative')
     msg['Subject'] = "Snappi-Ixnetwork Coverage Email"
     msg['From'] = sender
