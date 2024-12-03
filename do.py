@@ -118,13 +118,14 @@ def test(card="novus100g"):
             )
 
 def generate_allure_report():
-        
+        run(["rm -rf $HOME/allure-report"])
+
         run(
         [
             "allure generate allure-results -c -o allure-report",
         ]
-        
         )
+        
         run(["cp -r allure-report $HOME/allure-report "])
         
 
