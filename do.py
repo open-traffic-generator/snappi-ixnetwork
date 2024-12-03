@@ -113,16 +113,16 @@ def test(card="novus100g"):
             )
 
 def generate_allure_report():
-        run(["echo $HOME"])
-        run(["ls -l"])
-
+        if os.path.exists("$HOME/allure-report"):
+            run(["mkdir -p allure-results/history"])
+            run(["cp -r $HOME/allure-report/history/* allure-results/history/"])
         run(
         [
             "allure generate allure-results -c -o allure-report",
         ]
         
         )
-
+        run(["cp -r allure-report $HOME/allure-report "])
         
 
 def coverage():
