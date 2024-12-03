@@ -82,12 +82,6 @@ def test(card="novus100g"):
     ]
     print(args)
 
-    # if os.path.exists("allure-results"):
-    #     run(["rm -rf allure-results"])
-    # if os.path.exists("allure-report"):
-    #     run(["mkdir -p allure-results/history",
-    #      "cp -r allure-report/history/* allure-results/history/"])
-
     run(
         [
             py() + " -m pip install pytest-cov",
@@ -120,6 +114,23 @@ def generate_allure_report():
         run(["cp -r $HOME/allure-report/history/* allure-results/history/"])
         run(["rm -rf $HOME/allure-report"])
 
+        run(['echo "CI/CD-Information" > allure-results/environment.properties',
+            'echo "Platform = athena-g" >> allure-results/environment.properties',
+            'echo "Release = 5.15.0-60-generic" >> allure-results/environment.properties',
+            'echo "OS-Version" >> allure-results/environment.properties',
+            "lsb_release -a | sed -E 's/([^:]+) /\1-/g' | sed 's/:/=/g' > version.txt",
+            'cat version.txt >> allure-results/environment.properties',
+            'rm -rf version.txt',
+            'echo "Environment-Details" >> allure-results/environment.properties',
+            "python_ver=`python3 --version`",
+            "pytest_ver=`pytest --version`",
+            'echo "Python-Version = $python_ver" >> allure-results/environment.properties',
+            'echo "Pytest-Version = $pytest_ver" >> allure-results/environment.properties',
+            'go_ver=`go version`',
+            'echo "Go-Version = $go_ver" >> allure-results/environment.properties',
+            'allure_ver=$(docker exec "$CONTAINER_NAME" allure --version)',
+            'echo "Allure-Version = $allure_ver" >> allure-results/environment.properties'])
+        
 
         run(
         [
