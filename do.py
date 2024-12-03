@@ -94,6 +94,11 @@ def test(card="novus100g"):
             py() + " -m pytest -sv {} | tee myfile.log ".format(" ".join(args)),
         ]
     )
+
+    if os.path.exists("$HOME/allure-report"):
+        run(["mkdir -p allure-results/history"])
+        run(["cp -r $HOME/allure-report/history/* allure-results/history/"])
+
     import re
 
     with open("./cov_report/index.html") as fp:
@@ -113,9 +118,7 @@ def test(card="novus100g"):
             )
 
 def generate_allure_report():
-        if os.path.exists("$HOME/allure-report"):
-            run(["mkdir -p allure-results/history"])
-            run(["cp -r $HOME/allure-report/history/* allure-results/history/"])
+        
         run(
         [
             "allure generate allure-results -c -o allure-report",
