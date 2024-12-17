@@ -439,7 +439,7 @@ class Vport(object):
         ]:
             return
         self._set_fcoe(vport, layer1, imports)
-        self._import(imports)
+        # self._import(imports)
 
         self._set_auto_negotiation(vport, layer1, imports)
 
