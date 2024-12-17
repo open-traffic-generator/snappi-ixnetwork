@@ -38,6 +38,7 @@ class Vport(object):
     """
 
     _SPEED_MAP = {
+        "speed_800_gbps": "speed800g",
         "speed_400_gbps": "speed400g",
         "speed_200_gbps": "speed200g",
         "speed_100_gbps": "speed100g",
@@ -90,6 +91,7 @@ class Vport(object):
         "speed_100_gbps": "^(?!.*(twohundredgig|fourhundredgig)).*hundredgig.*$",
         "speed_200_gbps": "twohundredgig",
         "speed_400_gbps": "fourhundredgig",
+        "speed_800_gbps": "eighthundredgig",
     }
 
     _ADVERTISE_MAP = {
@@ -502,6 +504,7 @@ class Vport(object):
             "krakenFourHundredGigLan",
             "aresOneFourHundredGigLan",
             "starFourHundredGigLan",
+            "aresOneM",
         ]
         if fcoe is True and vport_type in elegible_fcoe_vport_types:
             vport_type = vport_type + "Fcoe"
