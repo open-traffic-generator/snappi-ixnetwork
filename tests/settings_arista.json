@@ -1,0 +1,24 @@
+{
+    "username": "admin",
+    "psd": "admin",
+    "location": "https://10.39.44.231:443",
+    "ports": [
+        "10.39.49.57;1;17",
+        "10.39.49.57;1;21"
+    ],
+    "ext": "ixnetwork",
+    "speed": "speed_1_gbps",
+    "media": null,
+    "timeout_seconds": 30,
+    "interval_seconds": 0.5,
+    "log_level": "info",
+    "dynamic_stats_output": false,
+    "license_servers": [],
+    "dut_username": "dipendu",
+    "dut_password": "dipendu",
+    "dut_location": "10.39.42.117",
+    "dut_ports": [
+        "port1",
+        "port2"
+    ]
+}
