@@ -33,9 +33,9 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py install
           ${{steps.path.outputs.pythonv}} do.py init
-      # - name: Run tests
-      #   run: |
-      #     TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
+      - name: Run tests
+        run: |
+          TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
 
   publish_artifacts:
     runs-on: [snappi-ixn-ci-novus10g]
