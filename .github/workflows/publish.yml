@@ -22,7 +22,8 @@ jobs:
       - name: Install dependencies
         run: |
           rm -rf .env
-          pip install version-master.zip
+          ${{steps.path.outputs.pythonv}} -m pip install version-master.zip
+          ${{steps.path.outputs.pythonv}} python -c "from version import Version"
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py init
       - name: Build distribution
