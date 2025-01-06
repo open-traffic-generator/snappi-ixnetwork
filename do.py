@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import platform
 import hashlib
+from version import Version 
 
 BLACK_VERSION = "22.1.0"
 GO_VERSION = "1.21.0"
@@ -27,10 +28,6 @@ os.environ["PATH"] = "{}:{}:{}:{}".format(
 )
 
 subprocess.check_call('pip install version-master.zip', shell=True)
-from version import Version 
-
-models_version = Version.models_version
-sdk_version = Version.version
 
 # supported values - local openapiart path or None
 USE_OPENAPIART_DIR = None
