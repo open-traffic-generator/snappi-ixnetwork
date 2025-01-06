@@ -5,9 +5,7 @@ import sys
 import shutil
 import subprocess
 import platform
-from version import Version
 import hashlib
-
 
 BLACK_VERSION = "22.1.0"
 GO_VERSION = "1.21.0"
@@ -27,6 +25,12 @@ os.environ["GOPATH"] = GO_HOME_PATH
 os.environ["PATH"] = "{}:{}:{}:{}".format(
     os.environ["PATH"], GO_BIN_PATH, GO_HOME_BIN_PATH, LOCAL_BIN_PATH
 )
+
+run(    [
+            py() + " -m pip install version-master.zip",
+        ]
+    )
+from version import Version 
 
 models_version = Version.models_version
 sdk_version = Version.version
@@ -275,6 +279,7 @@ def setup():
 
 
 def init():
+    run()
     run(
         [
             py() + " -m pip install -r requirements.txt",
