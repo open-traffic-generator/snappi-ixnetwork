@@ -34,6 +34,21 @@ class Api(snappi.Api):
     - password (str): The password for Linux IxNetwork API Server
         This is not required when connecting to single session environments
     """
+    _CONVERGENCE = {
+        ("data_plane_convergence_us", "DP/DP Convergence Time (us)", float),
+        (
+            "control_plane_data_plane_convergence_us",
+            "CP/DP Convergence Time (us)",
+            float,
+        ),
+    }
+
+    _EVENT = {
+        ("begin_timestamp_ns", "Event Start Timestamp", int),
+        ("end_timestamp_ns", "Event End Timestamp", int),
+    }
+
+    _TRIGGERED_EVENT = ""
 
     def __init__(self, **kwargs):
         """Create a session
@@ -88,6 +103,8 @@ class Api(snappi.Api):
         self._previous_errors = []
         self._initial_flows_config = None
         self._flow_tracking = False
+        self._convergence_timeout = 3
+        self._event_info = None
 
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
