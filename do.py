@@ -274,7 +274,6 @@ def setup():
 
 
 def init():
-    run()
     run(
         [
             py() + " -m pip install -r requirements.txt",
