@@ -26,10 +26,7 @@ os.environ["PATH"] = "{}:{}:{}:{}".format(
     os.environ["PATH"], GO_BIN_PATH, GO_HOME_BIN_PATH, LOCAL_BIN_PATH
 )
 
-run(    [
-            py() + " -m pip install version-master.zip",
-        ]
-    )
+subprocess.check_call('pip install version-master.zip', shell=True)
 from version import Version 
 
 models_version = Version.models_version
