@@ -4,9 +4,8 @@ import re
 import sys
 import shutil
 import subprocess
-
 import platform
-from version import Version
+from opencc.version import Version
 import hashlib
 
 
