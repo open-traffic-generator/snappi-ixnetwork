@@ -27,7 +27,8 @@ os.environ["PATH"] = "{}:{}:{}:{}".format(
     os.environ["PATH"], GO_BIN_PATH, GO_HOME_BIN_PATH, LOCAL_BIN_PATH
 )
 
-subprocess.check_call('pip install version-master.zip', shell=True)
+models_version = Version.models_version
+sdk_version = Version.version
 
 # supported values - local openapiart path or None
 USE_OPENAPIART_DIR = None
