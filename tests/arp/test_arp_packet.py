@@ -1,6 +1,7 @@
 import pytest
+import allure
 
-
+@pytest.mark.runonly
 def test_arp_packet(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     flow1 = b2b_raw_config_vports.flows[0]
     sender_hardware_addr = "00:0C:29:E3:53:EA"
