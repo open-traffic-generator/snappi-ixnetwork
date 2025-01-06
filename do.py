@@ -5,7 +5,7 @@ import sys
 import shutil
 import subprocess
 import platform
-from opencc.version import Version
+from version import Version
 import hashlib
 
 
