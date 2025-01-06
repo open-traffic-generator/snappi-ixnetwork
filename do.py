@@ -123,12 +123,6 @@ def generate_sdk():
         os.path.join(base_dir, model_protobuf_name + ".proto"),
     )
 
-    shutil.copyfile(
-        os.path.join(base_dir, "artifacts", model_protobuf_name + ".proto"),
-        os.path.join(
-            base_dir, go_pkg_name, model_protobuf_name, model_protobuf_name + ".proto"
-        ),
-    )
 
     doc_dir = os.path.join(pkg_name, "docs")
     os.mkdir(doc_dir)
