@@ -133,6 +133,12 @@ def generate_sdk():
             path = os.path.join(pkg_name, name)
             print(path + " will be published")
 
+    print(pkg_name)
+    print(os.listdir(pkg_name))
+    run(
+        [
+            py() + " -m pip install {}".format(pkg_name)])
+
 
 def generate_checksum(file):
     hash_sha256 = hashlib.sha256()
