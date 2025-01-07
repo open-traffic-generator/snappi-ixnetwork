@@ -105,7 +105,7 @@ def generate_sdk():
         extension_prefix=pkg_name,
         generate_version_api=True,
     ).GeneratePythonSdk(package_name=pkg_name, sdk_version=sdk_version)
-
+    print(pkg_name)
     if os.path.exists(pkg_name):
         shutil.rmtree(pkg_name, ignore_errors=True)
 
@@ -153,7 +153,8 @@ def generate_distribution_checksum():
     wheel_sha = os.path.join("dist", wheel_name + ".sha.txt")
     with open(wheel_sha, "w") as f:
         f.write(generate_checksum(wheel_file))
-
+    print(tar_name)
+    print(os.path.abspath(tar_name))
 
 def arch():
     return getattr(platform.uname(), "machine", platform.uname()[-1]).lower()
@@ -170,46 +171,6 @@ def on_x86():
 def on_linux():
     print("The platform is {}".format(sys.platform))
     return "linux" in sys.platform
-
-
-def get_go(version=GO_VERSION, targz=None):
-    if targz is None:
-        if on_arm():
-            targz = "go" + version + ".linux-arm64.tar.gz"
-        elif on_x86():
-            targz = "go" + version + ".linux-amd64.tar.gz"
-        else:
-            print("host architecture not supported")
-            return
-
-    print("Installing Go ...")
-
-    if not os.path.exists(LOCAL_PATH):
-        os.mkdir(LOCAL_PATH)
-
-    cmd = "go version 2> /dev/null"
-    cmd += " || (rm -rf $(dirname {})".format(GO_BIN_PATH)
-    cmd += " && curl -kL -o go-installer https://dl.google.com/go/{}".format(targz)
-    cmd += " && tar -C {} -xzf go-installer".format(LOCAL_PATH)
-    cmd += " && rm -rf go-installer"
-    cmd += " && echo 'PATH=$PATH:{}:{}' >> ~/.profile".format(
-        GO_BIN_PATH, GO_HOME_BIN_PATH
-    )
-    cmd += " && echo 'export GOPATH={}' >> ~/.profile)".format(GO_HOME_PATH)
-    run([cmd])
-
-
-def get_go_deps():
-    print("Getting Go libraries for grpc / protobuf ...")
-    cmd = "GO111MODULE=on CGO_ENABLED=0 go install"
-    run(
-        [
-            cmd + " -v google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0",
-            cmd + " -v google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1",
-            cmd + " -v golang.org/x/tools/cmd/goimports@v0.6.0",
-            cmd + " -v github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v1.5.1",
-        ]
-    )
 
 
 def get_protoc(version=PROTOC_VERSION, zipfile=None):
@@ -238,14 +199,6 @@ def get_protoc(version=PROTOC_VERSION, zipfile=None):
     cmd += " && echo 'PATH=$PATH:{}' >> ~/.profile)".format(LOCAL_BIN_PATH)
     run([cmd])
 
-
-def setup_ext(go_version=GO_VERSION, protoc_version=PROTOC_VERSION):
-    if on_linux():
-        get_go(go_version)
-        get_protoc(protoc_version)
-        get_go_deps()
-    else:
-        print("Skipping go and protoc installation on non-linux platform ...")
 
 def setup():
     run(
