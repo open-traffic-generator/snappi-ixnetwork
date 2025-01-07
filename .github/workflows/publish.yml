@@ -37,42 +37,11 @@ jobs:
       - name: Generate Python and Go SDK
         run: |
           ".env/bin/python" do.py generate_sdk
-      - name: Build distribution
+      - name: create and install snappi build
         run: |
           ${{steps.path.outputs.pythonv}} do.py dist
           ${{steps.path.outputs.pythonv}} do.py generate_distribution_checksum
-      - name: Commit go and python pkg
-        id: get_sha
-        run: |
-          git config user.name "Github Actions Bot"
-          git config user.email "actions@github.com"
-          git pull
-          git add --force gosnappi/\*
-          git add --force snappi/\*
-          git add --force requirements.txt
-          if git status --porcelain | grep .
-            then
-              git commit -m "Update auto generated go snappi"
-              git push
-            else
-              echo "No change in auto generated go snappi"
-          fi
-          echo "::set-output name=sha::$(git rev-parse HEAD)"
-      - name: storing get_sha in file
-        run: |
-          echo "${{ steps.get_sha.outputs.sha }}" > store_sha_file
-      - name: Archive generated artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-artifacts
-          path: |
-            dist
-            snappi
-            gosnappi
-            models-release
-            *.proto
-            store_sha_file
-
+      
       - name: Run tests
         run: |
           TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g

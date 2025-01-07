@@ -155,6 +155,9 @@ def generate_distribution_checksum():
         f.write(generate_checksum(wheel_file))
     print(tar_name)
     print(os.path.abspath(tar_name))
+    run(
+        [
+            py() + " -m pip install {}".format(tar_name)])
 
 def arch():
     return getattr(platform.uname(), "machine", platform.uname()[-1]).lower()
