@@ -1,22 +1,22 @@
 import pytest
 
+
 @pytest.mark.skip(reason="Fix -convergence support TBD")
 # @pytest.fixture()
-def bgp_convergence_config(utils, cvg_api):
+def bgp_convergence_config(utils, api):
     """
     1.Configure IPv4 EBGP sessions between Keysight ports(rx & tx)
     2.Configure and advertise IPv4 routes from rx
     """
 
-    conv_config = cvg_api.convergence_config()
-    config = conv_config.config
+    conv_config = api.config()
 
-    tx, rx = config.ports.port(
+    tx, rx = conv_config.ports.port(
         name="tx", location=utils.settings.ports[0]
     ).port(name="rx", location=utils.settings.ports[1])
 
-    config.options.port_options.location_preemption = True
-    ly = config.layer1.layer1()[-1]
+    conv_config.options.port_options.location_preemption = True
+    ly = conv_config.layer1.layer1()[-1]
     ly.name = "ly"
     ly.port_names = [tx.name, rx.name]
     ly.ieee_media_defaults = False
@@ -24,7 +24,7 @@ def bgp_convergence_config(utils, cvg_api):
     ly.speed = utils.settings.speed
     ly.media = utils.settings.media
 
-    tx_device, rx_device = config.devices.device(name="tx_device").device(
+    tx_device, rx_device = conv_config.devices.device(name="tx_device").device(
         name="rx_device"
     )
 
@@ -71,7 +71,7 @@ def bgp_convergence_config(utils, cvg_api):
     rx_rr.addresses.add(count=1000, address="200.1.0.1", prefix=32)
 
     # flow config
-    flow = config.flows.flow(name="convergence_test")[-1]
+    flow = conv_config.flows.flow(name="convergence_test")[-1]
     flow.tx_rx.device.tx_names = [tx_device.name]
     flow.tx_rx.device.rx_names = [rx_rr.name]
 
@@ -84,7 +84,7 @@ def bgp_convergence_config(utils, cvg_api):
     rx1_rr.addresses.add(count=1000, address="200.1.0.1", prefix=32)
 
     # flow config
-    flow2 = config.flows.flow(name="background_flow")[-1]
+    flow2 = conv_config.flows.flow(name="background_flow")[-1]
     flow2.tx_rx.device.tx_names = [tx_device.name]
     flow2.tx_rx.device.rx_names = [rx1_rr.name]
 
