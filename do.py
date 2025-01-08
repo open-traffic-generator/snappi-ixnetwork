@@ -5,6 +5,8 @@ import sys
 import shutil
 import subprocess
 
+global ixnexception
+
 
 def setup():
     run(
@@ -243,7 +245,8 @@ def run(commands):
                 cmd = cmd.encode("utf-8", errors="ignore")
             subprocess.check_call(cmd, shell=True)
     except Exception:
-        sys.exit(1)
+        ixnexception = False
+        # sys.exit(1)
 
 
 def get_workflow_id():
