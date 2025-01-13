@@ -22,123 +22,149 @@ def test_convergence(utils, api, bgp_convergence_config):
 
     api.set_config(bgp_convergence_config)
 
-    # print("Starting all protocols ...")
-    # cs = cvg_api.convergence_state()
-    # cs.protocol.state = cs.protocol.START
-    # cvg_api.set_state(cs)
+    print("Starting all protocols ...")
+    ps = api.control_state()
+    ps.choice = ps.PROTOCOL
+    ps.protocol.choice = ps.protocol.ALL
+    ps.protocol.all.state = ps.protocol.all.START
+    res = api.set_control_state(ps)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
 
-    # # Scenario 1: Route withdraw/Advertise
-    # # Start traffic
-    # cs = cvg_api.convergence_state()
-    # cs.transmit.state = cs.transmit.START
-    # cvg_api.set_state(cs)
+    # Scenario 1: Route withdraw/Advertise
+    # Start traffic
+    cs = api.control_state()
+    cs.choice = cs.TRAFFIC
+    cs.traffic.choice = cs.traffic.FLOW_TRANSMIT
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
 
-    # # Wait for traffic to reach configured line rate
-    # utils.wait_for(
-    #     lambda: is_traffic_running(cvg_api), "traffic in started state"
-    # )
+    # Wait for traffic to reach configured line rate
+    utils.wait_for(
+        lambda: is_traffic_running(api), "traffic in started state"
+    )
 
-    # # Validate bgpv4 metrics
-    # req = cvg_api.convergence_request()
-    # req.bgpv4.peer_names = []
-    # bgpv4_metrics = cvg_api.get_results(req).bgpv4_metrics
-    # print(bgpv4_metrics)
+    # Validate bgpv4 metrics
+    req = api.metrics_request()
+    req.bgpv4.peer_names = []
+    bgpv4_metrics = api.get_metrics(req).bgpv4_metrics
+    print(bgpv4_metrics)
 
-    # for bgp_metric in bgpv4_metrics:
-    #     assert bgp_metric.session_state == "up"
+    for bgp_metric in bgpv4_metrics:
+        assert bgp_metric.session_state == "up"
 
-    # # Withdraw routes from primary path
-    # cs = cvg_api.convergence_state()
-    # cs.route.names = [PRIMARY_ROUTES_NAME]
-    # cs.route.state = cs.route.WITHDRAW
-    # cvg_api.set_state(cs)
+    # Withdraw routes from primary path
+    cs = api.control_state()
+    cs.protocol.route.names = [PRIMARY_ROUTES_NAME]
+    cs.protocol.route.state = cs.protocol.route.WITHDRAW
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
+    
+    # get convergence metrics
+    request = api.metrics_request()
+    request.convergence.flow_names = ["convergence_test"]
+    convergence_metrics = api.get_metrics(request).convergence
+    print(convergence_metrics)
+    for metrics in convergence_metrics:
+        assert isinstance(
+            metrics.control_plane_data_plane_convergence_us, float
+        )
+        assert len(metrics.events) > 0
+        for event in metrics.events:
+            assert event.type == "route_withdraw"
 
-    # # get convergence metrics
-    # request = cvg_api.convergence_request()
-    # request.convergence.flow_names = ["convergence_test"]
-    # convergence_metrics = cvg_api.get_results(request).flow_convergence
+    # Re-advertise the routes
+    cs = api.control_state()
+    cs.protocol.route.names = [PRIMARY_ROUTES_NAME]
+    cs.protocol.route.state = cs.protocol.route.ADVERTISE
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
 
-    # print(convergence_metrics)
-    # for metrics in convergence_metrics:
-    #     assert isinstance(
-    #         metrics.control_plane_data_plane_convergence_us, float
-    #     )
-    #     assert len(metrics.events) > 0
-    #     for event in metrics.events:
-    #         assert event.type == "route_withdraw"
+    # Stop traffic
+    cs = api.control_state()
+    cs.choice = cs.TRAFFIC
+    cs.traffic.choice = cs.traffic.FLOW_TRANSMIT
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.STOP  
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
 
-    # # Re-advertise the routes
-    # cs = cvg_api.convergence_state()
-    # cs.route.names = [PRIMARY_ROUTES_NAME]
-    # cs.route.state = cs.route.ADVERTISE
-    # cvg_api.set_state(cs)
+    # Scenario 2: Link Up/Down
+    # Start traffic
+    cs = api.control_state()
+    cs.choice = cs.TRAFFIC
+    cs.traffic.choice = cs.traffic.FLOW_TRANSMIT
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START  
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
 
-    # # Stop traffic
-    # cs = cvg_api.convergence_state()
-    # cs.transmit.state = cs.transmit.STOP
-    # cvg_api.set_state(cs)
+    # Wait for traffic to reach configured line rate
+    utils.wait_for(
+        lambda: is_traffic_running(api), "traffic in started state"
+    )
 
-    # # Scenario 2: Link Up/Down
-    # # Start traffic
-    # cs = cvg_api.convergence_state()
-    # cs.transmit.state = cs.transmit.START
-    # cvg_api.set_state(cs)
+    # Link down the primary port
+    cs = api.control_state()
+    cs.port.link.port_names = [PRIMARY_PORT_NAME]
+    cs.port.link.state = cs.port.link.DOWN
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
 
-    # # Wait for traffic to reach configured line rate
-    # utils.wait_for(
-    #     lambda: is_traffic_running(cvg_api), "traffic in started state"
-    # )
+    # get convergence metrics
+    request = api.metrics_request()
+    request.convergence.flow_names = ["convergence_test"]
+    convergence_metrics = api.get_metrics(request).convergence
+    print(convergence_metrics)
+    for metrics in convergence_metrics:
+        assert isinstance(
+            metrics.control_plane_data_plane_convergence_us, float
+        )
+        assert len(metrics.events) > 0
+        for event in metrics.events:
+            assert event.type == "link_down"
 
-    # # Link down the primary port
-    # cs = cvg_api.convergence_state()
-    # cs.link.port_names = [PRIMARY_PORT_NAME]
-    # cs.link.state = cs.link.DOWN
-    # cvg_api.set_state(cs)
+    # Link up primary port
+    cs = api.control_state()
+    cs.port.link.port_names = [PRIMARY_PORT_NAME]
+    cs.port.link.state = cs.port.link.UP
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
 
-    # # get convergence metrics
-    # request = cvg_api.convergence_request()
-    # request.convergence.flow_names = ["convergence_test"]
-    # convergence_metrics = cvg_api.get_results(request).flow_convergence
+    # Stop traffic
+    cs = api.control_state()
+    cs.choice = cs.TRAFFIC
+    cs.traffic.choice = cs.traffic.FLOW_TRANSMIT
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.STOP  
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
 
-    # print(convergence_metrics)
-    # for metrics in convergence_metrics:
-    #     assert isinstance(
-    #         metrics.control_plane_data_plane_convergence_us, float
-    #     )
-    #     assert len(metrics.events) > 0
-    #     for event in metrics.events:
-    #         assert event.type == "link_down"
-
-    # # Link up primary port
-    # cs = cvg_api.convergence_state()
-    # cs.link.port_names = [PRIMARY_PORT_NAME]
-    # cs.link.state = cs.link.UP
-    # cvg_api.set_state(cs)
-
-    # # Stop traffic
-    # cs = cvg_api.convergence_state()
-    # cs.transmit.state = cs.transmit.STOP
-    # cvg_api.set_state(cs)
-
-    # # TODO: As ixNetwork sometimes not clearing the ownership from one
-    # # session to another session
-    # conv_config = cvg_api.convergence_config()
-    # conv_config.config
-    # cvg_api.set_config(conv_config)
+    # TODO: As ixNetwork sometimes not clearing the ownership from one
+    # session to another session
+    conv_config = api.config()
+    conv_config.config
+    api.set_config(conv_config)
 
 
-def is_traffic_running(cvg_api):
+def is_traffic_running(api):
     """
     Returns true if traffic in start state
     """
-    flow_stats = get_flow_stats(cvg_api)
+    flow_stats = get_flow_stats(api)
     return all([int(fs.frames_rx_rate) > 0 for fs in flow_stats])
 
 
-def get_flow_stats(cvg_api):
-    request = cvg_api.convergence_request()
-    request.metrics.flow_names = []
-    return cvg_api.get_results(request).flow_metric
+def get_flow_stats(api):
+    request = api.metrics_request()
+    request.convergence.flow_names = []
+    return api.get_metrics(request).flow_metrics
 
 
 if __name__ == "__main__":
