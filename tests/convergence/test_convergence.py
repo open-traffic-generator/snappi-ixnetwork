@@ -46,6 +46,18 @@ def test_convergence(utils, api):
     utils.wait_for(
         lambda: is_traffic_running(api), "traffic in started state"
     )
+    
+    # Validate port metrics
+    req = api.metrics_request()
+    req.port.port_names = []
+    port_metrics = api.get_metrics(req).port_metrics
+    print(port_metrics)
+
+    # Validate flow metrics
+    req = api.metrics_request()
+    req.flow.flow_names = []
+    flow_metrics = api.get_metrics(req).flow_metrics
+    print(flow_metrics)
 
     # Validate bgpv4 metrics
     req = api.metrics_request()
