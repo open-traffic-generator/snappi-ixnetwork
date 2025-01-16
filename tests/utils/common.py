@@ -298,7 +298,13 @@ def append_csv_row(dirname, filename, column_names, result_dict):
         csv_writer.writerow([result_dict[key] for key in column_names])
 
 
-def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
+def print_stats(port_stats=None,
+                flow_stats=None,
+                bgpv4_stats=None,
+                bgpv6_stats=None,
+                convergence_stats=None,
+                clear_screen=None
+                ):
     if clear_screen is None:
         clear_screen = settings.dynamic_stats_output
 
@@ -308,7 +314,7 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
     if port_stats is not None:
         row_format = "{:>15}" * 6
         border = "-" * (15 * 6 + 5)
-        print("\nPort Stats")
+        print("\nPort Metrics")
         print(border)
         print(
             row_format.format(
@@ -338,15 +344,16 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
         print("")
 
     if flow_stats is not None:
-        row_format = "{:>15}" * 3
-        border = "-" * (15 * 3 + 5)
-        print("Flow Stats")
+        row_format = "{:>20}" * 4
+        border = "-" * (20 * 4 + 5)
+        print("Flow Metrics")
         print(border)
         print(
             row_format.format(
                 "Flow",
                 "Rx Frames",
-                "Rx Bytes"
+                "Rx Bytes",
+                "Transmit State",
             )
         )
         for stat in flow_stats:
@@ -354,7 +361,108 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
                 row_format.format(
                     stat.name,
                     stat.frames_rx,
-                    stat.bytes_rx
+                    stat.bytes_rx,
+                    stat.transmit,
+                )
+            )
+        print(border)
+        print("")
+        print("")
+
+    if bgpv4_stats is not None:
+        row_format = "{:>15}" * 9
+        border = "-" * (15 * 9 + 5)
+        print("\nBGPv4 Metrics")
+        print(border)
+        print(
+            row_format.format(
+                "Name",
+                "Session State",
+                "Session Flaps",
+                "Routes Advertised",
+                "Routes Received",
+                "Route Withdraws Tx",
+                "Route Withdraws Rx",
+                "Keepalives Tx",
+                "Keepalives Rx",
+            )
+        )
+        for stat in bgpv4_stats:
+            print(
+                row_format.format(
+                    stat.name,
+                    stat.session_state,
+                    stat.session_flap_count,
+                    stat.routes_advertised,
+                    stat.routes_received,
+                    stat.route_withdraws_sent,
+                    stat.route_withdraws_received,
+                    stat.keepalives_sent,
+                    stat.keepalives_received,
+                )
+            )
+        print(border)
+        print("")
+        print("")
+
+    if bgpv6_stats is not None:
+        row_format = "{:>15}" * 6
+        border = "-" * (15 * 6 + 5)
+        print("\nBGPv6 Metrics")
+        print(border)
+        print(
+            row_format.format(
+                "Port",
+                "Tx Frames",
+                "Tx Bytes",
+                "Rx Frames",
+                "Rx Bytes",
+                "Tx FPS",
+                "Rx FPS",
+            )
+        )
+        for stat in bgpv6_stats:
+            print(
+                row_format.format(
+                    stat.name,
+                    stat.frames_tx,
+                    stat.bytes_tx,
+                    stat.frames_rx,
+                    stat.bytes_rx,
+                    stat.frames_tx_rate,
+                    stat.frames_rx_rate,
+                )
+            )
+        print(border)
+        print("")
+        print("")
+
+    if convergence_stats is not None:
+        row_format = "{:>15}" * 6
+        border = "-" * (15 * 6 + 5)
+        print("\nConvergence Metrics")
+        print(border)
+        print(
+            row_format.format(
+                "Port",
+                "Tx Frames",
+                "Tx Bytes",
+                "Rx Frames",
+                "Rx Bytes",
+                "Tx FPS",
+                "Rx FPS",
+            )
+        )
+        for stat in convergence_stats:
+            print(
+                row_format.format(
+                    stat.name,
+                    stat.frames_tx,
+                    stat.bytes_tx,
+                    stat.frames_rx,
+                    stat.bytes_rx,
+                    stat.frames_tx_rate,
+                    stat.frames_rx_rate,
                 )
             )
         print(border)

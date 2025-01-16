@@ -57,12 +57,13 @@ def test_convergence(utils, api):
     flow_metrics = api.get_metrics(req).flow_metrics
     utils.print_stats(flow_stats=flow_metrics)
 
-    # Validate bgpv4 metrics
+    # BGPv4 metrics
     req = api.metrics_request()
     req.bgpv4.peer_names = []
     bgpv4_metrics = api.get_metrics(req).bgpv4_metrics
-    print(bgpv4_metrics)
+    utils.print_stats(bgpv4_stats=bgpv4_metrics)
 
+    # Validate all BGPv4 sessions are up
     for bgp_metric in bgpv4_metrics:
         assert bgp_metric.session_state == "up"
 
