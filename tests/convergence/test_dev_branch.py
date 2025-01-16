@@ -16,7 +16,10 @@ def test_convergence(utils, api):
     bgp_convergence_config.events.cp_events.enable = True
     bgp_convergence_config.events.dp_events.enable = True
     bgp_convergence_config.events.dp_events.rx_rate_threshold = 90
+    print("Config")
 
+    print(bgp_convergence_config)
+    
     api.set_config(bgp_convergence_config)
 
     conv_config = api.config()
