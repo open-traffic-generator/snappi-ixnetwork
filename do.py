@@ -16,16 +16,6 @@ PROTOC_VERSION = "3.20.3"
 LOCAL_PATH = os.path.join(os.path.expanduser("~"), ".local")
 # path where protoc bin shall be installed or expected to be present
 LOCAL_BIN_PATH = os.path.join(LOCAL_PATH, "bin")
-# path where go bin shall be installed or expected to be present
-GO_BIN_PATH = os.path.join(LOCAL_PATH, "go", "bin")
-# path for go package source and installations
-GO_HOME_PATH = os.path.join(os.path.expanduser("~"), "go")
-GO_HOME_BIN_PATH = os.path.join(GO_HOME_PATH, "bin")
-
-os.environ["GOPATH"] = GO_HOME_PATH
-os.environ["PATH"] = "{}:{}:{}:{}".format(
-    os.environ["PATH"], GO_BIN_PATH, GO_HOME_BIN_PATH, LOCAL_BIN_PATH
-)
 
 models_version = Version.models_version
 sdk_version = Version.version
@@ -95,7 +85,6 @@ def generate_sdk():
     print("generate python and go sdk")
 
     pkg_name = Version.package_name
-    go_pkg_name = Version.go_package_name
     model_protobuf_name = Version.protobuf_name
 
     openapiart.OpenApiArt(
