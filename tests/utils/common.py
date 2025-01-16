@@ -318,6 +318,7 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
                 "Rx Frames",
                 "Rx Bytes",
                 "Tx FPS",
+                "Rx FPS",
             )
         )
         for stat in port_stats:
@@ -329,6 +330,7 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
                     stat.frames_rx,
                     stat.bytes_rx,
                     stat.frames_tx_rate,
+                    stat.frames_rx_rate,
                 )
             )
         print(border)
@@ -340,9 +342,21 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
         border = "-" * (15 * 3 + 5)
         print("Flow Stats")
         print(border)
-        print(row_format.format("Flow", "Rx Frames", "Rx Bytes"))
+        print(
+            row_format.format(
+                "Flow",
+                "Rx Frames",
+                "Rx Bytes"
+            )
+        )
         for stat in flow_stats:
-            print(row_format.format(stat.name, stat.frames_rx, stat.bytes_rx))
+            print(
+                row_format.format(
+                    stat.name,
+                    stat.frames_rx,
+                    stat.bytes_rx
+                )
+            )
         print(border)
         print("")
         print("")

@@ -1,10 +1,9 @@
 import pytest
-# from bgp_convergence_config import bgp_convergence_config
 
 PRIMARY_ROUTES_NAME = "rx_rr"
 PRIMARY_PORT_NAME = "rx"
 
-# @pytest.mark.skip(reason="Fix -convergence support TBD")
+
 def test_convergence(utils, api):
     """
     1. set convergence config & start traffic
@@ -22,7 +21,6 @@ def test_convergence(utils, api):
     bgp_convergence_config.events.dp_events.rx_rate_threshold = 90
 
     api.set_config(bgp_convergence_config)
-
     print("Starting all protocols ...")
     ps = api.control_state()
     ps.choice = ps.PROTOCOL
@@ -47,17 +45,17 @@ def test_convergence(utils, api):
         lambda: is_traffic_running(api), "traffic in started state"
     )
     
-    # Validate port metrics
+    # Port Metrics
     req = api.metrics_request()
     req.port.port_names = []
     port_metrics = api.get_metrics(req).port_metrics
-    print(port_metrics)
+    utils.print_stats(port_stats=port_metrics)
 
-    # Validate flow metrics
+    # Flow Metrics
     req = api.metrics_request()
     req.flow.flow_names = []
     flow_metrics = api.get_metrics(req).flow_metrics
-    print(flow_metrics)
+    utils.print_stats(flow_stats=flow_metrics)
 
     # Validate bgpv4 metrics
     req = api.metrics_request()
