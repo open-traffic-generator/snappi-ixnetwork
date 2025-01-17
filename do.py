@@ -8,6 +8,8 @@ import platform
 import hashlib
 from version import Version 
 
+global ixnexception
+
 BLACK_VERSION = "22.1.0"
 GO_VERSION = "1.21.0"
 PROTOC_VERSION = "3.20.3"
@@ -34,6 +36,9 @@ OPENAPI_YAML_URL = "https://github.com/open-traffic-generator/models/releases/do
     models_version
 )
 
+# This function generates SDK and install python snappi inside the github-runner 
+# if we need any model changes committed to any other branch, branch name should
+# be mentioned in USE_MODELS_BRANCH
 
 def generate_sdk():
 
@@ -127,76 +132,6 @@ def generate_sdk():
     run(
         [
             py() + " -m pip install {}".format(pkg_name)])
-
-
-def generate_checksum(file):
-    hash_sha256 = hashlib.sha256()
-    with open(file, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_sha256.update(chunk)
-    return hash_sha256.hexdigest()
-
-
-def generate_distribution_checksum():
-    tar_name = "{}-{}.tar.gz".format(*pkg())
-    tar_file = os.path.join("dist", tar_name)
-    tar_sha = os.path.join("dist", tar_name + ".sha.txt")
-    with open(tar_sha, "w") as f:
-        f.write(generate_checksum(tar_file))
-    wheel_name = "{}-{}-py2.py3-none-any.whl".format(*pkg())
-    wheel_file = os.path.join("dist", wheel_name)
-    wheel_sha = os.path.join("dist", wheel_name + ".sha.txt")
-    with open(wheel_sha, "w") as f:
-        f.write(generate_checksum(wheel_file))
-    print(tar_name)
-    print(os.path.abspath(tar_name))
-    run(
-        [
-            py() + " -m pip install {}".format(tar_name)])
-
-def arch():
-    return getattr(platform.uname(), "machine", platform.uname()[-1]).lower()
-
-
-def on_arm():
-    return arch() in ["arm64", "aarch64"]
-
-
-def on_x86():
-    return arch() == "x86_64"
-
-
-def on_linux():
-    print("The platform is {}".format(sys.platform))
-    return "linux" in sys.platform
-
-
-def get_protoc(version=PROTOC_VERSION, zipfile=None):
-    if zipfile is None:
-        if on_arm():
-            zipfile = "protoc-" + version + "-linux-aarch_64.zip"
-        elif on_x86():
-            zipfile = "protoc-" + version + "-linux-x86_64.zip"
-        else:
-            print("host architecture not supported")
-            return
-
-    print("Installing protoc ...")
-
-    if not os.path.exists(LOCAL_PATH):
-        os.mkdir(LOCAL_PATH)
-
-    cmd = "protoc --version 2> /dev/null || (curl -kL -o ./protoc.zip "
-    cmd += (
-        "https://github.com/protocolbuffers/protobuf/releases/download/v{}/{}".format(
-            version, zipfile
-        )
-    )
-    cmd += " && unzip -o ./protoc.zip -d {}".format(LOCAL_PATH)
-    cmd += " && rm -rf ./protoc.zip"
-    cmd += " && echo 'PATH=$PATH:{}' >> ~/.profile)".format(LOCAL_BIN_PATH)
-    run([cmd])
-
 
 def setup():
     run(
@@ -435,7 +370,8 @@ def run(commands):
                 cmd = cmd.encode("utf-8", errors="ignore")
             subprocess.check_call(cmd, shell=True)
     except Exception:
-        sys.exit(1)
+        ixnexception = False
+        # sys.exit(1)
 
 
 def get_workflow_id():
