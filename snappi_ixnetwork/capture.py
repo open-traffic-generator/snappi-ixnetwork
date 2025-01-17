@@ -25,30 +25,6 @@ class Capture(object):
 
     """
 
-    _IPV4_OFFSET_MAP = {
-        "version": "14",
-        "headeer_length": "14",
-        "priority": "15",
-        "total_length": "16",
-        "identification": "18",
-        "reserved": "20",
-        "dont_fragment": "20",
-        "more_fragments": "20",
-        "fragment_offset": "20",
-        "time_to_live": "22",
-        "protocol": "23",
-        "header_checksum": "24",
-        "src": "26",
-        "dst": "30",
-    }
-
-    _VLAN_OFFSET_MAP = {
-        "priority": "34",
-        "cfi": "34",
-        "id": "34",
-        "protocol": "36",
-    }
-
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         self._capture_request = None
@@ -97,7 +73,7 @@ class Capture(object):
                         "xpath": vports[port_name]["xpath"]
                         + "/capture/trigger"
                     }
-                    reset["captureTriggerEnable"] = False
+                    # reset["captureTriggerEnable"] = False
                     self._import(reset)
                 capture = {
                     "xpath": vports[port_name]["xpath"] + "/capture",
@@ -111,20 +87,66 @@ class Capture(object):
                 if len(capture_item.filters) > 0:
                     filter["captureFilterEnable"] = True
                     trigger["captureTriggerEnable"] = True
-                    filter["captureFilterEnable"] = True
+                    filter["captureFilterFrameSizeEnable"] = False
+                    trigger["captureTriggerFrameSizeEnable"] = False
+                    filter["captureFilterFrameSizeTo"] = 9198
+                    trigger["captureTriggerFrameSizeTo"] = 9198
+                    filter["captureFilterFrameSizeFrom"] = 46
+                    trigger["captureTriggerFrameSizeFrom"] = 46
+                    expressionString = ""
                     for cap_filter in capture_item.filters:
                         if cap_filter.parent.choice == "ethernet":
-                            self._config_ethernet_pallette(
-                                cap_filter, pallette, trigger, filter
+                            expressionString = self._config_ethernet_pallette(
+                                cap_filter,
+                                pallette,
+                                trigger,
+                                filter,
+                                expressionString,
                             )
                         elif cap_filter.parent.choice == "custom":
-                            self._config_custom_pallete(
-                                cap_filter, pallette, trigger, filter
+                            expressionString = self._config_custom_pallete(
+                                cap_filter,
+                                pallette,
+                                trigger,
+                                filter,
+                                expressionString,
+                            )
+                        elif cap_filter.parent.choice == "vlan":
+                            expressionString = self._config_vlan_pallette(
+                                cap_filter,
+                                pallette,
+                                trigger,
+                                filter,
+                                expressionString,
+                            )
+                        elif cap_filter.parent.choice == "ipv4":
+                            expressionString = self._config_ipv4_pallete(
+                                cap_filter,
+                                pallette,
+                                trigger,
+                                filter,
+                                expressionString,
+                            )
+                        elif cap_filter.parent.choice == "ipv6":
+                            expressionString = self._config_ipv6_pallete(
+                                cap_filter,
+                                pallette,
+                                trigger,
+                                filter,
+                                expressionString,
                             )
                         else:
-                            self._config_missing_pallete(
-                                cap_filter, pallette, trigger, filter
+                            expressionString = self._config_missing_pallete(
+                                cap_filter,
+                                pallette,
+                                trigger,
+                                filter,
+                                expressionString,
                             )
+                    filter["captureFilterExpressionString"] = expressionString
+                    trigger["captureTriggerExpressionString"] = (
+                        expressionString
+                    )
                 imports.append(capture)
                 imports.append(pallette)
                 imports.append(filter)
@@ -134,7 +156,9 @@ class Capture(object):
     def reset_capture_request(self):
         self._capture_request = None
 
-    def _config_missing_pallete(self, cap_filter, pallette, trigger, filter):
+    def _config_missing_pallete(
+        self, cap_filter, pallette, trigger, filter, expressionString
+    ):
         pallete_map = getattr(
             self, "_{0}_OFFSET_MAP".format(cap_filter.parent.choice.upper())
         )
@@ -155,57 +179,395 @@ class Capture(object):
                     ]
                     if cap_field.mask is not None:
                         pallette[new_pattern.pattern_mask] = cap_field.mask
+                    negate = ""
                     if (
                         cap_field.negate is not None
                         and cap_field.negate is True
                     ):
                         filter["captureFilterPattern"] = "notPattern1"
+                        negate = "!"
                     else:
-                        filter[
-                            "captureFilterPattern"
-                        ] = new_pattern.filter_pattern
-                    trigger["triggerFilterPattern"] = filter[
+                        filter["captureFilterPattern"] = (
+                            new_pattern.filter_pattern
+                        )
+                    trigger["captureTriggerPattern"] = filter[
                         "captureFilterPattern"
                     ]
+                    if len(expressionString) == 0:
+                        expressionString = negate + "P1"
+                    else:
+                        expressionString = (
+                            expressionString + " and " + negate + "P1"
+                        )
 
-    def _config_custom_pallete(self, cap_filter, pallette, trigger, filter):
+        return expressionString
+
+    def _config_custom_pallete(
+        self, cap_filter, pallette, trigger, filter, expressionString
+    ):
         if cap_filter.value is not None:
             pallette["pattern1"] = cap_filter.value
             if cap_filter.mask is not None:
                 pallette["patternMask1"] = cap_filter.mask
             if cap_filter.offset is not None:
                 pallette["patternOffset1"] = cap_filter.offset
+            negate = ""
             if cap_filter.negate is not None and cap_filter.negate is True:
                 filter["captureFilterPattern"] = "notPattern1"
+                negate = "!"
             else:
                 filter["captureFilterPattern"] = "pattern1"
-            trigger["triggerFilterPattern"] = filter["captureFilterPattern"]
+            trigger["captureTriggerPattern"] = filter["captureFilterPattern"]
+            if len(expressionString) == 0:
+                expressionString = negate + "P1"
+            else:
+                expressionString = expressionString + " and " + negate + "P1"
 
-    def _config_ethernet_pallette(self, cap_filter, pallette, trigger, filter):
-        if cap_filter.src.value is not None:
-            pallette["SA1"] = cap_filter.src.value
-            if cap_filter.src.mask is not None:
-                pallette["SAMask1"] = cap_filter.src.mask
-            if (
-                cap_filter.src.negate is not None
-                and cap_filter.src.negate is True
-            ):
+        return expressionString
+
+    def _config_ethernet_pallette(
+        self, cap_filter, pallette, trigger, filter, expressionString
+    ):
+        if not cap_filter.src.value == "00":
+            expressionString = self._config_source_address(
+                cap_filter.src, pallette, trigger, filter, expressionString
+            )
+        if not cap_filter.dst.value == "00":
+            expressionString = self._config_destination_address(
+                cap_filter.dst, pallette, trigger, filter, expressionString
+            )
+        if not cap_filter.ether_type.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.ether_type,
+                pallette,
+                trigger,
+                filter,
+                12,
+                expressionString,
+            )
+        if not cap_filter.pfc_queue.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.pfc_queue,
+                pallette,
+                trigger,
+                filter,
+                0,
+                expressionString,
+            )
+        return expressionString
+
+    def _config_vlan_pallette(
+        self, cap_filter, pallette, trigger, filter, expressionString
+    ):
+        if not cap_filter.priority.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.priority,
+                pallette,
+                trigger,
+                filter,
+                0,
+                expressionString,
+            )
+        if not cap_filter.cfi.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.cfi, pallette, trigger, filter, 0, expressionString
+            )
+        if not cap_filter.id.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.id, pallette, trigger, filter, 0, expressionString
+            )
+        if not cap_filter.protocol.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.protocol,
+                pallette,
+                trigger,
+                filter,
+                2,
+                expressionString,
+            )
+        return expressionString
+
+    def _config_ipv4_pallete(
+        self, cap_filter, pallette, trigger, filter, expressionString
+    ):
+        if not cap_filter.version.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.version,
+                pallette,
+                trigger,
+                filter,
+                14,
+                expressionString,
+            )
+        if not cap_filter.header_length.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.header_length,
+                pallette,
+                trigger,
+                filter,
+                14,
+                expressionString,
+            )
+        if not cap_filter.priority.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.priority,
+                pallette,
+                trigger,
+                filter,
+                15,
+                expressionString,
+            )
+        if not cap_filter.total_length.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.total_length,
+                pallette,
+                trigger,
+                filter,
+                16,
+                expressionString,
+            )
+        if not cap_filter.identification.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.identification,
+                pallette,
+                trigger,
+                filter,
+                18,
+                expressionString,
+            )
+        if not cap_filter.reserved.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.reserved,
+                pallette,
+                trigger,
+                filter,
+                20,
+                expressionString,
+            )
+        if not cap_filter.dont_fragment.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.dont_fragment,
+                pallette,
+                trigger,
+                filter,
+                20,
+                expressionString,
+            )
+        if not cap_filter.more_fragments.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.more_fragments,
+                pallette,
+                trigger,
+                filter,
+                20,
+                expressionString,
+            )
+        if not cap_filter.fragment_offset.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.fragment_offset,
+                pallette,
+                trigger,
+                filter,
+                20,
+                expressionString,
+            )
+        if not cap_filter.time_to_live.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.time_to_live,
+                pallette,
+                trigger,
+                filter,
+                22,
+                expressionString,
+            )
+        if not cap_filter.protocol.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.protocol,
+                pallette,
+                trigger,
+                filter,
+                23,
+                expressionString,
+            )
+        if not cap_filter.header_checksum.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.header_checksum,
+                pallette,
+                trigger,
+                filter,
+                24,
+                expressionString,
+            )
+        if not cap_filter.src.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.src, pallette, trigger, filter, 26, expressionString
+            )
+        if not cap_filter.dst.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.dst, pallette, trigger, filter, 30, expressionString
+            )
+        return expressionString
+
+    def _config_ipv6_pallete(
+        self, cap_filter, pallette, trigger, filter, expressionString
+    ):
+        if not cap_filter.version.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.version,
+                pallette,
+                trigger,
+                filter,
+                14,
+                expressionString,
+            )
+        if not cap_filter.traffic_class.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.traffic_class,
+                pallette,
+                trigger,
+                filter,
+                14,
+                expressionString,
+            )
+        if not cap_filter.flow_label.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.flow_label,
+                pallette,
+                trigger,
+                filter,
+                15,
+                expressionString,
+            )
+        if not cap_filter.payload_length.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.payload_length,
+                pallette,
+                trigger,
+                filter,
+                18,
+                expressionString,
+            )
+        if not cap_filter.next_header.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.next_header,
+                pallette,
+                trigger,
+                filter,
+                20,
+                expressionString,
+            )
+        if not cap_filter.hop_limit.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.hop_limit,
+                pallette,
+                trigger,
+                filter,
+                21,
+                expressionString,
+            )
+        if not cap_filter.src.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.src, pallette, trigger, filter, 22, expressionString
+            )
+        if not cap_filter.dst.value == "00":
+            expressionString = self._config_common_filter_pallete(
+                cap_filter.dst, pallette, trigger, filter, 38, expressionString
+            )
+        return expressionString
+
+    def _hex_to_str_with_space(self, hex_value):
+        return " ".join(
+            hex_value[i : i + 2] for i in range(0, len(hex_value), 2)
+        )
+
+    def _config_source_address(
+        self, src, pallette, trigger, filter, expressionString
+    ):
+        if src.value is not None:
+            pallette["SA1"] = self._hex_to_str_with_space(src.value)
+            if src.mask is not None:
+                pallette["SAMask1"] = self._hex_to_str_with_space(src.mask)
+            negate = ""
+            if src.negate is not None and src.negate is True:
                 filter["captureFilterSA"] = "notAddr1"
+                negate = "!"
             else:
                 filter["captureFilterSA"] = "addr1"
-            trigger["triggerFilterSA"] = filter["captureFilterSA"]
-        if cap_filter.dst.value is not None:
-            pallette["DA1"] = cap_filter.dst.value
-            if cap_filter.dst.mask is not None:
-                pallette["DAMask1"] = cap_filter.dst.mask
-            if (
-                cap_filter.dst.negate is not None
-                and cap_filter.dst.negate is True
-            ):
+            trigger["captureTriggerSA"] = filter["captureFilterSA"]
+            if len(expressionString) == 0:
+                expressionString = negate + "SA1"
+            else:
+                expressionString = expressionString + " and " + negate + "SA1"
+
+        return expressionString
+
+    def _config_destination_address(
+        self, dst, pallette, trigger, filter, expressionString
+    ):
+        if dst.value is not None:
+            pallette["DA1"] = self._hex_to_str_with_space(dst.value)
+            if dst.mask is not None:
+                pallette["DAMask1"] = self._hex_to_str_with_space(dst.mask)
+            negate = ""
+            if dst.negate is not None and dst.negate is True:
                 filter["captureFilterDA"] = "notAddr1"
+                negate = "!"
             else:
                 filter["captureFilterDA"] = "addr1"
-            trigger["triggerFilterDA"] = filter["captureFilterDA"]
+            trigger["captureTriggerDA"] = filter["captureFilterDA"]
+            if len(expressionString) == 0:
+                expressionString = negate + "DA1"
+            else:
+                expressionString = expressionString + " and " + negate + "DA1"
+        return expressionString
+
+    def _config_common_filter_pallete(
+        self, field, pallette, trigger, filter, offset, expressionString
+    ):
+        if field.value is not None:
+            if pallette.get("pattern1") is None:
+                pallette["pattern1"] = field.value
+                pallette["patternOffset1"] = offset
+                if field.mask is not None:
+                    pallette["patternMask1"] = field.mask
+                negate = ""
+                if field.negate is not None and field.negate is True:
+                    filter["captureFilterPattern"] = "notPattern1"
+                    negate = "!"
+                else:
+                    filter["captureFilterPattern"] = "pattern1"
+                trigger["captureTriggerPattern"] = filter[
+                    "captureFilterPattern"
+                ]
+                if len(expressionString) == 0:
+                    expressionString = negate + "P1"
+                else:
+                    expressionString = (
+                        expressionString + " and " + negate + "P1"
+                    )
+            elif pallette.get("pattern2") is None:
+                pallette["pattern2"] = field.value
+                pallette["patternOffset2"] = offset
+                if field.mask is not None:
+                    pallette["patternMask2"] = field.mask
+                negate = ""
+                if field.negate is not None and field.negate is True:
+                    filter["captureFilterPattern"] += "AndNotPattern2"
+                    negate = "!"
+                else:
+                    filter["captureFilterPattern"] += "AndPattern2"
+                trigger["captureTriggerPattern"] = filter[
+                    "captureFilterPattern"
+                ]
+                if len(expressionString) == 0:
+                    expressionString = negate + "P2"
+                else:
+                    expressionString = (
+                        expressionString + " and " + negate + "P2"
+                    )
+            else:
+                self._api.warning("Cannot apply more than 2 filters.")
+        return expressionString
 
     def set_capture_state(self, request):
         """Starts capture on all ports that have capture enabled."""
