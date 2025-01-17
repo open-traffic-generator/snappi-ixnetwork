@@ -79,6 +79,7 @@ def test_convergence(utils, api):
     request = api.metrics_request()
     request.convergence.flow_names = ["convergence_test"]
     convergence_metrics = api.get_metrics(request).convergence_metrics
+    print("Convergence Metrics")
     print(convergence_metrics)
     for metrics in convergence_metrics:
         assert isinstance(
@@ -132,6 +133,7 @@ def test_convergence(utils, api):
     request = api.metrics_request()
     request.convergence.flow_names = ["convergence_test"]
     convergence_metrics = api.get_metrics(request).convergence_metrics
+    print("Convergence Metrics")
     print(convergence_metrics)
     for metrics in convergence_metrics:
         assert isinstance(
