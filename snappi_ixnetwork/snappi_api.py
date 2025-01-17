@@ -251,28 +251,39 @@ class Api(snappi.Api):
             if isinstance(config, str) is True:
                 config = self._config_type.deserialize(config)
             self.config_ixnetwork(config)
+            ixn_CpdpConvergence = self._traffic.Statistics.CpdpConvergence
             cfg = config.get("events")
             if cfg is not None:
                 cp_events = cfg.get("cp_events")
+                if cp_events is not None:
+                    cp_events_enable = cp_events.get("enable")
+                else:
+                    cp_events_enable = False
                 dp_events = cfg.get("dp_events")
-                rx_rate_threshold = cfg.get("rx_rate_threshold")
-                ixn_CpdpConvergence = self._traffic.Statistics.CpdpConvergence
-                if cp_events and dp_events:
-                    if self.traffic_item.has_latency is True:
-                        raise Exception(
-                            "We are supporting either latency or p convergence"
-                        )
+                if dp_events is not None:
+                    dp_events_enable = dp_events.get("enable")
+                    rx_rate_threshold = dp_events.get("rx_rate_threshold")
+                else:
+                    dp_events_enable = False
+                if cp_events_enable:
                     ixn_CpdpConvergence.Enabled = True
                     ixn_CpdpConvergence.EnableControlPlaneEvents = True
-                    ixn_CpdpConvergence.EnableDataPlaneEventsRateMonitor = True
-                    ixn_CpdpConvergence.DataPlaneThreshold = rx_rate_threshold
-                else:
-                    ixn_CpdpConvergence.Enabled = False
+                if dp_events_enable:
+                    if self.traffic_item.has_latency is True:
+                        raise Exception(
+                            "We are supporting either latency or dp convergence"    
+                        )
+                    ixn_CpdpConvergence.Enabled = True
+                    ixn_CpdpConvergence.EnableDataPlaneEventsRateMonitor = True 
+                    ixn_CpdpConvergence.DataPlaneThreshold = rx_rate_threshold  
+
                 for ixn_traffic_item in self._traffic_item.find():
                     ixn_traffic_item.Tracking.find()[0].TrackBy = [
                         "destEndpoint0",
                         "destSessionDescription0",
                     ]
+            else:
+                ixn_CpdpConvergence.Enabled = False
             
         except Exception as err:
             raise SnappiIxnException(err)
