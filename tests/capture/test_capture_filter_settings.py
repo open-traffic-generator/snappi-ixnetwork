@@ -60,21 +60,21 @@ def test_ethernet_capture_filter_settings(api, settings):
     cap.port_names = [tx.name]
     filter1, filter2 = cap.filters.ethernet().ethernet()
 
-    filter1.src.value = attrs["SA1"]
-    filter1.src.mask = attrs["SAMask1"]
-    filter1.src.negate = True
+    filter2.src.value = attrs["SA1"]
+    filter2.src.mask = attrs["SAMask1"]
+    filter2.src.negate = True
 
-    filter1.dst.value = attrs["DA1"]
-    filter1.dst.mask = attrs["DAMask1"]
-    filter1.dst.negate = True
+    filter2.dst.value = attrs["DA1"]
+    filter2.dst.mask = attrs["DAMask1"]
+    filter2.dst.negate = True
 
-    filter2.ether_type.value = attrs["Pattern1"]
-    filter2.ether_type.mask = attrs["PatternMask1"]
-    filter2.ether_type.negate = True
+    filter1.ether_type.value = attrs["Pattern1"]
+    filter1.ether_type.mask = attrs["PatternMask1"]
+    filter1.ether_type.negate = True
 
-    filter2.pfc_queue.value = attrs["Pattern2"]
-    filter2.pfc_queue.mask = attrs["PatternMask2"]
-    filter2.pfc_queue.negate = True
+    filter1.pfc_queue.value = attrs["Pattern2"]
+    filter1.pfc_queue.mask = attrs["PatternMask2"]
+    filter1.pfc_queue.negate = True
 
     try:
         api.set_config(config)
@@ -226,4 +226,13 @@ def validate_capture_filter_settings(api, attrs):
     ixnetwork = api._ixnetwork
     filterPallette = ixnetwork.Vport.find().Capture.FilterPallette
     for attr in attrs:
-        assert getattr(filterPallette, attr) == attrs[attr]
+        if "Pattern" in attr:
+            assert getattr(filterPallette, attr) == attrs[attr]
+        else:
+            assert getattr(filterPallette, attr) == hex_to_str_with_space(
+                attrs[attr]
+            )
+
+
+def hex_to_str_with_space(hex_value):
+    return " ".join(hex_value[i : i + 2] for i in range(0, len(hex_value), 2))
