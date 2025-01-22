@@ -43,6 +43,10 @@ class Api(snappi.Api):
         ),
     }
 
+    _DP_CONVERGENCE = {
+        ("data_plane_convergence_us", "DP/DP Convergence Time (us)", float),
+    }
+
     _EVENT = {
         ("begin_timestamp_ns", "Event Start Timestamp", int),
         ("end_timestamp_ns", "Event End Timestamp", int),
@@ -252,6 +256,7 @@ class Api(snappi.Api):
                 config = self._config_type.deserialize(config)
             self.config_ixnetwork(config)
             ixn_CpdpConvergence = self._traffic.Statistics.CpdpConvergence
+            ixn_CpdpConvergence.Enabled = False
             cfg = config.get("events")
             if cfg is not None:
                 cp_events = cfg.get("cp_events")
@@ -686,54 +691,69 @@ class Api(snappi.Api):
                 traffic_stat.TargetRowFilters()[traffic_index[flow_name]],
             )
             drill_down_result = self._get_max_convergence(drill_down.Rows)
-            for (
-                external_name,
-                internal_name,
-                external_type,
-            ) in self._CONVERGENCE:
-                self._set_result_value(
-                    convergence,
+            ixn_CpdpConvergence = self._traffic.Statistics.CpdpConvergence
+            if ixn_CpdpConvergence.EnableDataPlaneEventsRateMonitor and ixn_CpdpConvergence.EnableControlPlaneEvents: # noqa
+                for (
                     external_name,
-                    drill_down_result[internal_name],
+                    internal_name,
                     external_type,
-                )
-
-            events = []
-            interruption_time = None
-            for flow_result in flow_rows:
-                if flow_result["Traffic Item"] != flow_name:
-                    continue
-                event_name = flow_result["Event Name"]
-                if event_name == "":
-                    continue
-                event = self._get_event(event_name)
-                for external_name, internal_name, external_type in self._EVENT:
-                    value = int(flow_result[internal_name].split(".")[-1])
-                    self._set_result_value(
-                        event, external_name, value * 1000, external_type
-                    )
-                events.append(event)
-                if interruption_time is None:
-                    if flow_result["DP Above Threshold Timestamp"] != "":
-                        att = flow_result[
-                            "DP Above Threshold Timestamp"
-                        ].split(":")[-1]
-                    else:
-                        att = 0
-                    if flow_result["DP Below Threshold Timestamp"] != "":
-                        btt = flow_result[
-                            "DP Below Threshold Timestamp"
-                        ].split(":")[-1]
-                    else:
-                        btt = 0
-                    interruption_time = float(att) - float(btt)
+                ) in self._CONVERGENCE:
                     self._set_result_value(
                         convergence,
-                        "service_interruption_time_us",
-                        interruption_time,
-                        float,
+                        external_name,
+                        drill_down_result[internal_name],
+                        external_type,
                     )
-            convergence["events"] = events
+                events = []
+                interruption_time = None
+                for flow_result in flow_rows:
+                    if flow_result["Traffic Item"] != flow_name:
+                        continue
+                    event_name = flow_result["Event Name"]
+                    if event_name == "":
+                        continue
+                    event = self._get_event(event_name)
+                    for external_name, internal_name, external_type in self._EVENT:
+                        value = int(flow_result[internal_name].split(".")[-1])
+                        self._set_result_value(
+                            event, external_name, value * 1000, external_type
+                        )
+                    events.append(event)
+                    if interruption_time is None:
+                        if flow_result["DP Above Threshold Timestamp"] != "":
+                            att = flow_result[
+                                "DP Above Threshold Timestamp"
+                            ].split(":")[-1]
+                        else:
+                            att = 0
+                        if flow_result["DP Below Threshold Timestamp"] != "":
+                            btt = flow_result[
+                                "DP Below Threshold Timestamp"
+                            ].split(":")[-1]
+                        else:
+                            btt = 0
+                        interruption_time = float(att) - float(btt)
+                        self._set_result_value(
+                            convergence,
+                            "service_interruption_time_us",
+                            interruption_time,
+                            float,
+                        )
+                convergence["events"] = events
+
+            # for DP only metric
+            if ixn_CpdpConvergence.EnableDataPlaneEventsRateMonitor and not ixn_CpdpConvergence.EnableControlPlaneEvents: # noqa
+                for (
+                    external_name,
+                    internal_name,
+                    external_type,
+                ) in self._DP_CONVERGENCE:
+                    self._set_result_value(
+                        convergence,
+                        external_name,
+                        drill_down_result[internal_name],
+                        external_type,
+                    )
             response.append(convergence)
         return response
     
@@ -811,12 +831,14 @@ class Api(snappi.Api):
         while True:
             flow_rows = flow_stat.Rows
             has_event = False
+            ixn_CpdpConvergence = self._traffic.Statistics.CpdpConvergence
             for row in flow_rows:
                 if row["Traffic Item"] in flow_names:
                     has_flow = True
-                    if row["Event Name"] != "":
-                        has_event = True
-                        break
+                    if ixn_CpdpConvergence.EnableDataPlaneEventsRateMonitor and ixn_CpdpConvergence.EnableControlPlaneEvents: # noqa
+                        if row["Event Name"] != "":
+                            has_event = True
+                            break
             if has_event is True:
                 break
             if count * sleep_time > self._convergence_timeout:
