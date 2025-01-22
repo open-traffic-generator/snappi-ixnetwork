@@ -20,7 +20,7 @@ def get_snappi_dev_branch():
             shutil.rmtree(local_path)
 
         subprocess.check_call(
-            f"git clone {snappi_repo} && cd {local_path} && git checkout { pytest.SNAPPI_BRANCH} && cd ..",
+            f"git clone {snappi_repo} && cd {local_path} && git checkout { SNAPPI_BRANCH} && cd ..",
             shell=True,
         )
         sys.path.insert(0, local_path)
