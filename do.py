@@ -4,8 +4,39 @@ import re
 import sys
 import shutil
 import subprocess
+import importlib
+import pytest
 
 global ixnexception
+
+SNAPPI_BRANCH=None
+
+def get_snappi_dev_branch():
+    if SNAPPI_BRANCH is not None and SNAPPI_BRANCH != "":
+        print(f"Test is using this snappi branch {SNAPPI_BRANCH}")
+        snappi_repo = "https://github.com/open-traffic-generator/snappi.git"
+        local_path = "snappi"
+        if os.path.exists(local_path):
+            shutil.rmtree(local_path)
+
+        subprocess.check_call(
+            f"git clone {snappi_repo} && cd {local_path} && git checkout { pytest.SNAPPI_BRANCH} && cd ..",
+            shell=True,
+        )
+        sys.path.insert(0, local_path)
+
+    global snappi
+    snappi = importlib.import_module("snappi")
+    print_cmd_options()
+
+def print_cmd_options():
+    print("#" * 80)
+    print("Test will run with these options")
+    print("\tGRPC: ", pytest.GRPC)
+    print("\tOTLP_GRPC: ", pytest.OTLP_GRPC)
+    print("\tLocations: ", pytest.LOCATIONS)
+    print("\tSpeed: ", pytest.SPEED)
+    print("#" * 80)
 
 
 def setup():
