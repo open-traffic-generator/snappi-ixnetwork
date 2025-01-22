@@ -9,7 +9,7 @@ import importlib
 
 global ixnexception
 
-SNAPPI_BRANCH=dev-cpdp
+SNAPPI_BRANCH="dev-cpdp"
 
 def get_snappi_dev_branch():
     if SNAPPI_BRANCH is not None and SNAPPI_BRANCH != "":
