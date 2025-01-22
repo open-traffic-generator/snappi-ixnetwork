@@ -5,11 +5,11 @@ import sys
 import shutil
 import subprocess
 import importlib
-import pytest
+
 
 global ixnexception
 
-SNAPPI_BRANCH=None
+SNAPPI_BRANCH=dev-cpdp
 
 def get_snappi_dev_branch():
     if SNAPPI_BRANCH is not None and SNAPPI_BRANCH != "":
@@ -27,17 +27,6 @@ def get_snappi_dev_branch():
 
     global snappi
     snappi = importlib.import_module("snappi")
-    print_cmd_options()
-
-def print_cmd_options():
-    print("#" * 80)
-    print("Test will run with these options")
-    print("\tGRPC: ", pytest.GRPC)
-    print("\tOTLP_GRPC: ", pytest.OTLP_GRPC)
-    print("\tLocations: ", pytest.LOCATIONS)
-    print("\tSpeed: ", pytest.SPEED)
-    print("#" * 80)
-
 
 def setup():
     run(
