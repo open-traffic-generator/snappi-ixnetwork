@@ -35,7 +35,7 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py init
       - name: Install snappi from dev branch when needed
         run: |
-          ".env/bin/python" do.py get_snappi_dev_branch
+          ${{steps.path.outputs.pythonv}} do.py get_snappi_dev_branch
       - name: Run tests
         run: |
           TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
