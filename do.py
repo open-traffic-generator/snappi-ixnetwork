@@ -26,7 +26,7 @@ def get_snappi_dev_branch():
         sys.path.insert(0, local_path)
         run(
             [
-            py() + " -m pip install {}".format("snappi")])
+            py() + " -m pip install git+{}@{}".format(snappi_repo,SNAPPI_BRANCH)])
     
     global snappi
     snappi = importlib.import_module("snappi")
