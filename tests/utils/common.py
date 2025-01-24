@@ -502,6 +502,20 @@ def validate_config(api, flow_name, packet_header, **kwargs):
         assert packet_info[key] == kwargs[key]
 
 
+def is_traffic_running(api):
+    """
+    Returns true if traffic in start state
+    """
+    flow_stats = get_flow_stats(api)
+    return all([int(fs.frames_rx_rate) > 0 for fs in flow_stats])
+
+
+def get_flow_stats(api):
+    request = api.metrics_request()
+    request.convergence.flow_names = []
+    return api.get_metrics(request).flow_metrics
+
+
 def is_traffic_stopped(api, flow_names=[]):
     """
     Returns true if traffic in stop state

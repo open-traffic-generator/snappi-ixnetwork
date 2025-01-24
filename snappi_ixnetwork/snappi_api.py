@@ -228,7 +228,6 @@ class Api(snappi.Api):
                             )
                             self.info(error)
                             errors.append(error)
-        # request_detail.errors = errors
 
         # Need to add this hack as dumping json config throws this exception
         # Traffic regeneration will be part of set_transmit_state
@@ -255,6 +254,7 @@ class Api(snappi.Api):
             if isinstance(config, str) is True:
                 config = self._config_type.deserialize(config)
             self.config_ixnetwork(config)
+            # CP-DP Convergence config
             ixn_CpdpConvergence = self._traffic.Statistics.CpdpConvergence
             ixn_CpdpConvergence.Enabled = False
             cfg = config.get("events")
@@ -270,17 +270,20 @@ class Api(snappi.Api):
                     rx_rate_threshold = dp_events.get("rx_rate_threshold")
                 else:
                     dp_events_enable = False
-                if cp_events_enable:
+                # Enable cp-dp convergence if any one of cp or dp is true
+                if cp_events_enable or dp_events_enable:
                     ixn_CpdpConvergence.Enabled = True
-                    ixn_CpdpConvergence.EnableControlPlaneEvents = True
-                if dp_events_enable:
-                    if self.traffic_item.has_latency is True:
-                        raise Exception(
-                            "We are supporting either latency or dp convergence"    
-                        )
-                    ixn_CpdpConvergence.Enabled = True
-                    ixn_CpdpConvergence.EnableDataPlaneEventsRateMonitor = True 
-                    ixn_CpdpConvergence.DataPlaneThreshold = rx_rate_threshold  
+                    # For CP events
+                    if cp_events_enable:
+                        ixn_CpdpConvergence.EnableControlPlaneEvents = True
+                    # For DP events
+                    if dp_events_enable:
+                        if self.traffic_item.has_latency is True:
+                            raise Exception(
+                                "We are supporting either latency or dp convergence"    
+                            )
+                        ixn_CpdpConvergence.EnableDataPlaneEventsRateMonitor = True 
+                        ixn_CpdpConvergence.DataPlaneThreshold = rx_rate_threshold  
 
                 for ixn_traffic_item in self._traffic_item.find():
                     ixn_traffic_item.Tracking.find()[0].TrackBy = [
@@ -655,6 +658,7 @@ class Api(snappi.Api):
         return rows[0]
     
     def _result(self, request):
+        # get convergence result
         flow_names = request.get("flow_names")
         if not isinstance(flow_names, list):
             msg = "Invalid format of flow_names passed {},\
