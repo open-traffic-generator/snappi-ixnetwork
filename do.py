@@ -5,8 +5,18 @@ import sys
 import shutil
 import subprocess
 
+
 global ixnexception
 
+SNAPPI_BRANCH=None
+
+def get_snappi_dev_branch():
+    if SNAPPI_BRANCH is not None and SNAPPI_BRANCH != "":
+        print(f"Test is using this snappi branch {SNAPPI_BRANCH}")
+        snappi_repo = "https://github.com/open-traffic-generator/snappi.git"
+        run(
+            [
+            py() + " -m pip install git+{}@{}".format(snappi_repo,SNAPPI_BRANCH)])
 
 def setup():
     run(
