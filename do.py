@@ -4,6 +4,9 @@ import re
 import sys
 import shutil
 import subprocess
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 
 global ixnexception
@@ -83,15 +86,16 @@ def test(card="novus100g"):
         "--psd='" + psd + "'",
         "tests",
         '-m "not e2e and not l1_manual and not uhd"',
-        "--cov=./snappi_ixnetwork --cov-report term"
+        "--cov=./snappi_ixnetwork --cov-report term",
         " --cov-report html:cov_report",
+        " -o junit_logging=all --junitxml=allure-results/report-pytest.xml"
     ]
     print(args)
 
     run(
         [
             py() + " -m pip install pytest-cov",
-            py() + " -m pytest -sv {}".format(" ".join(args)),
+            py() + " -m pytest -sv {} | tee myfile.log ".format(" ".join(args)),
         ]
     )
     import re
@@ -111,7 +115,137 @@ def test(card="novus100g"):
                     coverage_threshold, result
                 )
             )
+    
+def generate_allure_report():
+        run(["mkdir -p allure-results/history"])
+        run(["cp -r $HOME/allure-report/history/* allure-results/history/"])
+        run(["rm -rf $HOME/allure-report"])
 
+        run(['echo "CI/CD-Information" > allure-results/environment.properties',
+            'echo "Platform = athena-g" >> allure-results/environment.properties',
+            'echo "Release = 5.15.0-60-generic" >> allure-results/environment.properties',
+            'echo "OS-Version" >> allure-results/environment.properties',
+            "lsb_release -a | sed -E 's/([^:]+) /\1-/g' | sed 's/:/=/g' > version.txt",
+            'cat version.txt >> allure-results/environment.properties',
+            'rm -rf version.txt',
+            'echo "Environment-Details" >> allure-results/environment.properties',
+            "python_ver=`python3 --version`",
+            "pytest_ver=`pytest --version`",
+            'echo "Python-Version = $python_ver" >> allure-results/environment.properties',
+            'echo "Pytest-Version = $pytest_ver" >> allure-results/environment.properties',
+            'go_ver=`go version`',
+            'echo "Go-Version = $go_ver" >> allure-results/environment.properties',
+            'allure_ver=$(docker exec "$CONTAINER_NAME" allure --version)',
+            'echo "Allure-Version = $allure_ver" >> allure-results/environment.properties'])
+        
+
+        run(
+        [
+            "allure generate allure-results -c -o allure-report",
+        ]
+        )
+        
+        run(["cp -r allure-report $HOME/allure-report "])
+
+def coverage():
+
+    test_start = (subprocess.check_output("echo $TIMESTAMP", shell=True)).decode('ascii')
+    coverage_threshold = 67
+    global result
+    with open("myfile.log") as fp:
+        out = fp.read()
+        total_selected_tests = re.findall(r"collecting.*\s+(\d+)\s+selected", out)[0]
+        total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out)[0]
+        if re.findall(r"=.*\s(\d+)\s+skipped",out):
+            total_skipped_tests = re.findall(r"=.*\s(\d+)\s+skipped", out)[0]
+        else:
+            total_skipped_tests = 0
+        
+        total_failed_tests = int(total_selected_tests) - int(total_passed_tests) - int(total_skipped_tests)
+
+    with open("./cov_report/index.html") as fp:
+        out = fp.read()
+        result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[-1]
+
+    sender = "ixnetworksnappi@gmail.com"
+    #receiver = ["arkajyoti.dutta@keysight.com","indrani.bhattacharya@keysight.com","dipendu.ghosh@keysight.com","desai.mg@keysight.com"]
+    receiver = ["desai.mg@keysight.com"]
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = "Snappi-Ixnetwork Coverage Email"
+    msg['From'] = sender
+    msg['To'] = ", ".join(receiver)
+
+    val1=total_selected_tests
+    val2=total_passed_tests
+    val3=total_failed_tests
+
+    build_number=get_workflow_id()
+
+    # Create the body of the message (a plain-text and an HTML version).
+    text = "Hi!"
+    html = """\
+    <html>
+    <style>
+    table, th, td {
+    border:1px solid black;
+    }
+    </style>
+    <body>
+
+    <p>Hi All,<br><br>
+    Please find the coverage results for the build execution ID : <b>"""+str(build_number)+"""</b><br>
+    Build started on : <b>"""+str(test_start)+""" IST</b><br><br>
+    </p>
+
+    <table style="width:100%">
+    <tr>
+        <td>Total Testcases</td>
+        <td>"""+str(val1)+"""</td>
+    </tr>
+    <tr>
+        <td>Total Test Pass</td>
+        <td>"""+str(val2)+"""</td>
+    </tr>
+    <tr>
+        <td>Total Test Fail</td>
+        <td>"""+str(val3)+"""</td>
+    </tr>
+    <tr>
+        <td>Test Coverage Percentage</td>
+        <td>"""+str(result)+"""</td>
+    </tr>
+    </table>
+
+    <p> Click on the url for detailed test execution summary : <a href="https://otg.dev/snappi-ixnetwork/" target="_blank">Report</a></p>
+    
+
+    <br><p>Thanks,<br>
+        Snappi-Ixnetwork Team<br><br>
+    </p>
+
+    </body>
+    </html>
+    """
+    #.format("200","198","2","99%")
+
+    # Record the MIME types of both parts - text/plain and text/html.
+    part1 = MIMEText(text, 'plain')
+    part2 = MIMEText(html, 'html')
+
+    # Attach parts into message container.
+    # According to RFC 2046, the last part of a multipart message, in this case
+    # the HTML message, is best and preferred.
+    msg.attach(part1)
+    msg.attach(part2)
+
+    # Send the message via local SMTP server.
+    s = smtplib.SMTP('smtp.gmail.com', 587)
+    s.starttls()
+    s.login(sender, "fbgt tiid rduu ajar")
+    # sendmail function takes 3 arguments: sender's address, recipient's address
+    # and message to send - here it is sent as one string.
+    s.sendmail(sender, receiver, msg.as_string())
+    s.quit()
 
 def dist():
     clean()
