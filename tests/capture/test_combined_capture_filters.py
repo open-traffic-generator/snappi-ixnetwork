@@ -27,10 +27,10 @@ def test_combined_filters(api, settings, utils):
 
     vlan_filter.id.value = "0006"
     vlan_filter.id.mask = "F000"
-    vlan_filter.id.negate = True
+    vlan_filter.id.negate = False
     vlan_filter.priority.value = "07"
     vlan_filter.priority.mask = "07"
-    vlan_filter.priority.negate = False
+    vlan_filter.priority.negate = True
 
     (f1,) = config.flows.flow(name="f1")
     f1.tx_rx.port.tx_name = p1.name
