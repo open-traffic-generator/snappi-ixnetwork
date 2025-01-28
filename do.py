@@ -122,7 +122,7 @@ def generate_allure_report():
         run(["rm -rf $HOME/allure-report"])
 
         run(['echo "CI/CD-Information" > allure-results/environment.properties',
-            'echo "Platform = athena-g" >> allure-results/environment.properties',
+            'echo "Platform = snappi-ixnetwork" >> allure-results/environment.properties',
             'echo "Release = 5.15.0-60-generic" >> allure-results/environment.properties',
             'echo "OS-Version" >> allure-results/environment.properties',
             "lsb_release -a | sed -E 's/([^:]+) /\1-/g' | sed 's/:/=/g' > version.txt",
