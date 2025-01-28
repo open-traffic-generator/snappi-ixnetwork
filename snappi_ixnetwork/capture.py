@@ -161,10 +161,8 @@ class Capture(object):
                                 generic_size,
                                 expression_string,
                             )
-                    filter["captureFilterexpression_string"] = (
-                        expression_string
-                    )
-                    trigger["captureTriggerexpression_string"] = (
+                    filter["captureFilterExpressionString"] = expression_string
+                    trigger["captureTriggerExpressionString"] = (
                         expression_string
                     )
                 imports.append(capture)
@@ -475,10 +473,8 @@ class Capture(object):
                     pallette["patternMask2"] = field.mask
                 negate = ""
                 if field.negate is not None and field.negate is True:
-                    filter["captureFilterPattern"] += "AndNotPattern2"
                     negate = "!"
-                else:
-                    filter["captureFilterPattern"] += "AndPattern2"
+                filter["captureFilterPattern"] = "pattern1AndPattern2"
                 trigger["captureTriggerPattern"] = filter[
                     "captureFilterPattern"
                 ]
