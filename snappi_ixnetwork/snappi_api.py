@@ -255,8 +255,8 @@ class Api(snappi.Api):
                 config = self._config_type.deserialize(config)
             self.config_ixnetwork(config)
             # CP-DP Convergence config
-            ixn_CpdpConvergence = self._traffic.Statistics.CpdpConvergence
-            ixn_CpdpConvergence.Enabled = False
+            ixn_cpdpconvergence = self._traffic.Statistics.CpdpConvergence
+            ixn_cpdpconvergence.Enabled = False
             cfg = config.get("events")
             if cfg is not None:
                 cp_events = cfg.get("cp_events")
@@ -272,18 +272,18 @@ class Api(snappi.Api):
                     dp_events_enable = False
                 # Enable cp-dp convergence if any one of cp or dp is true
                 if cp_events_enable or dp_events_enable:
-                    ixn_CpdpConvergence.Enabled = True
+                    ixn_cpdpconvergence.Enabled = True
                     # For CP events
                     if cp_events_enable:
-                        ixn_CpdpConvergence.EnableControlPlaneEvents = True
+                        ixn_cpdpconvergence.EnableControlPlaneEvents = True
                     # For DP events
                     if dp_events_enable:
                         if self.traffic_item.has_latency is True:
                             raise Exception(
                                 "We are supporting either latency or dp convergence"    
                             )
-                        ixn_CpdpConvergence.EnableDataPlaneEventsRateMonitor = True 
-                        ixn_CpdpConvergence.DataPlaneThreshold = rx_rate_threshold  
+                        ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor = True 
+                        ixn_cpdpconvergence.DataPlaneThreshold = rx_rate_threshold  
 
                 for ixn_traffic_item in self._traffic_item.find():
                     ixn_traffic_item.Tracking.find()[0].TrackBy = [
@@ -291,7 +291,7 @@ class Api(snappi.Api):
                         "destSessionDescription0",
                     ]
             else:
-                ixn_CpdpConvergence.Enabled = False
+                ixn_cpdpconvergence.Enabled = False
             
         except Exception as err:
             raise SnappiIxnException(err)
@@ -695,8 +695,8 @@ class Api(snappi.Api):
                 traffic_stat.TargetRowFilters()[traffic_index[flow_name]],
             )
             drill_down_result = self._get_max_convergence(drill_down.Rows)
-            ixn_CpdpConvergence = self._traffic.Statistics.CpdpConvergence
-            if ixn_CpdpConvergence.EnableDataPlaneEventsRateMonitor and ixn_CpdpConvergence.EnableControlPlaneEvents: # noqa
+            ixn_cpdpconvergence = self._traffic.Statistics.CpdpConvergence
+            if ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor and ixn_cpdpconvergence.EnableControlPlaneEvents: # noqa
                 for (
                     external_name,
                     internal_name,
@@ -746,7 +746,7 @@ class Api(snappi.Api):
                 convergence["events"] = events
 
             # for DP only metric
-            if ixn_CpdpConvergence.EnableDataPlaneEventsRateMonitor and not ixn_CpdpConvergence.EnableControlPlaneEvents: # noqa
+            if ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor and not ixn_cpdpconvergence.EnableControlPlaneEvents: # noqa
                 for (
                     external_name,
                     internal_name,
@@ -835,11 +835,11 @@ class Api(snappi.Api):
         while True:
             flow_rows = flow_stat.Rows
             has_event = False
-            ixn_CpdpConvergence = self._traffic.Statistics.CpdpConvergence
+            ixn_cpdpconvergence = self._traffic.Statistics.CpdpConvergence
             for row in flow_rows:
                 if row["Traffic Item"] in flow_names:
                     has_flow = True
-                    if ixn_CpdpConvergence.EnableDataPlaneEventsRateMonitor and ixn_CpdpConvergence.EnableControlPlaneEvents: # noqa
+                    if ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor and ixn_cpdpconvergence.EnableControlPlaneEvents: # noqa
                         if row["Event Name"] != "":
                             has_event = True
                             break
