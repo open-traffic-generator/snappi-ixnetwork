@@ -8,7 +8,7 @@ import subprocess
 
 global ixnexception
 
-SNAPPI_BRANCH="dev-cpdp"
+SNAPPI_BRANCH=None
 
 def get_snappi_dev_branch():
     if SNAPPI_BRANCH is not None and SNAPPI_BRANCH != "":
