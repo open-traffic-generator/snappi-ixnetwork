@@ -694,7 +694,8 @@ class Api(snappi.Api):
                 drill_down_option,
                 traffic_stat.TargetRowFilters()[traffic_index[flow_name]],
             )
-            drill_down_result = self._get_max_convergence(drill_down.Rows)
+            if drill_down.Rows is not None:
+                drill_down_result = self._get_max_convergence(drill_down.Rows)
             ixn_cpdpconvergence = self._traffic.Statistics.CpdpConvergence
             if ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor and ixn_cpdpconvergence.EnableControlPlaneEvents: # noqa
                 for (
