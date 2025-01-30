@@ -298,7 +298,12 @@ def append_csv_row(dirname, filename, column_names, result_dict):
         csv_writer.writerow([result_dict[key] for key in column_names])
 
 
-def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
+def print_stats(port_stats=None,
+                flow_stats=None,
+                bgpv4_stats=None,
+                bgpv6_stats=None,
+                clear_screen=None
+                ):
     if clear_screen is None:
         clear_screen = settings.dynamic_stats_output
 
@@ -308,7 +313,7 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
     if port_stats is not None:
         row_format = "{:>15}" * 6
         border = "-" * (15 * 6 + 5)
-        print("\nPort Stats")
+        print("\nPort Metrics")
         print(border)
         print(
             row_format.format(
@@ -318,6 +323,7 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
                 "Rx Frames",
                 "Rx Bytes",
                 "Tx FPS",
+                "Rx FPS",
             )
         )
         for stat in port_stats:
@@ -329,6 +335,7 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
                     stat.frames_rx,
                     stat.bytes_rx,
                     stat.frames_tx_rate,
+                    stat.frames_rx_rate,
                 )
             )
         print(border)
@@ -336,13 +343,99 @@ def print_stats(port_stats=None, flow_stats=None, clear_screen=None):
         print("")
 
     if flow_stats is not None:
-        row_format = "{:>15}" * 3
-        border = "-" * (15 * 3 + 5)
-        print("Flow Stats")
+        row_format = "{:>20}" * 4
+        border = "-" * (20 * 4 + 5)
+        print("Flow Metrics")
         print(border)
-        print(row_format.format("Flow", "Rx Frames", "Rx Bytes"))
+        print(
+            row_format.format(
+                "Flow",
+                "Rx Frames",
+                "Rx Bytes",
+                "Transmit State",
+            )
+        )
         for stat in flow_stats:
-            print(row_format.format(stat.name, stat.frames_rx, stat.bytes_rx))
+            print(
+                row_format.format(
+                    stat.name,
+                    stat.frames_rx,
+                    stat.bytes_rx,
+                    stat.transmit,
+                )
+            )
+        print(border)
+        print("")
+        print("")
+
+    if bgpv4_stats is not None:
+        row_format = "{:>15}" * 9
+        border = "-" * (15 * 9 + 5)
+        print("\nBGPv4 Metrics")
+        print(border)
+        print(
+            row_format.format(
+                "Name",
+                "Session State",
+                "Session Flaps",
+                "Routes Advertised",
+                "Routes Received",
+                "Route Withdraws Tx",
+                "Route Withdraws Rx",
+                "Keepalives Tx",
+                "Keepalives Rx",
+            )
+        )
+        for stat in bgpv4_stats:
+            print(
+                row_format.format(
+                    stat.name,
+                    stat.session_state,
+                    stat.session_flap_count,
+                    stat.routes_advertised,
+                    stat.routes_received,
+                    stat.route_withdraws_sent,
+                    stat.route_withdraws_received,
+                    stat.keepalives_sent,
+                    stat.keepalives_received,
+                )
+            )
+        print(border)
+        print("")
+        print("")
+
+    if bgpv6_stats is not None:
+        row_format = "{:>15}" * 9
+        border = "-" * (15 * 9 + 5)
+        print("\nBGPv6 Metrics")
+        print(border)
+        print(
+            row_format.format(
+                "Name",
+                "Session State",
+                "Session Flaps",
+                "Routes Advertised",
+                "Routes Received",
+                "Route Withdraws Tx",
+                "Route Withdraws Rx",
+                "Keepalives Tx",
+                "Keepalives Rx",
+            )
+        )
+        for stat in bgpv6_stats:
+            print(
+                row_format.format(
+                    stat.name,
+                    stat.session_state,
+                    stat.session_flap_count,
+                    stat.routes_advertised,
+                    stat.routes_received,
+                    stat.route_withdraws_sent,
+                    stat.route_withdraws_received,
+                    stat.keepalives_sent,
+                    stat.keepalives_received,
+                )
+            )
         print(border)
         print("")
         print("")
@@ -407,6 +500,20 @@ def validate_config(api, flow_name, packet_header, **kwargs):
     packet_info = get_packet_information(api, flow_name, packet_header)
     for key in kwargs:
         assert packet_info[key] == kwargs[key]
+
+
+def is_traffic_running(api):
+    """
+    Returns true if traffic in start state
+    """
+    flow_stats = get_flow_stats(api)
+    return all([int(fs.frames_rx_rate) > 0 for fs in flow_stats])
+
+
+def get_flow_stats(api):
+    request = api.metrics_request()
+    request.convergence.flow_names = []
+    return api.get_metrics(request).flow_metrics
 
 
 def is_traffic_stopped(api, flow_names=[]):

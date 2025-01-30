@@ -257,7 +257,6 @@ def run(commands):
     except Exception:
         ixnexception = False
         # sys.exit(1)
-        
 
 
 def get_workflow_id():
