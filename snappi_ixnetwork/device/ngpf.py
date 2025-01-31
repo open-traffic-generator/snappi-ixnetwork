@@ -3,6 +3,7 @@ import json, re
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.device.bgp import Bgp
+from snappi_ixnetwork.device.macsec import Macsec
 from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.device.vxlan import VXLAN
 from snappi_ixnetwork.device.interface import Ethernet
@@ -26,6 +27,7 @@ class Ngpf(Base):
         "VxlanV4Tunnel": "ipv4",
         "VxlanV6Tunnel": "ipv6",
         "BgpCMacIpRange": "ethernetVlan",
+        "Macsec": "ethernetVlan",
     }
 
     _ROUTE_STATE = {"advertise": True, "withdraw": False}
@@ -41,6 +43,7 @@ class Ngpf(Base):
         self.logger = get_ixnet_logger(__name__)
         self._ethernet = Ethernet(self)
         self._bgp = Bgp(self)
+        self._macsec = Macsec(self)
         self._vxlan = VXLAN(self)
         self._loop_back = LoopbackInt(self)
         self.compactor = Compactor(self.api)
@@ -102,6 +105,10 @@ class Ngpf(Base):
         ixn_topos = self.create_node(self._ixn_config, "topology")
         # Configured all interfaces
         self._configure_device_group(ixn_topos)
+
+        # Configure all MACsec interface before configure protocols
+        for device in self.api.snappi_config.devices:
+            self._macsec.config(device)
 
         # We need to configure all interface before configure protocols
         for device in self.api.snappi_config.devices:

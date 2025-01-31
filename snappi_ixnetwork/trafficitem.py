@@ -878,7 +878,7 @@ class TrafficItem(CustomField):
         stack_names = []
         for stack in ixn_stack:
             name = stack["xpath"].split(" = ")[-1].strip("']").split("-")[0]
-            if name == "fcs":
+            if name == "fcs" or name == "macsec" or name == "icv":
                 continue
             if self._TYPE_TO_HEADER.get(name) is None:
                 msg = "%s snappi header is not mapped" % name
