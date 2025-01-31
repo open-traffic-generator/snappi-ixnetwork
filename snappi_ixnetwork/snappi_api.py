@@ -475,47 +475,47 @@ class Api(snappi.Api):
         except Exception as err:
             raise SnappiIxnException(err)
 
-    def set_protocol_state(self, payload):
-        """Set the transmit state of flows"""
-        self.add_warnings(
-            "set_protocol_state api is deprecated, Please use `set_control_state` with `protocol.all` choice instead"
-        )
-        try:
-            if isinstance(payload, (type(self._protocol_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[TransmitState, str]"
-                )
-            if isinstance(payload, str) is True:
-                payload = self._protocol_state.deserialize(payload)
-            self._connect()
-            with Timer(self, "Setting Protocol state"):
-                self.ngpf.set_protocol_state(payload)
-        except Exception as err:
-            raise SnappiIxnException(err)
-        return self._request_detail()
+    # Commenting out deprecated APIs
+    # def set_protocol_state(self, payload):
+    #     """Set the transmit state of flows"""
+    #     self.add_warnings(
+    #         "set_protocol_state api is deprecated, Please use `set_control_state` with `protocol.all` choice instead"
+    #     )
+    #     try:
+    #         if isinstance(payload, (type(self._protocol_state), str)) is False:
+    #             raise TypeError(
+    #                 "The content must be of type Union[TransmitState, str]"
+    #             )
+    #         if isinstance(payload, str) is True:
+    #             payload = self._protocol_state.deserialize(payload)
+    #         self._connect()
+    #         with Timer(self, "Setting Protocol state"):
+    #             self.ngpf.set_protocol_state(payload)
+    #     except Exception as err:
+    #         raise SnappiIxnException(err)
+    #     return self._request_detail()
 
-
-    def send_ping(self, ping_request):
-        self.add_warnings(
-            "send_ping api is deprecated, Please use `set_control_action` with `protocol.ipv4.ping` choice instead"
-        )
-        try:
-            if (
-                isinstance(ping_request, (type(self._ping_request), str))
-                is False
-            ):
-                raise TypeError(
-                    "The content must be of type Union[PingRequest, str]"
-                )
-            if isinstance(ping_request, str):
-                ping_request = self._ping_request.deserialize(ping_request)
-            ping_res = self.ping_response()
-            ping_request.serialize()
-            self._connect()
-            ping_res.responses.deserialize(self.ping.results(ping_request))
-            return ping_res
-        except Exception as err:
-            raise SnappiIxnException(err)
+    # def send_ping(self, ping_request):
+    #     self.add_warnings(
+    #         "send_ping api is deprecated, Please use `set_control_action` with `protocol.ipv4.ping` choice instead"
+    #     )
+    #     try:
+    #         if (
+    #             isinstance(ping_request, (type(self._ping_request), str))
+    #             is False
+    #         ):
+    #             raise TypeError(
+    #                 "The content must be of type Union[PingRequest, str]"
+    #             )
+    #         if isinstance(ping_request, str):
+    #             ping_request = self._ping_request.deserialize(ping_request)
+    #         ping_res = self.ping_response()
+    #         ping_request.serialize()
+    #         self._connect()
+    #         ping_res.responses.deserialize(self.ping.results(ping_request))
+    #         return ping_res
+    #     except Exception as err:
+    #         raise SnappiIxnException(err)
 
     def get_capture(self, request):
         """Gets capture file and returns it as a byte stream"""
