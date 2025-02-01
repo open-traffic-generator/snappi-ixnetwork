@@ -48,6 +48,7 @@ class Ngpf(Base):
         self._loop_back = LoopbackInt(self)
         self.compactor = Compactor(self.api)
         self._createixnconfig = CreateIxnConfig(self)
+        self.is_ip_allowed = True
 
     def config(self):
         self._ixn_topo_objects = {}
@@ -136,10 +137,20 @@ class Ngpf(Base):
             self.compactor.compact(ixn_topo.get("deviceGroup"))
             self._set_dev_compacted(ixn_topo.get("deviceGroup"))
 
+    def _is_ip_allowed(self):
+        is_allowed = True
+        self.logger.debug("Checking if IPv4/ v6 is allowed when MACsec is present")
+        for device in self.api.snappi_config.devices:
+            is_allowed = self._macsec._is_ip_allowed(device)
+            if is_allowed == False:
+                break
+        return is_allowed
+
     def _configure_device_group(self, ixn_topos):
         """map ethernet with a ixn deviceGroup with multiplier = 1"""
         port_name = None
         device_chain_dgs = {}
+        self.is_ip_allowed = self._is_ip_allowed()
         for device in self.api.snappi_config.devices:
             chin_dgs = {}
             ethernets = device.get("ethernets")

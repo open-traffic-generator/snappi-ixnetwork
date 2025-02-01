@@ -52,7 +52,7 @@ class Macsec(Base):
         macsec = device.get("macsec")
         if macsec is None:
             return
-        self._config_ethernet_interfaces(macsec)
+        self._config_ethernet_interfaces(device)
 
     def _is_valid(self, ethernet_name, secy):
         is_valid = True
@@ -125,8 +125,25 @@ class Macsec(Base):
             self.logger.debug("MACsec validation failure")
         return is_valid
 
-    def _config_ethernet_interfaces(self, macsec):
+    def _is_ip_allowed(self, device):
+        self.logger.debug("Checking if IPv4/ v6 is allowed")
+        is_allowed = True
+        macsec = device.get("macsec")
+        if macsec is None:
+            return is_allowed
+        ethernet_interfaces = macsec.get("ethernet_interfaces")
+        if ethernet_interfaces is None:
+            return is_allowed
+        for ethernet_interface in ethernet_interfaces:
+            secy = ethernet_interface.get("secy")
+            if secy.crypto_engine.engine_type.choice == "stateless_encryption_only":
+                is_allowed = False
+                break
+        return is_allowed
+
+    def _config_ethernet_interfaces(self, device):
         self.logger.debug("Configuring MACsec interfaces")
+        macsec = device.get("macsec")
         ethernet_interfaces = macsec.get("ethernet_interfaces")
         if ethernet_interfaces is None:
             return
@@ -137,13 +154,15 @@ class Macsec(Base):
             )
             if not self._is_valid(ethernet_name, ethernet_interface.get("secy")):
                 continue
-            ixn_ethernet = self._ngpf.api.ixn_objects.get_object(ethernet_name)
-            self._config_secy(ethernet_interface.get("secy"), ixn_ethernet)
+            self._config_secy(device, ethernet_interface)
 
-    def _config_secy(self, secy, ixn_ethernet):
+    def _config_secy(self, device, ethernet_interface):
+        self.logger.debug("Configuring SecY")
+        secy = ethernet_interface.get("secy")
         if secy is None:
             return
-        self.logger.debug("Configuring SecY")
+        ethernet_name = ethernet_interface.get("eth_name")
+        ixn_ethernet = self._ngpf.api.ixn_objects.get_object(ethernet_name)
         if secy.crypto_engine.engine_type.choice == "stateless_encryption_only":
             self.logger.debug("Configuring SecY: stateless_encryption_only")
             ixn_staticmacsec = self.create_node_elemet(
@@ -152,13 +171,13 @@ class Macsec(Base):
             self._ngpf.set_device_info(secy, ixn_staticmacsec)
 
             basic = secy.get("basic")
-            txscs = secy.get("txscs")
-            rxscs = secy.get("rxscs")
             key_generation = basic.key_generation
             #TODO: set key genertion in IxN
             if key_generation.choice == "static":
                 self.logger.debug("Configuring Static MACsec")
                 self.logger.debug("Configuring basic: %s" % (basic.key_generation.static.cipher_suite))
+                txscs = secy.get("txscs")
+                rxscs = secy.get("rxscs")
                 self.configure_multivalues(basic.key_generation.static, ixn_staticmacsec, Macsec._BASIC)
                 self.configure_multivalues(txscs[0].static_key, ixn_staticmacsec, Macsec._TXSC)
                 self.configure_multivalues(rxscs[0].static_key, ixn_staticmacsec, Macsec._RXSC)
@@ -166,5 +185,29 @@ class Macsec(Base):
                 ixn_tx_sak_pool = self.create_node_elemet(
                     ixn_staticmacsec, "txSakPool", tx_sak_pool.get("name")
                 )
+            self._config_secy_stateless_traffic(device, ethernet_interface, ixn_staticmacsec)
         else:
             return
+
+    def _config_secy_stateless_traffic(self, device, ethernet_interface, ixn_staticmacsec):
+        ethernet_name = ethernet_interface.get("eth_name")
+        secy = ethernet_interface.get("secy")
+        self.logger.debug("Configuring stateless encryption traffic from ethernet %s secy %s" % (ethernet_name, secy.get("name")))
+        ethernets = device.get("ethernets")
+        for ethernet in ethernets:
+            if ethernet.get("name") == ethernet_name:
+                ipv4_addresses = ethernet.get("ipv4_addresses")
+                if ipv4_addresses is None:
+                    raise Exception("IPv4 not configured on ethernet %s" % ethernet_name)
+                elif len(ipv4_addresses) > 1:
+                    raise Exception("More than one IPv4 address configured on ethernet %s" % ethernet_name)
+                ipv4_address = ipv4_addresses[0].address
+                ipv4_gateway_mac = ipv4_addresses[0].gateway_mac
+                if ipv4_gateway_mac is None:
+                    raise Exception("IPv4 gateway mac not configured for IPv4 address %s on ethernet %s" % (ethernet_name, ipv4_address))
+                elif not ipv4_gateway_mac.choice == "value" or ipv4_gateway_mac.value is None:
+                    raise Exception("IPv4 gateway static mac not configured for IPv4 address %s on ethernet %s" % (ethernet_name, ipv4_address))
+                ipv4_gateway_static_mac = ipv4_addresses[0].gateway_mac.value
+                ixn_staticmacsec["sourceIp"] = self.multivalue(ipv4_address)
+                ixn_staticmacsec["dutMac"] = self.multivalue(ipv4_gateway_static_mac)
+                break
