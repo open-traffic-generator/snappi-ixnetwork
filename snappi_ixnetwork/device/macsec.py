@@ -28,7 +28,6 @@ class Macsec(Base):
     }
 
 #    _DUT = {
-#        "cipher_suite": "dutMac",
 #        "cipher_suite": "dutMsbOfXpn",
 #        "cipher_suite": "dutSciMac",
 #        "cipher_suite": "dutSciPortId",
@@ -178,18 +177,31 @@ class Macsec(Base):
                 self.logger.debug("Configuring basic: %s" % (basic.key_generation.static.cipher_suite))
                 txscs = secy.get("txscs")
                 rxscs = secy.get("rxscs")
-                self.configure_multivalues(basic.key_generation.static, ixn_staticmacsec, Macsec._BASIC)
-                self.configure_multivalues(txscs[0].static_key, ixn_staticmacsec, Macsec._TXSC)
-                self.configure_multivalues(rxscs[0].static_key, ixn_staticmacsec, Macsec._RXSC)
+                self._config_basic(basic, ixn_staticmacsec)
+                self._config_txsc(txscs[0], ixn_staticmacsec)
+                self._config_rxsc(rxscs[0], ixn_staticmacsec)
                 tx_sak_pool = txscs[0].static_key.sak_pool
-                ixn_tx_sak_pool = self.create_node_elemet(
-                    ixn_staticmacsec, "txSakPool", tx_sak_pool.get("name")
-                )
-            self._config_secy_stateless_traffic(device, ethernet_interface, ixn_staticmacsec)
+            self._config_secy_engine_encryption_only(device, ethernet_interface, ixn_staticmacsec)
         else:
             return
 
-    def _config_secy_stateless_traffic(self, device, ethernet_interface, ixn_staticmacsec):
+    def _config_basic(self, basic, ixn_staticmacsec):
+        self.logger.debug("Configuring basic properties")
+        self.configure_multivalues(basic.key_generation.static, ixn_staticmacsec, Macsec._BASIC)
+
+    def _config_txsc(self, txsc, ixn_staticmacsec):
+        self.logger.debug("Configuring TxSC")
+        self.configure_multivalues(txsc.static_key, ixn_staticmacsec, Macsec._TXSC)
+        #tx_sak_pool = txsc.static_key.sak_pool.saks
+        #ixn_staticmacsec["txSakPool"] = self.multivalue(tx_sak_pool)
+
+    def _config_rxsc(self, rxsc, ixn_staticmacsec):
+        self.logger.debug("Configuring RxSC")
+        self.configure_multivalues(rxsc.static_key, ixn_staticmacsec, Macsec._RXSC)
+        #rx_sak_pool = rxsc.static_key.sak_pool.saks
+        #ixn_staticmacsec["rxSakPool"] = self.multivalue(rx_sak_pool)
+
+    def _config_secy_engine_encryption_only(self, device, ethernet_interface, ixn_staticmacsec):
         ethernet_name = ethernet_interface.get("eth_name")
         secy = ethernet_interface.get("secy")
         self.logger.debug("Configuring stateless encryption traffic from ethernet %s secy %s" % (ethernet_name, secy.get("name")))
