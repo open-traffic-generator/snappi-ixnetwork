@@ -62,6 +62,8 @@ class Macsec(Base):
             basic = secy.get("basic")
             txscs = secy.get("txscs")
             rxscs = secy.get("rxscs")
+            crypto_engine = secy.get("crypto_engine")
+            advance = secy.get("advance")
             key_generation = basic.key_generation
             if key_generation.choice == "static":
                 if txscs is None:
@@ -78,6 +80,25 @@ class Macsec(Base):
                         )
                     )
                     is_valid = False
+                if not advance is None:
+                    if not advance.static_key.rekey_mode.choice == "dont_rekey":
+                        self._ngpf.api.add_error(
+                            "Rekey not supported as of now when key generation is static".format(
+                                name=ethernet_name
+                            )
+                        )
+                        is_valid = False
+            if crypto_engine.engine_type.choice == "stateless_encryption_only":
+                for rxsc in rxscs:
+                    if rxsc.static_key.replay_protection == True:
+                        self.logger.debug("MACsec validation error 5")
+                        self._ngpf.api.add_error(
+                            "Replay protectin cannot be true when engine type is stateless_encryption_only".format(
+                                name=ethernet_name
+                            )
+                        )
+                        is_valid = False
+            if crypto_engine.engine_type.choice == "stateful_encryption_decryption":
                 if rxscs is None:
                     self._ngpf.api.add_error(
                         "RxSC not added when key generation is static".format(
@@ -92,17 +113,6 @@ class Macsec(Base):
                         )
                     )
                     is_valid = False
-            if secy.crypto_engine.engine_type.choice == "stateless_encryption_only":
-                for rxsc in rxscs:
-                    if rxsc.static_key.replay_protection == True:
-                        self.logger.debug("MACsec validation error 5")
-                        self._ngpf.api.add_error(
-                            "Replay protectin cannot be true when engine type is stateless_encryption_only".format(
-                                name=ethernet_name
-                            )
-                        )
-                        is_valid = False
-            if secy.crypto_engine.engine_type.choice == "stateful_encryption_decryption":
                 for rxsc in rxscs:
                     if rxsc.static_key.replay_protection == False:
                         self._ngpf.api.add_error(
@@ -168,38 +178,61 @@ class Macsec(Base):
                 ixn_ethernet, "staticMacsec", secy.get("name")
             )
             self._ngpf.set_device_info(secy, ixn_staticmacsec)
-
+            self._config_secy_engine_encryption_only(device, ethernet_interface, ixn_staticmacsec)
             basic = secy.get("basic")
             key_generation = basic.key_generation
             #TODO: set key genertion in IxN
             if key_generation.choice == "static":
-                self.logger.debug("Configuring Static MACsec")
-                self.logger.debug("Configuring basic: %s" % (basic.key_generation.static.cipher_suite))
-                txscs = secy.get("txscs")
-                rxscs = secy.get("rxscs")
-                self._config_basic(basic, ixn_staticmacsec)
-                self._config_txsc(txscs[0], ixn_staticmacsec)
-                self._config_rxsc(rxscs[0], ixn_staticmacsec)
-                tx_sak_pool = txscs[0].static_key.sak_pool
-            self._config_secy_engine_encryption_only(device, ethernet_interface, ixn_staticmacsec)
+                self.logger.debug("Configuring SecY for static key")
+                self._config_basic(secy, ixn_staticmacsec)
+                self._config_txsc(secy, ixn_staticmacsec)
+                self._config_rxsc(secy, ixn_staticmacsec)
         else:
             return
 
-    def _config_basic(self, basic, ixn_staticmacsec):
+    def _config_basic(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring basic properties")
+        basic = secy.get("basic")
+        self.logger.debug("Configuring basic: %s" % (basic.key_generation.static.cipher_suite))
         self.configure_multivalues(basic.key_generation.static, ixn_staticmacsec, Macsec._BASIC)
 
-    def _config_txsc(self, txsc, ixn_staticmacsec):
+    def _config_txsc(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring TxSC")
+        txscs = secy.get("txscs")
+        basic = secy.get("basic")
+        txsc = txscs[0]
         self.configure_multivalues(txsc.static_key, ixn_staticmacsec, Macsec._TXSC)
-        #tx_sak_pool = txsc.static_key.sak_pool.saks
-        #ixn_staticmacsec["txSakPool"] = self.multivalue(tx_sak_pool)
+        tx_sak_pool = txsc.static_key.sak_pool
+        tx_sak_pool_name = tx_sak_pool.name
+        tx_sak1 = tx_sak_pool.saks[0].sak
+        ixn_tx_sak_pool = self.create_node_elemet(
+                ixn_staticmacsec, "txSakPool", tx_sak_pool_name
+            )
+        cipher_suite = basic.key_generation.static.cipher_suite
+        if cipher_suite == "gcm_aes_128" or cipher_suite == "gcm_aes_xpn_128":
+            ixn_tx_sak_pool["txSak128"] = self.multivalue(tx_sak1)
+        elif cipher_suite == "gcm_aes_256" or cipher_suite == "gcm_aes_xpn_256":
+            ixn_tx_sak_pool["txSak256"] = self.multivalue(tx_sak1)
+        self.logger.debug("IxN Tx SAK pool %s Tx SAK 1: %s" % (ixn_tx_sak_pool["name"], tx_sak1))
 
-    def _config_rxsc(self, rxsc, ixn_staticmacsec):
+    def _config_rxsc(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring RxSC")
+        rxscs = secy.get("rxscs")
+        basic = secy.get("basic")
+        rxsc = rxscs[0]
         self.configure_multivalues(rxsc.static_key, ixn_staticmacsec, Macsec._RXSC)
-        #rx_sak_pool = rxsc.static_key.sak_pool.saks
-        #ixn_staticmacsec["rxSakPool"] = self.multivalue(rx_sak_pool)
+        rx_sak_pool = rxsc.static_key.sak_pool
+        rx_sak_pool_name = rx_sak_pool.name
+        rx_sak1 = rx_sak_pool.saks[0].sak
+        ixn_rx_sak_pool = self.create_node_elemet(
+                ixn_staticmacsec, "rxSakPool", rx_sak_pool_name
+            )
+        cipher_suite = basic.key_generation.static.cipher_suite
+        if cipher_suite == "gcm_aes_128" or cipher_suite == "gcm_aes_xpn_128":
+            ixn_rx_sak_pool["rxSak128"] = self.multivalue(rx_sak1)
+        elif cipher_suite == "gcm_aes_256" or cipher_suite == "gcm_aes_xpn_256":
+            ixn_rx_sak_pool["rxSak256"] = self.multivalue(rx_sak1)
+        self.logger.debug("IxN Rx SAK pool %s Rx SAK 1: %s" % (ixn_rx_sak_pool["name"], rx_sak1))
 
     def _config_secy_engine_encryption_only(self, device, ethernet_interface, ixn_staticmacsec):
         ethernet_name = ethernet_interface.get("eth_name")

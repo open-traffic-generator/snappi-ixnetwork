@@ -41,7 +41,8 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     # Tx key
     secy1_txsc1.static_key.sak_pool.name, secy2_txsc1.static_key.sak_pool.name = "macsec1_tx_sakpool", "macsec2_tx_sakpool" 
     secy1_tx_sak1, secy2_tx_sak1 = secy1_txsc1.static_key.sak_pool.saks.add(), secy2_txsc1.static_key.sak_pool.saks.add()
-    secy1_tx_sak1 = secy2_tx_sak1 = "F123456789ABCDEF0123456789ABCDEF"
+    #secy1_tx_sak1.sak = secy2_tx_sak1.sak = "0xF123456789ABCDEF0123456789ABCDEF"
+    secy1_tx_sak1.sak = secy2_tx_sak1.sak = "f123456789abcdef0123456789abcdef"
 
     # Remaining Tx SC settings autofilled
 
@@ -53,7 +54,8 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     # Rx key
     secy1_rxsc1.static_key.sak_pool.name, secy2_rxsc1.static_key.sak_pool.name = "macsec1_rx_sakpool", "macsec2_rx_sakpool" 
     secy1_rx_sak1, secy2_rx_sak1 = secy1_rxsc1.static_key.sak_pool.saks.add(), secy2_rxsc1.static_key.sak_pool.saks.add()
-    secy1_rx_sak1 = secy2_rx_sak1 = "F123456789ABCDEF0123456789ABCDEF"
+    #secy1_rx_sak1.sak = secy2_rx_sak1.sak = "0xF123456789ABCDEF0123456789ABCDEF"
+    secy1_rx_sak1.sak = secy2_rx_sak1.sak = "f123456789abcdef0123456789abcdef"
 
     # Remaining Rx SC settings autofilled
 
