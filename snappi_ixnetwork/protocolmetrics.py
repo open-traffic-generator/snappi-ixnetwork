@@ -7,7 +7,7 @@ class ProtocolMetrics(object):
     # TODO Need to enhance when device groups statistics reach
     # more than one page.
 
-    _SUPPORTED_PROTOCOLS_ = ["bgpv4", "bgpv6"]
+    _SUPPORTED_PROTOCOLS_ = ["bgpv4", "bgpv6", "macsec"]
 
     _TOPO_STATS = {
         "name": "name",
@@ -52,6 +52,26 @@ class ProtocolMetrics(object):
             ("notifications_sent", "Notifications Tx", int),
             ("notifications_received", "Notifications Rx", int),
         ],
+        "macsec": [
+            ("name", "Device Group", str),
+            ("out_pkts_protected", "Protected Packet Tx", int),
+            ("out_pkts_encrypted", "Encrypted Packet Tx", int),
+            ("in_pkts_ok", "Valid Packet Rx", int),
+            ("in_pkts_bad", "Bad Packet Rx", int),
+            ("in_pkts_bad_tag", "Bad Tag/ICV Discarded", int),
+            ("in_pkts_late", "Out of Window Discarded", int),
+            ("in_pkts_no_sci", "Unknown SCI Discarded", int),
+            ("in_pkts_not_using_sa", "Unused SA Discarded", int),
+            ("in_pkts_not_valid", "Invalid ICV Discarded", int),
+            ("in_pkts_unknown_sci", "Unknown SCI Rx", int),
+            ("in_pkts_unused_sa", "Unused SA Rx", int),
+            ("in_pkts_invalid", "Invalid ICV Rx", int),
+            ("in_pkts_untagged", "Non-MACsec Packet Rx", int),
+            ("out_octets_protected", "Tx Bytes Protected", int),
+            ("out_octets_encrypted", "Tx Bytes Encrypted", int),
+            ("in_octets_validated", "Rx Bytes Validated", int),
+            ("in_octets_decrypted", "Rx Bytes Decrypted", int),
+        ],
     }
 
     _PROTO_NAME_MAP_ = {
@@ -75,6 +95,21 @@ class ProtocolMetrics(object):
             "supported_stats": [s[0] for s in _RESULT_COLUMNS["bgpv6"]],
             "ixn_name": "bgpIpv6Peer",
         },
+        "macsec": {
+            "per_port": "Static MACsec Per Port",
+            "drill_down": "Static MACsec Drill Down",
+            "drill_down_options": [
+                "Static MACsec:Per Session",
+            ],
+            "supported_stats": [s[0] for s in _RESULT_COLUMNS["macsec"]],
+            "ixn_name": "staticMacsec",
+        },
+    }
+
+    _PEER_NAMES = {
+        "bgpv4": "peer_names",
+        "bgpv6": "peer_names",
+        "macsec": "secy_names",
     }
 
     def __init__(self, ixnetworkapi):
@@ -235,10 +270,7 @@ class ProtocolMetrics(object):
         indices = set(
             [ports.index(p) for p in list(set(config_ports)) if p in ports]
         )
-        drill_option = self._PROTO_NAME_MAP_[protocol]["drill_down_options"][0]
-        drill_option2 = self._PROTO_NAME_MAP_[protocol]["drill_down_options"][
-            1
-        ]
+        drill_options = self._PROTO_NAME_MAP_[protocol].get("drill_down_options", [])
         drill_name = self._PROTO_NAME_MAP_[protocol]["drill_down"]
         per_port = self._PROTO_NAME_MAP_[protocol]["per_port"]
         column_names = self._RESULT_COLUMNS.get(protocol, [])
@@ -246,8 +278,8 @@ class ProtocolMetrics(object):
         for i in indices:
             try:
                 drill = self.ixn.Statistics.View.find(Caption=drill_name)
-                self._do_drill_down(v, per_port, i, drill_option)
-                self._do_drill_down(v, per_port, i, drill_option2)
+                for option in drill_options:
+                    self._do_drill_down(v, per_port, i, option)
                 self._check_if_page_ready(drill)
             except Exception as e:
                 msg = """
@@ -374,7 +406,9 @@ class ProtocolMetrics(object):
         """
         protocol = request.choice
         request = getattr(request, protocol)
-        self.device_names = request.get("peer_names")
+        peer_name = self._PEER_NAMES[protocol]
+        request.get(peer_name)
+        self.device_names = request.get(peer_name)
         if self.device_names is None:
             self.device_names = []
         self.columns = request.get("column_names")

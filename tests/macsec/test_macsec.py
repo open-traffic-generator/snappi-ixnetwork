@@ -78,6 +78,63 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     utils.start_traffic(api, b2b_raw_config)
     print("Sleeping for 10 secoonds: start")
     time.sleep(10)
+    utils.wait_for(
+        lambda: results_ok(api), "stats to be as expected", timeout_seconds=10
+    )
+    enums = [
+        "out_pkts_protected",
+        "out_pkts_encrypted",
+        "in_pkts_ok",
+        "in_pkts_bad",
+        "in_pkts_bad_tag",
+        "in_pkts_late",
+        "in_pkts_no_sci",
+        "in_pkts_not_using_sa",
+        "in_pkts_not_valid",
+        "in_pkts_unknown_sci",
+        "in_pkts_unused_sa",
+        "in_pkts_invalid",
+        "in_pkts_untagged",
+        "out_octets_protected",
+        "out_octets_encrypted",
+        "in_octets_validated",
+        "in_octets_decrypted",
+    ]
+    expected_results = {
+        "enc_only_macsec1": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "enc_only_macsec2": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    }
+    req = api.metrics_request()
+    req.macsec.secy_names = ["enc_only_macsec1"]
+    results = api.get_metrics(req)
+    assert len(results.macsec_metrics) == 1
+    assert results.macsec_metrics[0].name == "enc_only_macsec1"
+    print(f"MACsec Result : enc_only_macsec1")
+    for macsec_res in results.macsec_metrics:
+        for i, enum in enumerate(enums):
+            val = expected_results[macsec_res.name][i]
+            if "session_state" in enum:
+                assert getattr(macsec_res, enum) == val
+            else:
+                assert getattr(macsec_res, enum) >= val
+            print(f"{enum} : {getattr(macsec_res, enum)}")
+
+    req = api.metrics_request()
+    req.macsec.secy_names = ["enc_only_macsec2"]
+    results = api.get_metrics(req)
+
+    assert len(results.macsec_metrics) == 1
+    assert results.macsec_metrics[0].name == "enc_only_macsec2"
+    print(f"MACsec Result : enc_only_macsec2")
+    for macsec_res in results.macsec_metrics:
+        for i, enum in enumerate(enums):
+            val = expected_results[macsec_res.name][i]
+            if "session_state" in enum:
+                assert getattr(macsec_res, enum) == val
+            else:
+                assert getattr(macsec_res, enum) >= val
+            print(f"{enum} : {getattr(macsec_res, enum)}")
+
     print("Sleeping for 10 secoonds: end")
     utils.stop_traffic(api, b2b_raw_config)
 
