@@ -14,16 +14,6 @@ def namedtuple_with_defaults(typename, field_names, default_values=()):
     return T
 
 
-def asdot2plain(asdot):
-    """This returns an ASPLAIN formated ASN given an ASDOT+ format"""
-    if re.findall(r"\.|\:", asdot):
-        left, right = re.split(r"\.|\:", asdot)
-        ret = int(left) * 65536 + int(right)
-        return ret
-    else:
-        return int(asdot)
-
-
 def convert_as_values(as_types, as_values):
     ConvertedAsValues = namedtuple_with_defaults(
         "ConvertedAsValues",
