@@ -28,8 +28,9 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     secy1, secy2 = macsec1_int.secy, macsec2_int.secy
     secy1.name, secy2.name = "macsec1", "macsec2"
 
-    # TODO: crypto_engine to be optional
+    # crypto_engine
     secy1.crypto_engine.engine_type.choice = secy2.crypto_engine.engine_type.choice = "stateless_encryption_only" 
+    secy1.crypto_engine.engine_type.stateless_encryption_only.tx_pn.choice = "incrementing_pn"
 
     # static key
     secy1.basic.key_generation.choice = secy2.basic.key_generation.choice = "static"
