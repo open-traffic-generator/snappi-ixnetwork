@@ -27,6 +27,15 @@ def test_mka(api, b2b_raw_config, utils):
     # Basic properties
     # Key source
     kay1.basic.key_source.choice = kay2.basic.key_source.choice = "psk"
+
+    # Rekey mode
+    kay1_rekey_mode, kay2_rekey_mode = kay1.basic.rekey_mode, kay2.basic.rekey_mode
+    kay1_rekey_mode.choice = kay2_rekey_mode.choice = "timer_based"
+    kay1_rekey_timer_based, kay2_rekey_timer_based = kay1_rekey_mode.timer_based, kay2_rekey_mode.timer_based
+    kay1_rekey_timer_based.choice = kay2_rekey_timer_based.choice = "fixed_count"
+    kay1_rekey_timer_based.fixed_count = kay2_rekey_timer_based.fixed_count = 20
+    kay1_rekey_timer_based.interval = kay2_rekey_timer_based.interval = 200
+
     # Remaining basic properties autofilled
 
     # Tx SC

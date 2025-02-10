@@ -119,7 +119,27 @@ class Mka(Base):
         ixn_mka["mkaLifeTime"] = basic.mka_life_time
         ixn_mka["keyType"] =  basic.key_source.choice
         #TODO:supported_cipher_suites
-        #TODO:rekey_mode
+        self._config_rekey_mode(basic, ixn_mka)
+
+    def _config_rekey_mode(self, basic, ixn_mka):
+        self.logger.debug("Configuring rekey settings")
+        rekey_mode = basic.rekey_mode
+        if rekey_mode.choice == "dont_rekey":
+            ixn_mka["rekeyMode"] = "timerBased"
+            ixn_mka["rekeyBehaviour"] = "dontRekey"
+        elif rekey_mode.choice == "timer_based":
+            timer_based = rekey_mode.timer_based
+            ixn_mka["rekeyMode"] = "timerBased"
+            if timer_based.choice == "fixed_count":
+                ixn_mka["rekeyBehaviour"] = "rekeyFixedCount"
+                ixn_mka["periodicRekeyAttempts"] = timer_based.fixed_count
+                ixn_mka["periodicRekeyInterval"] = timer_based.interval
+            elif timer_based.choice == "continuous":
+                ixn_mka["rekeyBehaviour"] = "rekeyContinuous"
+                ixn_mka["periodicRekeyInterval"] = timer_based.interval
+        elif rekey_mode.choice == "pn_based":
+            ixn_mka["rekeyMode"] = "pNBased"
+            ixn_mka["rekeyBehaviour"] = "rekeyContinuous"
 
     def _config_txsc(self, kay, ixn_mka):
         self.logger.debug("Configuring TxSC")
