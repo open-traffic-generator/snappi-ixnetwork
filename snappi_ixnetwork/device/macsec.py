@@ -237,7 +237,6 @@ class Macsec(Base):
     def _config_secy_engine_encryption_only(self, device, ethernet_interface, ixn_staticmacsec):
         secy = ethernet_interface.get("secy")
         self._config_secy_engine_encryption_only_tx_pn(secy, ixn_staticmacsec)
-        #TODO: tx_xpn
         self._config_secy_engine_encryption_only_traffic(device, ethernet_interface, ixn_staticmacsec)
 
     def _config_secy_engine_encryption_only_traffic(self, device, ethernet_interface, ixn_staticmacsec):
@@ -267,13 +266,15 @@ class Macsec(Base):
         engine_tx_pn = secy.crypto_engine.engine_type.stateless_encryption_only.tx_pn
         if engine_tx_pn is None:
             return
-        self.logger.debug("Configuring stateless encryption PN for secy %s" % secy.get("name"))
+        self.logger.debug("Configuring Tx PN of stateless encryption only engine secy %s" % secy.get("name"))
         if engine_tx_pn.choice == "fixed_pn":
             ixn_staticmacsec["incrementingPn"] = False
-            ixn_staticmacsec["fixedPn"] = engine_tx_pn.fixed.pn
+            engine_tx_pn_fixed = engine_tx_pn.fixed
+            ixn_staticmacsec["fixedPn"] = engine_tx_pn_fixed.pn
+            ixn_staticmacsec["mvFixedXpn"] = self.multivalue(engine_tx_pn_fixed.xpn)
         elif engine_tx_pn.choice == "incrementing_pn":
-            engine_tx_pn_incr = engine_tx_pn.incrementing
             ixn_staticmacsec["incrementingPn"] = True
+            engine_tx_pn_incr = engine_tx_pn.incrementing
             ixn_staticmacsec["packetCountPn"] = engine_tx_pn_incr.count
-            ixn_staticmacsec["firstPn"] = engine_tx_pn_incr.first
-            ixn_staticmacsec["lastPn"] = engine_tx_pn_incr.first + engine_tx_pn_incr.count - 1
+            ixn_staticmacsec["firstPn"] = engine_tx_pn_incr.first_pn
+            ixn_staticmacsec["mvFirstXpn"] = self.multivalue(engine_tx_pn_incr.first_xpn)

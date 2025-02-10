@@ -76,8 +76,8 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     ip2.gateway_mac.value = eth1.mac
 
     utils.start_traffic(api, b2b_raw_config)
-    print("Sleeping for 10 secoonds: start")
-    time.sleep(10)
+    print("Sleeping for 20 secoonds: start")
+    time.sleep(20)
     utils.wait_for(
         lambda: results_ok(api), "stats to be as expected", timeout_seconds=10
     )
@@ -135,7 +135,7 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
                 assert getattr(macsec_res, enum) >= val
             print(f"{enum} : {getattr(macsec_res, enum)}")
 
-    print("Sleeping for 10 secoonds: end")
+    print("Sleeping for 20 secoonds: end")
     utils.stop_traffic(api, b2b_raw_config)
 
 

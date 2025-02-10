@@ -34,7 +34,7 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
 
     # static key
     secy1.basic.key_generation.choice = secy2.basic.key_generation.choice = "static"
-    secy1.basic.key_generation.static.cipher_suite = secy2.basic.key_generation.static.cipher_suite = "gcm_aes_128"
+    secy1.basic.key_generation.static.cipher_suite = secy2.basic.key_generation.static.cipher_suite = "gcm_aes_xpn_128"
 
     # Tx SC
     secy1_txsc1, secy2_txsc1 = secy1.txscs.add(), secy2.txscs.add() 
@@ -84,8 +84,8 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     f1.packet.ethernet()
 
     utils.start_traffic(api, config)
-    print("Sleeping for 10 secoonds: start")
-    time.sleep(10)
+    print("Sleeping for 20 secoonds: start")
+    time.sleep(20)
     utils.wait_for(
         lambda: results_ok(api), "stats to be as expected", timeout_seconds=10
     )
@@ -142,7 +142,7 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
             else:
                 assert getattr(macsec_res, enum) >= val
             print(f"{enum} : {getattr(macsec_res, enum)}")
-    print("Sleeping for 10 secoonds: end")
+    print("Sleeping for 20 secoonds: end")
     utils.stop_traffic(api, config)
 
 
