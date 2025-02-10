@@ -3,7 +3,7 @@ from snappi_ixnetwork.logger import get_ixnet_logger
 
 
 class Macsec(Base):
-    _BASIC = {
+    _BASIC_STATIC_KEY = {
         "cipher_suite": {
             "ixn_attr": "cipherSuite",
             "enum_map": {"gcm_aes_128": "aes128", "gcm_aes_256": "aes256", "gcm_aes_xpn_128": "aesxpn128", "gcm_aes_xpn_256": "aesxpn256"},
@@ -15,14 +15,17 @@ class Macsec(Base):
     }
 
     _TXSC = {
-        "system_id": "systemId",
-        "port_id": "portId",
         "end_station": "endStation",
         "include_sci": "includeSci",
+    }
+
+    _TXSC_STATIC_KEY = {
+        "system_id": "systemId",
+        "port_id": "portId",
         "confidentiality": "enableConfidentiality",
     }
 
-    _RXSC = {
+    _RXSC_STATIC_KEY = {
         "dut_system_id": "dutSciMac",
         "dut_sci_port_id": "dutSciPortId",
     }
@@ -33,13 +36,6 @@ class Macsec(Base):
 #        "cipher_suite": "dutSciPortId",
 #    }
 #
-#    _TX_SAK = {
-#        "system_id": "systemId",
-#        "port_id": "portId",
-#        "end_station": "endStation",
-#        "include_sci": "includeSci",
-#        "confidentiality": "enableConfidentiality",
-#    }
 
     def __init__(self, ngpf):
         super(Macsec, self).__init__()
@@ -182,10 +178,10 @@ class Macsec(Base):
             basic = secy.get("basic")
             key_generation = basic.key_generation
             #TODO: set key genertion in IxN
+            self._config_txsc(secy, ixn_staticmacsec)
             if key_generation.choice == "static":
                 self.logger.debug("Configuring SecY for static key")
                 self._config_basic(secy, ixn_staticmacsec)
-                self._config_txsc(secy, ixn_staticmacsec)
                 self._config_rxsc(secy, ixn_staticmacsec)
         else:
             return
@@ -194,33 +190,36 @@ class Macsec(Base):
         self.logger.debug("Configuring basic properties")
         basic = secy.get("basic")
         self.logger.debug("Configuring basic: %s" % (basic.key_generation.static.cipher_suite))
-        self.configure_multivalues(basic.key_generation.static, ixn_staticmacsec, Macsec._BASIC)
+        self.configure_multivalues(basic.key_generation.static, ixn_staticmacsec, Macsec._BASIC_STATIC_KEY)
 
     def _config_txsc(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring TxSC")
         txscs = secy.get("txscs")
         basic = secy.get("basic")
+        key_generation = basic.key_generation
         txsc = txscs[0]
-        self.configure_multivalues(txsc.static_key, ixn_staticmacsec, Macsec._TXSC)
-        tx_sak_pool = txsc.static_key.sak_pool
-        tx_sak_pool_name = tx_sak_pool.name
-        tx_sak1 = tx_sak_pool.saks[0].sak
-        ixn_tx_sak_pool = self.create_node_elemet(
-                ixn_staticmacsec, "txSakPool", tx_sak_pool_name
-            )
-        cipher_suite = basic.key_generation.static.cipher_suite
-        if cipher_suite == "gcm_aes_128" or cipher_suite == "gcm_aes_xpn_128":
-            ixn_tx_sak_pool["txSak128"] = self.multivalue(tx_sak1)
-        elif cipher_suite == "gcm_aes_256" or cipher_suite == "gcm_aes_xpn_256":
-            ixn_tx_sak_pool["txSak256"] = self.multivalue(tx_sak1)
-        self.logger.debug("IxN Tx SAK pool %s Tx SAK 1: %s" % (ixn_tx_sak_pool["name"], tx_sak1))
+        self.configure_multivalues(txsc, ixn_staticmacsec, Macsec._TXSC)
+        if key_generation.choice == "static":
+            self.configure_multivalues(txsc.static_key, ixn_staticmacsec, Macsec._TXSC_STATIC_KEY)
+            tx_sak_pool = txsc.static_key.sak_pool
+            tx_sak_pool_name = tx_sak_pool.name
+            tx_sak1 = tx_sak_pool.saks[0].sak
+            ixn_tx_sak_pool = self.create_node_elemet(
+                    ixn_staticmacsec, "txSakPool", tx_sak_pool_name
+                )
+            cipher_suite = basic.key_generation.static.cipher_suite
+            if cipher_suite == "gcm_aes_128" or cipher_suite == "gcm_aes_xpn_128":
+                ixn_tx_sak_pool["txSak128"] = self.multivalue(tx_sak1)
+            elif cipher_suite == "gcm_aes_256" or cipher_suite == "gcm_aes_xpn_256":
+                ixn_tx_sak_pool["txSak256"] = self.multivalue(tx_sak1)
+            self.logger.debug("IxN Tx SAK pool %s Tx SAK 1: %s" % (ixn_tx_sak_pool["name"], tx_sak1))
 
     def _config_rxsc(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring RxSC")
         rxscs = secy.get("rxscs")
         basic = secy.get("basic")
         rxsc = rxscs[0]
-        self.configure_multivalues(rxsc.static_key, ixn_staticmacsec, Macsec._RXSC)
+        self.configure_multivalues(rxsc.static_key, ixn_staticmacsec, Macsec._RXSC_STATIC_KEY)
         rx_sak_pool = rxsc.static_key.sak_pool
         rx_sak_pool_name = rx_sak_pool.name
         rx_sak1 = rx_sak_pool.saks[0].sak

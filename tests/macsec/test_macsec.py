@@ -36,6 +36,9 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     # Tx SC
     secy1_txsc1, secy2_txsc1 = secy1.txscs.add(), secy2.txscs.add() 
 
+    # Tx SC end station
+    secy1_txsc1.end_station = secy2_txsc1.end_station = True
+
     # Tx key
     secy1_txsc1.static_key.sak_pool.name, secy2_txsc1.static_key.sak_pool.name = "macsec1_tx_sakpool", "macsec2_tx_sakpool" 
     secy1_tx_sak1, secy2_tx_sak1 = secy1_txsc1.static_key.sak_pool.saks.add(), secy2_txsc1.static_key.sak_pool.saks.add()
