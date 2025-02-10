@@ -67,11 +67,47 @@ class Mka(Base):
         if kay is None:
             is_valid = False
         else:
-            self.logger.debug("Validating KaY of etherner interface %s" % (ethernet_name))
-            txscs = kay.get("txscs")
-            if len(txscs) > 1:
+            self.logger.debug("Validating KaY of ethernert interface %s" % (ethernet_name))
+            #Validate basic properties
+            basic = kay.get("basic")
+            key_src = basic.key_source
+            if key_src.choice == "psk":
+                psk_chain = key_src.psk_chain
+                psk_chain_name = psk_chain.name
+                psks = psk_chain.psks
+                if len(psks) == 0:
+                    self._ngpf.api.add_error(
+                        "No PSK added".format(
+                            name=ethernet_name
+                        )
+                    )
+                    is_valid = False
+                elif len(psks) > 1:
+                    self._ngpf.api.add_error(
+                        "More than one PSK added".format(
+                            name=ethernet_name
+                        )
+                    )
+                    is_valid = False
+            else:
                 self._ngpf.api.add_error(
-                    "More than one TxSC added when key generation is static".format(
+                    "Key source other than PSK set".format(
+                        name=ethernet_name
+                    )
+                )
+                is_valid = False
+            #Validate TxSC properties
+            txscs = kay.get("txscs")
+            if len(txscs) == 0:
+                self._ngpf.api.add_error(
+                    "No TxSC added".format(
+                        name=ethernet_name
+                    )
+                )
+                is_valid = False
+            elif len(txscs) > 1:
+                self._ngpf.api.add_error(
+                    "More than one TxSC added".format(
                         name=ethernet_name
                     )
                 )
@@ -118,8 +154,34 @@ class Mka(Base):
         self.configure_multivalues(basic, ixn_mka, Mka._BASIC)
         ixn_mka["mkaLifeTime"] = basic.mka_life_time
         ixn_mka["keyType"] =  basic.key_source.choice
-        #TODO:supported_cipher_suites
+        self._config_key_source(basic, ixn_mka)
         self._config_rekey_mode(basic, ixn_mka)
+        #TODO:supported_cipher_suites
+
+    def _config_key_source(self, basic, ixn_mka):
+        self.logger.debug("Configuring key source settings")
+        key_src = basic.key_source
+        if key_src.choice == "psk":
+            psk_chain = key_src.psk_chain
+            psk_chain_name = psk_chain.name
+            psks = psk_chain.psks
+            psk1 = psks[0]
+            ixn_psk = self.create_node_elemet(
+                ixn_mka, "cakCache", psk_chain_name
+            )
+            key_derivation_function = basic.key_derivation_function
+            ixn_psk["count"] = 1
+            ixn_psk["cakName"] = self.multivalue(psk1.cak_name)
+            if key_derivation_function == "aes_cmac_128":
+                ixn_psk["cakValue128"] = self.multivalue(psk1.cak_value)
+            elif key_derivation_function == "aes_cmac_256":
+                ixn_psk["cakValue256"] = self.multivalue(psk1.cak_value)
+            ixn_psk["keyStartTime"] = self.multivalue(psk1.start_time)
+            if psk1.end_time == "00:00":
+                ixn_psk["lifetimeValidity"] = self.multivalue(True)
+            else:
+                ixn_psk["lifetimeValidity"] = self.multivalue(False)
+            #TODO: keyDuration, overlappingKeys
 
     def _config_rekey_mode(self, basic, ixn_mka):
         self.logger.debug("Configuring rekey settings")
