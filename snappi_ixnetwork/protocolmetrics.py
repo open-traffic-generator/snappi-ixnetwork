@@ -7,7 +7,7 @@ class ProtocolMetrics(object):
     # TODO Need to enhance when device groups statistics reach
     # more than one page.
 
-    _SUPPORTED_PROTOCOLS_ = ["bgpv4", "bgpv6", "macsec"]
+    _SUPPORTED_PROTOCOLS_ = ["bgpv4", "bgpv6", "macsec", "mka"]
 
     _TOPO_STATS = {
         "name": "name",
@@ -72,6 +72,18 @@ class ProtocolMetrics(object):
             ("in_octets_validated", "Rx Bytes Validated", int),
             ("in_octets_decrypted", "Rx Bytes Decrypted", int),
         ],
+        "mka": [
+            ("name", "Device Group", str),
+            ("session_state", "Status", str),
+            ("mkpdu_tx", "MKPDU Tx", int),
+            ("mkpdu_rx", "MKPDU Rx", int),
+            ("live_peer_count", "Live Peer Count", int),
+            ("potential_peer_count", "Potential Peer Count", int),
+            ("latest_key_tx_peer_count", "Latest Key Tx Peer Count", int),
+            ("latest_key_rx_peer_count", "Latest Key Rx Peer Count", int),
+            ("malformed_mkpdu", "Malformed MKPDU", int),
+            ("icv_mismatch", "ICV Mismatch", int),
+        ],
     }
 
     _PROTO_NAME_MAP_ = {
@@ -104,12 +116,22 @@ class ProtocolMetrics(object):
             "supported_stats": [s[0] for s in _RESULT_COLUMNS["macsec"]],
             "ixn_name": "staticMacsec",
         },
+        "mka": {
+            "per_port": "MKA Per Port",
+            "drill_down": "MKA Drill Down",
+            "drill_down_options": [
+                "MKA:Per Session",
+            ],
+            "supported_stats": [s[0] for s in _RESULT_COLUMNS["mka"]],
+            "ixn_name": "Mka",
+        },
     }
 
     _PEER_NAMES = {
         "bgpv4": "peer_names",
         "bgpv6": "peer_names",
         "macsec": "secy_names",
+        "mka": "kay_names",
     }
 
     def __init__(self, ixnetworkapi):
