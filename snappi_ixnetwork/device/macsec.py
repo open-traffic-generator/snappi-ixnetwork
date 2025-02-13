@@ -3,7 +3,7 @@ from snappi_ixnetwork.logger import get_ixnet_logger
 
 
 class Macsec(Base):
-    _BASIC_STATIC_KEY = {
+    _CIPHER = {
         "cipher_suite": {
             "ixn_attr": "cipherSuite",
             "enum_map": {"gcm_aes_128": "aes128", "gcm_aes_256": "aes256", "gcm_aes_xpn_128": "aesxpn128", "gcm_aes_xpn_256": "aesxpn256"},
@@ -28,18 +28,18 @@ class Macsec(Base):
     _RXSC_STATIC_KEY = {
         "dut_system_id": "dutSciMac",
         "dut_sci_port_id": "dutSciPortId",
+        "dut_msb_xpn": "dutMsbOfXpn",
     }
 
 #    _DUT = {
 #        "cipher_suite": "dutMsbOfXpn",
-#        "cipher_suite": "dutSciMac",
-#        "cipher_suite": "dutSciPortId",
 #    }
 #
 
     def __init__(self, ngpf):
         super(Macsec, self).__init__()
         self._ngpf = ngpf
+        self.is_dynamic_key = False
         self.logger = get_ixnet_logger(__name__)
 
     def config(self, device):
@@ -47,6 +47,7 @@ class Macsec(Base):
         macsec = device.get("macsec")
         if macsec is None:
             return
+        self.is_dynamic_key = self._is_dynamic_key(device)
         self._config_ethernet_interfaces(device)
 
     def _is_valid(self, ethernet_name, secy):
@@ -55,13 +56,13 @@ class Macsec(Base):
             is_valid = False
         else:
             self.logger.debug("Validating SecY of etherner interface %s" % (ethernet_name))
-            basic = secy.get("basic")
-            txscs = secy.get("txscs")
-            rxscs = secy.get("rxscs")
+            static_key = secy.get("static_key")
+            tx = secy.get("tx")
+            rx = secy.get("rx")
+            txscs = tx.scs
+            rxscs = rx.static_key.scs
             crypto_engine = secy.get("crypto_engine")
-            advance = secy.get("advance")
-            key_generation = basic.key_generation
-            if key_generation.choice == "static":
+            if not self.is_dynamic_key:
                 if txscs is None:
                     self._ngpf.api.add_error(
                         "TxSC not added when key generation is static".format(
@@ -76,25 +77,22 @@ class Macsec(Base):
                         )
                     )
                     is_valid = False
-                if not advance is None:
-                    if not advance.static_key.rekey_mode.choice == "dont_rekey":
-                        self._ngpf.api.add_error(
-                            "Rekey not supported as of now when key generation is static".format(
-                                name=ethernet_name
-                            )
+                if not tx.static_key.rekey_mode.choice == "dont_rekey":
+                    self._ngpf.api.add_error(
+                        "Rekey not supported as of now when static key is in use".format(
+                            name=ethernet_name
                         )
-                        is_valid = False
-            if crypto_engine.engine_type.choice == "stateless_encryption_only":
-                for rxsc in rxscs:
-                    if rxsc.static_key.replay_protection == True:
-                        self.logger.debug("MACsec validation error 5")
-                        self._ngpf.api.add_error(
-                            "Replay protectin cannot be true when engine type is stateless_encryption_only".format(
-                                name=ethernet_name
-                            )
+                    )
+                    is_valid = False
+            if crypto_engine.choice == "stateless_encryption_only":
+                if rx.replay_protection == True:
+                    self._ngpf.api.add_error(
+                        "Replay protectin cannot be true when engine type is stateless_encryption_only".format(
+                            name=ethernet_name
                         )
-                        is_valid = False
-            if crypto_engine.engine_type.choice == "stateful_encryption_decryption":
+                    )
+                    is_valid = False
+            if crypto_engine.choice == "stateful_encryption_decryption":
                 if rxscs is None:
                     self._ngpf.api.add_error(
                         "RxSC not added when key generation is static".format(
@@ -109,21 +107,20 @@ class Macsec(Base):
                         )
                     )
                     is_valid = False
-                for rxsc in rxscs:
-                    if rxsc.static_key.replay_protection == False:
-                        self._ngpf.api.add_error(
-                            "Replay protectin cannot be false when engine type is stateful_encryption_decryption".format(
-                                name=ethernet_name
-                            )
+                if rx.replay_protection == False:
+                    self._ngpf.api.add_error(
+                        "Replay protectin cannot be false when engine type is stateful_encryption_decryption".format(
+                            name=ethernet_name
                         )
-                        is_valid = False
-                    if not rxsc.static_key.replay_window == 1:
-                        self._ngpf.api.add_error(
-                            "Replay window cannot be other than 1 when engine type is stateful_encryption_decryption".format(
-                                name=ethernet_name
-                            )
+                    )
+                    is_valid = False
+                if not rx.replay_window == 1:
+                    self._ngpf.api.add_error(
+                        "Replay window cannot be other than 1 when engine type is stateful_encryption_decryption".format(
+                            name=ethernet_name
                         )
-                        is_valid = False
+                    )
+                    is_valid = False
         if is_valid == True:
             self.logger.debug("MACsec validation success")
         else:
@@ -141,10 +138,18 @@ class Macsec(Base):
             return is_allowed
         for ethernet_interface in ethernet_interfaces:
             secy = ethernet_interface.get("secy")
-            if secy.crypto_engine.engine_type.choice == "stateless_encryption_only":
+            if secy.crypto_engine.choice == "stateless_encryption_only":
                 is_allowed = False
                 break
         return is_allowed
+
+    def _is_dynamic_key(self, device):
+        self.logger.debug("Checking if MKA is confgured")
+        is_mka = False
+        mka = device.get("mka")
+        if not mka is None:
+            is_mka = True
+        return is_mka
 
     def _config_ethernet_interfaces(self, device):
         self.logger.debug("Configuring MACsec interfaces")
@@ -168,38 +173,43 @@ class Macsec(Base):
             return
         ethernet_name = ethernet_interface.get("eth_name")
         ixn_ethernet = self._ngpf.api.ixn_objects.get_object(ethernet_name)
-        if secy.crypto_engine.engine_type.choice == "stateless_encryption_only":
+        if secy.crypto_engine.choice == "stateless_encryption_only":
             self.logger.debug("Configuring SecY: stateless_encryption_only")
             ixn_staticmacsec = self.create_node_elemet(
                 ixn_ethernet, "staticMacsec", secy.get("name")
             )
             self._ngpf.set_device_info(secy, ixn_staticmacsec)
+            if not self.is_dynamic_key:
+                self._config_cipher(secy, ixn_staticmacsec)
             self._config_secy_engine_encryption_only(device, ethernet_interface, ixn_staticmacsec)
-            basic = secy.get("basic")
-            key_generation = basic.key_generation
-            #TODO: set key genertion in IxN
-            self._config_txsc(secy, ixn_staticmacsec)
-            if key_generation.choice == "static":
-                self.logger.debug("Configuring SecY for static key")
-                self._config_basic(secy, ixn_staticmacsec)
-                self._config_rxsc(secy, ixn_staticmacsec)
+            self._config_tx(secy, ixn_staticmacsec)
+            self._config_rx(secy, ixn_staticmacsec)
         else:
             return
 
-    def _config_basic(self, secy, ixn_staticmacsec):
-        self.logger.debug("Configuring basic properties")
-        basic = secy.get("basic")
-        self.logger.debug("Configuring basic: %s" % (basic.key_generation.static.cipher_suite))
-        self.configure_multivalues(basic.key_generation.static, ixn_staticmacsec, Macsec._BASIC_STATIC_KEY)
+    def _config_cipher(self, secy, ixn_staticmacsec):
+        self.logger.debug("Configuring cipher from static key")
+        static_key = secy.get("static_key")
+        self.configure_multivalues(static_key, ixn_staticmacsec, Macsec._CIPHER)
+
+    def _config_tx(self, secy, ixn_staticmacsec):
+        self.logger.debug("Configuring Tx properties")
+        self._config_txsc(secy, ixn_staticmacsec)
+        #TODO: rekey for static key
+
+    def _config_rx(self, secy, ixn_staticmacsec):
+        self.logger.debug("Configuring Rx properties")
+        #TODO: replay protection, replay window
+        if not self.is_dynamic_key:
+            self._config_rxsc(secy, ixn_staticmacsec)
 
     def _config_txsc(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring TxSC")
-        txscs = secy.get("txscs")
-        basic = secy.get("basic")
-        key_generation = basic.key_generation
+        tx = secy.get("tx")
+        txscs = tx.get("scs")
         txsc = txscs[0]
         self.configure_multivalues(txsc, ixn_staticmacsec, Macsec._TXSC)
-        if key_generation.choice == "static":
+        if not self.is_dynamic_key:
             self.configure_multivalues(txsc.static_key, ixn_staticmacsec, Macsec._TXSC_STATIC_KEY)
             tx_sak_pool = txsc.static_key.sak_pool
             tx_sak_pool_name = tx_sak_pool.name
@@ -207,7 +217,8 @@ class Macsec(Base):
             ixn_tx_sak_pool = self.create_node_elemet(
                     ixn_staticmacsec, "txSakPool", tx_sak_pool_name
                 )
-            cipher_suite = basic.key_generation.static.cipher_suite
+            static_key = secy.get("static_key")
+            cipher_suite = static_key.cipher_suite
             if cipher_suite == "gcm_aes_128" or cipher_suite == "gcm_aes_xpn_128":
                 ixn_tx_sak_pool["txSak128"] = self.multivalue(tx_sak1)
             elif cipher_suite == "gcm_aes_256" or cipher_suite == "gcm_aes_xpn_256":
@@ -216,17 +227,19 @@ class Macsec(Base):
 
     def _config_rxsc(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring RxSC")
-        rxscs = secy.get("rxscs")
-        basic = secy.get("basic")
+        rx = secy.get("rx")
+        rx_sk = rx.static_key
+        rxscs = rx_sk.get("scs")
         rxsc = rxscs[0]
-        self.configure_multivalues(rxsc.static_key, ixn_staticmacsec, Macsec._RXSC_STATIC_KEY)
-        rx_sak_pool = rxsc.static_key.sak_pool
+        self.configure_multivalues(rxsc, ixn_staticmacsec, Macsec._RXSC_STATIC_KEY)
+        rx_sak_pool = rxsc.sak_pool
         rx_sak_pool_name = rx_sak_pool.name
         rx_sak1 = rx_sak_pool.saks[0].sak
         ixn_rx_sak_pool = self.create_node_elemet(
                 ixn_staticmacsec, "rxSakPool", rx_sak_pool_name
             )
-        cipher_suite = basic.key_generation.static.cipher_suite
+        static_key = secy.get("static_key")
+        cipher_suite = static_key.cipher_suite
         if cipher_suite == "gcm_aes_128" or cipher_suite == "gcm_aes_xpn_128":
             ixn_rx_sak_pool["rxSak128"] = self.multivalue(rx_sak1)
         elif cipher_suite == "gcm_aes_256" or cipher_suite == "gcm_aes_xpn_256":
@@ -262,7 +275,7 @@ class Macsec(Base):
                 break
 
     def _config_secy_engine_encryption_only_tx_pn(self, secy, ixn_staticmacsec):
-        engine_tx_pn = secy.crypto_engine.engine_type.stateless_encryption_only.tx_pn
+        engine_tx_pn = secy.crypto_engine.stateless_encryption_only.tx_pn
         if engine_tx_pn is None:
             return
         self.logger.debug("Configuring Tx PN of stateless encryption only engine secy %s" % secy.get("name"))
