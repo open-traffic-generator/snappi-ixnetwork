@@ -27,21 +27,21 @@ def test_stateless_encryption_static_key(api, b2b_raw_config, utils):
     secy1.name, secy2.name = "macsec1", "macsec2"
 
     # Crypto engine
-    secy1.crypto_engine.choice = secy2.crypto_engine.choice = "stateless_encryption_only" 
+    secy1.crypto_engine.choice = secy2.crypto_engine.choice = "stateless_encryption_only"
 
     # Static key
     secy1_sk, secy2_sk = secy1.static_key, secy2.static_key
     secy1_sk.cipher_suite = secy2_sk.cipher_suite = "gcm_aes_128"
 
     # Tx
-    secy1_tx, secy2_tx = secy1.tx, secy2.tx 
-    secy1_txsc1, secy2_txsc1 = secy1_tx.scs.add(), secy2_tx.scs.add() 
+    secy1_tx, secy2_tx = secy1.tx, secy2.tx
+    secy1_txsc1, secy2_txsc1 = secy1_tx.scs.add(), secy2_tx.scs.add()
 
     # Tx SC end station
     secy1_txsc1.end_station = secy2_txsc1.end_station = True
 
     # Tx key
-    secy1_txsc1.static_key.sak_pool.name, secy2_txsc1.static_key.sak_pool.name = "macsec1_tx_sakpool", "macsec2_tx_sakpool" 
+    secy1_txsc1.static_key.sak_pool.name, secy2_txsc1.static_key.sak_pool.name = "macsec1_tx_sakpool", "macsec2_tx_sakpool"
     secy1_tx_sak1, secy2_tx_sak1 = secy1_txsc1.static_key.sak_pool.saks.add(), secy2_txsc1.static_key.sak_pool.saks.add()
     #secy1_tx_sak1.sak = secy2_tx_sak1.sak = "0xF123456789ABCDEF0123456789ABCDEF"
     secy1_tx_sak1.sak = secy2_tx_sak1.sak = "f123456789abcdef0123456789abcdef"
@@ -49,15 +49,15 @@ def test_stateless_encryption_static_key(api, b2b_raw_config, utils):
     # Remaining Tx SC settings autofilled
 
     # Rx
-    secy1_rx, secy2_rx = secy1.rx, secy2.rx 
-    secy1_rxsc1, secy2_rxsc1 = secy1.rx.static_key.scs.add(), secy2.rx.static_key.scs.add() 
+    secy1_rx, secy2_rx = secy1.rx, secy2.rx
+    secy1_rxsc1, secy2_rxsc1 = secy1.rx.static_key.scs.add(), secy2.rx.static_key.scs.add()
 
     # Rx SC
     secy1_rxsc1.dut_system_id =  eth2.mac
     secy2_rxsc1.dut_system_id =  eth1.mac
 
     # Rx key
-    secy1_rxsc1.sak_pool.name, secy2_rxsc1.sak_pool.name = "macsec1_rx_sakpool", "macsec2_rx_sakpool" 
+    secy1_rxsc1.sak_pool.name, secy2_rxsc1.sak_pool.name = "macsec1_rx_sakpool", "macsec2_rx_sakpool"
     secy1_rx_sak1, secy2_rx_sak1 = secy1_rxsc1.sak_pool.saks.add(), secy2_rxsc1.sak_pool.saks.add()
     #secy1_rx_sak1.sak = secy2_rx_sak1.sak = "0xF123456789ABCDEF0123456789ABCDEF"
     secy1_rx_sak1.sak = secy2_rx_sak1.sak = "f123456789abcdef0123456789abcdef"
