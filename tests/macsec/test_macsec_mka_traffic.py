@@ -184,15 +184,15 @@ def test_stateless_encryption_with_mka(api, b2b_raw_config, utils):
         "icv_mismatch",
     ]
     expected_results = {
-        "mka_dev1": [0, 0, 0, 0, 0, 0, 0, 0],
-        "mka_dev2": [0, 0, 0, 0, 0, 0, 0, 0],
+        "enc_only_macsec1": [0, 0, 0, 0, 0, 0, 0, 0],
+        "enc_only_macsec2": [0, 0, 0, 0, 0, 0, 0, 0],
     }
     req = api.metrics_request()
-    req.mka.kay_names = ["mka_dev1"]
+    req.mka.kay_names = ["enc_only_macsec1"]
     results = api.get_metrics(req)
     assert len(results.mka_metrics) == 1
-    assert results.mka_metrics[0].name == "mka_dev1"
-    print(f"MKA Result : mka_dev1")
+    assert results.mka_metrics[0].name == "enc_only_macsec1"
+    print(f"MKA Result : enc_only_macsec1")
     for mka_res in results.mka_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[mka_res.name][i]
@@ -203,11 +203,11 @@ def test_stateless_encryption_with_mka(api, b2b_raw_config, utils):
             print(f"{enum} : {getattr(mka_res, enum)}")
 
     req = api.metrics_request()
-    req.mka.kay_names = ["mka_dev2"]
+    req.mka.kay_names = ["enc_only_macsec2"]
     results = api.get_metrics(req)
     assert len(results.mka_metrics) == 1
-    assert results.mka_metrics[0].name == "mka_dev2"
-    print(f"MKA Result : mka_dev2")
+    assert results.mka_metrics[0].name == "enc_only_macsec2"
+    print(f"MKA Result : enc_only_macsec2")
     for mka_res in results.mka_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[mka_res.name][i]

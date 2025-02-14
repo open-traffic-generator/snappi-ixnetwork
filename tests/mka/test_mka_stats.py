@@ -55,7 +55,7 @@ def test_mka_stats(api, b2b_raw_config, utils):
 
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
-        lambda: results_ok(api), "stats to be as expected", timeout_seconds=20
+        lambda: results_ok(api), "stats to be as expected", timeout_seconds=10
     )
     enums = [
         "mkpdu_tx",
