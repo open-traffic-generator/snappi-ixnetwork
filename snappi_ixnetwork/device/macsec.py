@@ -31,11 +31,6 @@ class Macsec(Base):
         "dut_msb_xpn": "dutMsbOfXpn",
     }
 
-#    _DUT = {
-#        "cipher_suite": "dutMsbOfXpn",
-#    }
-#
-
     def __init__(self, ngpf):
         super(Macsec, self).__init__()
         self._ngpf = ngpf
@@ -59,8 +54,16 @@ class Macsec(Base):
             static_key = secy.get("static_key")
             tx = secy.get("tx")
             rx = secy.get("rx")
-            txscs = tx.scs
-            rxscs = rx.static_key.scs
+            txscs = rxscs = tx_rekey_mode = replay_protection = replay_window = None
+            if not tx is None:
+                txscs = tx.scs
+                if not tx.static_key is None:
+                    tx_rekey_mode = tx.static_key.rekey_mode
+            if not rx is None:
+                replay_protection = rx.replay_protection
+                replay_window = rx.replay_window
+                if not rx.static_key is None:
+                    rxscs = rx.static_key.scs
             crypto_engine = secy.get("crypto_engine")
             if not self.is_dynamic_key:
                 if txscs is None:
@@ -77,50 +80,45 @@ class Macsec(Base):
                         )
                     )
                     is_valid = False
-                if not tx.static_key.rekey_mode.choice == "dont_rekey":
-                    self._ngpf.api.add_error(
-                        "Rekey not supported as of now when static key is in use".format(
-                            name=ethernet_name
+                if not tx_rekey_mode is None:
+                    if not tx_rekey_mode.choice == "dont_rekey":
+                        self._ngpf.api.add_error(
+                            "Rekey not supported as of now when static key is in use".format(
+                                name=ethernet_name
+                            )
                         )
+                        is_valid = False
+            if crypto_engine is None:
+                self._ngpf.api.add_error(
+                    "Replay protectin cannot be true when engine type is stateless_encryption_only".format(
+                        name=ethernet_name
                     )
-                    is_valid = False
-            if crypto_engine.choice == "stateless_encryption_only":
-                if rx.replay_protection == True:
-                    self._ngpf.api.add_error(
-                        "Replay protectin cannot be true when engine type is stateless_encryption_only".format(
-                            name=ethernet_name
+                )
+                is_valid = False
+            elif crypto_engine.choice == "stateless_encryption_only":
+                if not replay_protection is None:
+                    if replay_protection == True:
+                        self._ngpf.api.add_error(
+                            "Replay protectin cannot be true when engine type is stateless_encryption_only".format(
+                                name=ethernet_name
+                            )
                         )
-                    )
-                    is_valid = False
-            if crypto_engine.choice == "stateful_encryption_decryption":
-                if rxscs is None:
-                    self._ngpf.api.add_error(
-                        "RxSC not added when key generation is static".format(
-                            name=ethernet_name
+                        is_valid = False
+                if not replay_protection is None:
+                    if replay_protection == True:
+                        self._ngpf.api.add_error(
+                            "Replay protectin cannot be true when engine type is stateless_encryption_only".format(
+                                name=ethernet_name
+                            )
                         )
+                        is_valid = False
+            else:
+                self._ngpf.api.add_error(
+                    "SecY crypto_engine is not set to stateless_encryption_only. Only tateless_encryption_only engine type is supported as of now.".format(
+                        name=ethernet_name
                     )
-                    is_valid = False
-                elif len(rxscs) > 1:
-                    self._ngpf.api.add_error(
-                        "More than one RxSC added when key generation is static".format(
-                            name=ethernet_name
-                        )
-                    )
-                    is_valid = False
-                if rx.replay_protection == False:
-                    self._ngpf.api.add_error(
-                        "Replay protectin cannot be false when engine type is stateful_encryption_decryption".format(
-                            name=ethernet_name
-                        )
-                    )
-                    is_valid = False
-                if not rx.replay_window == 1:
-                    self._ngpf.api.add_error(
-                        "Replay window cannot be other than 1 when engine type is stateful_encryption_decryption".format(
-                            name=ethernet_name
-                        )
-                    )
-                    is_valid = False
+                )
+                is_valid = False
         if is_valid == True:
             self.logger.debug("MACsec validation success")
         else:
@@ -194,12 +192,19 @@ class Macsec(Base):
 
     def _config_tx(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring Tx properties")
+        tx = secy.get("tx")
+        if tx is None:
+            return
         self._config_txsc(secy, ixn_staticmacsec)
         #TODO: rekey for static key
 
     def _config_rx(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring Rx properties")
+        rx = secy.get("rx")
+        if rx is None:
+            return
         #TODO: replay protection, replay window
+        self.logger.debug("replay_protection %s replay_window %s" % (rx.replay_protection, rx.replay_window))
         if not self.is_dynamic_key:
             self._config_rxsc(secy, ixn_staticmacsec)
 
@@ -208,6 +213,7 @@ class Macsec(Base):
         tx = secy.get("tx")
         txscs = tx.get("scs")
         txsc = txscs[0]
+        self.logger.debug("end_station %s include_sci %s" % (txsc.end_station, txsc.include_sci))
         self.configure_multivalues(txsc, ixn_staticmacsec, Macsec._TXSC)
         if not self.is_dynamic_key:
             self.configure_multivalues(txsc.static_key, ixn_staticmacsec, Macsec._TXSC_STATIC_KEY)

@@ -110,13 +110,13 @@ class Ngpf(Base):
         # Configured all interfaces
         self._configure_device_group(ixn_topos)
 
-        # Configure all MACsec interface before configure protocols
-        for device in self.api.snappi_config.devices:
-            self._macsec.config(device)
-
         # Configure all MKA interface before configure protocols
         for device in self.api.snappi_config.devices:
             self._mka.config(device)
+
+        # Configure all MACsec interface before configure protocols
+        for device in self.api.snappi_config.devices:
+            self._macsec.config(device)
 
         # We need to configure all interface before configure protocols
         for device in self.api.snappi_config.devices:
