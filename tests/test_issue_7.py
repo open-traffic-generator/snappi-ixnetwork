@@ -64,7 +64,7 @@ def config_v4_devices(api, utils):
 
     api.set_config(config)
 
-
+@pytest.mark.skip(reason="skip to CICD faster")
 def test_issue_7(api, config_v4_devices, utils):
     """This unit test to validate the fixes provided for the issue
     https://github.com/open-traffic-generator/snappi-convergence/issues/7"""

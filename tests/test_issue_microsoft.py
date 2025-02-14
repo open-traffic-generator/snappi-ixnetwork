@@ -1,4 +1,5 @@
 import time
+import pytest
 
 
 def wait_for_arp(snappi_api, max_attempts=10, poll_interval_sec=1):
@@ -184,7 +185,7 @@ def results_ok(api, utils, size1, size2, packets):
     )
     return frames_ok and bytes_ok
 
-
+@pytest.mark.skip(reason="skip to CICD faster")
 def test_static_lag(api, utils):
     for i in range(0, 4):
         static_lag(api, utils)

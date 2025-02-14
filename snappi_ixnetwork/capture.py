@@ -5,6 +5,12 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.logger import get_ixnet_logger
 
 
+class CommonField:
+    def __init__(self, field, offset):
+        self.field = field
+        self.offset = offset
+
+
 class Capture(object):
     """Transforms OpenAPI objects into IxNetwork objects
 
@@ -24,30 +30,6 @@ class Capture(object):
     -----
 
     """
-
-    _IPV4_OFFSET_MAP = {
-        "version": "14",
-        "headeer_length": "14",
-        "priority": "15",
-        "total_length": "16",
-        "identification": "18",
-        "reserved": "20",
-        "dont_fragment": "20",
-        "more_fragments": "20",
-        "fragment_offset": "20",
-        "time_to_live": "22",
-        "protocol": "23",
-        "header_checksum": "24",
-        "src": "26",
-        "dst": "30",
-    }
-
-    _VLAN_OFFSET_MAP = {
-        "priority": "34",
-        "cfi": "34",
-        "id": "34",
-        "protocol": "36",
-    }
 
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
@@ -97,7 +79,6 @@ class Capture(object):
                         "xpath": vports[port_name]["xpath"]
                         + "/capture/trigger"
                     }
-                    reset["captureTriggerEnable"] = False
                     self._import(reset)
                 capture = {
                     "xpath": vports[port_name]["xpath"] + "/capture",
@@ -111,20 +92,79 @@ class Capture(object):
                 if len(capture_item.filters) > 0:
                     filter["captureFilterEnable"] = True
                     trigger["captureTriggerEnable"] = True
-                    filter["captureFilterEnable"] = True
+                    filter["captureFilterFrameSizeEnable"] = False
+                    trigger["captureTriggerFrameSizeEnable"] = False
+                    filter["captureFilterFrameSizeTo"] = 9198
+                    trigger["captureTriggerFrameSizeTo"] = 9198
+                    filter["captureFilterFrameSizeFrom"] = 46
+                    trigger["captureTriggerFrameSizeFrom"] = 46
+                    generic_size = 0
+                    expression_string = ""
                     for cap_filter in capture_item.filters:
                         if cap_filter.parent.choice == "ethernet":
-                            self._config_ethernet_pallette(
-                                cap_filter, pallette, trigger, filter
+                            expression_string = self._config_ethernet_pallette(
+                                cap_filter,
+                                pallette,
+                                trigger,
+                                filter,
+                                generic_size,
+                                expression_string,
                             )
+                            generic_size += 14
                         elif cap_filter.parent.choice == "custom":
-                            self._config_custom_pallete(
-                                cap_filter, pallette, trigger, filter
+                            generic_size, expression_string = (
+                                self._config_custom_pallete(
+                                    cap_filter,
+                                    pallette,
+                                    trigger,
+                                    filter,
+                                    generic_size,
+                                    expression_string,
+                                )
                             )
+                        elif cap_filter.parent.choice == "vlan":
+                            expression_string = self._config_vlan_pallette(
+                                cap_filter,
+                                pallette,
+                                trigger,
+                                filter,
+                                generic_size,
+                                expression_string,
+                            )
+                            generic_size += 4
+                        elif cap_filter.parent.choice == "ipv4":
+                            expression_string = self._config_ipv4_pallete(
+                                cap_filter,
+                                pallette,
+                                trigger,
+                                filter,
+                                generic_size,
+                                expression_string,
+                            )
+                            generic_size += 20
+                        elif cap_filter.parent.choice == "ipv6":
+                            expression_string = self._config_ipv6_pallete(
+                                cap_filter,
+                                pallette,
+                                trigger,
+                                filter,
+                                generic_size,
+                                expression_string,
+                            )
+                            generic_size += 40
                         else:
-                            self._config_missing_pallete(
-                                cap_filter, pallette, trigger, filter
+                            expression_string = self._config_missing_pallete(
+                                cap_filter,
+                                pallette,
+                                trigger,
+                                filter,
+                                generic_size,
+                                expression_string,
                             )
+                    filter["captureFilterExpressionString"] = expression_string
+                    trigger["captureTriggerExpressionString"] = (
+                        expression_string
+                    )
                 imports.append(capture)
                 imports.append(pallette)
                 imports.append(filter)
@@ -134,7 +174,15 @@ class Capture(object):
     def reset_capture_request(self):
         self._capture_request = None
 
-    def _config_missing_pallete(self, cap_filter, pallette, trigger, filter):
+    def _config_missing_pallete(
+        self,
+        cap_filter,
+        pallette,
+        trigger,
+        filter,
+        generic_size,
+        expression_string,
+    ):
         pallete_map = getattr(
             self, "_{0}_OFFSET_MAP".format(cap_filter.parent.choice.upper())
         )
@@ -155,57 +203,290 @@ class Capture(object):
                     ]
                     if cap_field.mask is not None:
                         pallette[new_pattern.pattern_mask] = cap_field.mask
+                    negate = ""
                     if (
                         cap_field.negate is not None
                         and cap_field.negate is True
                     ):
                         filter["captureFilterPattern"] = "notPattern1"
+                        negate = "!"
                     else:
-                        filter[
-                            "captureFilterPattern"
-                        ] = new_pattern.filter_pattern
-                    trigger["triggerFilterPattern"] = filter[
+                        filter["captureFilterPattern"] = (
+                            new_pattern.filter_pattern
+                        )
+                    trigger["captureTriggerPattern"] = filter[
                         "captureFilterPattern"
                     ]
+                    if len(expression_string) == 0:
+                        expression_string = negate + "P1"
+                    else:
+                        expression_string = (
+                            expression_string + " and " + negate + "P1"
+                        )
 
-    def _config_custom_pallete(self, cap_filter, pallette, trigger, filter):
+        return expression_string
+
+    def _config_custom_pallete(
+        self,
+        cap_filter,
+        pallette,
+        trigger,
+        filter,
+        generic_size,
+        expression_string,
+    ):
         if cap_filter.value is not None:
             pallette["pattern1"] = cap_filter.value
             if cap_filter.mask is not None:
                 pallette["patternMask1"] = cap_filter.mask
             if cap_filter.offset is not None:
                 pallette["patternOffset1"] = cap_filter.offset
+                generic_size += cap_filter.offset
+            negate = ""
             if cap_filter.negate is not None and cap_filter.negate is True:
                 filter["captureFilterPattern"] = "notPattern1"
+                negate = "!"
             else:
                 filter["captureFilterPattern"] = "pattern1"
-            trigger["triggerFilterPattern"] = filter["captureFilterPattern"]
+            trigger["captureTriggerPattern"] = filter["captureFilterPattern"]
+            if len(expression_string) == 0:
+                expression_string = negate + "P1"
+            else:
+                expression_string = expression_string + " and " + negate + "P1"
 
-    def _config_ethernet_pallette(self, cap_filter, pallette, trigger, filter):
+        return generic_size, expression_string
+
+    def _config_ethernet_pallette(
+        self,
+        cap_filter,
+        pallette,
+        trigger,
+        filter,
+        generic_size,
+        expression_string,
+    ):
         if cap_filter.src.value is not None:
-            pallette["SA1"] = cap_filter.src.value
-            if cap_filter.src.mask is not None:
-                pallette["SAMask1"] = cap_filter.src.mask
-            if (
-                cap_filter.src.negate is not None
-                and cap_filter.src.negate is True
-            ):
+            expression_string = self._config_source_address(
+                cap_filter.src, pallette, trigger, filter, expression_string
+            )
+        if cap_filter.dst.value is not None:
+            expression_string = self._config_destination_address(
+                cap_filter.dst, pallette, trigger, filter, expression_string
+            )
+
+        ethernet_fields = [
+            CommonField(cap_filter.ether_type, 12),
+            CommonField(cap_filter.pfc_queue, 0),
+        ]
+
+        for ethernet_field in ethernet_fields:
+            if ethernet_field.field.value != "00":
+                expression_string = self._config_common_filter_pallete(
+                    ethernet_field.field,
+                    pallette,
+                    trigger,
+                    filter,
+                    generic_size + ethernet_field.offset,
+                    expression_string,
+                )
+        return expression_string
+
+    def _config_vlan_pallette(
+        self,
+        cap_filter,
+        pallette,
+        trigger,
+        filter,
+        generic_size,
+        expression_string,
+    ):
+        vlan_fields = [
+            CommonField(cap_filter.priority, 0),
+            CommonField(cap_filter.cfi, 0),
+            CommonField(cap_filter.id, 0),
+            CommonField(cap_filter.protocol, 2),
+        ]
+
+        for vlan_field in vlan_fields:
+            if vlan_field.field.value != "00":
+                expression_string = self._config_common_filter_pallete(
+                    vlan_field.field,
+                    pallette,
+                    trigger,
+                    filter,
+                    generic_size + vlan_field.offset,
+                    expression_string,
+                )
+
+        return expression_string
+
+    def _config_ipv4_pallete(
+        self,
+        cap_filter,
+        pallette,
+        trigger,
+        filter,
+        generic_size,
+        expression_string,
+    ):
+        ipv4_fields = [
+            CommonField(cap_filter.version, 0),
+            CommonField(cap_filter.header_length, 0),
+            CommonField(cap_filter.priority, 1),
+            CommonField(cap_filter.total_length, 2),
+            CommonField(cap_filter.identification, 4),
+            CommonField(cap_filter.reserved, 6),
+            CommonField(cap_filter.dont_fragment, 6),
+            CommonField(cap_filter.more_fragments, 6),
+            CommonField(cap_filter.fragment_offset, 6),
+            CommonField(cap_filter.time_to_live, 8),
+            CommonField(cap_filter.protocol, 9),
+            CommonField(cap_filter.header_checksum, 10),
+            CommonField(cap_filter.src, 12),
+            CommonField(cap_filter.dst, 16),
+        ]
+
+        for ipv4_field in ipv4_fields:
+            if ipv4_field.field.value != "00":
+                expression_string = self._config_common_filter_pallete(
+                    ipv4_field.field,
+                    pallette,
+                    trigger,
+                    filter,
+                    generic_size + ipv4_field.offset,
+                    expression_string,
+                )
+
+        return expression_string
+
+    def _config_ipv6_pallete(
+        self,
+        cap_filter,
+        pallette,
+        trigger,
+        filter,
+        generic_size,
+        expression_string,
+    ):
+        ipv6_fields = [
+            CommonField(cap_filter.version, 0),
+            CommonField(cap_filter.traffic_class, 0),
+            CommonField(cap_filter.flow_label, 1),
+            CommonField(cap_filter.payload_length, 4),
+            CommonField(cap_filter.next_header, 6),
+            CommonField(cap_filter.hop_limit, 7),
+            CommonField(cap_filter.src, 8),
+            CommonField(cap_filter.dst, 24),
+        ]
+
+        for ipv6_field in ipv6_fields:
+            if ipv6_field.field.value != "00":
+                expression_string = self._config_common_filter_pallete(
+                    ipv6_field.field,
+                    pallette,
+                    trigger,
+                    filter,
+                    generic_size + ipv6_field.offset,
+                    expression_string,
+                )
+
+        return expression_string
+
+    def _hex_to_str_with_space(self, hex_value):
+        return " ".join(
+            hex_value[i : i + 2] for i in range(0, len(hex_value), 2)
+        )
+
+    def _config_source_address(
+        self, src, pallette, trigger, filter, expression_string
+    ):
+        if src.value is not None:
+            pallette["SA1"] = self._hex_to_str_with_space(src.value)
+            if src.mask is not None:
+                pallette["SAMask1"] = self._hex_to_str_with_space(src.mask)
+            negate = ""
+            if src.negate is not None and src.negate is True:
                 filter["captureFilterSA"] = "notAddr1"
+                negate = "!"
             else:
                 filter["captureFilterSA"] = "addr1"
-            trigger["triggerFilterSA"] = filter["captureFilterSA"]
-        if cap_filter.dst.value is not None:
-            pallette["DA1"] = cap_filter.dst.value
-            if cap_filter.dst.mask is not None:
-                pallette["DAMask1"] = cap_filter.dst.mask
-            if (
-                cap_filter.dst.negate is not None
-                and cap_filter.dst.negate is True
-            ):
+            trigger["captureTriggerSA"] = filter["captureFilterSA"]
+            if len(expression_string) == 0:
+                expression_string = negate + "SA1"
+            else:
+                expression_string = (
+                    expression_string + " and " + negate + "SA1"
+                )
+
+        return expression_string
+
+    def _config_destination_address(
+        self, dst, pallette, trigger, filter, expression_string
+    ):
+        if dst.value is not None:
+            pallette["DA1"] = self._hex_to_str_with_space(dst.value)
+            if dst.mask is not None:
+                pallette["DAMask1"] = self._hex_to_str_with_space(dst.mask)
+            negate = ""
+            if dst.negate is not None and dst.negate is True:
                 filter["captureFilterDA"] = "notAddr1"
+                negate = "!"
             else:
                 filter["captureFilterDA"] = "addr1"
-            trigger["triggerFilterDA"] = filter["captureFilterDA"]
+            trigger["captureTriggerDA"] = filter["captureFilterDA"]
+            if len(expression_string) == 0:
+                expression_string = negate + "DA1"
+            else:
+                expression_string = (
+                    expression_string + " and " + negate + "DA1"
+                )
+        return expression_string
+
+    def _config_common_filter_pallete(
+        self, field, pallette, trigger, filter, offset, expression_string
+    ):
+        if field.value is not None:
+            if pallette.get("pattern1") is None:
+                pallette["pattern1"] = field.value
+                pallette["patternOffset1"] = offset
+                if field.mask is not None:
+                    pallette["patternMask1"] = field.mask
+                negate = ""
+                if field.negate is not None and field.negate is True:
+                    filter["captureFilterPattern"] = "notPattern1"
+                    negate = "!"
+                else:
+                    filter["captureFilterPattern"] = "pattern1"
+                trigger["captureTriggerPattern"] = filter[
+                    "captureFilterPattern"
+                ]
+                if len(expression_string) == 0:
+                    expression_string = negate + "P1"
+                else:
+                    expression_string = (
+                        expression_string + " and " + negate + "P1"
+                    )
+            elif pallette.get("pattern2") is None:
+                pallette["pattern2"] = field.value
+                pallette["patternOffset2"] = offset
+                if field.mask is not None:
+                    pallette["patternMask2"] = field.mask
+                negate = ""
+                if field.negate is not None and field.negate is True:
+                    negate = "!"
+                filter["captureFilterPattern"] = "pattern1AndPattern2"
+                trigger["captureTriggerPattern"] = filter[
+                    "captureFilterPattern"
+                ]
+                if len(expression_string) == 0:
+                    expression_string = negate + "P2"
+                else:
+                    expression_string = (
+                        expression_string + " and " + negate + "P2"
+                    )
+            else:
+                self._api.warning("Cannot apply more than 2 filters.")
+        return expression_string
 
     def set_capture_state(self, request):
         """Starts capture on all ports that have capture enabled."""

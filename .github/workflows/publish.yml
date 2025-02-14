@@ -11,6 +11,9 @@ jobs:
   test_novus_10g:
     runs-on: [snappi-ixn-ci-novus10g]
     steps:
+      - name: Set Timestamp
+        id: timestamp
+        run: echo "TIMESTAMP=$(TZ='Asia/Kolkata' date +"%D %T")" >> $GITHUB_ENV
       - name: Checkout source
         uses: actions/checkout@v2
         with:
@@ -33,9 +36,29 @@ jobs:
           ${{steps.path.outputs.pythonv}} do.py setup
           ${{steps.path.outputs.pythonv}} do.py install
           ${{steps.path.outputs.pythonv}} do.py init
+      - name: Install snappi from dev branch when needed
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py get_snappi_dev_branch
       - name: Run tests
         run: |
           TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
+      - name: Send Coverage Email
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py coverage
+          
+      - name: Generate Allure report
+        run: |
+          source ~/.profile
+          ${{steps.path.outputs.pythonv}} do.py generate_allure_report
+
+      - name: Deploy report to Github Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v2
+        env:
+          PERSONAL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISH_BRANCH: gh-pages
+          PUBLISH_DIR: allure-report
+  
 
   publish_artifacts:
     runs-on: [snappi-ixn-ci-novus10g]
@@ -84,7 +107,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload artifacts if release didn't happen
         if: steps.check_tag.outputs.exists == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           path: dist
       

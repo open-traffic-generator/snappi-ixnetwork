@@ -34,6 +34,25 @@ class Api(snappi.Api):
     - password (str): The password for Linux IxNetwork API Server
         This is not required when connecting to single session environments
     """
+    _CONVERGENCE = {
+        ("data_plane_convergence_us", "DP/DP Convergence Time (us)", float),
+        (
+            "control_plane_data_plane_convergence_us",
+            "CP/DP Convergence Time (us)",
+            float,
+        ),
+    }
+
+    _DP_CONVERGENCE = {
+        ("data_plane_convergence_us", "DP/DP Convergence Time (us)", float),
+    }
+
+    _EVENT = {
+        ("begin_timestamp_ns", "Event Start Timestamp", int),
+        ("end_timestamp_ns", "Event End Timestamp", int),
+    }
+
+    _TRIGGERED_EVENT = ""
 
     def __init__(self, **kwargs):
         """Create a session
@@ -88,6 +107,8 @@ class Api(snappi.Api):
         self._previous_errors = []
         self._initial_flows_config = None
         self._flow_tracking = False
+        self._convergence_timeout = 3
+        self._event_info = None
 
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
@@ -207,7 +228,6 @@ class Api(snappi.Api):
                             )
                             self.info(error)
                             errors.append(error)
-        # request_detail.errors = errors
 
         # Need to add this hack as dumping json config throws this exception
         # Traffic regeneration will be part of set_transmit_state
@@ -234,6 +254,45 @@ class Api(snappi.Api):
             if isinstance(config, str) is True:
                 config = self._config_type.deserialize(config)
             self.config_ixnetwork(config)
+            # CP-DP Convergence config
+            ixn_cpdpconvergence = self._traffic.Statistics.CpdpConvergence
+            ixn_cpdpconvergence.Enabled = False
+            cfg = config.get("events")
+            if cfg is not None:
+                cp_events = cfg.get("cp_events")
+                if cp_events is not None:
+                    cp_events_enable = cp_events.get("enable")
+                else:
+                    cp_events_enable = False
+                dp_events = cfg.get("dp_events")
+                if dp_events is not None:
+                    dp_events_enable = dp_events.get("enable")
+                    rx_rate_threshold = dp_events.get("rx_rate_threshold")
+                else:
+                    dp_events_enable = False
+                # Enable cp-dp convergence if any one of cp or dp is true
+                if cp_events_enable or dp_events_enable:
+                    ixn_cpdpconvergence.Enabled = True
+                    # For CP events
+                    if cp_events_enable:
+                        ixn_cpdpconvergence.EnableControlPlaneEvents = True
+                    # For DP events
+                    if dp_events_enable:
+                        if self.traffic_item.has_latency is True:
+                            raise Exception(
+                                "We are supporting either latency or dp convergence"    
+                            )
+                        ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor = True 
+                        ixn_cpdpconvergence.DataPlaneThreshold = rx_rate_threshold  
+
+                for ixn_traffic_item in self._traffic_item.find():
+                    ixn_traffic_item.Tracking.find()[0].TrackBy = [
+                        "destEndpoint0",
+                        "destSessionDescription0",
+                    ]
+            else:
+                ixn_cpdpconvergence.Enabled = False
+            
         except Exception as err:
             raise SnappiIxnException(err)
 
@@ -342,16 +401,28 @@ class Api(snappi.Api):
             control_choice = control_obj.get("choice")
             request_payload = getattr(control_obj, control_choice)
             self._connect()
+            event_names = []
+            event_state = None
+            event_type = control_choice
+            EventInfo = namedtuple(
+                "EventInfo", ["event_type", "event_state", "event_names"]
+            )
             if control_option == "port":
                 if control_choice == "capture":
                     self.capture.set_capture_state(request_payload)
                 elif control_choice == "link":
+                    self._TRIGGERED_EVENT = "link"
+                    if request_payload.port_names is not None:
+                        event_names = request_payload.port_names
+                        event_state = request_payload.state
                     self.vport.set_link_state(request_payload)
             elif control_option == "protocol":
                 if control_choice == "all":
                     self.ngpf.set_protocol_state(request_payload)
                 elif control_choice == "route":
-                    self.ngpf.set_route_state(request_payload)
+                    event_state = request_payload.state
+                    with Timer(self, "Setting route state"):
+                        event_names = self.ngpf.set_route_state(request_payload)
                 elif control_choice == "lacp":
                     self.ngpf.set_device_state(request_payload)
             elif control_option == "traffic":
@@ -363,6 +434,7 @@ class Api(snappi.Api):
                     control_option
                 )
                 raise SnappiIxnException(400, msg)
+            self._event_info = EventInfo(event_type, event_state, event_names)
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()
@@ -400,157 +472,6 @@ class Api(snappi.Api):
                 raise SnappiIxnException(400, msg)
             res.warnings = snappi.Warning()
             return res
-        except Exception as err:
-            raise SnappiIxnException(err)
-
-    def set_protocol_state(self, payload):
-        """Set the transmit state of flows"""
-        self.add_warnings(
-            "set_protocol_state api is deprecated, Please use `set_control_state` with `protocol.all` choice instead"
-        )
-        try:
-            if isinstance(payload, (type(self._protocol_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[TransmitState, str]"
-                )
-            if isinstance(payload, str) is True:
-                payload = self._protocol_state.deserialize(payload)
-            self._connect()
-            with Timer(self, "Setting Protocol state"):
-                self.ngpf.set_protocol_state(payload)
-        except Exception as err:
-            raise SnappiIxnException(err)
-        return self._request_detail()
-
-    def set_transmit_state(self, payload):
-        """Set the transmit state of flows"""
-        self.add_warnings(
-            "set_transmit_state api is deprecated, Please use `set_control_state` with `traffic` choice instead"
-        )
-        try:
-            if isinstance(payload, (type(self._transmit_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[TransmitState, str]"
-                )
-            if isinstance(payload, str) is True:
-                payload = self._transmit_state.deserialize(payload)
-            self._connect()
-            self.traffic_item.transmit(payload)
-        except Exception as err:
-            raise SnappiIxnException(err)
-        return self._request_detail()
-
-    def set_link_state(self, link_state):
-        self.add_warnings(
-            "set_link_state api is deprecated, Please use `set_control_state` with `port.link` choice instead"
-        )
-        try:
-            if isinstance(link_state, (type(self._link_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[LinkState, str]"
-                )
-            if isinstance(link_state, str):
-                link_state = self._link_state.deserialize(link_state)
-            self._connect()
-            if link_state.port_names is not None:
-                self.vport.set_link_state(link_state)
-        except Exception as err:
-            raise SnappiIxnException(err)
-        return self._request_detail()
-
-    def set_capture_state(self, payload):
-        """Starts capture on all ports that have capture enabled."""
-        self.add_warnings(
-            "set_capture_state api is deprecated, Please use `set_control_state` with `port.capture` choice instead"
-        )
-        try:
-            if isinstance(payload, (type(self._capture_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[CaptureState, str]"
-                )
-            if isinstance(payload, str) is True:
-                payload = self._capture_state.deserialize(payload)
-            self._connect()
-            self.capture.set_capture_state(payload)
-        except Exception as err:
-            raise SnappiIxnException(err)
-        return self._request_detail()
-
-    def set_route_state(self, payload):
-        self.add_warnings(
-            "set_route_state api is deprecated, Please use `set_control_state` with `protocol.all` choice instead"
-        )
-        try:
-            route_state = self.route_state()
-            if isinstance(payload, (type(route_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[RouteState, str]"
-                )
-            if isinstance(payload, str) is True:
-                payload = route_state.deserialize(payload)
-            self._connect()
-            with Timer(self, "Setting route state"):
-                self.ngpf.set_route_state(payload)
-            return self._request_detail()
-        except Exception as err:
-            raise SnappiIxnException(err)
-
-    def set_device_state(self, payload):
-        self.add_warnings(
-            "set_device_state api is deprecated, Please use `set_control_state` with `protocol.link` choice instead"
-        )
-        try:
-            device_state = self.device_state()
-            if isinstance(payload, (type(device_state), str)) is False:
-                raise TypeError(
-                    "The content must be of type Union[DeviceState, str]"
-                )
-            if isinstance(payload, str) is True:
-                payload = device_state.deserialize(payload)
-            self._connect()
-            with Timer(self, "Setting device state"):
-                self.ngpf.set_device_state(payload)
-            return self._request_detail()
-        except Exception as err:
-            raise SnappiIxnException(err)
-
-    def send_ping(self, ping_request, cvg_api=None):
-        self.add_warnings(
-            "send_ping api is deprecated, Please use `set_control_action` with `protocol.ipv4.ping` choice instead"
-        )
-        try:
-            if cvg_api:
-                if isinstance(ping_request, type(cvg_api.ping_request())):
-                    if (
-                        isinstance(
-                            ping_request, (type(cvg_api.ping_request()), str)
-                        )
-                        is False
-                    ):
-                        raise TypeError(
-                            "The content must be of type Union[PingRequest, str]"
-                        )
-                    if isinstance(ping_request, str):
-                        ping_request = cvg_api.ping_request().deserialize(
-                            ping_request
-                        )
-                    ping_res = cvg_api.ping_response()
-                    cvg_api.ping_request().serialize()
-            else:
-                if (
-                    isinstance(ping_request, (type(self._ping_request), str))
-                    is False
-                ):
-                    raise TypeError(
-                        "The content must be of type Union[PingRequest, str]"
-                    )
-                if isinstance(ping_request, str):
-                    ping_request = self._ping_request.deserialize(ping_request)
-                ping_res = self.ping_response()
-                ping_request.serialize()
-            self._connect()
-            ping_res.responses.deserialize(self.ping.results(ping_request))
-            return ping_res
         except Exception as err:
             raise SnappiIxnException(err)
 
@@ -630,6 +551,11 @@ class Api(snappi.Api):
                 metric_res = self.metrics_response()
                 metric_res.lacp_metrics.deserialize(response)
                 return metric_res
+            if request.get("choice") == "convergence":
+                response = self._result(request.convergence)
+                metric_res = self.metrics_response()
+                metric_res.convergence_metrics.deserialize(response)
+                return metric_res
             if (
                 request.get("choice")
                 in self.protocol_metrics.get_supported_protocols()
@@ -669,6 +595,226 @@ class Api(snappi.Api):
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()
+    
+    def _get_max_convergence(self, rows):
+        # We are extracting max value for multiple destination
+        rows_len = len(rows)
+        if rows_len > 1:
+            for (
+                _,
+                internal_name,
+                external_type,
+            ) in self._CONVERGENCE:
+                if external_type not in ["float", "int"]:
+                    continue
+                max_value = rows[0][internal_name]
+                for idx in range(1, rows_len):
+                    tmp_value = rows[idx][internal_name]
+                    if max_value < tmp_value:
+                        max_value = tmp_value
+                rows[0][internal_name] = max_value
+        return rows[0]
+    
+    def _result(self, request):
+        # get convergence result
+        flow_names = request.get("flow_names")
+        if not isinstance(flow_names, list):
+            msg = "Invalid format of flow_names passed {},\
+                                                expected list".format(
+                flow_names
+            )
+            raise Exception(msg)
+        if flow_names is None or len(flow_names) == 0:
+            flow_names = [flow.name for flow in self.snappi_config.flows]
+        flow_rows = self._get_flow_rows(flow_names)
+        traffic_stat = self._assistant.StatViewAssistant(
+            "Traffic Item Statistics"
+        )
+        traffic_index = {}
+        drill_down_option = "Drill down per Dest Endpoint"
+        for index, row in enumerate(
+            self._get_traffic_rows(traffic_stat, drill_down_option)
+        ):
+            traffic_index[row["Traffic Item"]] = index
+        response = []
+        for flow_name in flow_names:
+            traffic_stat = self._assistant.StatViewAssistant(
+                "Traffic Item Statistics"
+            )
+            convergence = {"name": flow_name}
+            if flow_name not in traffic_index.keys():
+                raise Exception("Somehow flow %s is missing" % flow_name)
+
+            drill_down_options = traffic_stat.DrillDownOptions()
+            drilldown_index = drill_down_options.index(drill_down_option)
+            drill_down = traffic_stat.Drilldown(
+                drilldown_index,
+                drill_down_option,
+                traffic_stat.TargetRowFilters()[traffic_index[flow_name]],
+            )
+            if drill_down.Rows is not None:
+                drill_down_result = self._get_max_convergence(drill_down.Rows)
+            ixn_cpdpconvergence = self._traffic.Statistics.CpdpConvergence
+            if ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor and ixn_cpdpconvergence.EnableControlPlaneEvents: # noqa
+                for (
+                    external_name,
+                    internal_name,
+                    external_type,
+                ) in self._CONVERGENCE:
+                    self._set_result_value(
+                        convergence,
+                        external_name,
+                        drill_down_result[internal_name],
+                        external_type,
+                    )
+                events = []
+                interruption_time = None
+                for flow_result in flow_rows:
+                    if flow_result["Traffic Item"] != flow_name:
+                        continue
+                    event_name = flow_result["Event Name"]
+                    if event_name == "":
+                        continue
+                    event = self._get_event(event_name)
+                    for external_name, internal_name, external_type in self._EVENT:
+                        value = int(flow_result[internal_name].split(".")[-1])
+                        self._set_result_value(
+                            event, external_name, value * 1000, external_type
+                        )
+                    events.append(event)
+                    if interruption_time is None:
+                        if flow_result["DP Above Threshold Timestamp"] != "":
+                            att = flow_result[
+                                "DP Above Threshold Timestamp"
+                            ].split(":")[-1]
+                        else:
+                            att = 0
+                        if flow_result["DP Below Threshold Timestamp"] != "":
+                            btt = flow_result[
+                                "DP Below Threshold Timestamp"
+                            ].split(":")[-1]
+                        else:
+                            btt = 0
+                        interruption_time = float(att) - float(btt)
+                        self._set_result_value(
+                            convergence,
+                            "service_interruption_time_us",
+                            interruption_time,
+                            float,
+                        )
+                convergence["events"] = events
+
+            # for DP only metric
+            if ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor and not ixn_cpdpconvergence.EnableControlPlaneEvents: # noqa
+                for (
+                    external_name,
+                    internal_name,
+                    external_type,
+                ) in self._DP_CONVERGENCE:
+                    self._set_result_value(
+                        convergence,
+                        external_name,
+                        drill_down_result[internal_name],
+                        external_type,
+                    )
+            response.append(convergence)
+        return response
+    
+
+    def _get_event(self, event_name):
+        event = {}
+        if re.search(r"Port Link Up", event_name):
+            if self._event_info.event_state == "up":
+                event["type"] = "link_up"
+            else:
+                event["type"] = "link_down"
+        else:
+            for route_name in self.ixn_routes.names:
+                if re.search(route_name, event_name) is not None:
+                    event["source"] = route_name
+                    event_type = event_name.split(route_name)[-1]
+                    if event_type.strip().lower() == "disable":
+                        event_type = "route_withdraw"
+                    else:
+                        event_type = "route_advertise"
+                    event["type"] = event_type
+                    break
+        return event
+
+    def _set_result_value(
+        self, row, column_name, column_value, column_type=str
+    ):
+        try:
+            row[column_name] = column_type(column_value)
+        except:
+            if column_type.__name__ in ["float", "int"]:
+                row[column_name] = 0
+            else:
+                row[column_type] = column_value
+
+    def _get_traffic_rows(self, traffic_stat, drill_down_option):
+        count = 0
+        sleep_time = 0.5
+        while True:
+            drill_down_options = traffic_stat.DrillDownOptions()
+            if drill_down_option in drill_down_options:
+                break
+            if count * sleep_time > self._convergence_timeout:
+                raise Exception(
+                    "Somehow 'Drill down per Dest Endpoint' not available"
+                )
+            time.sleep(sleep_time)
+            count += 1
+        return traffic_stat.Rows
+
+    def _get_flow_rows(self, flow_names):
+        count = 0
+        sleep_time = 0.5
+        flow_stat = self.assistant.StatViewAssistant("Flow Statistics")
+
+        if self._TRIGGERED_EVENT == "link":
+            if "Show Physical Ports in LAG" in flow_stat.DrillDownOptions():
+                flow_index = {}
+                drill_down_option = "Show Physical Ports in LAG"
+                for index, row in enumerate(
+                    self._get_traffic_rows(flow_stat, drill_down_option)
+                ):
+                    flow_index[row["Traffic Item"]] = index
+                drill_down_options = flow_stat.DrillDownOptions()
+                drilldown_index = drill_down_options.index(drill_down_option)
+                flow_stat.Drilldown(
+                    0,
+                    drill_down_option,
+                    flow_stat.TargetRowFilters()[drilldown_index],
+                )
+                flow_stat = self.assistant.StatViewAssistant(
+                    "Flow Statistics"
+                )
+        has_flow = False
+        while True:
+            flow_rows = flow_stat.Rows
+            has_event = False
+            ixn_cpdpconvergence = self._traffic.Statistics.CpdpConvergence
+            for row in flow_rows:
+                if row["Traffic Item"] in flow_names:
+                    has_flow = True
+                    if ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor and ixn_cpdpconvergence.EnableControlPlaneEvents: # noqa
+                        if row["Event Name"] != "":
+                            has_event = True
+                            break
+            if has_event is True:
+                break
+            if count * sleep_time > self._convergence_timeout:
+                if has_flow is not True:
+                    raise Exception(
+                        "flow_names must present within in config.flows"
+                    )
+                else:
+                    self.info("event is not reflected in stat")
+                    break
+            time.sleep(sleep_time)
+            count += 1
+        return flow_rows
 
     def add_error(self, error):
         """Add an error to the global errors"""

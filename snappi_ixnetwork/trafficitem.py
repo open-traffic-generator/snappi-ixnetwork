@@ -964,7 +964,7 @@ class TrafficItem(CustomField):
         elif header == "ethernetpause":
             # This is to support 9.20 globalpause header
             if "globalPause" in self._getProtocolTemplatelist():
-                return header + "UHD"
+                return header
         return header
 
     def _getProtocolTemplatelist(self):

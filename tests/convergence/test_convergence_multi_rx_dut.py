@@ -1,11 +1,12 @@
 import pytest
-from bgp_convergence_config_b2b import bgp_convergence_config
 
-PRIMARY_ROUTES_NAME = "rx_rr"
-PRIMARY_PORT_NAME = "rx"
+PRIMARY_ROUTES_NAME = "rx1_rr"
+PRIMARY_PORT_NAME = "rx1"
 
-
-def test_convergence(utils, api, bgp_convergence_config):
+@pytest.mark.skip(
+    reason="Run against DUT"
+)
+def test_convergence_multi_rx(utils, api):
     """
     1. set convergence config & start traffic
     Scenario 1:
@@ -15,7 +16,7 @@ def test_convergence(utils, api, bgp_convergence_config):
     1. Start traffic
     2. Shutdown primary port and see events are populated properly
     """
-    
+    bgp_convergence_config = convergence_config(utils, api)
     # convergence config
     bgp_convergence_config.events.cp_events.enable = True
     bgp_convergence_config.events.dp_events.enable = True
@@ -43,7 +44,7 @@ def test_convergence(utils, api, bgp_convergence_config):
 
     # Wait for traffic to reach configured line rate
     utils.wait_for(
-        lambda: utils.is_traffic_running(api), "traffic in started state"
+        lambda: is_traffic_running(api), "traffic in started state"
     )
     
     # Port Metrics
@@ -119,7 +120,7 @@ def test_convergence(utils, api, bgp_convergence_config):
 
     # Wait for traffic to reach configured line rate
     utils.wait_for(
-        lambda: utils.is_traffic_running(api), "traffic in started state"
+        lambda: is_traffic_running(api), "traffic in started state"
     )
 
     # Link down the primary port
@@ -165,6 +166,124 @@ def test_convergence(utils, api, bgp_convergence_config):
     # session to another session
     conv_config = api.config()
     api.set_config(conv_config)
+
+
+def convergence_config(utils, api):
+    """
+    1.Configure IPv4 EBGP sessions between Keysight ports(rx & tx)
+    2.Configure and advertise IPv4 routes from rx
+    """
+
+    conv_config = api.config()
+
+    tx, rx1, rx2, tx1 = conv_config.ports.port(
+        name="tx", location=utils.settings.ports[0]
+    ).port(name="rx1", location=utils.settings.ports[1]
+           ).port(name="rx2", location=utils.settings.ports[2]
+                  ).port(name="tx1", location=utils.settings.ports[3])
+
+    conv_config.options.port_options.location_preemption = True
+    ly = conv_config.layer1.layer1()[-1]
+    ly.name = "ly"
+    ly.port_names = [tx.name, rx1.name, rx2.name, tx1.name]
+    ly.ieee_media_defaults = False
+    ly.auto_negotiate = False
+    ly.auto_negotiation.rs_fec = True
+    ly.speed = utils.settings.speed
+    ly.media = utils.settings.media
+
+    tx_device, rx1_device, rx2_device = conv_config.devices.device(name="tx_device").device(
+        name="rx1_device").device(name="rx2_device")
+
+    # tx_device config
+    tx_eth = tx_device.ethernets.add()
+    tx_eth.connection.port_name = tx.name
+    tx_eth.name = "tx_eth"
+    tx_eth.mac = "00:11:01:00:00:01"
+    tx_ipv4 = tx_eth.ipv4_addresses.add()
+    tx_ipv4.name = "tx_ipv4"
+    tx_ipv4.address = "21.1.1.2"
+    tx_ipv4.prefix = 24
+    tx_ipv4.gateway = "21.1.1.1"
+
+    # rx1_device config
+    rx1_eth = rx1_device.ethernets.add()
+    rx1_eth.connection.port_name = rx1.name
+    rx1_eth.name = "rx1_eth"
+    rx1_eth.mac = "00:12:01:00:00:01"
+    rx1_ipv4 = rx1_eth.ipv4_addresses.add()
+    rx1_ipv4.name = "rx1_ipv4"
+    rx1_ipv4.address = "22.1.1.2"
+    rx1_ipv4.prefix = 24
+    rx1_ipv4.gateway = "22.1.1.1"
+    rx1_bgpv4 = rx1_device.bgp
+    rx1_bgpv4.router_id = "192.0.0.1"
+    rx1_bgpv4_int = rx1_bgpv4.ipv4_interfaces.add()
+    rx1_bgpv4_int.ipv4_name = rx1_ipv4.name
+    rx1_bgpv4_peer = rx1_bgpv4_int.peers.add()
+    rx1_bgpv4_peer.name = "rx1_bgpv4"
+    rx1_bgpv4_peer.as_type = "ebgp"
+    rx1_bgpv4_peer.peer_address = "22.1.1.1"
+    rx1_bgpv4_peer.as_number = 65201
+    rx1_rr = rx1_bgpv4_peer.v4_routes.add(name="rx1_rr")
+    rx1_rr.addresses.add(count=1000, address="201.1.0.1", prefix=32, step=1)
+
+    # rx2_device config
+    rx2_eth = rx2_device.ethernets.add()
+    rx2_eth.connection.port_name = rx2.name
+    rx2_eth.name = "rx2_eth"
+    rx2_eth.mac = "00:13:01:00:00:01"
+    rx2_ipv4 = rx2_eth.ipv4_addresses.add()
+    rx2_ipv4.name = "rx2_ipv4"
+    rx2_ipv4.address = "23.1.1.2"
+    rx2_ipv4.prefix = 24
+    rx2_ipv4.gateway = "23.1.1.1"
+    rx2_bgpv4 = rx2_device.bgp
+    rx2_bgpv4.router_id = "193.0.0.1"
+    rx2_bgpv4_int = rx2_bgpv4.ipv4_interfaces.add()
+    rx2_bgpv4_int.ipv4_name = rx2_ipv4.name
+    rx2_bgpv4_peer = rx2_bgpv4_int.peers.add()
+    rx2_bgpv4_peer.name = "rx2_bgpv4"
+    rx2_bgpv4_peer.as_type = "ebgp"
+    rx2_bgpv4_peer.peer_address = "23.1.1.1"
+    rx2_bgpv4_peer.as_number = 65202
+    rx2_rr = rx2_bgpv4_peer.v4_routes.add(name="rx2_rr")
+    rx2_rr.addresses.add(count=1000, address="201.1.0.1", prefix=32, step=1)
+
+
+    # flow config
+    flow = conv_config.flows.flow(name="convergence_test")[-1]
+    flow.tx_rx.device.tx_names = [tx_device.name]
+    flow.tx_rx.device.rx_names = [rx1_rr.name]
+
+    flow.size.fixed = 1024
+    flow.rate.percentage = 50
+    flow.metrics.enable = True
+
+    # flow config
+    flow2 = conv_config.flows.flow(name="background_flow")[-1]
+    flow2.tx_rx.device.tx_names = [tx_device.name]
+    flow2.tx_rx.device.rx_names = [rx2_rr.name]
+
+    flow2.size.fixed = 1024
+    flow2.rate.percentage = 50
+    flow2.metrics.enable = True
+
+    return conv_config
+
+
+def is_traffic_running(api):
+    """
+    Returns true if traffic in start state
+    """
+    flow_stats = get_flow_stats(api)
+    return all([int(fs.frames_rx_rate) > 0 for fs in flow_stats])
+
+
+def get_flow_stats(api):
+    request = api.metrics_request()
+    request.convergence.flow_names = []
+    return api.get_metrics(request).flow_metrics
 
 
 if __name__ == "__main__":
