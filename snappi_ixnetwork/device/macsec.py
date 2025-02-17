@@ -181,9 +181,8 @@ class Macsec(Base):
                 self._config_cipher(secy, ixn_staticmacsec)
             self._config_secy_engine_encryption_only(device, ethernet_interface, ixn_staticmacsec)
             self._config_tx(secy, ixn_staticmacsec)
+        if not secy.crypto_engine.choice == "stateless_encryption_only":
             self._config_rx(secy, ixn_staticmacsec)
-        else:
-            return
 
     def _config_cipher(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring cipher from static key")
@@ -203,7 +202,7 @@ class Macsec(Base):
         rx = secy.get("rx")
         if rx is None:
             return
-        #TODO: replay protection, replay window
+        #TODO: replay protection, replay window.
         self.logger.debug("replay_protection %s replay_window %s" % (rx.replay_protection, rx.replay_window))
         if not self.is_dynamic_key:
             self._config_rxsc(secy, ixn_staticmacsec)
@@ -219,6 +218,7 @@ class Macsec(Base):
             self.configure_multivalues(txsc.static_key, ixn_staticmacsec, Macsec._TXSC_STATIC_KEY)
             tx_sak_pool = txsc.static_key.sak_pool
             tx_sak_pool_name = tx_sak_pool.name
+            #TODO: add more than one static key
             tx_sak1 = tx_sak_pool.saks[0].sak
             ixn_tx_sak_pool = self.create_node_elemet(
                     ixn_staticmacsec, "txSakPool", tx_sak_pool_name
@@ -240,6 +240,7 @@ class Macsec(Base):
         self.configure_multivalues(rxsc, ixn_staticmacsec, Macsec._RXSC_STATIC_KEY)
         rx_sak_pool = rxsc.sak_pool
         rx_sak_pool_name = rx_sak_pool.name
+        #TODO: add more than one static key
         rx_sak1 = rx_sak_pool.saks[0].sak
         ixn_rx_sak_pool = self.create_node_elemet(
                 ixn_staticmacsec, "rxSakPool", rx_sak_pool_name

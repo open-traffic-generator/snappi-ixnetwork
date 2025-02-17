@@ -165,6 +165,7 @@ class Mka(Base):
             psk_chain = key_src.psk_chain
             psk_chain_name = psk_chain.name
             psks = psk_chain.psks
+            #TODO: add more than one PSK
             psk1 = psks[0]
             ixn_psk = self.create_node_elemet(
                 ixn_mka, "cakCache", psk_chain_name
