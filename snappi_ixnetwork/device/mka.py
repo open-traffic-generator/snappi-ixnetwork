@@ -72,19 +72,10 @@ class Mka(Base):
             basic = kay.get("basic")
             key_src = basic.key_source
             if key_src.choice == "psk":
-                psk_chain = key_src.psk_chain
-                psk_chain_name = psk_chain.name
-                psks = psk_chain.psks
+                psks = key_src.psks
                 if len(psks) == 0:
                     self._ngpf.api.add_error(
                         "No PSK added".format(
-                            name=ethernet_name
-                        )
-                    )
-                    is_valid = False
-                elif len(psks) > 1:
-                    self._ngpf.api.add_error(
-                        "More than one PSK added".format(
                             name=ethernet_name
                         )
                     )
@@ -162,26 +153,31 @@ class Mka(Base):
         self.logger.debug("Configuring key source settings")
         key_src = basic.key_source
         if key_src.choice == "psk":
-            psk_chain = key_src.psk_chain
-            psk_chain_name = psk_chain.name
-            psks = psk_chain.psks
-            #TODO: add more than one PSK
-            psk1 = psks[0]
+            psks = key_src.psks
+            ixn_mka["cakCount"] = len(psks)
+            cak_names = []
+            cak_values = []
+            cak_start_times = []
+            cak_lifetime_validities = []
+            for psk in psks:
+                cak_names.append(psk.cak_name)
+                cak_values.append(psk.cak_value)
+                cak_start_times.append(psk.start_time)
+                if psk.end_time == "00:00":
+                    cak_lifetime_validities.append(True)
+                else:
+                    cak_lifetime_validities.append(False)
             ixn_psk = self.create_node_elemet(
-                ixn_mka, "cakCache", psk_chain_name
+                ixn_mka, "cakCache", name=None
             )
             key_derivation_function = basic.key_derivation_function
-            ixn_psk["count"] = 1
-            ixn_psk["cakName"] = self.multivalue(psk1.cak_name)
+            ixn_psk["cakName"] = self.multivalue(cak_names)
             if key_derivation_function == "aes_cmac_128":
-                ixn_psk["cakValue128"] = self.multivalue(psk1.cak_value)
+                ixn_psk["cakValue128"] = self.multivalue(cak_values)
             elif key_derivation_function == "aes_cmac_256":
-                ixn_psk["cakValue256"] = self.multivalue(psk1.cak_value)
-            ixn_psk["keyStartTime"] = self.multivalue(psk1.start_time)
-            if psk1.end_time == "00:00":
-                ixn_psk["lifetimeValidity"] = self.multivalue(True)
-            else:
-                ixn_psk["lifetimeValidity"] = self.multivalue(False)
+                ixn_psk["cakValue256"] = self.multivalue(cak_values)
+            ixn_psk["keyStartTime"] = self.multivalue(cak_start_times)
+            ixn_psk["lifetimeValidity"] = self.multivalue(cak_lifetime_validities)
             #TODO: keyDuration, overlappingKeys
 
     def _config_rekey_mode(self, basic, ixn_mka):
