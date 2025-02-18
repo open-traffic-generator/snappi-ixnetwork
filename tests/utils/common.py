@@ -343,8 +343,8 @@ def print_stats(port_stats=None,
         print("")
 
     if flow_stats is not None:
-        row_format = "{:>20}" * 4
-        border = "-" * (20 * 4 + 5)
+        row_format = "{:>20}" * 9
+        border = "-" * (20 * 9 + 5)
         print("Flow Metrics")
         print(border)
         print(
@@ -352,6 +352,11 @@ def print_stats(port_stats=None,
                 "Flow",
                 "Rx Frames",
                 "Rx Bytes",
+                "Rx L1 Rate(bps)",
+                "Rx Rate (Bps)",
+                "Rx Rate (bps)",
+                "Rx Rate (Kbps)",
+                "Rx Rate (Mbps)",
                 "Transmit State",
             )
         )
@@ -361,6 +366,11 @@ def print_stats(port_stats=None,
                     stat.name,
                     stat.frames_rx,
                     stat.bytes_rx,
+                    stat.tx_l1_rate_bps,
+                    stat.rx_rate_bytes,
+                    stat.rx_rate_bps,
+                    stat.rx_rate_kbps,
+                    stat.rx_rate_mbps,
                     stat.transmit,
                 )
             )
