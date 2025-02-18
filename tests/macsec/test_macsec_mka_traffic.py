@@ -33,16 +33,25 @@ def test_stateless_encryption_with_mka(api, b2b_raw_config, utils):
 
     # Basic properties
     kay1.basic.key_derivation_function = kay2.basic.key_derivation_function = "aes_cmac_128"
-    # Key source
+
+    # Key source: PSK
     kay1_key_src, kay2_key_src = kay1.basic.key_source, kay2.basic.key_source
     kay1_key_src.choice = kay2_key_src.choice = "psk"
-    kay1_psk_chain, kay2_psk_chain = kay1_key_src.psk_chain, kay2_key_src.psk_chain
-    kay1_psk_chain.name, kay2_psk_chain.name = "PSK chain 1", "PSK chain 2"
-    kay1_psk1, kay2_psk1 = kay1_psk_chain.psks.add(), kay2_psk_chain.psks.add()
+    kay1_psk_chain, kay2_psk_chain = kay1_key_src.psks, kay2_key_src.psks
+
+    # PSK 1
+    kay1_psk1, kay2_psk1 = kay1_psk_chain.add(), kay2_psk_chain.add()
     kay1_psk1.cak_name = kay2_psk1.cak_name = "0xF123456789ABCDEF0123456789ABCDEFF123456789ABCDEF0123456789ABCD01"
     kay1_psk1.cak_value = kay2_psk1.cak_value = "0xF123456789ABCDEF0123456789ABCD01"
     kay1_psk1.start_time = kay2_psk1.start_time = "00:00"
     kay1_psk1.end_time = kay2_psk1.end_time = "00:00"
+
+    # PSK 2
+    kay1_psk2, kay2_psk2 = kay1_psk_chain.add(), kay2_psk_chain.add()
+    kay1_psk2.cak_name = kay2_psk2.cak_name = "0xF123456789ABCDEF0123456789ABCDEFF123456789ABCDEF0123456789ABCD02"
+    kay1_psk2.cak_value = kay2_psk2.cak_value = "0xF123456789ABCDEF0123456789ABCD02"
+    kay1_psk2.start_time = kay2_psk2.start_time = "00:00"
+    kay1_psk2.end_time = kay2_psk2.end_time = "00:00"
 
     # Rekey mode
     kay1_rekey_mode, kay2_rekey_mode = kay1.basic.rekey_mode, kay2.basic.rekey_mode
