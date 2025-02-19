@@ -80,14 +80,6 @@ class Macsec(Base):
                         )
                     )
                     is_valid = False
-                if not tx_rekey_mode is None:
-                    if not tx_rekey_mode.choice == "dont_rekey":
-                        self._ngpf.api.add_error(
-                            "Rekey not supported as of now when static key is in use".format(
-                                name=ethernet_name
-                            )
-                        )
-                        is_valid = False
             if crypto_engine is None:
                 self._ngpf.api.add_error(
                     "Replay protectin cannot be true when engine type is stateless_encryption_only".format(
@@ -96,6 +88,14 @@ class Macsec(Base):
                 )
                 is_valid = False
             elif crypto_engine.choice == "stateless_encryption_only":
+                if not tx_rekey_mode is None:
+                    if tx_rekey_mode.choice == "pn_based":
+                        self._ngpf.api.add_error(
+                            "PN based rekey not supported when engine type is stateless_encryption_only".format(
+                                name=ethernet_name
+                            )
+                        )
+                        is_valid = False
                 if not replay_protection is None:
                     if replay_protection == True:
                         self._ngpf.api.add_error(
@@ -195,7 +195,8 @@ class Macsec(Base):
         if tx is None:
             return
         self._config_txsc(secy, ixn_staticmacsec)
-        #TODO: rekey for static key
+        if not self.is_dynamic_key:
+            self._config_rekey_mode(tx.static_key.rekey_mode, ixn_staticmacsec)
 
     def _config_rx(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring Rx properties")
@@ -216,20 +217,22 @@ class Macsec(Base):
         self.configure_multivalues(txsc, ixn_staticmacsec, Macsec._TXSC)
         if not self.is_dynamic_key:
             self.configure_multivalues(txsc.static_key, ixn_staticmacsec, Macsec._TXSC_STATIC_KEY)
-            tx_sak_pool = txsc.static_key.sak_pool
-            tx_sak_pool_name = tx_sak_pool.name
-            #TODO: add more than one static key
-            tx_sak1 = tx_sak_pool.saks[0].sak
+            tx_saks = txsc.static_key.saks
+            ixn_staticmacsec["txSakPoolSize"] = len(tx_saks)
+            saks = []
+            for tx_sak in tx_saks:
+                saks.append(tx_sak.sak)
             ixn_tx_sak_pool = self.create_node_elemet(
-                    ixn_staticmacsec, "txSakPool", tx_sak_pool_name
+                    ixn_staticmacsec, "txSakPool", name=None
                 )
             static_key = secy.get("static_key")
             cipher_suite = static_key.cipher_suite
             if cipher_suite == "gcm_aes_128" or cipher_suite == "gcm_aes_xpn_128":
-                ixn_tx_sak_pool["txSak128"] = self.multivalue(tx_sak1)
+                #ixn_tx_sak_pool["txSak128"] = self.multivalue(tx_sak1)
+                ixn_tx_sak_pool["txSak128"] = self.multivalue(saks)
             elif cipher_suite == "gcm_aes_256" or cipher_suite == "gcm_aes_xpn_256":
-                ixn_tx_sak_pool["txSak256"] = self.multivalue(tx_sak1)
-            self.logger.debug("IxN Tx SAK pool %s Tx SAK 1: %s" % (ixn_tx_sak_pool["name"], tx_sak1))
+                #ixn_tx_sak_pool["txSak256"] = self.multivalue(tx_sak1)
+                ixn_tx_sak_pool["txSak256"] = self.multivalue(saks)
 
     def _config_rxsc(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring RxSC")
@@ -238,20 +241,41 @@ class Macsec(Base):
         rxscs = rx_sk.get("scs")
         rxsc = rxscs[0]
         self.configure_multivalues(rxsc, ixn_staticmacsec, Macsec._RXSC_STATIC_KEY)
-        rx_sak_pool = rxsc.sak_pool
-        rx_sak_pool_name = rx_sak_pool.name
-        #TODO: add more than one static key
-        rx_sak1 = rx_sak_pool.saks[0].sak
+        rx_saks = rxsc.saks
+        ixn_staticmacsec["rxSakPoolSize"] = len(rx_saks)
+        saks = []
+        for rx_sak in rx_saks:
+            saks.append(rx_sak.sak)
         ixn_rx_sak_pool = self.create_node_elemet(
-                ixn_staticmacsec, "rxSakPool", rx_sak_pool_name
+                ixn_staticmacsec, "rxSakPool", name=None
             )
         static_key = secy.get("static_key")
         cipher_suite = static_key.cipher_suite
         if cipher_suite == "gcm_aes_128" or cipher_suite == "gcm_aes_xpn_128":
-            ixn_rx_sak_pool["rxSak128"] = self.multivalue(rx_sak1)
+            #ixn_rx_sak_pool["rxSak128"] = self.multivalue(rx_sak1)
+            ixn_rx_sak_pool["rxSak128"] = self.multivalue(saks)
         elif cipher_suite == "gcm_aes_256" or cipher_suite == "gcm_aes_xpn_256":
-            ixn_rx_sak_pool["rxSak256"] = self.multivalue(rx_sak1)
-        self.logger.debug("IxN Rx SAK pool %s Rx SAK 1: %s" % (ixn_rx_sak_pool["name"], rx_sak1))
+            #ixn_rx_sak_pool["rxSak256"] = self.multivalue(rx_sak1)
+            ixn_rx_sak_pool["rxSak256"] = self.multivalue(saks)
+
+    def _config_rekey_mode(self, rekey_mode, ixn_staticmacsec):
+        self.logger.debug("Configuring rekey settings")
+        if rekey_mode.choice == "dont_rekey":
+            #ixn_staticmacsec["rekeyMode"] = "timerBased"
+            ixn_staticmacsec["rekeyBehaviour"] = "dontRekey"
+        elif rekey_mode.choice == "timer_based":
+            timer_based = rekey_mode.timer_based
+            #ixn_staticmacsec["rekeyMode"] = "timerBased"
+            if timer_based.choice == "fixed_count":
+                ixn_staticmacsec["rekeyBehaviour"] = "rekeyFixedCount"
+                ixn_staticmacsec["periodicRekeyAttempts"] = timer_based.fixed_count
+                ixn_staticmacsec["periodicRekeyInterval"] = timer_based.interval
+            elif timer_based.choice == "continuous":
+                ixn_staticmacsec["rekeyBehaviour"] = "rekeyContinuous"
+                ixn_staticmacsec["periodicRekeyInterval"] = timer_based.interval
+        #elif rekey_mode.choice == "pn_based":
+        #    ixn_staticmacsec["rekeyMode"] = "pnBased"
+        #    ixn_staticmacsec["rekeyBehaviour"] = "rekeyContinuous"
 
     def _config_secy_engine_encryption_only(self, device, ethernet_interface, ixn_staticmacsec):
         secy = ethernet_interface.get("secy")

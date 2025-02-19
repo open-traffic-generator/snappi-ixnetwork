@@ -46,26 +46,24 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     secy1_txsc1.end_station = secy2_txsc1.end_station = True
 
     # Tx key
-    secy1_txsc1.static_key.sak_pool.name, secy2_txsc1.static_key.sak_pool.name = "macsec1_tx_sakpool", "macsec2_tx_sakpool"
-    secy1_tx_sak1, secy2_tx_sak1 = secy1_txsc1.static_key.sak_pool.saks.add(), secy2_txsc1.static_key.sak_pool.saks.add()
+    secy1_tx_sak1, secy2_tx_sak1 = secy1_txsc1.static_key.saks.add(), secy2_txsc1.static_key.saks.add()
     #secy1_tx_sak1.sak = secy2_tx_sak1.sak = "0xF123456789ABCDEF0123456789ABCDEF"
     secy1_tx_sak1.sak = secy2_tx_sak1.sak = "f123456789abcdef0123456789abcdef"
 
     # Remaining Tx SC settings autofilled
 
-    # Rx
-    secy1_rx, secy2_rx = secy1.rx, secy2.rx
-    secy1_rxsc1, secy2_rxsc1 = secy1.rx.static_key.scs.add(), secy2.rx.static_key.scs.add()
+    # Rx: Not required for stateless enryption only traffic
+    #secy1_rx, secy2_rx = secy1.rx, secy2.rx
+    #secy1_rxsc1, secy2_rxsc1 = secy1.rx.static_key.scs.add(), secy2.rx.static_key.scs.add()
 
     # Rx SC
-    secy1_rxsc1.dut_system_id =  eth2.mac
-    secy2_rxsc1.dut_system_id =  eth1.mac
+    #secy1_rxsc1.dut_system_id =  eth2.mac
+    #secy2_rxsc1.dut_system_id =  eth1.mac
 
     # Rx key
-    secy1_rxsc1.sak_pool.name, secy2_rxsc1.sak_pool.name = "macsec1_rx_sakpool", "macsec2_rx_sakpool"
-    secy1_rx_sak1, secy2_rx_sak1 = secy1_rxsc1.sak_pool.saks.add(), secy2_rxsc1.sak_pool.saks.add()
+    #secy1_rx_sak1, secy2_rx_sak1 = secy1_rxsc1.saks.add(), secy2_rxsc1.saks.add()
     #secy1_rx_sak1.sak = secy2_rx_sak1.sak = "0xF123456789ABCDEF0123456789ABCDEF"
-    secy1_rx_sak1.sak = secy2_rx_sak1.sak = "f123456789abcdef0123456789abcdef"
+    #secy1_rx_sak1.sak = secy2_rx_sak1.sak = "f123456789abcdef0123456789abcdef"
 
     # Remaining Rx SC settings autofilled
 
