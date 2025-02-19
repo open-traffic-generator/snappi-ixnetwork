@@ -147,7 +147,20 @@ class Mka(Base):
         ixn_mka["keyType"] =  basic.key_source.choice
         self._config_key_source(basic, ixn_mka)
         self._config_rekey_mode(basic, ixn_mka)
-        #TODO:supported_cipher_suites
+        self._config_supported_cipher_suites(basic, ixn_mka)
+
+    def _config_supported_cipher_suites(self, basic, ixn_mka):
+        self.logger.debug("Configuring basic properties: supported cipher suites")
+        supported_cipher_suites = "selectciphers"
+        if basic.supported_cipher_suites.gcm_aes_128:
+            supported_cipher_suites += " gcm_aes_128"
+        if basic.supported_cipher_suites.gcm_aes_256:
+            supported_cipher_suites += " gcm_aes_256"
+        if basic.supported_cipher_suites.gcm_aes_xpn_128:
+            supported_cipher_suites += " gcm_aes_xpn_128"
+        if basic.supported_cipher_suites.gcm_aes_xpn_256:
+            supported_cipher_suites += " gcm_aes_xpn_256"
+        ixn_mka["supportedCipherSuites"] = supported_cipher_suites
 
     def _config_key_source(self, basic, ixn_mka):
         self.logger.debug("Configuring key source settings")
@@ -159,14 +172,36 @@ class Mka(Base):
             cak_values = []
             cak_start_times = []
             cak_lifetime_validities = []
+            cak_durations = []
+            overlapping_keys = False
+            prev_end_time_mm = 0
             for psk in psks:
                 cak_names.append(psk.cak_name)
                 cak_values.append(psk.cak_value)
                 cak_start_times.append(psk.start_time)
-                if psk.end_time == "00:00":
+                start_time_hh = int(psk.start_time.split(":")[0])
+                start_time_mm = int(psk.start_time.split(":")[1])
+                start_time_mm = start_time_hh*60 + start_time_mm
+                end_time_hh = int(psk.end_time.split(":")[0])
+                end_time_mm = int(psk.end_time.split(":")[1])
+                end_time_mm = end_time_hh*60 + end_time_mm
+                if not overlapping_keys:
+                    if start_time_mm < prev_end_time_mm: 
+                        overlapping_keys = True
+                    else:
+                        prev_end_time_mm = end_time_mm
+                duration_mm = 0
+                if end_time_mm == 0:
                     cak_lifetime_validities.append(True)
                 else:
                     cak_lifetime_validities.append(False)
+                    if end_time_mm > start_time_mm:
+                        duration_mm = end_time_mm - start_time_mm
+                duration_hh = int(duration_mm / 60)
+                duration_mm = duration_mm % 60
+                cak_duration = str(duration_hh) + ":" + str(duration_mm)
+                cak_durations.append(cak_duration)
+
             ixn_psk = self.create_node_elemet(
                 ixn_mka, "cakCache", name=None
             )
@@ -178,7 +213,8 @@ class Mka(Base):
                 ixn_psk["cakValue256"] = self.multivalue(cak_values)
             ixn_psk["keyStartTime"] = self.multivalue(cak_start_times)
             ixn_psk["lifetimeValidity"] = self.multivalue(cak_lifetime_validities)
-            #TODO: keyDuration, overlappingKeys
+            ixn_psk["overlappingKeys"] = overlapping_keys
+            ixn_psk["keyDuration"] = self.multivalue(cak_durations)
 
     def _config_rekey_mode(self, basic, ixn_mka):
         self.logger.debug("Configuring rekey settings")

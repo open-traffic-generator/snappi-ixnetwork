@@ -37,14 +37,14 @@ def test_mka_stats(api, b2b_raw_config, utils):
     kay1_psk1.cak_name = kay2_psk1.cak_name = "0xF123456789ABCDEF0123456789ABCDEFF123456789ABCDEF0123456789ABCD01"
     kay1_psk1.cak_value = kay2_psk1.cak_value = "0xF123456789ABCDEF0123456789ABCD01"
     kay1_psk1.start_time = kay2_psk1.start_time = "00:00"
-    kay1_psk1.end_time = kay2_psk1.end_time = "00:00"
+    kay1_psk1.end_time = kay2_psk1.end_time = "00:10"
 
     # PSK 2
     kay1_psk2, kay2_psk2 = kay1_psk_chain.add(), kay2_psk_chain.add()
     kay1_psk2.cak_name = kay2_psk2.cak_name = "0xF123456789ABCDEF0123456789ABCDEFF123456789ABCDEF0123456789ABCD02"
     kay1_psk2.cak_value = kay2_psk2.cak_value = "0xF123456789ABCDEF0123456789ABCD02"
-    kay1_psk2.start_time = kay2_psk2.start_time = "00:00"
-    kay1_psk2.end_time = kay2_psk2.end_time = "00:00"
+    kay1_psk2.start_time = kay2_psk2.start_time = "00:09"
+    kay1_psk2.end_time = kay2_psk2.end_time = "00:30"
 
     # Rekey mode
     kay1_rekey_mode, kay2_rekey_mode = kay1.basic.rekey_mode, kay2.basic.rekey_mode
