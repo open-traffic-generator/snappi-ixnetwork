@@ -36,7 +36,7 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
 
     # static key
     secy1_sk, secy2_sk = secy1.static_key, secy2.static_key
-    secy1_sk.cipher_suite = secy2_sk.cipher_suite = "gcm_aes_128"
+    secy1_sk.cipher_suite = secy2_sk.cipher_suite = "gcm_aes_xpn_128"
 
     # Tx
     secy1_tx, secy2_tx = secy1.tx, secy2.tx
@@ -49,6 +49,8 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     secy1_tx_sak1, secy2_tx_sak1 = secy1_txsc1.static_key.saks.add(), secy2_txsc1.static_key.saks.add()
     #secy1_tx_sak1.sak = secy2_tx_sak1.sak = "0xF123456789ABCDEF0123456789ABCDEF"
     secy1_tx_sak1.sak = secy2_tx_sak1.sak = "f123456789abcdef0123456789abcdef"
+    secy1_tx_sak1.ssci = secy2_tx_sak1.ssci = "0000000a"
+    secy1_tx_sak1.salt = secy2_tx_sak1.salt = "00000000000000000000000b"
 
     # Remaining Tx SC settings autofilled
 

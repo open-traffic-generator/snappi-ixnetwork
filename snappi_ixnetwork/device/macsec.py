@@ -220,19 +220,24 @@ class Macsec(Base):
             tx_saks = txsc.static_key.saks
             ixn_staticmacsec["txSakPoolSize"] = len(tx_saks)
             saks = []
+            sscis = []
+            salts = []
             for tx_sak in tx_saks:
                 saks.append(tx_sak.sak)
+                sscis.append(tx_sak.ssci)
+                salts.append(tx_sak.salt)
             ixn_tx_sak_pool = self.create_node_elemet(
                     ixn_staticmacsec, "txSakPool", name=None
                 )
             static_key = secy.get("static_key")
             cipher_suite = static_key.cipher_suite
             if cipher_suite == "gcm_aes_128" or cipher_suite == "gcm_aes_xpn_128":
-                #ixn_tx_sak_pool["txSak128"] = self.multivalue(tx_sak1)
                 ixn_tx_sak_pool["txSak128"] = self.multivalue(saks)
             elif cipher_suite == "gcm_aes_256" or cipher_suite == "gcm_aes_xpn_256":
-                #ixn_tx_sak_pool["txSak256"] = self.multivalue(tx_sak1)
                 ixn_tx_sak_pool["txSak256"] = self.multivalue(saks)
+            if cipher_suite == "gcm_aes_xpn_128" or cipher_suite == "gcm_aes_xpn_256":
+                ixn_tx_sak_pool["txSsci"] = self.multivalue(sscis)
+                ixn_tx_sak_pool["txSalt"] = self.multivalue(salts)
 
     def _config_rxsc(self, secy, ixn_staticmacsec):
         self.logger.debug("Configuring RxSC")
@@ -244,19 +249,24 @@ class Macsec(Base):
         rx_saks = rxsc.saks
         ixn_staticmacsec["rxSakPoolSize"] = len(rx_saks)
         saks = []
+        sscis = []
+        salts = []
         for rx_sak in rx_saks:
             saks.append(rx_sak.sak)
+            sscis.append(rx_sak.ssci)
+            salts.append(rx_sak.salt)
         ixn_rx_sak_pool = self.create_node_elemet(
                 ixn_staticmacsec, "rxSakPool", name=None
             )
         static_key = secy.get("static_key")
         cipher_suite = static_key.cipher_suite
         if cipher_suite == "gcm_aes_128" or cipher_suite == "gcm_aes_xpn_128":
-            #ixn_rx_sak_pool["rxSak128"] = self.multivalue(rx_sak1)
             ixn_rx_sak_pool["rxSak128"] = self.multivalue(saks)
         elif cipher_suite == "gcm_aes_256" or cipher_suite == "gcm_aes_xpn_256":
-            #ixn_rx_sak_pool["rxSak256"] = self.multivalue(rx_sak1)
             ixn_rx_sak_pool["rxSak256"] = self.multivalue(saks)
+        if cipher_suite == "gcm_aes_xpn_128" or cipher_suite == "gcm_aes_xpn_256":
+            ixn_rx_sak_pool["rxSsci"] = self.multivalue(sscis)
+            ixn_rx_sak_pool["rxSalt"] = self.multivalue(salts)
 
     def _config_rekey_mode(self, rekey_mode, ixn_staticmacsec):
         self.logger.debug("Configuring rekey settings")
