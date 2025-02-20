@@ -86,14 +86,12 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     ip2.gateway_mac.value = eth1.mac
 
     utils.start_traffic(api, b2b_raw_config)
-    print("Sleeping for 30 secoonds: start")
-    time.sleep(30)
-    print("Sleeping for 30 secoonds: end")
 
     utils.wait_for(
         lambda: results_ok(api), "stats to be as expected", timeout_seconds=30
     )
     enums = [
+        "session_state",
         "out_pkts_protected",
         "out_pkts_encrypted",
         "in_pkts_ok",
@@ -113,8 +111,8 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
         "in_octets_decrypted",
     ]
     expected_results = {
-        "enc_only_macsec1": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "enc_only_macsec2": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "enc_only_macsec1": ["up", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "enc_only_macsec2": ["up", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     }
     req = api.metrics_request()
     req.macsec.secy_names = ["enc_only_macsec1"]
@@ -147,23 +145,23 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
                 assert getattr(macsec_res, enum) >= val
             print(f"{enum} : {getattr(macsec_res, enum)}")
 
-    # req = api.metrics_request()
-    # req.macsec.column_names = ["session_state"]
-    # results = api.get_metrics(req)
-    # assert len(results.macsec_metrics) == 2
-    # assert results.macsec_metrics[0].session_state == "up"
-    # assert results.macsec_metrics[1].session_state == "up"
+    req = api.metrics_request()
+    req.macsec.column_names = ["session_state"]
+    results = api.get_metrics(req)
+    assert len(results.macsec_metrics) == 2
+    assert results.macsec_metrics[0].session_state == "up"
+    assert results.macsec_metrics[1].session_state == "up"
 
     utils.stop_traffic(api, b2b_raw_config)
 
 
 def results_ok(api):
-    # req = api.metrics_request()
-    # req.macsec.column_names = ["session_state"]
-    # results = api.get_metrics(req)
+    req = api.metrics_request()
+    req.macsec.column_names = ["session_state"]
+    results = api.get_metrics(req)
     ok = []
-    # for r in results.macsec_metrics:
-    #    ok.append(r.session_state == "up")
+    for r in results.macsec_metrics:
+        ok.append(r.session_state == "up")
     return all(ok)
 
 

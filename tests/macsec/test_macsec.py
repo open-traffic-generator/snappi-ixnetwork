@@ -99,9 +99,6 @@ def test_stateless_encryption_static_key(api, b2b_raw_config, utils):
     ip2.gateway_mac.value = eth1.mac
 
     utils.start_traffic(api, b2b_raw_config)
-    print("Sleeping for 30 secoonds: start")
-    time.sleep(30)
-    print("Sleeping for 30 secoonds: end")
     utils.wait_for(
         lambda: results_ok(api), "stats to be as expected", timeout_seconds=10
     )
@@ -110,12 +107,12 @@ def test_stateless_encryption_static_key(api, b2b_raw_config, utils):
 
 
 def results_ok(api):
-    #req = api.metrics_request()
-    #req.macsec.column_names = ["session_state"]
-    #results = api.get_metrics(req)
+    req = api.metrics_request()
+    req.macsec.column_names = ["session_state"]
+    results = api.get_metrics(req)
     ok = []
-    #for r in results.macsec_metrics:
-    #    ok.append(r.session_state == "up")
+    for r in results.macsec_metrics:
+        ok.append(r.session_state == "up")
     return all(ok)
 
 

@@ -54,6 +54,8 @@ class ProtocolMetrics(object):
         ],
         "macsec": [
             ("name", "Device Group", str),
+            ("session_state", "Status", str),
+            ("session_flap_count", "Session Flap Count", int),
             ("out_pkts_protected", "Protected Packet Tx", int),
             ("out_pkts_encrypted", "Encrypted Packet Tx", int),
             ("in_pkts_ok", "Valid Packet Rx", int),
