@@ -53,21 +53,20 @@ def test_mka(api, b2b_raw_config, utils):
     # Remaining Tx SC settings autofilled
 
     utils.start_traffic(api, b2b_raw_config)
-    print("Sleeping for 30 secoonds: start")
-    time.sleep(30)
-    print("Sleeping for 30 secoonds: end")
+    utils.wait_for(
+        lambda: results_ok(api), "stats to be as expected", timeout_seconds=10
+    )
     utils.stop_traffic(api, b2b_raw_config)
 
 
 def results_ok(api):
-    #req = api.metrics_request()
-    #req.mka.column_names = ["session_state"]
-    #results = api.get_metrics(req)
+    req = api.metrics_request()
+    req.mka.column_names = ["session_state"]
+    results = api.get_metrics(req)
     ok = []
-    #for r in results.mka_metrics:
-    #    ok.append(r.session_state == "up")
+    for r in results.mka_metrics:
+        ok.append(r.session_state == "up")
     return all(ok)
-
 
 if __name__ == "__main__":
     pytest.main(["-vv", "-s", __file__])

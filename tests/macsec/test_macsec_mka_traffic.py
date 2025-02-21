@@ -175,7 +175,7 @@ def test_stateless_encryption_with_mka(api, b2b_raw_config, utils):
         "out_pkts_protected",
         "out_pkts_encrypted",
         "in_pkts_ok",
-        "in_pkts_bad",
+        "bad_pkts_rx",
         "in_pkts_bad_tag",
         "in_pkts_late",
         "in_pkts_no_sci",

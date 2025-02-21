@@ -33,6 +33,8 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
 
     # Crypto engine
     secy1.crypto_engine.choice = secy2.crypto_engine.choice = "stateless_encryption_only"
+    secy1.crypto_engine.stateless_encryption_only.tx_pn.choice = "fixed_pn"
+    secy1.crypto_engine.stateless_encryption_only.tx_pn.fixed.xpn = "0x0000000000000006"
 
     # static key
     secy1_sk, secy2_sk = secy1.static_key, secy2.static_key
@@ -97,7 +99,7 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
         "out_pkts_protected",
         "out_pkts_encrypted",
         "in_pkts_ok",
-        "in_pkts_bad",
+        "bad_pkts_rx",
         "in_pkts_bad_tag",
         "in_pkts_late",
         "in_pkts_no_sci",
