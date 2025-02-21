@@ -11,7 +11,7 @@ from email.mime.text import MIMEText
 
 global ixnexception
 
-SNAPPI_BRANCH="dev-flow-stats"
+SNAPPI_BRANCH=None
 
 def get_snappi_dev_branch():
     if SNAPPI_BRANCH is not None and SNAPPI_BRANCH != "":
