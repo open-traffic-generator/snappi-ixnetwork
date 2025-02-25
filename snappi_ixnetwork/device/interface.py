@@ -61,6 +61,9 @@ class Ethernet(Base):
         ipv4_addresses = ethernet.get("ipv4_addresses")
         if ipv4_addresses is None:
             return
+        if self._ngpf.is_ip_allowed == False:
+            self.logger.debug("Skip IPv4 configuration")
+            return
 
         eth_name = ethernet.name
         if eth_name not in self._ngpf.ether_v4gateway_map:
@@ -84,6 +87,9 @@ class Ethernet(Base):
         self.logger.debug("Configuring IPv6 interface")
         ipv6_addresses = ethernet.get("ipv6_addresses")
         if ipv6_addresses is None:
+            return
+        if self._ngpf.is_ip_allowed == False:
+            self.logger.debug("Skip IPv6 configuration")
             return
 
         eth_name = ethernet.name
