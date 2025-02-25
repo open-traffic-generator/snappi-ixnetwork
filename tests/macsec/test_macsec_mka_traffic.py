@@ -44,25 +44,29 @@ def test_stateless_encryption_with_mka(api, b2b_raw_config, utils):
     kay1_psk1.cak_name = kay2_psk1.cak_name = "0xF123456789ABCDEF0123456789ABCDEFF123456789ABCDEF0123456789ABCD01"
     kay1_psk1.cak_value = kay2_psk1.cak_value = "0xF123456789ABCDEF0123456789ABCD01"
     kay1_psk1.start_time = kay2_psk1.start_time = "00:00"
-    kay1_psk1.end_time = kay2_psk1.end_time = "00:00"
+    kay1_psk1.end_time = kay2_psk1.end_time = "22:00"
 
     # PSK 2
     kay1_psk2, kay2_psk2 = kay1_psk_chain.add(), kay2_psk_chain.add()
     kay1_psk2.cak_name = kay2_psk2.cak_name = "0xF123456789ABCDEF0123456789ABCDEFF123456789ABCDEF0123456789ABCD02"
     kay1_psk2.cak_value = kay2_psk2.cak_value = "0xF123456789ABCDEF0123456789ABCD02"
-    kay1_psk2.start_time = kay2_psk2.start_time = "00:00"
+    kay1_psk2.start_time = kay2_psk2.start_time = "22:00"
     kay1_psk2.end_time = kay2_psk2.end_time = "00:00"
 
     # Rekey mode
     kay1_rekey_mode, kay2_rekey_mode = kay1.basic.rekey_mode, kay2.basic.rekey_mode
-    kay1_rekey_mode.choice = kay2_rekey_mode.choice = "dont_rekey"
-    #kay1_rekey_mode.choice = kay2_rekey_mode.choice = "timer_based"
+    #kay1_rekey_mode.choice = kay2_rekey_mode.choice = "dont_rekey"
+    kay1_rekey_mode.choice = kay2_rekey_mode.choice = "timer_based"
     kay1_rekey_timer_based, kay2_rekey_timer_based = kay1_rekey_mode.timer_based, kay2_rekey_mode.timer_based
     kay1_rekey_timer_based.choice = kay2_rekey_timer_based.choice = "fixed_count"
     kay1_rekey_timer_based.fixed_count = kay2_rekey_timer_based.fixed_count = 20
     kay1_rekey_timer_based.interval = kay2_rekey_timer_based.interval = 200
 
     # Remaining basic properties autofilled
+
+    # Key server
+    kay1_key_server, kay2_key_server = kay1.key_server, kay2.key_server
+    kay1_key_server.cipher_suite = kay2_key_server.cipher_suite = "gcm_aes_128"
 
     # Tx SC
     kay1_txsc1, kay2_txsc1 = kay1.txscs.add(), kay2.txscs.add() 
@@ -82,6 +86,8 @@ def test_stateless_encryption_with_mka(api, b2b_raw_config, utils):
     # crypto_engine
     secy1.crypto_engine.choice = secy2.crypto_engine.choice = "stateless_encryption_only" 
     secy1.crypto_engine.stateless_encryption_only.tx_pn.choice = "incrementing_pn"
+    secy1.crypto_engine.stateless_encryption_only.tx_pn.incrementing.count = 100000
+    secy1.crypto_engine.stateless_encryption_only.tx_pn.incrementing.first_pn = 1
 
     ####################
     # Traffic
@@ -137,7 +143,7 @@ def test_stateless_encryption_with_mka(api, b2b_raw_config, utils):
     results = api.get_metrics(req)
     assert len(results.mka_metrics) == 1
     assert results.mka_metrics[0].name == "enc_only_macsec1"
-    print(f"MKA Result : enc_only_macsec1")
+    print(f"\n\nMKA Result : enc_only_macsec1\n")
     for mka_res in results.mka_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[mka_res.name][i]
@@ -152,7 +158,7 @@ def test_stateless_encryption_with_mka(api, b2b_raw_config, utils):
     results = api.get_metrics(req)
     assert len(results.mka_metrics) == 1
     assert results.mka_metrics[0].name == "enc_only_macsec2"
-    print(f"MKA Result : enc_only_macsec2")
+    print(f"\n\nMKA Result : enc_only_macsec2")
     for mka_res in results.mka_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[mka_res.name][i]
@@ -199,7 +205,7 @@ def test_stateless_encryption_with_mka(api, b2b_raw_config, utils):
     results = api.get_metrics(req)
     assert len(results.macsec_metrics) == 1
     assert results.macsec_metrics[0].name == "enc_only_macsec1"
-    print(f"MACsec Result : enc_only_macsec1")
+    print(f"\n\nMACsec Result : enc_only_macsec1")
     for macsec_res in results.macsec_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[macsec_res.name][i]
@@ -215,7 +221,7 @@ def test_stateless_encryption_with_mka(api, b2b_raw_config, utils):
 
     assert len(results.macsec_metrics) == 1
     assert results.macsec_metrics[0].name == "enc_only_macsec2"
-    print(f"MACsec Result : enc_only_macsec2")
+    print(f"\n\nMACsec Result : enc_only_macsec2")
     for macsec_res in results.macsec_metrics:
         for i, enum in enumerate(enums):
             val = expected_results[macsec_res.name][i]
