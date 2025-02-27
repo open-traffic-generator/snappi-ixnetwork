@@ -338,7 +338,7 @@ class Api(snappi.Api):
         if len(self._config._properties) == 0:
             self._ixnetwork.NewConfig()
         else:
-            self.vport.config(self.ixnetworkconfig.chassis_chains)
+            self.vport.config()
             self.lag.config()
             with Timer(self, "Devices configuration"):
                 self.ngpf.config()
