@@ -20,6 +20,7 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.trafficitem import TrafficItem
 from snappi_ixnetwork.validation import Validation
 from snappi_ixnetwork.vport import Vport
+from snappi_ixnetwork.ixnetworkconfig import IxNetworkConfig
 
 
 class Api(snappi.Api):
@@ -109,6 +110,7 @@ class Api(snappi.Api):
         self._flow_tracking = False
         self._convergence_timeout = 3
         self._event_info = None
+        self.ixnetworkconfig = IxNetworkConfig(self)
 
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
@@ -336,7 +338,7 @@ class Api(snappi.Api):
         if len(self._config._properties) == 0:
             self._ixnetwork.NewConfig()
         else:
-            self.vport.config()
+            self.vport.config(self.ixnetworkconfig.chassis_chains)
             self.lag.config()
             with Timer(self, "Devices configuration"):
                 self.ngpf.config()

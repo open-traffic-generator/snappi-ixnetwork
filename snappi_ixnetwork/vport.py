@@ -132,7 +132,7 @@ class Vport(object):
         self._timeout = 10
         self.logger = get_ixnet_logger(__name__)
 
-    def config(self):
+    def config(self, chassis_chains = None):
         """Transform config.ports into Ixnetwork.Vport
         1) delete any vport that is not part of the config
         2) create a vport for every config.ports[] not present in IxNetwork
@@ -159,7 +159,7 @@ class Vport(object):
         with Timer(self._api, "Captures configuration"):
             self._api.capture.config()
         with Timer(self._api, "Location configuration"):
-            self._set_location()
+            self._set_location(chassis_chains)
         with Timer(self._api, "Layer1 configuration"):
             self._set_layer1()
 
@@ -285,7 +285,28 @@ class Vport(object):
                         )
                     time.sleep(2)
 
-    def _set_location(self):
+    def _add_chassischain(self, chassis_chains=None):
+        chassis = self._api._ixnetwork.AvailableHardware.Chassis
+
+        self.logger.debug("Configuring Chassis Chain")
+        if chassis_chains:
+            for chassis_chain in chassis_chains:
+                chassis.find(Hostname="^%s$" % chassis_chain.primary)
+                if len(chassis) == 0:
+                    self.logger.error("Primary chassis [%s] not found" % chassis_chain.primary)
+                    return
+                chassis[0].ChainTopology = chassis_chain.topology
+                for secondary in chassis_chain.secondary:
+                    chassis.find(Hostname="^%s$" % secondary.location)
+                    if len(chassis) == 0:
+                        self.logger.error("Secondary chassis [%s] not found" % secondary.location)
+                        return
+                    chassis[0].ChainTopology = chassis_chain.topology
+                    chassis[0].PrimaryChassis = chassis_chain.primary
+                    chassis[0].SequenceId = secondary.sequence_id
+                    chassis[0].CableLength = secondary.cable_length
+
+    def _set_location(self, chassis_chains=None):
         location_supported = True
         try:
             self._api._ixnetwork._connection._options(
@@ -295,6 +316,7 @@ class Vport(object):
             location_supported = False
 
         self._add_hosts(60)
+        self._add_chassischain(chassis_chains)
         with Timer(self._api, "Aggregation mode speed change"):
             layer1_check = self._api.resource_group.set_group()
             self._layer1_check.extend(layer1_check)
