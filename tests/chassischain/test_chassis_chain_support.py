@@ -1,11 +1,14 @@
 import pytest
 
+# @pytest.mark.skip("chassis chain is not supported in ci")
+def test_counter_ip_dscp(api, b2b_raw_config, utils):
+    """
+    Configure a Chassis Chain setup
 
-@pytest.mark.skip("chassis chain is not supported in ci")
-def test_chassis_chain_support(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
-
-
-    # Chassischain configuration
+    Validate,
+    - Fetch the chassis chain config set via restpy and validate
+      against expected
+    """
     ixnconfig = api.ixnet_specific_config
     chassis_chain1 = ixnconfig.chassis_chains.add()
     chassis_chain1.primary = "10.36.78.236"
@@ -30,89 +33,51 @@ def test_chassis_chain_support(api, b2b_raw_config_vports, utils, tx_vport, rx_v
     # secondary4.sequence_id = "5"
     # secondary4.cable_length = "3"
 
-    # fixed
-    flow1 = b2b_raw_config_vports.flows[0]
-    src = "00:0C:29:E3:53:EA"
-    dst = "00:0C:29:E3:53:F4"
-
-    src_ip = "10.1.1.1"
-    dst_ip = "20.1.1.1"
-    flow1.packet.ethernet().ipv4()
-    eth = flow1.packet[0]
-    ipv4 = flow1.packet[1]
-    eth.src.value = src
-    eth.dst.value = dst
-    ipv4.src.value = src_ip
-    ipv4.dst.value = dst_ip
-
-    # list
-    flow2 = b2b_raw_config_vports.flows.flow(name="f2")[-1]
-    flow2.tx_rx.port.tx_name = tx_vport.name
-    flow2.tx_rx.port.rx_name = rx_vport.name
-    step = "05:00:00:02:01:00"
-    src_lst = utils.mac_or_ip_addr_from_counter_pattern(
-        "00:0C:29:E3:53:EA", step, 5, True
+    f = b2b_raw_config.flows[0]
+    f.packet.ethernet().ipv4()
+    ipv4 = f.packet[1]
+    phb = (
+        ["DEFAULT"]
+        + ["CS%d" % i for i in range(1, 4)]
+        + ["AF%d" % i for j in range(11, 51, 10) for i in range(j, j + 3)]
     )
-    dst_lst = utils.mac_or_ip_addr_from_counter_pattern(
-        "00:0C:29:E3:53:F4", step, 5, True
-    )
+    phb = phb + ["EF46"]
+    af_ef = [
+        "10",
+        "12",
+    ]
+    for i, p in enumerate(phb):
+        # https://github.com/open-traffic-generator/snappi/issues/25
+        # currently assigning the choice as work around
+        ipv4.priority.choice = ipv4.priority.DSCP
+        ipv4.priority.dscp.phb.value = getattr(ipv4.priority.dscp.phb, p)
+        ipv4.priority.dscp.ecn.value = 3
+        api.set_config(b2b_raw_config)
+        if i == 0:
+            attrs = {"Default PHB": str(i)}
+            attrs["ipv4.header.priority.ds.phb.defaultPHB.unused"] = "3"
+        elif i > 0 and i < 8:
+            attrs = {"Class selector PHB": str(i * 8)}
+            attrs["ipv4.header.priority.ds.phb.classSelectorPHB.unused"] = "3"
+        elif i > 7 and i < (len(phb) - 1):
+            attrs = {"Assured forwarding PHB": af_ef[i - 8]}
+            attrs[
+                "ipv4.header.priority.ds.phb.assuredForwardingPHB.unused"
+            ] = "3"
+        else:
+            attrs = {"Expedited forwarding PHB": af_ef[-1]}
+            attrs[
+                "ipv4.header.priority.ds.phb.expeditedForwardingPHB.unused"
+            ] = "3"
 
-    step = "0.0.1.0"
-    src_ip = "10.1.1.1"
-    dst_ip = "20.1.1.1"
+        utils.validate_config(api, "f1", "ipv4", **attrs)
 
-    src_ip_list = utils.mac_or_ip_addr_from_counter_pattern(
-        src_ip, step, 5, True, False
-    )
-    dst_ip_list = utils.mac_or_ip_addr_from_counter_pattern(
-        dst_ip, step, 5, True, False
-    )
-    flow2.packet.ethernet().ipv4()
-    eth = flow2.packet[0]
-    ipv4 = flow2.packet[1]
-    eth.src.values = src_lst
-    eth.dst.values = dst_lst
-    ipv4.src.values = src_ip_list
-    ipv4.dst.values = dst_ip_list
+        chassis = api._ixnetwork.AvailableHardware.Chassis
+        chassis.find(Hostname="^%s$" % chassis_chain1.primary)
+        assert len(chassis) == 1
+        assert chassis[0].ChainTopology == chassis_chain1.STAR
 
-    # counter
-    flow3 = b2b_raw_config_vports.flows.flow(name="f3")[-1]
-    flow3.tx_rx.port.tx_name = tx_vport.name
-    flow3.tx_rx.port.rx_name = rx_vport.name
-    count = 10
-    step = "05:00:00:02:01:00"
-    src_cnt = utils.mac_or_ip_addr_from_counter_pattern(
-        "00:0C:29:E3:53:EA", step, count, True
-    )
-    dst_cnt = utils.mac_or_ip_addr_from_counter_pattern(
-        "00:0C:29:E3:53:F4", step, count, True
-    )
-
-    step = "0.0.1.0"
-    src_ip = "10.1.1.1"
-    dst_ip = "20.1.1.1"
-
-    flow3.packet.ethernet().ipv4()
-    eth = flow3.packet[0]
-    ipv4 = flow3.packet[1]
-    eth.src.values = src_cnt
-    eth.dst.values = dst_cnt
-
-    ipv4.src.increment.start = src_ip
-    ipv4.src.increment.step = step
-    ipv4.src.increment.count = count
-    ipv4.dst.decrement.start = dst_ip
-    ipv4.dst.decrement.step = step
-    ipv4.dst.decrement.count = count
-
-    api.set_config(b2b_raw_config_vports)
-
-    chassis = api._ixnetwork.AvailableHardware.Chassis
-    chassis.find(Hostname="^%s$" % chassis_chain1.primary)
-    assert len(chassis) == 1
-    assert chassis[0].ChainTopology == chassis_chain1.STAR
-
-    chassis.find(Hostname="^%s$" % secondary1.location)
-    assert len(chassis) == 1
-    assert chassis[0].SequenceId == secondary1.sequence_id
-    assert chassis[0].CableLength == secondary1.cable_length
+        chassis.find(Hostname="^%s$" % secondary1.location)
+        assert len(chassis) == 1
+        assert chassis[0].SequenceId == secondary1.sequence_id
+        assert chassis[0].CableLength == secondary1.cable_length
