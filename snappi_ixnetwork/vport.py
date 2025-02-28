@@ -285,6 +285,29 @@ class Vport(object):
                         )
                     time.sleep(2)
 
+    def _add_chassischain(self):
+        chassis_chains = self._api.ixnet_specific_config.chassis_chains
+        chassis = self._api._ixnetwork.AvailableHardware.Chassis
+
+        self.logger.debug("Configuring Chassis Chain")
+        if chassis_chains:
+            for chassis_chain in chassis_chains:
+                chassis.find(Hostname="^%s$" % chassis_chain.primary)
+                if len(chassis) == 0:
+                    self.logger.debug("Primary chassis [%s] not found" % chassis_chain.primary)
+                    return
+                chassis[0].ChainTopology = chassis_chain.topology
+                for secondary in chassis_chain.secondary:
+                    chassis.find(Hostname="^%s$" % secondary.location)
+                    if len(chassis) == 0:
+                        self.logger.debug("Secondary chassis [%s] not found" % secondary.location)
+                        return
+                    chassis[0].ChainTopology = chassis_chain.topology
+                    chassis[0].PrimaryChassis = chassis_chain.primary
+                    chassis[0].SequenceId = secondary.sequence_id
+                    chassis[0].CableLength = secondary.cable_length
+            self._api._ixnet_specific_config = None
+
     def _set_location(self):
         location_supported = True
         try:
@@ -295,6 +318,7 @@ class Vport(object):
             location_supported = False
 
         self._add_hosts(60)
+        self._add_chassischain()
         with Timer(self._api, "Aggregation mode speed change"):
             layer1_check = self._api.resource_group.set_group()
             self._layer1_check.extend(layer1_check)
