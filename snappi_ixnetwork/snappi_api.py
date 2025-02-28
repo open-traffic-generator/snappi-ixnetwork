@@ -110,7 +110,7 @@ class Api(snappi.Api):
         self._flow_tracking = False
         self._convergence_timeout = 3
         self._event_info = None
-        self.ixnetworkconfig = IxNetworkConfig(self)
+        self._ixnet_specific_config = None
 
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
@@ -181,6 +181,13 @@ class Api(snappi.Api):
     @property
     def dev_compacted(self):
         return self._dev_compacted
+    
+    @property
+    def ixnet_specific_config(self):
+        if self._ixnet_specific_config is None:
+            self._ixnet_specific_config = IxNetworkConfig(self)
+    
+        return self._ixnet_specific_config
 
     def set_dev_compacted(self, dev_name, name_list):
         for index, name in enumerate(name_list):

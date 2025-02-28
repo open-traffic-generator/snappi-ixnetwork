@@ -1,7 +1,12 @@
-def test_chassis_chain_support_1(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
+import pytest
+
+
+@pytest.mark.skip("chassis chain is not supported in ci")
+def test_chassis_chain_support(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
+
 
     # Chassischain configuration
-    ixnconfig = api.ixnetworkconfig
+    ixnconfig = api.ixnet_specific_config
     chassis_chain1 = ixnconfig.chassis_chains.add()
     chassis_chain1.primary = "10.36.78.236"
     chassis_chain1.topology = chassis_chain1.STAR
@@ -102,23 +107,12 @@ def test_chassis_chain_support_1(api, b2b_raw_config_vports, utils, tx_vport, rx
 
     api.set_config(b2b_raw_config_vports)
 
-    # fixed validation
-    f1_attrs = {
-        "Destination Address": dst_ip,
-        "Source Address": src_ip,
-    }
-    utils.validate_config(api, "f1", "ipv4", **f1_attrs)
+    chassis = api._ixnetwork.AvailableHardware.Chassis
+    chassis.find(Hostname="^%s$" % chassis_chain1.primary)
+    assert len(chassis) == 1
+    assert chassis[0].ChainTopology == chassis_chain1.STAR
 
-    # list validation
-    f2_attrs = {
-        "Destination Address": dst_ip_list,
-        "Source Address": src_ip_list,
-    }
-    utils.validate_config(api, "f2", "ipv4", **f2_attrs)
-
-    # counter validation
-    f3_attrs = {
-        "Destination Address": (dst_ip, step, str(count)),
-        "Source Address": (src_ip, step, str(count)),
-    }
-    utils.validate_config(api, "f3", "ipv4", **f3_attrs)
+    chassis.find(Hostname="^%s$" % secondary1.location)
+    assert len(chassis) == 1
+    assert chassis[0].SequenceId == secondary1.sequence_id
+    assert chassis[0].CableLength == secondary1.cable_length

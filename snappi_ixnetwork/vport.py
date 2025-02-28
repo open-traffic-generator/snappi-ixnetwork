@@ -286,7 +286,7 @@ class Vport(object):
                     time.sleep(2)
 
     def _add_chassischain(self):
-        chassis_chains = self._api.ixnetworkconfig.chassis_chains
+        chassis_chains = self._api.ixnet_specific_config.chassis_chains
         chassis = self._api._ixnetwork.AvailableHardware.Chassis
 
         self.logger.debug("Configuring Chassis Chain")
@@ -306,7 +306,7 @@ class Vport(object):
                     chassis[0].PrimaryChassis = chassis_chain.primary
                     chassis[0].SequenceId = secondary.sequence_id
                     chassis[0].CableLength = secondary.cable_length
-            self._api.ixnetworkconfig.chassis_chains = None
+            self._api._ixnet_specific_config = None
 
     def _set_location(self):
         location_supported = True
