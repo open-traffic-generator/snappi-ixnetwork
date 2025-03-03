@@ -22,8 +22,16 @@ class TrafficItem(CustomField):
         ("bytes_tx", "Tx Bytes", int),
         ("bytes_rx", "Rx Bytes", int),
         ("loss", "Loss %", float),
-        # ('bytes_tx_rate', 'Tx Rate (Bps)', float),
-        # ('bytes_rx_rate', 'Rx Rate (Bps)', float),
+        ('tx_l1_rate_bps', 'Tx L1 Rate (bps)', float),
+        ('rx_l1_rate_bps', 'Rx L1 Rate (bps)', float),
+        ('tx_rate_bytes', 'Tx Rate (Bps)', float),
+        ('rx_rate_bytes', 'Rx Rate (Bps)', float),
+        ('tx_rate_bps', 'Tx Rate (bps)', float),
+        ('rx_rate_bps', 'Rx Rate (bps)', float),
+        ('tx_rate_kbps', 'Tx Rate (Kbps)', float),
+        ('rx_rate_kbps', 'Rx Rate (Kbps)', float),
+        ('tx_rate_mbps', 'Tx Rate (Mbps)', float),
+        ('rx_rate_mbps', 'Rx Rate (Mbps)', float),
     ]
 
     _RESULT_LATENCY_STORE_FORWARD = [
