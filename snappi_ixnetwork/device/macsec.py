@@ -348,5 +348,5 @@ class Macsec(Base):
             ixn_staticmacsec["incrementingPn"] = True
             engine_tx_pn_incr = engine_tx_pn.incrementing
             ixn_staticmacsec["packetCountPn"] = engine_tx_pn_incr.count
-            ixn_staticmacsec["firstPn"] = engine_tx_pn_incr.first_pn
-            ixn_staticmacsec["mvFirstXpn"] = self.multivalue(engine_tx_pn_incr.first_xpn)
+            ixn_staticmacsec["firstPn"] = engine_tx_pn_incr.starting_pn
+            ixn_staticmacsec["mvFirstXpn"] = self.multivalue(engine_tx_pn_incr.starting_xpn)

@@ -3,7 +3,7 @@ import time
 
 
 # @pytest.mark.skip(reason="Revisit CI/CD fail")
-def test_stateless_encryption(api, b2b_raw_config, utils):
+def test_encrypt(api, b2b_raw_config, utils):
     """
     Test for the macsec configuration
     """
@@ -31,8 +31,12 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     # Data plane and crypto engine
     secy1.data_plane.choice = secy2.data_plane.choice = "encapsulation"
     secy1.data_plane.encapsulation.crypto_engine.choice = secy2.data_plane.encapsulation.crypto_engine.choice = "encrypt_only"
-    #secy1.crypto_engine.stateless_encryption_only.tx_pn.choice = "fixed_pn"
-    #secy1.crypto_engine.stateless_encryption_only.tx_pn.fixed.xpn = "0x0000000000000006"
+    secy1_crypto_engine_enc_only, secy2_crypto_engine_enc_only = secy1.data_plane.encapsulation.crypto_engine.encrypt_only, secy2.data_plane.encapsulation.crypto_engine.encrypt_only 
+ 
+    # Data plane Tx SC PN 
+    secy1_dataplane_txsc1, secy2_dataplane_txsc1 = secy1_crypto_engine_enc_only.secure_channels.add(), secy2_crypto_engine_enc_only.secure_channels.add()
+    secy1_dataplane_txsc1.tx_pn.choice = secy2_dataplane_txsc1.tx_pn.choice = "fixed_pn"
+    secy1_dataplane_txsc1.tx_pn.fixed.pn = secy2_dataplane_txsc1.tx_pn.fixed.pn = 100
 
     # static key
     secy1_key_gen_proto, secy2_key_gen_proto = secy1.key_generation_protocol, secy2.key_generation_protocol
