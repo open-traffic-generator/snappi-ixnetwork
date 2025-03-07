@@ -27,6 +27,7 @@ class Ngpf(Base):
         "VxlanV4Tunnel": "ipv4",
         "VxlanV6Tunnel": "ipv6",
         "BgpCMacIpRange": "ethernetVlan",
+        "Mka": "ethernetVlan",
         "SecureEntity": "ethernetVlan",
     }
 

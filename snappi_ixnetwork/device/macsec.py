@@ -1,4 +1,5 @@
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.device.mka import Mka
 from snappi_ixnetwork.logger import get_ixnet_logger
 
 
@@ -34,6 +35,7 @@ class Macsec(Base):
     def __init__(self, ngpf):
         super(Macsec, self).__init__()
         self._ngpf = ngpf
+        self._mka = Mka(ngpf)
         self.is_dynamic_key = False
         self.logger = get_ixnet_logger(__name__)
 
@@ -43,6 +45,8 @@ class Macsec(Base):
         if macsec is None:
             return
         self.is_dynamic_key = self._is_dynamic_key(macsec)
+        if self.is_dynamic_key == True:
+            self._mka.config(device)
         self.is_data_plane = self._is_data_plane(macsec)
         self._config_ethernet_interfaces(device)
 
@@ -86,7 +90,7 @@ class Macsec(Base):
         return is_allowed
 
     def _is_dynamic_key(self, macsec):
-        self.logger.debug("Checking if MKA is confgured")
+        self.logger.debug("Checking if MKA is configured")
         is_mka = False
         ethernet_interfaces = macsec.get("ethernet_interfaces")
         for ethernet_interface in ethernet_interfaces:
@@ -96,6 +100,8 @@ class Macsec(Base):
             if protocol == "mka":
                 is_mka = True
                 break
+        if is_mka == True:
+            self.logger.info("MKA is configured in test")
         return is_mka
 
     def _is_data_plane(self, macsec):

@@ -23,15 +23,12 @@ def test_stateless_encryption(api, b2b_raw_config, utils):
     ip1.name, ip2.name = "ip1", "ip2"
 
     macsec1, macsec2 = d1.macsec, d2.macsec
-    macsec1_int, macsec2_int = (
-        macsec1.ethernet_interfaces.add(),
-        macsec2.ethernet_interfaces.add(),
-    )
+    macsec1_int, macsec2_int = macsec1.ethernet_interfaces.add(), macsec2.ethernet_interfaces.add()
     macsec1_int.eth_name, macsec2_int.eth_name = eth1.name, eth2.name
     secy1, secy2 = macsec1_int.secure_entity, macsec2_int.secure_entity
     secy1.name, secy2.name = "macsec1", "macsec2"
 
-    # Crypto engine
+    # Data plane and crypto engine
     secy1.data_plane.choice = secy2.data_plane.choice = "encapsulation"
     secy1.data_plane.encapsulation.crypto_engine.choice = secy2.data_plane.encapsulation.crypto_engine.choice = "encrypt_only"
     #secy1.crypto_engine.stateless_encryption_only.tx_pn.choice = "fixed_pn"
