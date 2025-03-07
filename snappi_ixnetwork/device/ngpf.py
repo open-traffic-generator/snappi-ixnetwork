@@ -3,6 +3,7 @@ import json, re
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.device.bgp import Bgp
+from snappi_ixnetwork.device.macsec import Macsec
 from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.device.vxlan import VXLAN
 from snappi_ixnetwork.device.interface import Ethernet
@@ -26,6 +27,7 @@ class Ngpf(Base):
         "VxlanV4Tunnel": "ipv4",
         "VxlanV6Tunnel": "ipv6",
         "BgpCMacIpRange": "ethernetVlan",
+        "SecureEntity": "ethernetVlan",
     }
 
     _ROUTE_STATE = {"advertise": True, "withdraw": False}
@@ -41,10 +43,12 @@ class Ngpf(Base):
         self.logger = get_ixnet_logger(__name__)
         self._ethernet = Ethernet(self)
         self._bgp = Bgp(self)
+        self._macsec = Macsec(self)
         self._vxlan = VXLAN(self)
         self._loop_back = LoopbackInt(self)
         self.compactor = Compactor(self.api)
         self._createixnconfig = CreateIxnConfig(self)
+        self.is_ip_allowed = True
 
     def config(self):
         self._ixn_topo_objects = {}
@@ -103,6 +107,10 @@ class Ngpf(Base):
         # Configured all interfaces
         self._configure_device_group(ixn_topos)
 
+        # Configure all MACsec interface before configure protocols
+        for device in self.api.snappi_config.devices:
+            self._macsec.config(device)
+
         # We need to configure all interface before configure protocols
         for device in self.api.snappi_config.devices:
             self._bgp.config(device)
@@ -129,10 +137,20 @@ class Ngpf(Base):
             self.compactor.compact(ixn_topo.get("deviceGroup"))
             self._set_dev_compacted(ixn_topo.get("deviceGroup"))
 
+    def _is_ip_allowed(self):
+        is_allowed = True
+        self.logger.debug("Checking if IPv4/ v6 is allowed when MACsec is present")
+        for device in self.api.snappi_config.devices:
+            is_allowed = self._macsec._is_ip_allowed(device)
+            if is_allowed == False:
+                break
+        return is_allowed
+
     def _configure_device_group(self, ixn_topos):
         """map ethernet with a ixn deviceGroup with multiplier = 1"""
         port_name = None
         device_chain_dgs = {}
+        self.is_ip_allowed = self._is_ip_allowed()
         for device in self.api.snappi_config.devices:
             chin_dgs = {}
             ethernets = device.get("ethernets")
