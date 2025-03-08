@@ -128,11 +128,22 @@ def test_encrypt_with_mka(api, b2b_raw_config, utils):
     ip2.gateway_mac.choice = "value"
     ip2.gateway_mac.value = eth1.mac
 
-    #traffic
+    # Flow
     f1 = config.flows.flow(name="f1")[-1]
-    f1.tx_rx.device.tx_names = [secy1.name]
-    f1.tx_rx.device.rx_names = [secy2.name]
-    f1.packet.ethernet()
+
+    # Ethernet/VLAN traffic from secY to secY endpoints
+    #f1.tx_rx.device.tx_names = [secy1.name]
+    #f1.tx_rx.device.rx_names = [secy2.name]
+
+    # Ethernet/VLAN traffic from ethernet to ethernet endpoints
+    #f1.tx_rx.device.tx_names = [eth1.name]
+    #f1.tx_rx.device.rx_names = [eth2.name]
+
+    # IPv4 traffic from IP to IP endpoints
+    f1.tx_rx.device.tx_names = [ip1.name]
+    f1.tx_rx.device.rx_names = [ip2.name]
+
+    # Rate
     f1.rate.pps = 10
 
     utils.start_traffic(api, config)
