@@ -307,9 +307,12 @@ class Macsec(Base):
         ethernets = device.get("ethernets")
         for ethernet in ethernets:
             if ethernet.get("name") == ethernet_name:
+                self._ngpf.api.set_device_traffic_endpoint(ethernet_name, secy.get("name"))
                 ipv4_addresses = ethernet.get("ipv4_addresses")
                 if ipv4_addresses is None:
-                    raise Exception("IPv4 not configured on ethernet %s" % ethernet_name)
+                    #raise Exception("IPv4 not configured on ethernet %s" % ethernet_name)
+                    self.logger.info("IPv4 not configured on ethernet %s" % ethernet_name)
+                    break
                 elif len(ipv4_addresses) > 1:
                     raise Exception("More than one IPv4 address configured on ethernet %s" % ethernet_name)
                 ipv4_address = ipv4_addresses[0].address
@@ -321,6 +324,7 @@ class Macsec(Base):
                 ipv4_gateway_static_mac = ipv4_addresses[0].gateway_mac.value
                 ixn_staticmacsec["sourceIp"] = self.multivalue(ipv4_address)
                 ixn_staticmacsec["dutMac"] = self.multivalue(ipv4_gateway_static_mac)
+                self._ngpf.api.set_device_traffic_endpoint(ipv4_addresses[0].name, secy.get("name"))
                 break
 
     def _config_crypto_engine_encrypt_only_tx_pn(self, secy, ixn_staticmacsec):
