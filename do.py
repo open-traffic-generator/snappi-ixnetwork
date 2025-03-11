@@ -165,11 +165,10 @@ def coverage():
 
     with open("./cov_report/index.html") as fp:
         out = fp.read()
-        result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[-1]
+        result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[0]
 
     sender = "ixnetworksnappi@gmail.com"
-    #receiver = ["arkajyoti.dutta@keysight.com","indrani.bhattacharya@keysight.com","dipendu.ghosh@keysight.com","desai.mg@keysight.com"]
-    receiver = ["desai.mg@keysight.com"]
+    receiver = ["arkajyoti.dutta@keysight.com","indrani.bhattacharya@keysight.com","dipendu.ghosh@keysight.com"]
     msg = MIMEMultipart('alternative')
     msg['Subject'] = "Snappi-Ixnetwork Coverage Email"
     msg['From'] = sender
