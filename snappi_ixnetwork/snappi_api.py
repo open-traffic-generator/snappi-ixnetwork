@@ -86,6 +86,7 @@ class Api(snappi.Api):
         self._assistant = None
         self._ixn_errors = list()
         self._config_objects = {}
+        self._device_traffic_endpoint = {}
         self._device_encap = {}
         self.ixn_objects = None
         self._config_type = self.config()
@@ -157,6 +158,16 @@ class Api(snappi.Api):
 
     def set_device_encap(self, name, type):
         self._device_encap[name] = type
+
+    def get_device_traffic_endpoint(self, name):
+        try:
+            value = self._device_traffic_endpoint[name]
+        except KeyError:
+            value = None
+        return value
+
+    def set_device_traffic_endpoint(self, name, value):
+        self._device_traffic_endpoint[name] = value
 
     @property
     def username(self):
@@ -333,6 +344,7 @@ class Api(snappi.Api):
     def config_ixnetwork(self, config):
         self._config_objects = {}
         self._device_encap = {}
+        self._device_traffic_endpoint = {}
         self.ixn_objects = IxNetObjects(self)
         self.ixn_routes = IxNetObjects(self)
         self._dev_compacted = {}

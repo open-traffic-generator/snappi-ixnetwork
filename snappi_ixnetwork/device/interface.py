@@ -70,15 +70,19 @@ class Ethernet(Base):
             self._ngpf.ether_v4gateway_map[eth_name].append(
                 ipv4_address.gateway
             )
-            ixn_ip = self.create_node_elemet(
-                ixn_eth, "ipv4", ipv4_address.get("name")
-            )
-            self._ngpf.set_device_info(ipv4_address, ixn_ip)
-            self.configure_multivalues(ipv4_address, ixn_ip, Ethernet._IP)
-            if ipv4_address.gateway_mac.choice == "value":
-                self.configure_multivalues_with_choice(
-                    ipv4_address, ixn_ip, Ethernet._GATEWAY_MAC
+            if self._ngpf.is_ip_allowed == False:
+                ixn_ip = None
+                self._ngpf.set_device_info(ipv4_address, ixn_ip)
+            else:
+                ixn_ip = self.create_node_elemet(
+                    ixn_eth, "ipv4", ipv4_address.get("name")
                 )
+                self._ngpf.set_device_info(ipv4_address, ixn_ip)
+                self.configure_multivalues(ipv4_address, ixn_ip, Ethernet._IP)
+                if ipv4_address.gateway_mac.choice == "value":
+                    self.configure_multivalues_with_choice(
+                        ipv4_address, ixn_ip, Ethernet._GATEWAY_MAC
+                    )
 
     def _configure_ipv6(self, ixn_eth, ethernet):
         self.logger.debug("Configuring IPv6 interface")
@@ -94,12 +98,16 @@ class Ethernet(Base):
             self._ngpf.ether_v6gateway_map[eth_name].append(
                 ipv6_address.gateway
             )
-            ixn_ip = self.create_node_elemet(
-                ixn_eth, "ipv6", ipv6_address.get("name")
-            )
-            self._ngpf.set_device_info(ipv6_address, ixn_ip)
-            self.configure_multivalues(ipv6_address, ixn_ip, Ethernet._IP)
-            if ipv6_address.gateway_mac.choice == "value":
-                self.configure_multivalues_with_choice(
-                    ipv6_address, ixn_ip, Ethernet._GATEWAY_MAC
+            if self._ngpf.is_ip_allowed == False:
+                ixn_ip = None
+                self._ngpf.set_device_info(ipv6_address, ixn_ip)
+            else:
+                ixn_ip = self.create_node_elemet(
+                    ixn_eth, "ipv6", ipv6_address.get("name")
                 )
+                self._ngpf.set_device_info(ipv6_address, ixn_ip)
+                self.configure_multivalues(ipv6_address, ixn_ip, Ethernet._IP)
+                if ipv6_address.gateway_mac.choice == "value":
+                    self.configure_multivalues_with_choice(
+                        ipv6_address, ixn_ip, Ethernet._GATEWAY_MAC
+                    )

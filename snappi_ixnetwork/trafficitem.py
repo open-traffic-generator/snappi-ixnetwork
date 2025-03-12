@@ -494,7 +494,10 @@ class TrafficItem(CustomField):
             return {}
         paths = {}
         for i, dev_name in enumerate(dev_names):
-            paths[dev_name] = {"dev_info": self._api.ixn_objects.get(dev_name)}
+            traffic_endpoint_dev_name = self._api.get_device_traffic_endpoint(dev_name)
+            if traffic_endpoint_dev_name is None:
+               traffic_endpoint_dev_name = dev_name
+            paths[dev_name] = {"dev_info": self._api.ixn_objects.get(traffic_endpoint_dev_name)}
             paths[dev_name]["type"] = self._api.get_device_encap(dev_name)
         self.logger.debug("Device Information : %s" % paths)
         return paths
@@ -886,7 +889,7 @@ class TrafficItem(CustomField):
         stack_names = []
         for stack in ixn_stack:
             name = stack["xpath"].split(" = ")[-1].strip("']").split("-")[0]
-            if name == "fcs":
+            if name == "fcs" or name == "macsec" or name == "icv":
                 continue
             if self._TYPE_TO_HEADER.get(name) is None:
                 msg = "%s snappi header is not mapped" % name
