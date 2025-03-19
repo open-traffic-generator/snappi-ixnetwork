@@ -10,6 +10,7 @@ from snappi_ixnetwork.device.interface import Ethernet
 from snappi_ixnetwork.device.loopbackint import LoopbackInt
 from snappi_ixnetwork.device.compactor import Compactor
 from snappi_ixnetwork.device.createixnconfig import CreateIxnConfig
+from snappi_ixnetwork.device.isis import Isis
 
 
 class Ngpf(Base):
@@ -29,6 +30,7 @@ class Ngpf(Base):
         "BgpCMacIpRange": "ethernetVlan",
         "Mka": "ethernetVlan",
         "SecureEntity": "ethernetVlan",
+        "Isis": "ethernetVlan",
     }
 
     _ROUTE_STATE = {"advertise": True, "withdraw": False}
@@ -45,6 +47,7 @@ class Ngpf(Base):
         self._ethernet = Ethernet(self)
         self._bgp = Bgp(self)
         self._macsec = Macsec(self)
+        self._isis = Isis(self)
         self._vxlan = VXLAN(self)
         self._loop_back = LoopbackInt(self)
         self.compactor = Compactor(self.api)
