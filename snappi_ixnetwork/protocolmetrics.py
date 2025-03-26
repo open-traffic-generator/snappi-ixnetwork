@@ -7,7 +7,7 @@ class ProtocolMetrics(object):
     # TODO Need to enhance when device groups statistics reach
     # more than one page.
 
-    _SUPPORTED_PROTOCOLS_ = ["bgpv4", "bgpv6", "macsec", "mka"]
+    _SUPPORTED_PROTOCOLS_ = ["bgpv4", "bgpv6", "macsec", "mka", "rocev2_ipv4", "rocev2_ipv6"]
 
     _TOPO_STATS = {
         "name": "name",
@@ -86,6 +86,44 @@ class ProtocolMetrics(object):
             ("malformed_mkpdu", "Malformed MKPDU", int),
             ("icv_mismatch", "ICV Mismatch", int),
         ],
+        "rocev2_ipv4": [
+            ("session_state", "Status", str),
+            ("qp_configured", "QP Configured", int),
+            ("qp_up", "QP Up", int),
+            ("qp_down", "QP Down", int),
+            ("connect_request_tx", "Connect Request Tx", int),
+            ("connect_request_rx", "Connect Request Rx", int),
+            ("connect_reply_tx", "Connect Reply Tx", int),
+            ("connect_reply_rx", "Connect Reply Rx", int),
+            ("ready_tx", "Ready Tx", int),
+            ("ready_rx", "Ready Rx", int),
+            ("disconnect_request_tx", "Disconnect Request Tx", int),
+            ("disconnect_request_rx", "Disconnect Request Rx", int),
+            ("disconnect_reply_tx", "Disconnect Reply Tx", int),
+            ("disconnect_reply_rx", "Disconnect Reply Rx", int),
+            ("reject_tx", "Reject Rx", int),
+            ("reject_rx", "Reject Tx", int),
+            ("unknown_msg_rx", "Unknown MSG Rx", int),
+        ],
+        "rocev2_ipv6": [
+            ("session_state", "Status", str),
+            ("qp_configured", "QP Configured", int),
+            ("qp_up", "QP Up", int),
+            ("qp_down", "QP Down", int),
+            ("connect_request_tx", "Connect Request Tx", int),
+            ("connect_request_rx", "Connect Request Rx", int),
+            ("connect_reply_tx", "Connect Reply Tx", int),
+            ("connect_reply_rx", "Connect Reply Rx", int),
+            ("ready_tx", "Ready Tx", int),
+            ("ready_rx", "Ready Rx", int),
+            ("disconnect_request_tx", "Disconnect Request Tx", int),
+            ("disconnect_request_rx", "Disconnect Request Rx", int),
+            ("disconnect_reply_tx", "Disconnect Reply Tx", int),
+            ("disconnect_reply_rx", "Disconnect Reply Rx", int),
+            ("reject_tx", "Reject Rx", int),
+            ("reject_rx", "Reject Tx", int),
+            ("unknown_msg_rx", "Unknown MSG Rx", int),
+        ],
     }
 
     _PROTO_NAME_MAP_ = {
@@ -127,6 +165,26 @@ class ProtocolMetrics(object):
             "supported_stats": [s[0] for s in _RESULT_COLUMNS["mka"]],
             "ixn_name": "Mka",
         },
+        "rocev2_ipv4": {
+            "per_port": "RoCEv2 Per Port",
+            "drill_down": "RoCEv2 Drill Down",
+            "drill_down_options": [
+                "RoCEv2:Per Device Group",
+                "RoCEv2:Per Session",
+            ],
+            "supported_stats": [s[0] for s in _RESULT_COLUMNS["rocev2_ipv4"]],
+            "ixn_name": "rocev2",
+        },
+        "rocev2_ipv6": {
+            "per_port": "RoCE6v2 Per Port",
+            "drill_down": "RoCE6v2 Drill Down",
+            "drill_down_options": [
+                "RoCE6v2:Per Device Group",
+                "RoCE6v2:Per Session",
+            ],
+            "supported_stats": [s[0] for s in _RESULT_COLUMNS["rocev2_ipv6"]],
+            "ixn_name": "roce6v2",
+        },
     }
 
     _PEER_NAMES = {
@@ -134,6 +192,8 @@ class ProtocolMetrics(object):
         "bgpv6": "peer_names",
         "macsec": "secure_entity_names",
         "mka": "peer_names",
+        "rocev2_ipv4": "peer_names",
+        "rocev2_ipv6": "peer_names",
     }
 
     def __init__(self, ixnetworkapi):

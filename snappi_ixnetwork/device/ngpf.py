@@ -10,6 +10,7 @@ from snappi_ixnetwork.device.interface import Ethernet
 from snappi_ixnetwork.device.loopbackint import LoopbackInt
 from snappi_ixnetwork.device.compactor import Compactor
 from snappi_ixnetwork.device.createixnconfig import CreateIxnConfig
+from snappi_ixnetwork.device.rocev2 import RoCEv2
 
 
 class Ngpf(Base):
@@ -29,6 +30,8 @@ class Ngpf(Base):
         "BgpCMacIpRange": "ethernetVlan",
         "Mka": "ethernetVlan",
         "SecureEntity": "ethernetVlan",
+        "Rocev2V4Peer": "ipv4",
+        "Rocev2V6Peer": "ipv6",
     }
 
     _ROUTE_STATE = {"advertise": True, "withdraw": False}
@@ -46,6 +49,7 @@ class Ngpf(Base):
         self._bgp = Bgp(self)
         self._macsec = Macsec(self)
         self._vxlan = VXLAN(self)
+        self._rocev2 = RoCEv2(self)
         self._loop_back = LoopbackInt(self)
         self.compactor = Compactor(self.api)
         self._createixnconfig = CreateIxnConfig(self)
@@ -115,6 +119,10 @@ class Ngpf(Base):
         # We need to configure all interface before configure protocols
         for device in self.api.snappi_config.devices:
             self._bgp.config(device)
+
+        #Configure all RoCEv2 interface before configure protocols
+        for device in self.api.snappi_config.devices:
+            self._rocev2.config(device, self.api.snappi_config.stateful_flows, self.api.snappi_config.options)
 
         # Compaction will take place in this order
         # Step-1: Compact chain DGs

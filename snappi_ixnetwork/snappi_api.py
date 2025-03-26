@@ -577,15 +577,25 @@ class Api(snappi.Api):
                 metric_res = self.metrics_response()
                 metric_res.convergence_metrics.deserialize(response)
                 return metric_res
+            if request.get("choice") == "rocev2_flow":
+                response = self._result_rocev2_traffic(request.rocev2_flow)
+                metric_res = self.metrics_response()
+                metric_res.rocev2_flow_per_qp_metrics.deserialize(response)
+                return metric_res
             if (
                 request.get("choice")
                 in self.protocol_metrics.get_supported_protocols()
             ):
                 response = self.protocol_metrics.results(request)
                 metric_res = self.metrics_response()
-                getattr(metric_res, request.choice + "_metrics").deserialize(
-                    response
-                )
+                if (request.choice == "rocev2_ipv4" or request.choice == "rocev2_ipv6"):
+                    getattr(metric_res, request.choice + "_per_peer" + "_metrics").deserialize(
+                        response
+                    )
+                else:
+                    getattr(metric_res, request.choice + "_metrics").deserialize(
+                        response
+                    )
                 return metric_res
         except Exception as err:
             raise SnappiIxnException(err)
@@ -636,6 +646,14 @@ class Api(snappi.Api):
                 rows[0][internal_name] = max_value
         return rows[0]
     
+    def _result_rocev2_traffic(self, request):
+        # get convergence result
+        traffic_stat = self._assistant.StatViewAssistant(
+            "RoCEv2 Flow Statistics"
+        )
+        return traffic_stat
+
+
     def _result(self, request):
         # get convergence result
         flow_names = request.get("flow_names")

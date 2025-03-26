@@ -4,6 +4,7 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.customfield import CustomField
+from snappi_ixnetwork.device.rocev2 import RoCEv2
 
 
 class TrafficItem(CustomField):
@@ -381,6 +382,7 @@ class TrafficItem(CustomField):
         self.flows_has_timestamp = []
         self.flows_has_loss = []
         self.logger = get_ixnet_logger(__name__)
+        self._rocev2 = RoCEv2(self)
 
     def _get_search_payload(self, parent, child, properties, filters):
         self.logger.debug(
@@ -1291,6 +1293,20 @@ class TrafficItem(CustomField):
             % (flow_names, request.state)
         )
         if request.state == "start":
+
+            ##This portion of code is to handle different stateful_traffic flow, currently only rocev2
+            for device in self._api._config.devices:
+                #Check if rocev2 exists in topology
+                if (device.rocev2):
+                    ####### Create and Apply RoCEv2 Flow Groups here, as we have identified that RoCEv2 is present in Topology
+                    self._api._traffic.AddRoCEv2FlowGroups()
+                    rocev2_traffic = self._api._traffic.RoceV2Traffic.find(Enabled=True)
+                    self._rocev2._configureTrafficParameters(rocev2_traffic, self._api._config.stateful_flows, self._api._config.options)                    
+                    with Timer(self._api, "Flows generate/apply"):
+                        self._api._traffic.Apply()
+                    print ("Starting Traffic")
+                    self._api._traffic.Start()
+                    break
             if len(self._api._topology.find()) > 0:
                 glob_topo = self._api._globals.Topology.refresh()
                 if glob_topo.Status == "notStarted":
@@ -1316,6 +1332,11 @@ class TrafficItem(CustomField):
                     )
             self._api.capture._start_capture()
         self._api._traffic_item.find(Name=regex)
+        for device in self._api._config.devices:
+            if (device.rocev2) and request.state == "stop":
+                print ("Stopping RoCEv2 Traffic")
+                self._api._traffic.Stop()
+                break
         if len(self._api._traffic_item) > 0:
             if request.state == "start":
                 self._api._traffic_item.find(
