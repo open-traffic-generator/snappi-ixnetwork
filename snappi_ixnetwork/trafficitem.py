@@ -1338,7 +1338,7 @@ class TrafficItem(CustomField):
             self._api.capture._start_capture()
         self._api._traffic_item.find(Name=regex)
         for device in self._api._config.devices:
-            if (device.rocev2) and request.state == "stop":
+            if hasattr(device, "rocev2") and device.rocev2 and request.state == "stop":
                 print ("Stopping RoCEv2 Traffic")
                 self._api._traffic.Stop()
                 break
