@@ -55,20 +55,22 @@ def test_rocev2_stats(api, utils):
     peer1_qp_1.connection_type.choice = "reliable_connection"
     peer1_qp_1.connection_type.reliable_connection.source_qp_number = 33
     peer1_qp_1.connection_type.reliable_connection.dscp = 27
+    peer1_qp_1.connection_type.reliable_connection.ecn = "ect_0"
 
     peer1_qp_2.connection_type.choice = "reliable_connection"
-    peer1_qp_2.connection_type.reliable_connection.source_qp_number = 43
+    peer1_qp_2.connection_type.reliable_connection.source_qp_number = 34
     peer1_qp_2.connection_type.reliable_connection.dscp = 41
+    peer1_qp_2.connection_type.reliable_connection.ecn = "ect_1"
 
     peer2_qp_1.connection_type.choice = "reliable_connection"
-    peer2_qp_1.connection_type.reliable_connection.source_qp_number = 34
+    peer2_qp_1.connection_type.reliable_connection.source_qp_number = 35
     peer2_qp_1.connection_type.reliable_connection.dscp = 28
     peer2_qp_1.connection_type.reliable_connection.ecn = "ect_0"
 
     peer2_qp_2.connection_type.choice = "reliable_connection"
-    peer2_qp_2.connection_type.reliable_connection.source_qp_number = 47
+    peer2_qp_2.connection_type.reliable_connection.source_qp_number = 36
     peer2_qp_2.connection_type.reliable_connection.dscp = 38
-    peer2_qp_2.connection_type.reliable_connection.ecn = "ect_0"
+    peer2_qp_2.connection_type.reliable_connection.ecn = "ect_1"
 
     peer1 = config.stateful_flows.rocev2.add()
     tx_port1 = peer1.tx_ports.add()
@@ -84,12 +86,28 @@ def test_rocev2_stats(api, utils):
     peer1_flow1.message_size_unit = "KB"
 
     #flow_2
+    peer1_flow1 = tx_port1.transmit_type.target_line_rate.flows.add()
+    peer1_flow1.tx_endpoint = peer2_qp_1.qp_name
+    peer1_flow1.name = "QP_1"
+    peer1_flow1.rocev2_verb.choice = "write_with_immediate"
+    peer1_flow1.rocev2_verb.write_with_immediate.immediate_data = "aa"
+    peer1_flow1.message_size_unit = "MB"
+
+    #flow_3
     peer2_flow1 = tx_port1.transmit_type.target_line_rate.flows.add()
-    peer2_flow1.tx_endpoint = peer2_qp_1.qp_name
-    peer2_flow1.name = "QP_1"
+    peer2_flow1.tx_endpoint = peer1_qp_1.qp_name
+    peer2_flow1.name = "QP_3"
     peer2_flow1.rocev2_verb.choice = "write_with_immediate"
-    peer2_flow1.rocev2_verb.write_with_immediate.immediate_data = "aa"
-    peer2_flow1.message_size_unit = "MB"
+    peer2_flow1.rocev2_verb.send_with_immediate.immediate_data = "bf"
+    peer2_flow1.message_size_unit = "KB"
+
+    #flow_4
+    peer2_flow2 = tx_port1.transmit_type.target_line_rate.flows.add()
+    peer2_flow2.tx_endpoint = peer2_qp_1.qp_name
+    peer2_flow2.name = "QP_4"
+    peer2_flow2.rocev2_verb.choice = "write_with_immediate"
+    peer2_flow2.rocev2_verb.write_with_immediate.immediate_data = "fa"
+    peer2_flow2.message_size_unit = "MB"
 
     #RoCEv2 Protocol Port Settings
     per_port_option1 = config.options.per_port_options.add()

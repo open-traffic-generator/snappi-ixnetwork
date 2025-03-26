@@ -8,9 +8,6 @@ class RoCEv2(Base):
     }
 
     _MANDATE_CONFIG = {
-        "source_qp_number": "customQP",
-        "dscp": "dscp",
-        "udp_source_port": "udpSourcePort",
         "initial_psn": "initialPSN",
         "virtual_address": "remoteVA",
         "remote_key": "remoteKey"
@@ -42,10 +39,6 @@ class RoCEv2(Base):
         }  
     }
 
-    _GLOBALS = {
-        "message_size": "CnpPriorityValue"
-    }
-
     ecn_mapping = {
         "non_ect": 0, "ect_1": 1, "ect_0": 2, "ce": 3
     }
@@ -57,13 +50,21 @@ class RoCEv2(Base):
         self._ngpf = ngpf
         self.logger = get_ixnet_logger(__name__)
 
-    def config(self, device, stateful_flow, options):
+    def config(self, device):
         self.logger.debug("Configuring RoCEv2")
         rocev2 = device.get("rocev2")
         if rocev2 is None:
             return
+        stateful_flow = None
+        options = None
+        if hasattr(self._ngpf.api.snappi_config, "stateful_flows"):
+            stateful_flow = self._ngpf.api.snappi_config.stateful_flows
+        if hasattr(self._ngpf.api.snappi_config, "options"):
+            options = self._ngpf.api.snappi_config.options
         self._config_ipv4_interfaces(rocev2, stateful_flow, options)
         self._config_ipv6_interfaces(rocev2, stateful_flow, options)
+
+        
 
     def _get_interface_info(self):
         ip_types = ["ipv4", "ipv6"]
@@ -103,7 +104,7 @@ class RoCEv2(Base):
             is_invalid = False
         return is_invalid
 
-    def _config_ipv4_interfaces(self, rocev2, stateful_flow, options):
+    def _config_ipv4_interfaces(self, rocev2, stateful_flow=None, options=None):
         self.logger.debug("Configuring RoCEv2 IPv4 interfaces")
         ipv4_interfaces = rocev2.get("ipv4_interfaces")
         if ipv4_interfaces is None:
@@ -179,31 +180,76 @@ class RoCEv2(Base):
                 ixn_rocev2, "flows"
             )
         qps = rocev2_peer.qps
+        qp_name = []
         if (qps):
-            ixn_flow_settings["customizeQP"] = True
+            #convert value to list
+            source_qp_number = []
+            dscp = []
+            udp_source_port = []
+            ecn_values = []
             for qp in qps:
-                qp_name = qp.qp_name
-                #breakpoint()
-                #ixn_flow_settings["customQP"] = self.multivalue([22,22])
-                self.configure_multivalues(qp.connection_type.reliable_connection, ixn_flow_settings, RoCEv2._MANDATE_CONFIG)
+                qp_name.append(qp.qp_name)
+                source_qp_number.append(qp.connection_type.reliable_connection.get("source_qp_number"))
+                dscp.append(qp.connection_type.reliable_connection.get("dscp"))
+                udp_source_port.append(qp.connection_type.reliable_connection.get("udp_source_port"))
+                ecn_values.append(qp.connection_type.reliable_connection.get("ecn"))
                 self.configure_multivalues(qp.connection_type.reliable_connection, ixn_flow_settings, RoCEv2._ECN)
+            if ((len(source_qp_number)  == 1 and 2 in source_qp_number) or len(set(source_qp_number))):
+                #only 1 qp is added and default value of 2 is there then the user has not configured qp number or all the values in the list are default i.e. 2, then disable Custom QP
+                ixn_flow_settings["customizeQP"] = False
+            else:
+                ixn_flow_settings["customizeQP"] = True
+            ecn_numeric_value = [RoCEv2._ECN["ecn"]["enum_map"][ecn] for ecn in ecn_values]
+            print ("ECN Values numeric : " + str(ecn_numeric_value))
+            ixn_flow_settings["customQP"] = self.multivalue(source_qp_number)
+            ixn_flow_settings["dscp"] = self.multivalue(dscp)
+            ixn_flow_settings["udpSourcePort"] = self.multivalue(udp_source_port)
+            ixn_flow_settings["ecnVal"] = self.multivalue(ecn_numeric_value)
+
         rocev2s = stateful_flow.get("rocev2")
+        counter = 0
+        found = False
+        message_size = []
+        message_size_unit = []
+        immediate_data = []
+        rocev2_verb = []
+
         for rocev2 in rocev2s:
             for tx_port in rocev2.tx_ports:
                 flows = tx_port.transmit_type.target_line_rate.flows
                 for flow in flows:
-                    if (flow.name == qp_name):
-                        self.configure_multivalues(flow, ixn_flow_settings, RoCEv2._MESSAGE_SIZE)
-                        self.configure_multivalues(flow.rocev2_verb, ixn_flow_settings, RoCEv2._VERB)
-                        if (flow.rocev2_verb.choice == "write_with_immediate"):
-                            self.configure_multivalues(flow.rocev2_verb.write_with_immediate, ixn_flow_settings, RoCEv2._IMMD_DATA)
-                        elif (flow.rocev2_verb.choice == "send_with_immediate"):
-                            self.configure_multivalues(flow.rocev2_verb.send_with_immediate, ixn_flow_settings, RoCEv2._IMMD_DATA)
+                    if (len(qp_name)):
+                        if (flow.name in qp_name):
+                            counter = counter + 1
+                            #add values to list, creating a list of values to puit as Valuelist in multivalue, in order to support different values for each row
+                            message_size.append(flow.get("message_size"))
+                            message_size_unit.append(flow.get("message_size_unit"))
+                            rocev2_verb.append(flow.rocev2_verb.get("choice"))
+                            print ("verb : \n" + str(rocev2_verb))
+                            if (flow.rocev2_verb.choice == "write_with_immediate"):
+                                immediate_data.append(flow.rocev2_verb.write_with_immediate.get("immediate_data"))
+                            elif (flow.rocev2_verb.choice == "send_with_immediate"):
+                                immediate_data.append(flow.rocev2_verb.send_with_immediate.get("immediate_data"))
+
+                            if (counter == len(qp_name)):
+                                #assign value to ixn node
+                                ixn_flow_settings["messageSize"] = self.multivalue(message_size)
+                                mapped_units = [RoCEv2._MESSAGE_SIZE["message_size_unit"]["enum_map"][unit] for unit in message_size_unit]
+                                ixn_flow_settings["messageSizeUnit"] = self.multivalue(mapped_units)
+                                mapped_verbs = [RoCEv2._VERB["choice"]["enum_map"][verb] for verb in rocev2_verb]
+                                ixn_flow_settings["executeCommands"] = self.multivalue(mapped_verbs)
+                                ixn_flow_settings["immidtData"] = self.multivalue(immediate_data)
+                                return
+
+
         #now populate global port settings
-        self._populateGLobalPortSettings(options)
+        if (options is not None):
+            self._populateGLobalPortSettings(options)
 
 
     def _populateGLobalPortSettings(self, options):
+        perportoptions = []
+        protocols = []
         ixnRocev2GlobalPortSettings = self._ngpf.api._ixnetwork.Globals.Topology.find().Rocev2.find()
         perportoptions = options.get("per_port_options")
         for perportoption in perportoptions:
@@ -243,10 +289,12 @@ class RoCEv2(Base):
                     # ixnRocev2GlobalPortSettings.AckTimeout.Single(protocol.connection_type.reliable_connection.get("retransmission_timeout_value"))
                     # ixnRocev2GlobalPortSettings.RetransRetryCount.Single(protocol.connection_type.reliable_connection.get("retransmission_retry_count"))
 
-    def _configureTrafficParameters(self, rocev2_traffic, stateful_flow, options):
+    def _configureTrafficParameters(self, rocev2_traffic, stateful_flow=None, options=None):
         trafficPortConfigs = rocev2_traffic.RoceV2PortConfig.find()
         trafficflows = rocev2_traffic.RoceV2Stream.find()
-        rocev2s = stateful_flow.get("rocev2")
+        rocev2s = []
+        if (stateful_flow is not None):
+            rocev2s = stateful_flow.get("rocev2")
         for trafficportconfig in trafficPortConfigs:
             for rocev2 in rocev2s:
                 for tx_port in rocev2.tx_ports:
@@ -256,13 +304,14 @@ class RoCEv2(Base):
         for trafficportconfig in trafficPortConfigs:
             dcqcn_params = trafficportconfig.RoceV2DcqcnParams
             for dcqcn_param in dcqcn_params:
-                perportoptions = options.get("per_port_options")
-                for perportoption in perportoptions:
-                    if (perportoption.port_name == trafficportconfig.TxPort):
-                        protocols = perportoption.get("protocols")
-                        for protocol in protocols:
-                            if (protocol.cnp):       #meaning rocev2 port configuration is present in script        
-                                self._populateDcqcnSettings(dcqcn_param, protocol)
+                if (options is not None):
+                    perportoptions = options.get("per_port_options")
+                    for perportoption in perportoptions:
+                        if (perportoption.port_name == trafficportconfig.TxPort):
+                            protocols = perportoption.get("protocols")
+                            for protocol in protocols:
+                                if (protocol.cnp):       #meaning rocev2 port configuration is present in script        
+                                    self._populateDcqcnSettings(dcqcn_param, protocol)
 
     def _populateDcqcnSettings(self, dcqcn_param, protocol):
         dcqcn_param.Enabled = protocol.dcqcn_settings.get("enable_dcqcn")

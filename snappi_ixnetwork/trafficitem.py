@@ -1293,15 +1293,20 @@ class TrafficItem(CustomField):
             % (flow_names, request.state)
         )
         if request.state == "start":
-
             ##This portion of code is to handle different stateful_traffic flow, currently only rocev2
             for device in self._api._config.devices:
                 #Check if rocev2 exists in topology
-                if (device.rocev2):
+                if hasattr(device, "rocev2") and device.rocev2:
                     ####### Create and Apply RoCEv2 Flow Groups here, as we have identified that RoCEv2 is present in Topology
                     self._api._traffic.AddRoCEv2FlowGroups()
                     rocev2_traffic = self._api._traffic.RoceV2Traffic.find(Enabled=True)
-                    self._rocev2._configureTrafficParameters(rocev2_traffic, self._api._config.stateful_flows, self._api._config.options)                    
+                    stateful_flow = None
+                    options = None
+                    if hasattr(self._api._config, "stateful_flows"):
+                        stateful_flow = self._api._config.stateful_flows
+                    if hasattr(self._api._config, "options"):
+                        options = self._api._config.options
+                    self._rocev2._configureTrafficParameters(rocev2_traffic, stateful_flow, options)                    
                     with Timer(self._api, "Flows generate/apply"):
                         self._api._traffic.Apply()
                     print ("Starting Traffic")
