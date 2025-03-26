@@ -66,6 +66,8 @@ class TrafficItem(CustomField):
         "custom": "custom",
         "vxlan": "vxlan",
         "ethernetARP": "arp",
+        "macsec": "macsec",
+        "payloadProtocolType": "payloadProtocolType",
     }
 
     _HEADER_TO_TYPE = {
@@ -83,6 +85,8 @@ class TrafficItem(CustomField):
         "custom": "custom",
         "vxlan": "vxlan",
         "arp": "ethernetARP",
+        "macsec": "macsec",
+        "payloadProtocolType": "payloadProtocolType",
     }
 
     _ETHERNETPAUSEUHD = {
@@ -157,6 +161,9 @@ class TrafficItem(CustomField):
         "convert_int_to_hex": ["ether_type"],
         # sets to default only when traffic type is `Raw`
         "auto_to_default": ["src", "dst"],
+    }
+
+    _MACSEC = {
     }
 
     _ETHERNETPAUSE = {
@@ -683,7 +690,7 @@ class TrafficItem(CustomField):
                 i + 1,
             )
             self._append_header(
-                header, header_xpath, config_elem["stack"], is_raw_traffic=True
+                header_xpath, config_elem["stack"], header, is_raw_traffic=True
             )
         return [config_elem]
 
@@ -889,7 +896,7 @@ class TrafficItem(CustomField):
         stack_names = []
         for stack in ixn_stack:
             name = stack["xpath"].split(" = ")[-1].strip("']").split("-")[0]
-            if name == "fcs" or name == "macsec" or name == "icv":
+            if name == "fcs" or name == "icv":
                 continue
             if self._TYPE_TO_HEADER.get(name) is None:
                 msg = "%s snappi header is not mapped" % name
@@ -912,41 +919,44 @@ class TrafficItem(CustomField):
                 raise SnappiIxnException("400", msg)
             index = "%s-%s" % (ixn_header_name, index + 1)
             xpath = "%s = '%s']" % (ce_path, index)
-            if stack in snappi_stack_names:
+            if stack == "payloadProtocolType":
+                self._append_header(xpath, stacks)
+            elif stack in snappi_stack_names:
                 ind = snappi_stack_names.index(stack)
                 snappi_packet[ind]
-                self._append_header(snappi_packet[ind], xpath, stacks)
+                self._append_header(xpath, stacks, snappi_packet[ind])
             else:
                 header = getattr(snappi.FlowHeader(), stack)
-                self._append_header(header, xpath, stacks)
+                self._append_header(xpath, stacks, header)
         return stacks
 
     def _append_header(
         self,
-        snappi_header,
         xpath,
         stacks,
+        snappi_header=None,
         insert_header=False,
         header_index=None,
         is_raw_traffic=False,
     ):
-        field_map = getattr(
-            self,
-            "_%s" % (self._getUhdHeader(snappi_header.parent.choice).upper()),
-        )
-        stack_name = self._HEADER_TO_TYPE.get(
-            self._getUhdHeader(snappi_header.parent.choice)
-        )
-        if stack_name is None:
-            raise NotImplementedError(
-                "%s stack is not implemented" % snappi_header.parent.choice
+        if snappi_header is not None:
+            field_map = getattr(
+                self,
+                "_%s" % (self._getUhdHeader(snappi_header.parent.choice).upper()),
             )
+            stack_name = self._HEADER_TO_TYPE.get(
+                self._getUhdHeader(snappi_header.parent.choice)
+            )
+            if stack_name is None:
+                raise NotImplementedError(
+                    "%s stack is not implemented" % snappi_header.parent.choice
+                )
         header = {"xpath": xpath}
         if insert_header is True and header_index is not None:
             stacks.insert(header_index, header)
         else:
             stacks.append(header)
-        if field_map.get("order") is not None:
+        if snappi_header is not None and field_map.get("order") is not None:
             fields = self._generate_fields(field_map, xpath)
             header["field"] = self._configure_stack_fields(
                 fields, snappi_header, stacks, is_raw_traffic

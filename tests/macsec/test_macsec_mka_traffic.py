@@ -135,6 +135,20 @@ def test_encrypt_with_mka(api, b2b_raw_config, utils):
     # Flow
     f1 = config.flows.flow(name="f1")[-1]
 
+    # IP
+    f1.packet.ethernet().macsec().ipv4()
+
+    # DSCP
+    ip = f1.packet[-1]
+    ip.priority.choice = ip.priority.DSCP
+    ip.priority.dscp.phb.values = [
+    ip.priority.dscp.phb.CS2,
+    ip.priority.dscp.phb.CS1,
+    ip.priority.dscp.phb.CS5,
+    ]
+    ip.priority.dscp.ecn.value = 3
+
+
     # Ethernet/VLAN traffic from secY to secY endpoints
     #f1.tx_rx.device.tx_names = [secy1.name]
     #f1.tx_rx.device.rx_names = [secy2.name]
