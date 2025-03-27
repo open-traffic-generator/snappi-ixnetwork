@@ -52,6 +52,41 @@ class TrafficItem(CustomField):
         ("last_timestamp_ns", "Last TimeStamp", int),
     ]
 
+    _RESULT_ROCEV2_COLUMNS = [
+        ("traffic_item", "Traffic Item", str),
+        ("port_tx", "Tx Port", str),
+        ("port_rx", "Rx Port", str),
+        ("src_qp", "Src QP", int),
+        ("dest_qp", "Dest QP", int),
+        ("src_ipv4", "Src IPv4", str),
+        ("dest_ipv4", "Dest IPv4", str),
+        ("data_frames_tx", "Data Frames Tx", int),
+        ("data_frame_rx", "Data Frames Rx", int),
+        ("frame_delta", "Frames Delta", int),
+        ("data_frames_retransmitted", "Data Frames Retransmitted", int),
+        ("tx_bytes", "Tx Bytes", int),
+        ('rx_bytes', 'Rx Bytes', int),
+        ('data_tx_rate', 'Data Tx Rate (Gbps)', int),
+        ('data_rx_rate', 'Data Rx Rate (Gbps)', int),
+        ('message_tx', 'Message Tx', int),
+        ('message_complete_rx', 'Message Complete Rx', int),
+        ('message_fail', 'Message Fail', int),
+        ('flow_completion_time', 'Flow Completion Time (ms)', int),
+        ('avg_latency', 'Avg Latency (ns)', int),
+        ('min_latency', 'Min Latency (ns)', int),
+        ('max_latency', 'Max Latency (ns)', int),
+        ('ecn_ce_rx', 'ECN-CE Rx', int),
+        ('cnp_tx', 'CNP Tx', int),
+        ('cnp_rx', 'CNP Rx', int),
+        ('ack_tx', 'ACK Tx', int),
+        ('ack_rx', 'ACK Rx', int),
+        ('nak_tx', 'NAK Tx', int),
+        ('nak_rx', 'NAK Rx', int),
+        ('frame_sequence_error', 'Frame Sequence Error', int),
+        ('first_timestamp', 'First TimeStamp', str),
+        ('last_timestamp', 'Last TimeStamp', str),
+    ]
+
     _STACK_IGNORE = ["ethernet.fcs", "pfcPause.fcs"]
 
     _TYPE_TO_HEADER = {
@@ -1759,3 +1794,51 @@ class TrafficItem(CustomField):
                 update = True
         if update is True:
             ixn_object.update(**kwargs)
+
+    def rocev2_flow_results(self, request):
+        """Return RoCEv2 flow results"""
+        # setup parameters
+        qp = request.get("per_qp")
+        self._column_names = qp.get("column_names")
+        if self._column_names is None:
+            self._column_names = []
+        elif not isinstance(self._column_names, list):
+            msg = "Invalid format of column_names passed {},\
+                    expected list".format(
+                self._column_names
+            )
+            raise Exception(msg)
+        traffic_stat = self._api.assistant.StatViewAssistant(
+            "RoCEv2 Flow Statistics"
+        )
+        flow_rows = {}
+        for row in traffic_stat.Rows:
+            flow_row = {}
+            name = row["Flow Name"]
+            self._set_result_value(
+                flow_row, "flow_name", name
+            )
+            flow_rows[name] = flow_row
+        for row in traffic_stat.Rows:
+            name = row["Flow Name"]
+            if name in flow_rows:
+                flow_row = flow_rows[name]
+                for (
+                    external_name,
+                    internal_name,
+                    external_type,
+                ) in self._RESULT_ROCEV2_COLUMNS:
+                    # keep plugging values for next columns even if the
+                    # current one raises exception
+                    try:
+                        self._set_result_value(
+                            flow_row,
+                            external_name,
+                            row[internal_name],
+                            external_type,
+                        )
+                    except Exception:
+                        # TODO print a warning maybe ?
+                        pass
+        return list(flow_rows.values())
+

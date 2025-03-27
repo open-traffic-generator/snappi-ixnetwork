@@ -115,32 +115,13 @@ def test_rocev2_stats(api, utils):
     protocol2.rocev2.connection_type.choice = "reliable_connection"
     protocol2.rocev2.connection_type.reliable_connection.ack.choice = "ip_dscp"
     protocol2.rocev2.connection_type.reliable_connection.ack.ip_dscp.value = 59
-    protocol2.rocev2.connection_type.reliable_connection.ack.ecn_value = "ect_0"
-    protocol2.rocev2.connection_type.reliable_connection.enable_retransmission_timeout = False
-    protocol2.rocev2.connection_type.reliable_connection.retransmission_timeout_value = 10
+    protocol2.rocev2.connection_type.reliable_connection.ack.ecn_value = "ect_0"    # noqa
+    protocol2.rocev2.connection_type.reliable_connection.enable_retransmission_timeout = False  # noqa
+    protocol2.rocev2.connection_type.reliable_connection.retransmission_timeout_value = 10  # noqa
     protocol2.rocev2.dcqcn_settings.alpha_g = 1022
     protocol2.rocev2.dcqcn_settings.initial_alpha = 1000
     protocol2.rocev2.dcqcn_settings.maximum_rate_decrement_at_time = 13
 
-    #api.set_config(config)
-
-    # # start all protocols
-    # print ("Starting Protocols")
-    # control_state = api.control_state()
-    # control_state.protocol.all.state = control_state.protocol.all.START
-    # api.set_control_state(control_state)
-
-    # # create a query for rocev2 metrics
-    # print ("Fetching and Verifying stats...")
-    # req = api.metrics_request()
-    # req.rocev2_ipv4.choice = "per_peer"
-    # req.rocev2_ipv4.per_peer.peer_names = ["rocev2_1"]
-    # print ("PRINT req.choice " + str(req.choice))
-    # results = api.get_metrics(req)
-    # utils.wait_for(
-    #     lambda: results_ok(api), "stats to be as expected", timeout_seconds=20
-    # )
-    # print ("result: \n" + str(results))
 
     
     #start traffic
@@ -154,11 +135,6 @@ def test_rocev2_stats(api, utils):
     )
 
     utils.stop_traffic(api, config)
-
-    # print ("Stopping Protocols")
-    # control_state = api.control_state()
-    # control_state.protocol.all.state = control_state.protocol.all.STOP
-    # api.set_control_state(control_state)
 
 def results_ok(api):
     req = api.metrics_request()
@@ -176,10 +152,10 @@ def results_traffic_ok(api):
     Returns True if there is no traffic loss else False
     """
     request = api.metrics_request()
-    #request.rocev2_flow.choice = "per_port"
-    #request.flow.flow_names = ""
-    request.rocev2_flow.per_qp.column_names = "data_frames_retransmitted"
-    print ("CHOICE : " + str(request.choice))
+    # request.rocev2_flow.per_qp.column_names = ["data_frames_retransmitted"]
+    request.rocev2_flow.per_qp.column_names = []
+    # print ("CHOICE : " + str(request.choice))
+    # print(request)
     results = api.get_metrics(request)
     print ("Result : \n" + str(results))
     #flow_results = api.get_metrics(request).rocev2_flow_per_qp_metrics

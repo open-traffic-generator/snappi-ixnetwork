@@ -578,7 +578,7 @@ class Api(snappi.Api):
                 metric_res.convergence_metrics.deserialize(response)
                 return metric_res
             if request.get("choice") == "rocev2_flow":
-                response = self._result_rocev2_traffic(request.rocev2_flow)
+                response = self.traffic_item.rocev2_flow_results(request.rocev2_flow)  # noqa
                 metric_res = self.metrics_response()
                 metric_res.rocev2_flow_per_qp_metrics.deserialize(response)
                 return metric_res
@@ -645,14 +645,6 @@ class Api(snappi.Api):
                         max_value = tmp_value
                 rows[0][internal_name] = max_value
         return rows[0]
-    
-    def _result_rocev2_traffic(self, request):
-        # get convergence result
-        traffic_stat = self._assistant.StatViewAssistant(
-            "RoCEv2 Flow Statistics"
-        )
-        return traffic_stat
-
 
     def _result(self, request):
         # get convergence result
