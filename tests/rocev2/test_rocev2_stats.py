@@ -49,6 +49,7 @@ def test_rocev2_stats(api, utils):
     peer1_qp_1.qp_name = "QP_1"
     peer2_qp_1.qp_name = "QP_2"
     
+    #if setting non default value for QP number, they should not be same
     peer1_qp_1.connection_type.choice = "reliable_connection"
     peer1_qp_1.connection_type.reliable_connection.source_qp_number = 33
     peer1_qp_1.connection_type.reliable_connection.dscp = 27

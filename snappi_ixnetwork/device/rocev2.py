@@ -206,13 +206,17 @@ class RoCEv2(Base):
             ixn_flow_settings["udpSourcePort"] = self.multivalue(udp_source_port)
             ixn_flow_settings["ecnVal"] = self.multivalue(ecn_numeric_value)
 
-        rocev2s = stateful_flow.get("rocev2")
+        
+        rocev2s = []
         counter = 0
         found = False
         message_size = []
         message_size_unit = []
         immediate_data = []
         rocev2_verb = []
+        if (stateful_flow is not None and stateful_flow.get("rocev2") is not None):
+            print ("PRINT stateful_flow : \n" + str(stateful_flow))
+            rocev2s = stateful_flow.get("rocev2")
 
         for rocev2 in rocev2s:
             for tx_port in rocev2.tx_ports:
@@ -251,7 +255,8 @@ class RoCEv2(Base):
         perportoptions = []
         protocols = []
         ixnRocev2GlobalPortSettings = self._ngpf.api._ixnetwork.Globals.Topology.find().Rocev2.find()
-        perportoptions = options.get("per_port_options")
+        if (options is not None and  options.get("per_port_options") is not None):
+            perportoptions = options.get("per_port_options")
         for perportoption in perportoptions:
             protocols = perportoption.get("protocols")
             for protocol in protocols:
