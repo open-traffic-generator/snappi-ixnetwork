@@ -14,7 +14,6 @@ def test_rocev2_stats(api, utils):
     """
     config = api.config()
     #api.set_config(config)
-    print (str(config.ports))
     p1 = config.ports.add(name="tx", location=utils.settings.ports[0])
     p2 = config.ports.add(name="rx", location=utils.settings.ports[1])
 
@@ -47,6 +46,7 @@ def test_rocev2_stats(api, utils):
     peer1_qp_2 = rocev2_1_peer.qps.add()
     peer2_qp_1 = rocev2_2_peer.qps.add()
     peer2_qp_2 = rocev2_2_peer.qps.add()
+
     peer1_qp_1.qp_name = "QP_1"
     peer1_qp_2.qp_name = "QP_2"
     peer2_qp_1.qp_name = "QP_3"
@@ -80,7 +80,7 @@ def test_rocev2_stats(api, utils):
     #flow_1
     peer1_flow1 = tx_port1.transmit_type.target_line_rate.flows.add()
     peer1_flow1.tx_endpoint = peer1_qp_1.qp_name
-    peer1_flow1.name = "QP_2"
+    peer1_flow1.name = "QP_1"
     peer1_flow1.rocev2_verb.choice = "send_with_immediate"
     peer1_flow1.rocev2_verb.send_with_immediate.immediate_data = "bb"
     peer1_flow1.message_size_unit = "KB"
@@ -88,7 +88,7 @@ def test_rocev2_stats(api, utils):
     #flow_2
     peer1_flow1 = tx_port1.transmit_type.target_line_rate.flows.add()
     peer1_flow1.tx_endpoint = peer2_qp_1.qp_name
-    peer1_flow1.name = "QP_1"
+    peer1_flow1.name = "QP_2"
     peer1_flow1.rocev2_verb.choice = "write_with_immediate"
     peer1_flow1.rocev2_verb.write_with_immediate.immediate_data = "aa"
     peer1_flow1.message_size_unit = "MB"

@@ -14,7 +14,6 @@ def test_rocev2_stats(api, utils):
     """
     config = api.config()
     #api.set_config(config)
-    print (str(config.ports))
     p1 = config.ports.add(name="tx", location=utils.settings.ports[0])
     p2 = config.ports.add(name="rx", location=utils.settings.ports[1])
 

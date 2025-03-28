@@ -200,7 +200,6 @@ class RoCEv2(Base):
             else:
                 ixn_flow_settings["customizeQP"] = True
             ecn_numeric_value = [RoCEv2._ECN["ecn"]["enum_map"][ecn] for ecn in ecn_values]
-            print ("ECN Values numeric : " + str(ecn_numeric_value))
             ixn_flow_settings["customQP"] = self.multivalue(source_qp_number)
             ixn_flow_settings["dscp"] = self.multivalue(dscp)
             ixn_flow_settings["udpSourcePort"] = self.multivalue(udp_source_port)
@@ -215,7 +214,6 @@ class RoCEv2(Base):
         immediate_data = []
         rocev2_verb = []
         if (stateful_flow is not None and stateful_flow.get("rocev2") is not None):
-            print ("PRINT stateful_flow : \n" + str(stateful_flow))
             rocev2s = stateful_flow.get("rocev2")
 
         for rocev2 in rocev2s:
@@ -229,7 +227,6 @@ class RoCEv2(Base):
                             message_size.append(flow.get("message_size"))
                             message_size_unit.append(flow.get("message_size_unit"))
                             rocev2_verb.append(flow.rocev2_verb.get("choice"))
-                            print ("verb : \n" + str(rocev2_verb))
                             if (flow.rocev2_verb.choice == "write_with_immediate"):
                                 immediate_data.append(flow.rocev2_verb.write_with_immediate.get("immediate_data"))
                             elif (flow.rocev2_verb.choice == "send_with_immediate"):
@@ -243,13 +240,11 @@ class RoCEv2(Base):
                                 mapped_verbs = [RoCEv2._VERB["choice"]["enum_map"][verb] for verb in rocev2_verb]
                                 ixn_flow_settings["executeCommands"] = self.multivalue(mapped_verbs)
                                 ixn_flow_settings["immidtData"] = self.multivalue(immediate_data)
+
+                                #now populate global port settings
+                                if (options is not None):
+                                    self._populateGLobalPortSettings(options)
                                 return
-
-
-        #now populate global port settings
-        if (options is not None):
-            self._populateGLobalPortSettings(options)
-
 
     def _populateGLobalPortSettings(self, options):
         perportoptions = []
@@ -261,7 +256,7 @@ class RoCEv2(Base):
             protocols = perportoption.get("protocols")
             for protocol in protocols:
                 if (protocol.cnp):       #meaning rocev2 
-
+                    print ("protocol : \n" + str(protocol))
                     #CNP
                     if (protocol.cnp.get("choice") == "ip_dscp"):
                         ixnRocev2GlobalPortSettings.CnpPriorityType.Single("handshakeprioritytypeipdscp")
