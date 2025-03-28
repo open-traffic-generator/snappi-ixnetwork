@@ -61,7 +61,7 @@ class TrafficItem(CustomField):
         ("src_ipv4", "Src IPv4", str),
         ("dest_ipv4", "Dest IPv4", str),
         ("data_frames_tx", "Data Frames Tx", int),
-        ("data_frame_rx", "Data Frames Rx", int),
+        ("data_frames_rx", "Data Frames Rx", int),
         ("frame_delta", "Frames Delta", int),
         ("data_frames_retransmitted", "Data Frames Retransmitted", int),
         ("tx_bytes", "Tx Bytes", int),
