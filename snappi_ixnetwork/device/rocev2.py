@@ -256,7 +256,6 @@ class RoCEv2(Base):
             protocols = perportoption.get("protocols")
             for protocol in protocols:
                 if (protocol.cnp):       #meaning rocev2 
-                    print ("protocol : \n" + str(protocol))
                     #CNP
                     if (protocol.cnp.get("choice") == "ip_dscp"):
                         ixnRocev2GlobalPortSettings.CnpPriorityType.Single("handshakeprioritytypeipdscp")
