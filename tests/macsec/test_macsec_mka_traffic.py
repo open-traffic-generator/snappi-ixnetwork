@@ -40,13 +40,17 @@ def test_encrypt_with_mka(api, b2b_raw_config, utils):
     secy1.data_plane.choice = secy2.data_plane.choice = "encapsulation"
     secy1.data_plane.encapsulation.crypto_engine.choice = secy2.data_plane.encapsulation.crypto_engine.choice = "encrypt_only"
     secy1_crypto_engine_enc_only, secy2_crypto_engine_enc_only = secy1.data_plane.encapsulation.crypto_engine.encrypt_only, secy2.data_plane.encapsulation.crypto_engine.encrypt_only 
- 
-    # Data plane Tx SC PN 
-    secy1_dataplane_txsc1, secy2_dataplane_txsc1 = secy1_crypto_engine_enc_only.secure_channels.add(), secy2_crypto_engine_enc_only.secure_channels.add()
-    secy1_dataplane_txsc1.tx_pn.choice = secy2_dataplane_txsc1.tx_pn.choice = "incrementing_pn"
 
-    secy1_dataplane_txsc1.tx_pn.incrementing.starting_pn = secy2_dataplane_txsc1.tx_pn.incrementing.starting_pn = 1
-    secy1_dataplane_txsc1.tx_pn.incrementing.count = secy2_dataplane_txsc1.tx_pn.incrementing.count = 10000
+    # Data plane Tx SC
+    secy1_dataplane_txsc1, secy2_dataplane_txsc1 = secy1_crypto_engine_enc_only.secure_channels.add(), secy2_crypto_engine_enc_only.secure_channels.add()
+
+    # Fixed PN
+    secy1_dataplane_txsc1.tx_pn.choice = secy2_dataplane_txsc1.tx_pn.choice = "fixed_pn"
+ 
+    # OR incrementing PN
+    #secy1_dataplane_txsc1.tx_pn.choice = secy2_dataplane_txsc1.tx_pn.choice = "incrementing_pn"
+    #secy1_dataplane_txsc1.tx_pn.incrementing.starting_pn = secy2_dataplane_txsc1.tx_pn.incrementing.starting_pn = 1
+    #secy1_dataplane_txsc1.tx_pn.incrementing.count = secy2_dataplane_txsc1.tx_pn.incrementing.count = 10000
 
     ####################
     # MKA
@@ -131,6 +135,20 @@ def test_encrypt_with_mka(api, b2b_raw_config, utils):
     # Flow
     f1 = config.flows.flow(name="f1")[-1]
 
+    # IP
+    f1.packet.ethernet().macsec().ipv4()
+
+    # DSCP
+    ip = f1.packet[-1]
+    ip.priority.choice = ip.priority.DSCP
+    ip.priority.dscp.phb.values = [
+    ip.priority.dscp.phb.CS2,
+    ip.priority.dscp.phb.CS1,
+    ip.priority.dscp.phb.CS5,
+    ]
+    ip.priority.dscp.ecn.value = 3
+
+
     # Ethernet/VLAN traffic from secY to secY endpoints
     #f1.tx_rx.device.tx_names = [secy1.name]
     #f1.tx_rx.device.rx_names = [secy2.name]
@@ -211,7 +229,7 @@ def test_encrypt_with_mka(api, b2b_raw_config, utils):
         "out_pkts_protected",
         "out_pkts_encrypted",
         "in_pkts_ok",
-        "bad_pkts_rx",
+        "in_pkts_bad",
         "in_pkts_bad_tag",
         "in_pkts_late",
         "in_pkts_no_sci",

@@ -59,7 +59,7 @@ class ProtocolMetrics(object):
             ("out_pkts_protected", "Protected Packet Tx", int),
             ("out_pkts_encrypted", "Encrypted Packet Tx", int),
             ("in_pkts_ok", "Valid Packet Rx", int),
-            ("bad_pkts_rx", "Bad Packet Rx", int),
+            ("in_pkts_bad", "Total number of bad Packet Rx", int),
             ("in_pkts_bad_tag", "Bad Tag/ICV Discarded", int),
             ("in_pkts_late", "Out of Window Discarded", int),
             ("in_pkts_no_sci", "Unknown SCI Discarded", int),

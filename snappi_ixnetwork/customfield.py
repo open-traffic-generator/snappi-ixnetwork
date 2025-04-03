@@ -67,7 +67,7 @@ class CustomField(object):
         time = tr_instance._get_first_value(snappi_header.get("time", True))
 
         custom.bytes = "{:04x}{:x}".format(control_op_code, time)
-        tr_instance._append_header(custom, xpath, stacks)
+        tr_instance._append_header(xpath, stacks, custom)
 
     @classmethod
     def _process_custom_header(
