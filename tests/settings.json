@@ -1,15 +1,15 @@
 {
     "username": "admin",
     "psd": "admin",
-    "location": "https://localhost:443",
+    "location": "https://10.66.45.12:11009",
     "ports": [
-        "localhost;1;1",
-        "localhost;1;2"
+        "10.39.43.74;1;241",
+        "10.39.43.74;1;245"
     ],
     "ext": "ixnetwork",
     "speed": "speed_1_gbps",
     "media": null,
-    "timeout_seconds": 30,
+    "timeout_seconds": 60,
     "interval_seconds": 0.5,
     "log_level": "info",
     "dynamic_stats_output": false,

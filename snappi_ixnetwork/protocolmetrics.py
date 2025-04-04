@@ -87,7 +87,6 @@ class ProtocolMetrics(object):
             ("icv_mismatch", "ICV Mismatch", int),
         ],
         "rocev2_ipv4": [
-            ("session_state", "Status", str),
             ("qp_configured", "QP Configured", int),
             ("qp_up", "QP Up", int),
             ("qp_down", "QP Down", int),
@@ -106,7 +105,6 @@ class ProtocolMetrics(object):
             ("unknown_msg_rx", "Unknown MSG Rx", int),
         ],
         "rocev2_ipv6": [
-            ("session_state", "Status", str),
             ("qp_configured", "QP Configured", int),
             ("qp_up", "QP Up", int),
             ("qp_down", "QP Down", int),

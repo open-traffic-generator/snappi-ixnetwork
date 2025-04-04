@@ -35,7 +35,7 @@ class RoCEv2(Base):
         "message_size": "messageSize",
         "message_size_unit": {
             "ixn_attr": "messageSizeUnit",
-            "enum_map": {"Byte":"byte", "KB":"kb", "MB":"mb"},
+            "enum_map": {"bytes":"byte", "kb":"kb", "mb":"mb", "gb":"gb"},
         }  
     }
 

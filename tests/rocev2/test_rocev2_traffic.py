@@ -76,7 +76,7 @@ def test_rocev2_stats(api, utils):
     peer1_flow1.name = "QP_2"
     peer1_flow1.rocev2_verb.choice = "send_with_immediate"
     peer1_flow1.rocev2_verb.send_with_immediate.immediate_data = "bb"
-    peer1_flow1.message_size_unit = "KB"
+    peer1_flow1.message_size_unit = "kb"
 
     #flow_2
     peer2_flow1 = tx_port2.transmit_type.target_line_rate.flows.add()
@@ -84,7 +84,7 @@ def test_rocev2_stats(api, utils):
     peer2_flow1.name = "QP_1"
     peer2_flow1.rocev2_verb.choice = "write_with_immediate"
     peer2_flow1.rocev2_verb.write_with_immediate.immediate_data = "aa"
-    peer2_flow1.message_size_unit = "MB"
+    peer2_flow1.message_size_unit = "mb"
 
     #RoCEv2 Protocol Port Settings
     per_port_option1 = config.options.per_port_options.add()
@@ -138,12 +138,12 @@ def test_rocev2_stats(api, utils):
 def results_ok(api):
     req = api.metrics_request()
     req.rocev2_ipv4.choice = "per_peer"
-    req.rocev2_ipv4.per_peer.column_names = ["session_state"]
+    req.rocev2_ipv4.per_peer.column_names = ["qp_down"]
     results = api.get_metrics(req)
     time.sleep(10)
     ok = []
     for r in results.rocev2_ipv4_per_peer_metrics:
-        ok.append(r.session_state == "up")
+        ok.append(r.qp_down == 0)
     return all(ok)
 
 def results_traffic_ok(api):

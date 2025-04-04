@@ -53,7 +53,6 @@ class TrafficItem(CustomField):
     ]
 
     _RESULT_ROCEV2_COLUMNS = [
-        ("traffic_item", "Traffic Item", str),
         ("port_tx", "Tx Port", str),
         ("port_rx", "Rx Port", str),
         ("src_qp", "Src QP", int),
