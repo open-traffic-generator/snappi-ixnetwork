@@ -598,6 +598,66 @@ class Api(snappi.Api):
                 request.choice
             )
             raise SnappiIxnException(400, msg)
+
+    def update_flows(self, payload):
+        """
+        Update Flows for property size and rate
+
+        Args
+        ----
+        - request (Union[UpdateFlows, str]): A request for Flow property update.
+          The request content MUST be vase on the OpenAPI model,
+          #/components/schemas/Control.FlowsUpdate
+          See the docs/openapi.yaml document for all model details
+        """
+        try:
+            if isinstance(payload, str) is True:
+                payload = self._flows_update.deserialize(payload)
+            self._connect()
+            self.traffic_item.update_flows(payload)
+        except Exception as err:
+            raise SnappiIxnException(err)
+        return self._request_detail()
+    
+    def delete_flows(self, payload):
+        """
+        Delete Flows from config
+
+        Args
+        ----
+        - request (Union[DeleteFlows, str]): A request for Flow name for deletion.  # noqa
+          The request content MUST be vase on the OpenAPI model,
+          #/components/schemas/Config.Delete
+          See the docs/openapi.yaml document for all model details
+        """
+        try:
+            if isinstance(payload, str) is True:
+                payload = self._flows_delete.deserialize(payload)
+            self._connect()
+            self.traffic_item.delete_flows(payload)
+        except Exception as err:
+            raise SnappiIxnException(err)
+        return self._request_detail()
+    
+    def append_flows(self, payload):
+        """
+        Append Flows from config
+
+        Args
+        ----
+        - request (Union[AppendFlows, str]): A request for Flow name for append.  # noqa
+          The request content MUST be vase on the OpenAPI model,
+          #/components/schemas/Config.Delete
+          See the docs/openapi.yaml document for all model details
+        """
+        try:
+            if isinstance(payload, str) is True:
+                payload = self._flows_append.deserialize(payload)
+            self._connect()
+            self.traffic_item.append_flows(payload)
+        except Exception as err:
+            raise SnappiIxnException(err)
+        return self._request_detail()
     
     def _get_max_convergence(self, rows):
         # We are extracting max value for multiple destination

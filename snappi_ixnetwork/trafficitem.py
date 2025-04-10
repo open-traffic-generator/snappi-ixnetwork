@@ -1747,3 +1747,30 @@ class TrafficItem(CustomField):
                 update = True
         if update is True:
             ixn_object.update(**kwargs)
+
+    def delete_flows(self, delete_flows_config):
+        """
+        Delete the flows with list of flow names
+        """
+        self._validate_delete_flows_config(delete_flows_config)
+        for flow in delete_flows_config.flows:
+            hl = self._api._ixnetwork.Traffic.TrafficItem.find(
+                Name=flow
+            ).HighLevelStream.find()
+
+    def _validate_delete_flows_config(self, delete_flows_config):
+        errors = []
+        for flow in delete_flows_config.flows:
+            if flow not in self._api._config.flows._items:
+                errors.append(
+                    "flow {} is not present in the configuration".format(
+                        flow.name
+                    )
+                )
+        if errors:
+            raise SnappiIxnException(400, "{}".format(("\n").join(errors)))
+
+    def append_flows(self, append_flows_config):
+        """
+        Append the flows with list of flow names
+        """
