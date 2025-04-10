@@ -93,6 +93,8 @@ class Api(snappi.Api):
         self._control_state = self.control_state()
         self._control_action = self.control_action()
         self._flows_update = self.config_update()
+        self._flows_delete = self.config_delete()
+        self._flows_append = self.config_append()
         self._capture_request = self.capture_request()
         self.ixn_routes = []
         self.validation = Validation(self)
@@ -264,7 +266,7 @@ class Api(snappi.Api):
         return request_detail
 
     def set_config(self, config):
-        """Set or update the configuration"""
+        """Set, update or delete the configuration"""
         try:
             if isinstance(config, (type(self._config_type), str)) is False:
                 raise TypeError(
@@ -596,26 +598,6 @@ class Api(snappi.Api):
                 request.choice
             )
             raise SnappiIxnException(400, msg)
-
-    def update_flows(self, payload):
-        """
-        Update Flows for property size and rate
-
-        Args
-        ----
-        - request (Union[UpdateFlows, str]): A request for Flow property update.
-          The request content MUST be vase on the OpenAPI model,
-          #/components/schemas/Control.FlowsUpdate
-          See the docs/openapi.yaml document for all model details
-        """
-        try:
-            if isinstance(payload, str) is True:
-                payload = self._flows_update.deserialize(payload)
-            self._connect()
-            self.traffic_item.update_flows(payload)
-        except Exception as err:
-            raise SnappiIxnException(err)
-        return self._request_detail()
     
     def _get_max_convergence(self, rows):
         # We are extracting max value for multiple destination
