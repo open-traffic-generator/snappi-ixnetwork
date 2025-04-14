@@ -1753,20 +1753,25 @@ class TrafficItem(CustomField):
         Delete the flows with list of flow names
         """
         self._validate_delete_flows_config(delete_flows_config)
-        for flow in delete_flows_config.flows:
-            hl = self._api._ixnetwork.Traffic.TrafficItem.find(
-                Name=flow
-            ).HighLevelStream.find()
+        # for flow in delete_flows_config:
+        #     hl = self._api._ixnetwork.Traffic.TrafficItem.find(
+        #         Name=flow
+        #     ).HighLevelStream.find()
+        # print("hl", hl)
 
     def _validate_delete_flows_config(self, delete_flows_config):
+        initial_flownames = []
+        for i_flow in self._api._initial_flows_config._items:
+            initial_flownames.append(i_flow.name)
         errors = []
-        for flow in delete_flows_config.flows:
-            if flow not in self._api._config.flows._items:
-                errors.append(
-                    "flow {} is not present in the configuration".format(
-                        flow.name
+        for delcgfs in delete_flows_config:
+            for flow in delcgfs.flows:
+                if flow not in initial_flownames:
+                    errors.append(
+                        "flow {} is not present in the configuration".format(
+                            flow
+                        )
                     )
-                )
         if errors:
             raise SnappiIxnException(400, "{}".format(("\n").join(errors)))
 
@@ -1774,3 +1779,20 @@ class TrafficItem(CustomField):
         """
         Append the flows with list of flow names
         """
+        self._validate_append_flows_config(append_flows_config)
+
+    def _validate_append_flows_config(self, append_flows_config):
+        initial_flownames = []
+        for i_flow in self._api._initial_flows_config._items:
+            initial_flownames.append(i_flow.name)
+        errors = []
+        for appcgfs in append_flows_config:
+            for flow in appcgfs:
+                if flow.name in initial_flownames:
+                    errors.append(
+                        "flow {} is already present in the configuration".format(
+                            flow.name
+                        )
+                    )
+        if errors:
+            raise SnappiIxnException(400, "{}".format(("\n").join(errors)))
