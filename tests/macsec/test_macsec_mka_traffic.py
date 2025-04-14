@@ -164,6 +164,21 @@ def test_encrypt_with_mka(api, b2b_raw_config, utils):
     # Rate
     f1.rate.pps = 10
 
+    # egress only tracking(eotr)
+    eotrs = config.egress_only_trackings
+    eotr1 = eotrs.add()
+    eotr1.port_name = p2.name
+
+    # eotr filter
+    eotr1_filter1 = eotr1.filters.add()
+    eotr1_filter1 = "auto_macsec"
+
+    # eotr metric tag for destination MAC 3rd byte from MSB: LS 4 bits
+    eotr1_mt1 = eotr1.metric_tags.add()
+    eotr1_mt1.name = "dest_mac_addr"
+    eotr1_mt1.offset = 24
+    eotr1_mt1.length = 8
+
     utils.start_traffic(api, config)
 
     ####################

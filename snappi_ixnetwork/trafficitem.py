@@ -382,6 +382,7 @@ class TrafficItem(CustomField):
         self._api = ixnetworkapi
         self.ixn_config = None
         self.traffic_index = 1
+        self.egress_only_tracking_index = 1
         self.has_latency = False
         self._flow_timeout = 10
         self.flows_has_latency = []
@@ -515,7 +516,7 @@ class TrafficItem(CustomField):
         myfilter = [{"property": "name", "regex": ".*"}]
         url, payload = self._get_search_payload(
             "/traffic",
-            "(?i)^(trafficItem|configElement|frameRate"
+            "(?i)^(trafficItem|egressOnlyTracking|configElement|frameRate"
             "|frameSize|transmissionControl|stack|field|highLevelStream"
             "|tracking|transmissionDistribution)$",
             [
@@ -555,6 +556,12 @@ class TrafficItem(CustomField):
             self._api._request("DELETE", url)
             self._api._ixnetwork.Traffic.TrafficItem.find().refresh()
         self.traffic_index = 1
+
+        if len(self._api._ixnetwork.Traffic.EgressOnlyTracking.find()) > 0:
+            url = "%s/traffic/egressOnlyTracking" % self._api._ixnetwork.href
+            self._api._request("DELETE", url)
+            self._api._ixnetwork.Traffic.EgressOnlyTracking.find().refresh()
+        self.egress_only_tracking_index = 1
 
     def _gen_dev_endpoint(self, devices, names, endpoints, scalable_endpoints):
         self.logger.debug("Generating Device Endpoints with names %s" % names)
@@ -675,7 +682,94 @@ class TrafficItem(CustomField):
             self.logger.debug(
                 "Flow %s converted to %s" % (flow_name, tr["trafficItem"][-1])
             )
+
+        # egress only tracking
+        tr["egressOnlyTracking"] = []
+        for snappi_eotr in config.egress_only_trackings:
+            eotr_port_name = snappi_eotr.port_name
+            eotr_xpath = "/traffic/egressOnlyTracking[%d]" % self.egress_only_tracking_index
+            tr["egressOnlyTracking"] = []
+            tr["egressOnlyTracking"].append(
+                {
+                    "xpath": eotr_xpath,
+                    "port": ports.get(eotr_port_name),
+                    "enabled": True,
+                }
+            )
+            eotr = tr["egressOnlyTracking"][-1]
+            # signature
+            for f in snappi_eotr.filters:
+                if f.choice == "auto_macsec":
+                    # Tweleve bytes 00 AB CD EF 00 00 00 00 00 00 PQ RS signature is set at offset 2.
+                    # 0xABCDEF is value of common last three bytes of all ethernet addresses of all MACsec devices with "encrypt_only" crypto engine.
+                    #
+                    # 0xPQRS is ethernet type. When MACsec header is the first ethernet type, it is 0x88E5
+                    # When clear text VLAN enabled, it is TPID e.g. 0x8810.
+                    self.logger.debug("MACsec auto signature is applied as filter for egress only tracking at port %s" % eotr_port_name)
+                else:
+                    self.logger.debug("Unknown filter. Only MACsec auto signature is is supported for egress only tracking at port %s" % eotr_port_name)
+
+            snappi_eotr_mts = snappi_eotr.metric_tags
+            if len(snappi_eotr_mts) == 0:
+                msg = "At least one metric tag shall be configured in egress_only_tracking at port %s" % eotr_port_name
+                raise Exception(msg)
+            elif len(snappi_eotr_mts) > 3:
+                msg = "At most three metric tag can be configured in egress_only_tracking at port %s" % eotr_port_name
+                raise Exception(msg)
+
+           # egress only tracking
+            eotr["egress"] = []
+            mt_index = 0
+            for snappi_mt in snappi_eotr_mts:
+                result = self.eotr_mt_bit_offset_length_to_4byte_clear_mask(snappi_mt.offset, snappi_mt.length)
+                if len(result) == 2:
+                    mt_dict = { "arg1": result[0], "arg2": result[1] }
+                    eotr["egress"].append(mt_dict)
+                else:
+                    raise ValueError(
+                        "%s metric tag %s length error" % snappi_mt.name
+                    )
+                mt_index += 1
+            self.egress_only_tracking_index += 1
         return tr
+
+    def eotr_mt_bit_offset_length_to_4byte_clear_mask(self, offset_in_bits, length_in_bits):
+        result = {}
+
+        if length_in_bits < 1:
+            # minimum length 1
+            return []
+        elif length_in_bits > 32:
+            # maximum length 4 bytes i.e. 32 bits
+            return []
+
+        # Word (2 bytes) aligned offset of the first byte in mask. Offset starts from beginning of frame.
+        word_aligned_first_byte_offset = offset_in_bits // 16
+        # Bit offset of the first clear mask bit within the first byte in mask
+        first_bit_offset = offset_in_bits % 16
+
+        # Compute masked bits only
+        mask = 0
+        for bit in range(length_in_bits):
+            mask = mask << 1
+            mask |= 1
+
+        # Position masked bits with 4 bytes
+        mask = mask << (32 - length_in_bits - first_bit_offset)
+        # Invert to clear mask
+        mask = ~mask
+
+        # Clear mask bytes
+        mask_byte0 = ((mask >> 24) & 0xFF)
+        mask_byte1 = ((mask >> 16) & 0xFF)
+        mask_byte2 = ((mask >> 8) & 0xFF)
+        mask_byte3 = ((mask >> 0) & 0xFF)
+
+        # Convert to hex string
+        mask_bytes = [mask_byte0, mask_byte1, mask_byte2, mask_byte3]
+        mask_bytes_str = ''.join('{:02x}'.format(x) for x in mask_bytes)
+
+        return [word_aligned_first_byte_offset*2, mask_bytes_str]
 
     def config_raw_stack(self, xpath, packet):
         ce_path = "%s/configElement[1]" % xpath
