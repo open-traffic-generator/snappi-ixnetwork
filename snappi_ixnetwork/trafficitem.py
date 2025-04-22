@@ -720,6 +720,10 @@ class TrafficItem(CustomField):
             stack_name = self._HEADER_TO_TYPE.get(
                 self._getUhdHeader(header.parent.choice)
             )
+            if stack_name == "macsec":
+                raise NotImplementedError(
+                    "%s stack in raw traffic is not implemented. Please enable MACsec in ethernet device and configure traffic between device endpoints." % stack_name
+                )
             header_xpath = "%s/stack[@alias = '%s-%d']" % (
                 ce_path,
                 stack_name,
