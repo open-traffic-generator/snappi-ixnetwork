@@ -17,7 +17,7 @@ def test_encrypt_with_mka(api, b2b_raw_config, utils):
 
     eth1, eth2 = d1.ethernets.add(), d2.ethernets.add()
     eth1.connection.port_name, eth2.connection.port_name = p1.name, p2.name
-    eth1.mac, eth2.mac = "00:00:00:00:00:11", "00:00:00:00:00:22"
+    eth1.mac, eth2.mac = "00:00:00:01:00:11", "00:00:00:02:00:22"
     ip1, ip2 = eth1.ipv4_addresses.add(), eth2.ipv4_addresses.add()
     eth1.name, eth2.name = "eth1", "eth2"
     ip1.name, ip2.name = "ip1", "ip2"
@@ -165,8 +165,8 @@ def test_encrypt_with_mka(api, b2b_raw_config, utils):
     f1.rate.pps = 10
 
     # egress only tracking(eotr)
-    eotrs = config.egress_only_trackings
-    eotr1 = eotrs.add()
+    eotr = config.egress_only_tracking
+    eotr1 = eotr.add()
     eotr1.port_name = p2.name
 
     # eotr filter
@@ -176,8 +176,13 @@ def test_encrypt_with_mka(api, b2b_raw_config, utils):
     # eotr metric tag for destination MAC 3rd byte from MSB: LS 4 bits
     eotr1_mt1 = eotr1.metric_tags.add()
     eotr1_mt1.name = "dest_mac_addr"
-    eotr1_mt1.offset = 24
-    eotr1_mt1.length = 8
+    eotr1_mt1.offset = 29
+    eotr1_mt1.length = 3
+
+    #eotr1_mt2 = eotr1.metric_tags.add()
+    #eotr1_mt2.name = "macsec_sci"
+    #eotr1_mt2.offset = 189
+    #eotr1_mt2.length = 3
 
     utils.start_traffic(api, config)
 
@@ -293,6 +298,38 @@ def test_encrypt_with_mka(api, b2b_raw_config, utils):
             else:
                 assert getattr(macsec_res, enum) >= val
             print(f"{enum} : {getattr(macsec_res, enum)}")
+
+    # create a query for egress only traffic metrics
+    req = api.metrics_request()
+    req.choice = "egress_only_tracking"
+
+    # fetch egress only tracking metrics of a receiving port
+    req.egress_only_tracking.port_names = [p2.name]
+    #req.egress_only_tracking.tagged_metrics.metric_names = []
+    #req.egress_only_tracking.tagged_metrics.metric_names = ["frames_rx", "bytes_rx"]
+    req.egress_only_tracking.tagged_metrics.metric_names = ["frames_rx", "bytes_rx", "tx_metrics"]
+    results = api.get_metrics(req)
+
+    # parse egress only tracking result
+    assert len(results.egress_only_tracking_metrics) == 1
+    assert results.egress_only_tracking_metrics[0].port_rx == p2.name
+    for eotr_res_per_port in results.egress_only_tracking_metrics:
+        print("Egress only tracking metrics per port: %s:" % eotr_res_per_port.port_rx)
+        eotr_metrics = eotr_res_per_port.tagged_metrics
+        for eotr_metric in eotr_metrics:
+            tags = eotr_metric.tags
+            for tag in tags:
+                print("\tTag: %s value: %s" % (tag.name, tag.value))
+
+            # Tx metrics
+            try:
+                if eotr_metric.tx_metrics is not None:
+                    print("\tport_tx: %s frames_tx: %s" % (eotr_metric.tx_metrics.port_tx, eotr_metric.tx_metrics.frames_tx))
+            except Exception:
+                pass
+
+            # Rx metrics
+            print("\tframes_rx: %s bytes_rx: %s" % (eotr_metric.frames_rx, eotr_metric.bytes_rx))
 
     utils.stop_traffic(api, config)
 

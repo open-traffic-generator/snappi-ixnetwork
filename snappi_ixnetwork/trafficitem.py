@@ -388,6 +388,7 @@ class TrafficItem(CustomField):
         self.flows_has_latency = []
         self.flows_has_timestamp = []
         self.flows_has_loss = []
+        self.port_egress_only_tracking = {}
         self.logger = get_ixnet_logger(__name__)
 
     def _get_search_payload(self, parent, child, properties, filters):
@@ -685,7 +686,7 @@ class TrafficItem(CustomField):
 
         # egress only tracking
         tr["egressOnlyTracking"] = []
-        for snappi_eotr in config.egress_only_trackings:
+        for snappi_eotr in config.egress_only_tracking:
             eotr_port_name = snappi_eotr.port_name
             eotr_xpath = "/traffic/egressOnlyTracking[%d]" % self.egress_only_tracking_index
             tr["egressOnlyTracking"] = []
@@ -717,19 +718,31 @@ class TrafficItem(CustomField):
                 msg = "At most three metric tag can be configured in egress_only_tracking at port %s" % eotr_port_name
                 raise Exception(msg)
 
-           # egress only tracking
+            # egress only tracking
             eotr["egress"] = []
             mt_index = 0
+            self.port_egress_only_tracking[eotr_port_name] = None
+            per_port_mts = []
+
+            # egress only tracking result option
+            per_port_mt_dict_result = {}
+            per_port_mt_dict_result["enable_timestamps"] = snappi_eotr.enable_timestamps
+            per_port_mt_dict_result["metric_tags"] = []
+
             for snappi_mt in snappi_eotr_mts:
                 result = self.eotr_mt_bit_offset_length_to_4byte_clear_mask(snappi_mt.offset, snappi_mt.length)
                 if len(result) == 2:
                     mt_dict = { "arg1": result[0], "arg2": result[1] }
                     eotr["egress"].append(mt_dict)
+                    mt_dict_entry_result = { "name": snappi_mt.name, "length": snappi_mt.length }
+                    per_port_mt_dict_result["metric_tags"].append(mt_dict_entry_result)
                 else:
                     raise ValueError(
                         "%s metric tag %s length error" % snappi_mt.name
                     )
                 mt_index += 1
+            if len(per_port_mt_dict_result["metric_tags"]) > 0:
+                self.port_egress_only_tracking[eotr_port_name] = per_port_mt_dict_result
             self.egress_only_tracking_index += 1
         return tr
 
@@ -930,6 +943,7 @@ class TrafficItem(CustomField):
                     if loss is True:
                         self.flows_has_loss.append(flow.name)
                 tr_json["traffic"]["trafficItem"].append(tr_item)
+
             self._importconfig(tr_json)
 
             self._configure_options()
@@ -1259,7 +1273,7 @@ class TrafficItem(CustomField):
                     elif size.weight_pairs.predefined == "tcp_imix":
                         ce["frameSize"]["presetDistribution"] = "tcpImix"
                     elif size.weight_pairs.predefined == "ipsec_imix":
-                        ce["frameSize"]["presetDistribution"] = "ipSecImix"    
+                        ce["frameSize"]["presetDistribution"] = "ipSecImix"
                     else :
                         ce["frameSize"]["presetDistribution"] = size.weight_pairs.predefined
                 elif size.weight_pairs.choice == "custom":
@@ -1690,6 +1704,155 @@ class TrafficItem(CustomField):
                         flow_row.pop("loss")
         return list(flow_rows.values())
 
+    def results_egress_only_tracking(self, request):
+        """Return flow results"""
+
+        # setup parameters
+        port_names = request.get("port_names")
+        tagged_metrics = request.get("tagged_metrics")
+        include_empty_metrics = tagged_metrics.get("include_empty_metrics")
+        self._column_names = tagged_metrics.get("metric_names")
+
+        if self._column_names is None:
+            self._column_names = []
+        elif not isinstance(self._column_names, list):
+            msg = "Invalid format of column_names passed {},\
+                    expected list".format(
+                self._column_names
+            )
+            raise Exception(msg)
+
+        has_request_ports = True
+        req_port_names = request.get("port_names")
+        if req_port_names is None or len(req_port_names) == 0:
+            req_port_names = []
+            has_request_ports = False
+        if not isinstance(req_port_names, list):
+            msg = "Invalid format of port names passed {},\
+                    expected list".format(
+                req_port_names
+            )
+            raise Exception(msg)
+        req_port_names = self._api.special_char(req_port_names)
+        # initialize result values
+        self.logger.debug(
+            "Fetching these columns %s for ports %s"
+            % (self._column_names, req_port_names)
+        )
+        regfilter = {"property": "name", "regex": ".*"}
+
+        traffic_items = self._api.select_traffic_items(
+            traffic_item_filters=[regfilter]
+        )
+        if len(traffic_items) == 0:
+            raise Exception(
+                "To fetch flow metrics at least Flow should configured"
+            )
+        flow_names = []
+        for traffic_item in traffic_items.values():
+            name = traffic_item["name"]
+            flow_names.append(name)
+
+        if len(flow_names) == 0:
+            msg = """
+            To fetch flow metrics at least one flow shall have metric enabled
+            """
+            raise Exception(msg.strip())
+
+        flow_count = len(flow_names)
+
+        ixn_page = self._api._ixnetwork.Statistics.View.find(
+            Caption="Flow Statistics"
+        ).Page
+        if ixn_page.PageSize < flow_count:
+            ixn_page.PageSize = flow_count
+        self.logger.debug("These are the current flow stats:")
+
+        table = self._api.assistant.StatViewAssistant("Flow Statistics")
+        flow_rows = {}
+        for row in table.Rows:
+            name = row["Traffic Item"]
+            self.logger.debug(str(row))
+            port_rx = row["Rx Port"]
+            if (
+                port_rx in req_port_names
+                and
+                self.port_egress_only_tracking[port_rx] is not None
+            ):
+                if int(row["Rx Frames"]) == 0 and include_empty_metrics is False:
+                    # skip empty row
+                    continue
+                result_flow_row = None
+                tagged_metric_rows = []
+                tagged_metric_row = {}
+                tx_metric_row = {}
+
+                skip_metric_tx = True
+                if "tx_metrics" in self._column_names:
+                    skip_metric_tx = False
+                    tx_metric_row["port_tx"] = row["Tx Port"]
+
+                # Rx metrics
+                for (
+                    external_name,
+                    internal_name,
+                    external_type,
+                ) in self._RESULT_COLUMNS:
+                    # assume it is not Rx metric
+                    is_metric_rx = False
+                    if "rx_" in external_name or "_rx" in external_name:
+                        is_metric_rx = True
+                    if len(self._column_names) > 0:
+                        if is_metric_rx is True:
+                            if external_name not in self._column_names:
+                                # skip column if Rx metric is not requested
+                                continue
+                        elif skip_metric_tx is True:
+                            # skip column if Tx metric is not requested
+                            continue
+                        elif external_name == "bytes_tx":
+                            # skip column as it is not supported
+                            continue
+
+                    if is_metric_rx is True:
+                        # it is Rx metric
+                        result_flow_row = tagged_metric_row
+                    elif skip_metric_tx is False:
+                        # it is Tx metric. as it is not explicitly added in metric request list, add it now as it is needed
+                        self._column_names.append(external_name)
+                        result_flow_row = tx_metric_row
+
+                    # keep plugging values for next columns even if the
+                    # current one raises exception
+                    try:
+                        self._set_result_value(
+                            result_flow_row,
+                            external_name,
+                            row[internal_name],
+                            external_type,
+                        )
+                    except Exception as exception_err:
+                        # TODO print a warning maybe ?
+                        self.logger.debug("set result value: error: %s" % exception_err)
+                        pass
+                if len(result_flow_row) > 0:
+                    per_port_mt_dict_result = self.port_egress_only_tracking[port_rx]
+                    self._construct_pgid_tags(tagged_metric_row, row)
+                    if per_port_mt_dict_result["enable_timestamps"] is True:
+                        self._construct_timestamp(tagged_metric_row, row)
+                    try:
+                        flow_row =  flow_rows[port_rx]
+                    except KeyError:
+                        flow_rows[port_rx] = {}
+                        flow_row = flow_rows[port_rx]
+                        flow_row["port_rx"] = port_rx
+                        pass
+                    tagged_metric_row["tx_metrics"] = tx_metric_row
+                    tagged_metric_rows.append(tagged_metric_row)
+                    flow_row["tagged_metrics"] = tagged_metric_rows
+
+        return list(flow_rows.values())
+
     def _construct_latency(self, flow_row, row):
         if self.latency_mode == "store_forward":
             latency_map = TrafficItem._RESULT_LATENCY_STORE_FORWARD
@@ -1747,6 +1910,49 @@ class TrafficItem(CustomField):
                 )
         if len(timestamp_result) > 0:
             flow_row["timestamps"] = timestamp_result
+
+    def _construct_pgid_tags(self, tagged_metric_row, row):
+        mt_result_rows = []
+        port_rx = row["Rx Port"]
+
+        internal_name = "PGID"
+        if internal_name not in row.Columns:
+            raise Exception(
+                "Could not fetch column %s in timestamp metrics"
+                % internal_name
+            )
+        try:
+            val = int(row[internal_name])
+            tags_length_total = 0
+            per_port_mt_dict_result = self.port_egress_only_tracking[port_rx]
+            mts = per_port_mt_dict_result["metric_tags"]
+            for mt in mts:
+                tags_length_total += int(mt["length"])
+
+            tag_length_shifted = 0
+            for mt in mts:
+                tag_name = mt["name"]
+                tag_length = mt["length"]
+                tag_mask = ((2 ** tag_length) - 1)
+                shift = tags_length_total - tag_length - tag_length_shifted
+                try:
+                    tag_val = (val >> shift)
+                    #tag_val = 2
+                except Exception as exception_shift_err:
+                    pass
+                tag_val = (tag_val & tag_mask)
+                tag_length_shifted += tag_length
+                mt_result_dict = {}
+                mt_result_dict["name"] = tag_name
+                mt_result_dict["value"] = hex(tag_val)
+                mt_result_rows.append(mt_result_dict)
+        except Exception as exception_err:
+            self._api.warning(
+                "Could not fetch tag metrics: %s" % exception_err
+            )
+
+        if len(mt_result_rows) > 0:
+            tagged_metric_row["tags"] = mt_result_rows
 
     def update_flows(self, update_flows_config):
         """

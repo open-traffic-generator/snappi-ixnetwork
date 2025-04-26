@@ -562,6 +562,11 @@ class Api(snappi.Api):
                 metric_res = self.metrics_response()
                 metric_res.flow_metrics.deserialize(response)
                 return metric_res
+            if request.get("choice") == "egress_only_tracking":
+                response = self.traffic_item.results_egress_only_tracking(request.egress_only_tracking)
+                metric_res = self.metrics_response()
+                metric_res.egress_only_tracking_metrics.deserialize(response)
+                return metric_res
             if request.get("choice") == "lag":
                 response = self.traffic_item.results(request.lag)
                 metric_res = self.metrics_response()
