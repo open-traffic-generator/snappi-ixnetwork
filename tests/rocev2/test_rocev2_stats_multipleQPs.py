@@ -3,8 +3,7 @@ import time
 
 @pytest.mark.skip(
     reason="""
-    Skipping as this test as starting the protcols,
-    might cause an issue in CI/CD
+    "Skipping this test in CI due to setup unavailability"
     """
 )
 
