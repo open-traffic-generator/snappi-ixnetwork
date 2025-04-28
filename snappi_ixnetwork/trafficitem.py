@@ -689,7 +689,6 @@ class TrafficItem(CustomField):
         for snappi_eotr in config.egress_only_tracking:
             eotr_port_name = snappi_eotr.port_name
             eotr_xpath = "/traffic/egressOnlyTracking[%d]" % self.egress_only_tracking_index
-            tr["egressOnlyTracking"] = []
             tr["egressOnlyTracking"].append(
                 {
                     "xpath": eotr_xpath,
@@ -1708,7 +1707,22 @@ class TrafficItem(CustomField):
         """Return flow results"""
 
         # setup parameters
-        port_names = request.get("port_names")
+        req_port_names = request.get("port_names")
+        if req_port_names is None or len(req_port_names) == 0:
+            req_port_names = []
+            for port_name in self.port_egress_only_tracking:
+                req_port_names.append(port_name)
+        if not isinstance(req_port_names, list):
+            msg = "Invalid format of port names passed {},\
+                    expected list".format(
+                req_port_names
+            )
+            raise Exception(msg)
+        req_port_names = self._api.special_char(req_port_names)
+        if len(req_port_names) == 0:
+            msg = "No port has egress only tracking configuration"
+            raise Exception(msg)
+
         tagged_metrics = request.get("tagged_metrics")
         include_empty_metrics = tagged_metrics.get("include_empty_metrics")
         self._column_names = tagged_metrics.get("metric_names")
@@ -1722,18 +1736,6 @@ class TrafficItem(CustomField):
             )
             raise Exception(msg)
 
-        has_request_ports = True
-        req_port_names = request.get("port_names")
-        if req_port_names is None or len(req_port_names) == 0:
-            req_port_names = []
-            has_request_ports = False
-        if not isinstance(req_port_names, list):
-            msg = "Invalid format of port names passed {},\
-                    expected list".format(
-                req_port_names
-            )
-            raise Exception(msg)
-        req_port_names = self._api.special_char(req_port_names)
         # initialize result values
         self.logger.debug(
             "Fetching these columns %s for ports %s"
