@@ -1344,7 +1344,7 @@ class TrafficItem(CustomField):
             ##This portion of code is to handle different stateful_traffic flow, currently only rocev2
             for device in self._api._config.devices:
                 #Check if rocev2 exists in topology
-                if device.get("rocev2"):
+                if device.get("rocev2") and self._api._config.get("stateful_flows"):
                     ####### Create and Apply RoCEv2 Flow Groups here, as we have identified that RoCEv2 is present in Topology
                     self._api._traffic.AddRoCEv2FlowGroups()
                     rocev2_traffic = self._api._traffic.RoceV2Traffic.find(Enabled=True)
@@ -1386,7 +1386,7 @@ class TrafficItem(CustomField):
             self._api.capture._start_capture()
         self._api._traffic_item.find(Name=regex)
         for device in self._api._config.devices:
-            if device.get("rocev2") and request.state == "stop":
+            if device.get("rocev2") and self._api._config.get("stateful_flows") and request.state == "stop":
                 print ("Stopping RoCEv2 Traffic")
                 self._api._traffic.Stop()
                 break

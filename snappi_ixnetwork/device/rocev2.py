@@ -299,11 +299,10 @@ class RoCEv2(Base):
                 for tx_port in rocev2.tx_ports:
                     if (trafficportconfig.TxPort == tx_port.port_name):
                         trafficportconfig.TargetLineRateInPercent = tx_port.transmit_type.target_line_rate.value
-
-        for trafficportconfig in trafficPortConfigs:
-            dcqcn_params = trafficportconfig.RoceV2DcqcnParams
-            for dcqcn_param in dcqcn_params:
-                if (options is not None):
+        if (options is not None):
+            for trafficportconfig in trafficPortConfigs:
+                dcqcn_params = trafficportconfig.RoceV2DcqcnParams
+                for dcqcn_param in dcqcn_params:
                     perportoptions = options.get("per_port_options")
                     for perportoption in perportoptions:
                         if (perportoption.port_name == trafficportconfig.TxPort):
