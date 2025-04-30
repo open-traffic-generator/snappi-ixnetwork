@@ -105,21 +105,19 @@ def test(card="novus100g"):
         result = re.findall(r"data-ratio.*?[>](\d+)\b", out)
         result = [x for x in result if int(x) != 0 and int(x) < 100]
         idx = len(result[0]) - 1
-        print("results", result)
-        print("results[0]", result[0])
-        print("result[0][idx]", result[0][idx])
-        # if int(result[0][idx]) < coverage_threshold:
-        #     raise Exception(
-        #         "Coverage thresold[{0}] is NOT achieved[{1}]".format(
-        #             coverage_threshold, result[0][idx]
-        #         )
-        #     )
-        # else:
-        #     print(
-        #         "Coverage thresold[{0}] is achieved[{1}]".format(
-        #             coverage_threshold, result[0][idx]
-        #         )
-        #     )
+        print("result[idx]", result[idx])
+        if int(result[idx]) < coverage_threshold:
+            raise Exception(
+                "Coverage thresold[{0}] is NOT achieved[{1}]".format(
+                    coverage_threshold, result[idx]
+                )
+            )
+        else:
+            print(
+                "Coverage thresold[{0}] is achieved[{1}]".format(
+                    coverage_threshold, result[idx]
+                )
+            )
     
 def generate_allure_report():
         run(["mkdir -p allure-results/history"])
@@ -159,17 +157,18 @@ def coverage():
     global result
     with open("myfile.log") as fp:
         out = fp.read()
-        total_selected_tests = re.findall(r"collecting.*\s+(\d+)\s+selected", out)
+        total_selected_tests = re.findall(r"collected.*\s+(\d+)\s+items", out[0])
         print("total_selected", total_selected_tests)
-        total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out)
+        total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out[0])
         print("total_passed", total_passed_tests)
         if re.findall(r"=.*\s(\d+)\s+skipped",out):
-            total_skipped_tests = re.findall(r"=.*\s(\d+)\s+skipped", out)
+            total_skipped_tests = re.findall(r"=.*\s(\d+)\s+skipped", out[0])
             print("total_skipped", total_skipped_tests)
         else:
             total_skipped_tests = 0
         
         total_failed_tests = int(total_selected_tests) - int(total_passed_tests) - int(total_skipped_tests)
+        print("total_failed_tests", total_failed_tests)
 
     with open("./cov_report/index.html") as fp:
         out = fp.read()
@@ -177,7 +176,7 @@ def coverage():
 
     sender = "ixnetworksnappi@gmail.com"
     #receiver = ["arkajyoti.dutta@keysight.com","indrani.bhattacharya@keysight.com","dipendu.ghosh@keysight.com","desai.mg@keysight.com"]
-    receiver = ["desai.mg@keysight.com"]
+    receiver = ["indrani.bhattacharya@keysight.com"]
     msg = MIMEMultipart('alternative')
     msg['Subject'] = "Snappi-Ixnetwork Coverage Email"
     msg['From'] = sender
