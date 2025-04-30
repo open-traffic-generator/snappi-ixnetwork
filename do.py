@@ -104,7 +104,7 @@ def test(card="novus100g"):
         out = fp.read()
         result = re.findall(r"data-ratio.*?[>](\d+)\b", out)
         result = [x for x in result if int(x) != 0 and int(x) < 100]
-        idx = len(result[0]) - 1
+        idx = len(result) - 1
         print("result[idx]", result[idx])
         if int(result[idx]) < coverage_threshold:
             raise Exception(
@@ -157,12 +157,12 @@ def coverage():
     global result
     with open("myfile.log") as fp:
         out = fp.read()
-        total_selected_tests = re.findall(r"collected.*\s+(\d+)\s+items", out[0])
+        total_selected_tests = re.findall(r"collected.*\s+(\d+)\s+items", out)[0]
         print("total_selected", total_selected_tests)
-        total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out[0])
+        total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out)[0]
         print("total_passed", total_passed_tests)
         if re.findall(r"=.*\s(\d+)\s+skipped",out):
-            total_skipped_tests = re.findall(r"=.*\s(\d+)\s+skipped", out[0])
+            total_skipped_tests = re.findall(r"=.*\s(\d+)\s+skipped", out)[0]
             print("total_skipped", total_skipped_tests)
         else:
             total_skipped_tests = 0
