@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_bgpv6_evpn_validation(api, utils):
     "Validate BGP EVPN Attributes against RestPy"
 

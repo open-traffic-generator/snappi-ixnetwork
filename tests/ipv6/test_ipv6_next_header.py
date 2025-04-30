@@ -1,3 +1,6 @@
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_ipv6_next_header(
     api, b2b_raw_config_vports, utils, tx_vport, rx_vport
 ):

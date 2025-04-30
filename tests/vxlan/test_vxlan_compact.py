@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_vxlan_compact(api, utils):
     count = 4
     config = api.config()

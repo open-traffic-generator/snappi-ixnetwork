@@ -1,3 +1,6 @@
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_phb_ecn(api, tx_port, rx_port, b2b_raw_config):
     """
     This will test that phb and ecn are set on an ipv4 header

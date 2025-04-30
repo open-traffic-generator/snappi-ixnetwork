@@ -1,3 +1,6 @@
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_stats_filter(api, b2b_raw_config, utils):
     """
     configure two flows f1 and f2

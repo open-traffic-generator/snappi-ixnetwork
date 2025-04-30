@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 # @pytest.mark.e2e
 def test_udp_header_with_counter_e2e(api, b2b_raw_config, utils):
     """

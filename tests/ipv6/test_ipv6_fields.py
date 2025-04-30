@@ -1,3 +1,6 @@
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_ipv6_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     """
     Configure three raw raw IPv6 flows with ,

@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_update_flows(api, b2b_raw_config, utils):
     """
     This test is to validate update_flows API

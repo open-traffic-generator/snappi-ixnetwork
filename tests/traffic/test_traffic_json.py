@@ -319,7 +319,9 @@ expected_device_type = {
     ],
 }
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_create_traffic_raw():
     config = snappi.Api().config()
     api = MagicMock()

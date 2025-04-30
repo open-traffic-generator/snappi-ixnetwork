@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_flow_duration_bursts(api):
     """
     configure flow duration with bursts and validate

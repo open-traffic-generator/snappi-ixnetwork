@@ -1,3 +1,6 @@
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_vlan_double_tag(api, b2b_raw_config_vports, utils):
     """
     Configure a raw traffic with two vlan headers

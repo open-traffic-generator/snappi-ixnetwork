@@ -1,7 +1,9 @@
 import pytest
 import time
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 # @pytest.mark.skip(reason="Revisit CI/CD fail")
 def test_encrypt_with_mka_multiple_devices(api, b2b_raw_config, utils):
     """

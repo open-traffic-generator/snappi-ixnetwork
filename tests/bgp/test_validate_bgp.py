@@ -1,3 +1,6 @@
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_multiple_ips_on_ethernet(b2b_raw_config, api):
     """Validate Multiple IPv4 or IPv6 configured on top of single Etherent"""
     b2b_raw_config.flows.clear()

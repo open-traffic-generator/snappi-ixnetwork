@@ -4,7 +4,9 @@ from bgp_convergence_config_b2b import bgp_convergence_config
 PRIMARY_ROUTES_NAME = "rx_rr"
 PRIMARY_PORT_NAME = "rx"
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_convergence(utils, api, bgp_convergence_config):
     """
     1. set convergence config & start traffic

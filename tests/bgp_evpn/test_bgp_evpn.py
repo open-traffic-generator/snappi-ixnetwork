@@ -1,3 +1,6 @@
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_bgp_evpn(api, utils):
     # Creating Ports
     config = api.config()

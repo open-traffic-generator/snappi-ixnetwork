@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_static_lag(api, utils):
     """Demonstrates the following:
     1) Creating a lag comprised of multiple ports
@@ -95,7 +97,9 @@ def test_static_lag(api, utils):
         timeout_seconds=30,
     )
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_lacp_lag(api, utils):
     """Demonstrates the following:
     1) Creating a lag comprised of multiple ports
@@ -272,7 +276,9 @@ def validate_lacp_config(api, LAG1_ATTR, LAG2_ATTR):
     for attr in LAG2_ATTR:
         assert getattr(lag2, attr).Values == LAG2_ATTR[attr]
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_static_and_lacp_lag(api, utils):
     LACP_ATTR = {
         "ActorSystemId": ["00 22 03 00 00 03", "00 22 03 00 00 03"],

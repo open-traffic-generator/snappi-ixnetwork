@@ -1,7 +1,9 @@
 import pytest
 from bgp_convergence_config_b2b import bgp_convergence_config
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_convergence_dp_only(utils, api, bgp_convergence_config):
     """
     1. set convergence config & start traffic

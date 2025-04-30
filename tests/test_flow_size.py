@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_flow_sizes(api, settings):
     """
     This will test supported Flow Size

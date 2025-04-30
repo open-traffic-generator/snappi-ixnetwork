@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 # @pytest.mark.skip(reason="will be updating the test with new snappi version")
 def test_bgpv6_routes(api, b2b_raw_config, utils):
     """

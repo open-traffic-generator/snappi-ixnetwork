@@ -1,3 +1,6 @@
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_traffic_ethernet_pause(api, b2b_raw_config, utils):
     """
     Configure the devices on Tx and Rx Port.

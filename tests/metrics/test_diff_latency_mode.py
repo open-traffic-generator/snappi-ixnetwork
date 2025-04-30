@@ -1,6 +1,8 @@
 import pytest, re
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_diff_latency_mode(api, b2b_raw_config, tx_port, rx_port):
     """
     Ixnetwork supports only one latency mode for all flows

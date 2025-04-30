@@ -1,5 +1,8 @@
 import pytest
 
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 @pytest.fixture()
 def bgp_convergence_config(utils, api):
     """

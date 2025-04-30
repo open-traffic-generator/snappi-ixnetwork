@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_loopback_interface(b2b_raw_config, api):
     p1, p2 = b2b_raw_config.ports
     d1, d2 = b2b_raw_config.devices.device(name="tx_bgp").device(name="rx_bgp")

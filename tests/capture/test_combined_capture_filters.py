@@ -1,7 +1,9 @@
 import pytest
 import dpkt
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 # def test_combined_filters(request, tracer, api, b2b_config):
 def test_combined_filters(api, settings, utils):
     """

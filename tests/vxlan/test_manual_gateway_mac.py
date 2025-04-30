@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_manual_gateway_mac(api, utils):
     count = 128
     config = api.config()

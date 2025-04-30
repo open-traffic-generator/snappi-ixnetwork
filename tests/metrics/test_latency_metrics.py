@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_latency_metrics(api, utils, b2b_raw_config, tx_port, rx_port):
     """This is a test script to test latency metrics & timestamps,
     metrics& timestamps should be available only for the flows

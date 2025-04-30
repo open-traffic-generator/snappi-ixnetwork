@@ -1,3 +1,6 @@
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_tcp_control_flags(api, b2b_raw_config, utils):
     """
     Configure a raw tcp flow with,

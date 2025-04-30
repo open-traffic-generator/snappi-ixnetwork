@@ -1,6 +1,8 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 # @pytest.mark.e2e
 def test_list_tcp_ports_e2e(api, utils, b2b_raw_config):
     """

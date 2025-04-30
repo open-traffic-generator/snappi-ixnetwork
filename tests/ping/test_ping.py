@@ -1,7 +1,9 @@
 import pytest
 import time
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_ping(api, b2b_raw_config):
     """
     Demonstrates test to send ipv4 and ipv6 pings

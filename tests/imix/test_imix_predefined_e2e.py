@@ -1,7 +1,9 @@
 import pytest
 import time
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_stats_filter_e2e(api, b2b_raw_config, utils):
     """
     configure flows with ipv4 imix

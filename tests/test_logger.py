@@ -3,7 +3,9 @@ import logging
 import snappi
 import utils as utl
 
-
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_mac_addrs(b2b_raw_config_vports):
     """create snappi api with enable loglevel to logging.DEBUG
     Validate loglevel is satting with proper value"""

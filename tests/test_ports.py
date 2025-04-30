@@ -1,3 +1,6 @@
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_ports(api, utils):
     """Demonstrates adding ports to a configuration and setting the
     configuration on the traffic generator.

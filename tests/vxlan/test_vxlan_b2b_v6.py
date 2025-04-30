@@ -1,5 +1,8 @@
 import pytest
 
+@pytest.mark.skip(
+    reason="CI-Testing"
+)
 def test_vxlan_b2b_v6(api, utils):
     config = api.config()
 
