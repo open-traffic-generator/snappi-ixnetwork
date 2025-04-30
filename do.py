@@ -102,7 +102,7 @@ def test(card="novus100g"):
 
     with open("./cov_report/index.html") as fp:
         out = fp.read()
-        result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[0]
+        result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[-1]
         if int(result) < coverage_threshold:
             raise Exception(
                 "Coverage thresold[{0}] is NOT achieved[{1}]".format(
@@ -169,7 +169,7 @@ def coverage():
 
     sender = "ixnetworksnappi@gmail.com"
     #receiver = ["arkajyoti.dutta@keysight.com","indrani.bhattacharya@keysight.com","dipendu.ghosh@keysight.com","desai.mg@keysight.com"]
-    receiver = ["desai.mg@keysight.com"]
+    receiver = ["indrani.bhattacharya@keysight.com"]
     msg = MIMEMultipart('alternative')
     msg['Subject'] = "Snappi-Ixnetwork Coverage Email"
     msg['From'] = sender
@@ -178,6 +178,8 @@ def coverage():
     val1=total_selected_tests
     val2=total_passed_tests
     val3=total_failed_tests
+    pass_rate=int(val2/val1)*100
+    val4=pass_rate
 
     build_number=get_workflow_id()
 
@@ -209,6 +211,10 @@ def coverage():
     <tr>
         <td>Total Test Fail</td>
         <td>"""+str(val3)+"""</td>
+    </tr>
+    <tr>
+        <td>Pass Rate</td>
+        <td>"""+str(val4)+"""</td>
     </tr>
     <tr>
         <td>Test Coverage Percentage</td>
