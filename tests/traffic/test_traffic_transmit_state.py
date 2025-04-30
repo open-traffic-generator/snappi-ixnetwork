@@ -1,6 +1,3 @@
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_traffic_transmit_state(api, b2b_raw_config, utils):
     """
     configure two flows f1 and f2

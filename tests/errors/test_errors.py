@@ -1,8 +1,5 @@
 from snappi_ixnetwork.exceptions import SnappiIxnException
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_Bad_Request_server_side(api, b2b_raw_config, utils):
     """
     Configure a raw ethernet flow with,
@@ -39,9 +36,6 @@ def test_Bad_Request_server_side(api, b2b_raw_config, utils):
         assert isinstance(err.message, list)
         assert isinstance(err.args[1], list)
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_bad_request_client_side(api):
     config = api.config()
     api.set_config(config)
@@ -57,9 +51,7 @@ def test_bad_request_client_side(api):
         assert isinstance(err.message, list)
         assert isinstance(err.args[1], list)
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
+
 def test_error_list_from_server(api, b2b_raw_config, utils):
     config = api.config()
     api.set_config(config)

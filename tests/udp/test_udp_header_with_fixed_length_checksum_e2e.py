@@ -1,6 +1,3 @@
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_udp_header_with_fixed_length_checksum_e2e(api, b2b_raw_config, utils):
     """
     Configure a raw udp flow with,

@@ -65,9 +65,6 @@ def stats_ok(api, packets, utils):
     flow_rx = sum([f.frames_rx for f in flow_stats])
     return flow_rx == packets
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_compact(api, utils):
     """
     1. Configure 1000 similar devices contain Ether>IPv4>BGPv4

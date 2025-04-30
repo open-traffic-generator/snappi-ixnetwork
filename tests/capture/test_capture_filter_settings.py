@@ -1,6 +1,3 @@
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_capture_filter_settings(api, settings):
     attrs = {
         "DA1": "0000faceface",
@@ -46,9 +43,7 @@ def test_capture_filter_settings(api, settings):
 
     validate_capture_filter_settings(api, attrs)
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
+
 def test_ethernet_capture_filter_settings(api, settings):
     attrs = {
         "DA1": "0000faceface",
@@ -93,9 +88,7 @@ def test_ethernet_capture_filter_settings(api, settings):
 
     validate_capture_filter_settings(api, attrs)
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
+
 def test_vlan_capture_filter_settings(api, settings):
     attrs = {
         "DA1": "0000faceface",
@@ -140,9 +133,7 @@ def test_vlan_capture_filter_settings(api, settings):
 
     validate_capture_filter_settings(api, attrs)
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
+
 def test_ipv4_capture_filter_settings(api, settings):
     attrs = {
         "DA1": "0000faceface",
@@ -187,9 +178,7 @@ def test_ipv4_capture_filter_settings(api, settings):
 
     validate_capture_filter_settings(api, attrs)
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
+
 def test_ipv6_capture_filter_settings(api, settings):
     attrs = {
         "DA1": "0000faceface",
@@ -234,9 +223,6 @@ def test_ipv6_capture_filter_settings(api, settings):
 
     validate_capture_filter_settings(api, attrs)
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def validate_capture_filter_settings(api, attrs):
     """
     Validate capture filter settings using restpy

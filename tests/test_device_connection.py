@@ -1,6 +1,4 @@
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
+
 def test_device_lag_name(api, utils):
     config = api.config()
     p1 = config.ports.port(name="p1", location=utils.settings.ports[0])[-1]
@@ -19,9 +17,6 @@ def test_device_lag_name(api, utils):
     assert (api._ixnetwork.Lag.find()[0].Name) == lag1.name
     
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_port_name(api, utils):
     config = api.config()
     p1 = config.ports.port(name="p1", location=utils.settings.ports[0])[-1]
@@ -34,9 +29,7 @@ def test_port_name(api, utils):
     api.set_config(config)
     validate_config(api, p1.name)
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
+
 def test_connection_portname(api, utils):
     config = api.config()
     p1 = config.ports.port(name="p1", location=utils.settings.ports[0])[-1]
@@ -50,9 +43,7 @@ def test_connection_portname(api, utils):
     validate_config(api, p1.name)
     api._ixnetwork.NewConfig()
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
+
 def test_device_connection(api, utils):
     """
     Test when both port_name and connection.port_name is set in the config
@@ -74,9 +65,6 @@ def test_device_connection(api, utils):
         assert err.args[0] == 500
 
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_device_without_port_name(api, utils):
     config = api.config()
     p1 = config.ports.port(name="p1", location=utils.settings.ports[0])[-1]

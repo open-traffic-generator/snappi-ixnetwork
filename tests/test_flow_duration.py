@@ -1,6 +1,4 @@
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
+
 def test_flow_duration(api, utils):
     """
     This will test different transmit durations:

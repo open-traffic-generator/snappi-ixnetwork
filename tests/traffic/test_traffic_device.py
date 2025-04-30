@@ -1,6 +1,3 @@
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_traffic(api, b2b_raw_config):
     # import snappi
 

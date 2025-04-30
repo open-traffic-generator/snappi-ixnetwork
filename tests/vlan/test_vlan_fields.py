@@ -1,6 +1,3 @@
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_vlan_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     """
     Configure three raw vlan flows with ,

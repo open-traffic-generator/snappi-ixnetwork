@@ -1,6 +1,3 @@
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_capture_overwrite(api, settings):
     """Demonstrates how to configure basic capture settings"""
     config = api.config()
@@ -14,9 +11,7 @@ def test_capture_overwrite(api, settings):
     api.set_config(config)
     validate_capture_overwrite(api)
 
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
+
 def validate_capture_overwrite(api):
     """
     Validate capture overwrite using restpy

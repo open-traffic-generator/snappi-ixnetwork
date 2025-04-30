@@ -1,6 +1,3 @@
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_counter_ip_dscp(api, b2b_raw_config, utils):
     """
     Configure a raw IPv4 flow with,

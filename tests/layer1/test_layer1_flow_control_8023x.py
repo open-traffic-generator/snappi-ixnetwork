@@ -1,6 +1,3 @@
-@pytest.mark.skip(
-    reason="CI-Testing"
-)
 def test_layer1_flow_control_8023x(api, utils):
     """
     Test that layer1 flow controle 8023x configuration settings
