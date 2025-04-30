@@ -104,16 +104,17 @@ def test(card="novus100g"):
         out = fp.read()
         result = re.findall(r"data-ratio.*?[>](\d+)\b", out)
         result = [x for x in result if int(x) != 0 and int(x) < 100]
-        if int(result[0]) < coverage_threshold:
+        idx = len(result[0]) - 1
+        if int(result[0][idx]) < coverage_threshold:
             raise Exception(
                 "Coverage thresold[{0}] is NOT achieved[{1}]".format(
-                    coverage_threshold, result
+                    coverage_threshold, result[0][idx]
                 )
             )
         else:
             print(
                 "Coverage thresold[{0}] is achieved[{1}]".format(
-                    coverage_threshold, result
+                    coverage_threshold, result[0][idx]
                 )
             )
     
