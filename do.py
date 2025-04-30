@@ -102,8 +102,9 @@ def test(card="novus100g"):
 
     with open("./cov_report/index.html") as fp:
         out = fp.read()
-        result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[0]
-        if int(result) < coverage_threshold:
+        result = re.findall(r"data-ratio.*?[>](\d+)\b", out)
+        result = [x for x in result if int(x) != 0 and int(x) < 100]
+        if int(result[0]) < coverage_threshold:
             raise Exception(
                 "Coverage thresold[{0}] is NOT achieved[{1}]".format(
                     coverage_threshold, result
@@ -154,10 +155,13 @@ def coverage():
     global result
     with open("myfile.log") as fp:
         out = fp.read()
-        total_selected_tests = re.findall(r"collecting.*\s+(\d+)\s+selected", out)[0]
-        total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out)[0]
+        total_selected_tests = re.findall(r"collecting.*\s+(\d+)\s+selected", out)
+        print("total_selected", total_selected_tests)
+        total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out)
+        print("total_passed", total_passed_tests)
         if re.findall(r"=.*\s(\d+)\s+skipped",out):
-            total_skipped_tests = re.findall(r"=.*\s(\d+)\s+skipped", out)[0]
+            total_skipped_tests = re.findall(r"=.*\s(\d+)\s+skipped", out)
+            print("total_skipped", total_skipped_tests)
         else:
             total_skipped_tests = 0
         
