@@ -175,13 +175,14 @@ def coverage():
     msg['From'] = sender
     msg['To'] = ", ".join(receiver)
 
-    val1=total_selected_tests
-    val2=total_passed_tests
-    val3=total_failed_tests
-    pass_rate=(int(val2)/int(val1))*100
-    val4=pass_rate
+    val1 = total_selected_tests
+    val2 = total_passed_tests
+    val3 = total_failed_tests
+    pass_rate = (int(val2) / (int(val2) + int(val3))) * 100
+    val4 = pass_rate
+    val5 = total_skipped_tests
 
-    build_number=get_workflow_id()
+    build_number = get_workflow_id()
 
     # Create the body of the message (a plain-text and an HTML version).
     text = "Hi!"
@@ -199,26 +200,37 @@ def coverage():
     Build started on : <b>"""+str(test_start)+""" IST</b><br><br>
     </p>
 
+    <p><b>Test Coverage:</b></p>
+
+    <table style="width:100%">
+    <tr>
+        <td>Test Coverage Percentage</td>
+        <td>""" + str(result) + """</td>
+    </tr>
+    </table>
+
+    <p><b>Test Summary:</b></p>
+
     <table style="width:100%">
     <tr>
         <td>Total Testcases</td>
-        <td>"""+str(val1)+"""</td>
+        <td>""" + str(val1) + """</td>
+    </tr>
+    <tr>
+        <td>Total Skipped Tests</td>
+        <td>""" + str(val5) + """</td>
     </tr>
     <tr>
         <td>Total Test Pass</td>
-        <td>"""+str(val2)+"""</td>
+        <td>""" + str(val2) + """</td>
     </tr>
     <tr>
         <td>Total Test Fail</td>
-        <td>"""+str(val3)+"""</td>
+        <td>""" + str(val3) + """</td>
     </tr>
     <tr>
         <td>Pass Rate</td>
-        <td>"""+str(val4)+"""</td>
-    </tr>
-    <tr>
-        <td>Test Coverage Percentage</td>
-        <td>"""+str(result)+"""</td>
+        <td>""" + str(val4) + """</td>
     </tr>
     </table>
 
