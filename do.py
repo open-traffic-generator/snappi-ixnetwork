@@ -178,7 +178,7 @@ def coverage():
     val1=total_selected_tests
     val2=total_passed_tests
     val3=total_failed_tests
-    pass_rate=int(val2/val1)*100
+    pass_rate=(int(val2)/int(val1))*100
     val4=pass_rate
 
     build_number=get_workflow_id()
