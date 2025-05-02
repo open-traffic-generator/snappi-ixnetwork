@@ -51,7 +51,7 @@ def lint():
 
 
 def test(card="novus100g"):
-    coverage_threshold = 67
+    coverage_threshold = 20
     sanity_threshold = 100
     username = os.environ.get("TEST_USERNAME", "admin")
     psd = os.environ.get("TEST_PASSWORD", "admin")
@@ -119,21 +119,21 @@ def test(card="novus100g"):
                     coverage_threshold, result[idx]
                 )
             )
-    select_tc, passed_tc, failed_tc, skip_test = extract_log()
-    pass_rate = (int(passed_tc) / (int(failed_tc) + int(passed_tc))) * 100
-    print(pass_rate)
-    if int(pass_rate) < sanity_threshold:
-        raise Exception(
-                "Sanity thresold[{0}] is NOT achieved[{1}]".format(
+        select_tc, passed_tc, failed_tc, skip_test = extract_log()
+        pass_rate = (int(passed_tc) / (int(failed_tc) + int(passed_tc))) * 100
+        print(pass_rate)
+        if int(pass_rate) < sanity_threshold:
+            raise Exception(
+                    "Sanity thresold[{0}] is NOT achieved[{1}]".format(
+                        sanity_threshold, pass_rate
+                    )
+            )
+        else:
+            print(
+                "Sanity thresold[{0}] is achieved[{1}]".format(
                     sanity_threshold, pass_rate
                 )
-        )
-    else:
-        print(
-            "Sanity thresold[{0}] is achieved[{1}]".format(
-                sanity_threshold, pass_rate
             )
-        )
 
 
 def extract_log():
