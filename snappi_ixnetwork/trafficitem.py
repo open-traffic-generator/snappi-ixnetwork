@@ -4,6 +4,7 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.customfield import CustomField
+from snappi_ixnetwork.device.rocev2 import RoCEv2
 
 
 class TrafficItem(CustomField):
@@ -49,6 +50,40 @@ class TrafficItem(CustomField):
     _RESULT_TIMESTAMP = [
         ("first_timestamp_ns", "First TimeStamp", int),
         ("last_timestamp_ns", "Last TimeStamp", int),
+    ]
+
+    _RESULT_ROCEV2_COLUMNS = [
+        ("port_tx", "Tx Port", str),
+        ("port_rx", "Rx Port", str),
+        ("src_qp", "Src QP", int),
+        ("dest_qp", "Dest QP", int),
+        ("src_ipv4", "Src IPv4", str),
+        ("dest_ipv4", "Dest IPv4", str),
+        ("data_frames_tx", "Data Frames Tx", int),
+        ("data_frames_rx", "Data Frames Rx", int),
+        ("frame_delta", "Frames Delta", int),
+        ("data_frames_retransmitted", "Data Frames Retransmitted", int),
+        ("tx_bytes", "Tx Bytes", int),
+        ('rx_bytes', 'Rx Bytes', int),
+        ('data_tx_rate', 'Data Tx Rate (Gbps)', int),
+        ('data_rx_rate', 'Data Rx Rate (Gbps)', int),
+        ('message_tx', 'Message Tx', int),
+        ('message_complete_rx', 'Message Complete Rx', int),
+        ('message_fail', 'Message Fail', int),
+        ('flow_completion_time', 'Flow Completion Time (ms)', int),
+        ('avg_latency', 'Avg Latency (ns)', int),
+        ('min_latency', 'Min Latency (ns)', int),
+        ('max_latency', 'Max Latency (ns)', int),
+        ('ecn_ce_rx', 'ECN-CE Rx', int),
+        ('cnp_tx', 'CNP Tx', int),
+        ('cnp_rx', 'CNP Rx', int),
+        ('ack_tx', 'ACK Tx', int),
+        ('ack_rx', 'ACK Rx', int),
+        ('nak_tx', 'NAK Tx', int),
+        ('nak_rx', 'NAK Rx', int),
+        ('frame_sequence_error', 'Frame Sequence Error', int),
+        ('first_timestamp', 'First TimeStamp', str),
+        ('last_timestamp', 'Last TimeStamp', str),
     ]
 
     _STACK_IGNORE = ["ethernet.fcs", "pfcPause.fcs"]
@@ -390,6 +425,7 @@ class TrafficItem(CustomField):
         self.flows_has_loss = []
         self.port_egress_only_tracking = {}
         self.logger = get_ixnet_logger(__name__)
+        self._rocev2 = RoCEv2(self)
 
     def _get_search_payload(self, parent, child, properties, filters):
         self.logger.debug(
@@ -1412,6 +1448,25 @@ class TrafficItem(CustomField):
             % (flow_names, request.state)
         )
         if request.state == "start":
+            ##This portion of code is to handle different stateful_traffic flow, currently only rocev2
+            for device in self._api._config.devices:
+                #Check if rocev2 exists in topology
+                if device.get("rocev2") and self._api._config.get("stateful_flows"):
+                    ####### Create and Apply RoCEv2 Flow Groups here, as we have identified that RoCEv2 is present in Topology
+                    self._api._traffic.AddRoCEv2FlowGroups()
+                    rocev2_traffic = self._api._traffic.RoceV2Traffic.find(Enabled=True)
+                    stateful_flow = None
+                    options = None
+                    if hasattr(self._api._config, "stateful_flows"):
+                        stateful_flow = self._api._config.stateful_flows
+                    if hasattr(self._api._config, "options"):
+                        options = self._api._config.options
+                    self._rocev2._configureTrafficParameters(rocev2_traffic, stateful_flow, options)                    
+                    with Timer(self._api, "Flows generate/apply"):
+                        self._api._traffic.Apply()
+                    print ("Starting Traffic")
+                    self._api._traffic.Start()
+                    break
             if len(self._api._topology.find()) > 0:
                 glob_topo = self._api._globals.Topology.refresh()
                 if glob_topo.Status == "notStarted":
@@ -1437,6 +1492,11 @@ class TrafficItem(CustomField):
                     )
             self._api.capture._start_capture()
         self._api._traffic_item.find(Name=regex)
+        for device in self._api._config.devices:
+            if device.get("rocev2") and self._api._config.get("stateful_flows") and request.state == "stop":
+                print ("Stopping RoCEv2 Traffic")
+                self._api._traffic.Stop()
+                break
         if len(self._api._traffic_item) > 0:
             if request.state == "start":
                 self._api._traffic_item.find(
@@ -2049,3 +2109,51 @@ class TrafficItem(CustomField):
                 update = True
         if update is True:
             ixn_object.update(**kwargs)
+
+    def rocev2_flow_results(self, request):
+        """Return RoCEv2 flow results"""
+        # setup parameters
+        qp = request.get("per_qp")
+        self._column_names = qp.get("column_names")
+        if self._column_names is None:
+            self._column_names = []
+        elif not isinstance(self._column_names, list):
+            msg = "Invalid format of column_names passed {},\
+                    expected list".format(
+                self._column_names
+            )
+            raise Exception(msg)
+        traffic_stat = self._api.assistant.StatViewAssistant(
+            "RoCEv2 Flow Statistics"
+        )
+        flow_rows = {}
+        for row in traffic_stat.Rows:
+            flow_row = {}
+            name = row["Flow Name"]
+            self._set_result_value(
+                flow_row, "flow_name", name
+            )
+            flow_rows[name] = flow_row
+        for row in traffic_stat.Rows:
+            name = row["Flow Name"]
+            if name in flow_rows:
+                flow_row = flow_rows[name]
+                for (
+                    external_name,
+                    internal_name,
+                    external_type,
+                ) in self._RESULT_ROCEV2_COLUMNS:
+                    # keep plugging values for next columns even if the
+                    # current one raises exception
+                    try:
+                        self._set_result_value(
+                            flow_row,
+                            external_name,
+                            row[internal_name],
+                            external_type,
+                        )
+                    except Exception:
+                        # TODO print a warning maybe ?
+                        pass
+        return list(flow_rows.values())
+
