@@ -737,7 +737,7 @@ class TrafficItem(CustomField):
                     per_port_mt_dict_result["metric_tags"].append(mt_dict_entry_result)
                 else:
                     raise ValueError(
-                        "%s metric tag %s length error" % snappi_mt.name
+                        "%s metric tag has length error" % snappi_mt.name
                     )
                 mt_index += 1
             if len(per_port_mt_dict_result["metric_tags"]) > 0:
@@ -1781,7 +1781,7 @@ class TrafficItem(CustomField):
                 and
                 self.port_egress_only_tracking[port_rx] is not None
             ):
-                if int(row["Rx Frames"]) == 0 and include_empty_metrics is False:
+                if include_empty_metrics is False and int(row["Tx Frames"]) == 0 and int(row["Rx Frames"]) == 0:
                     # skip empty row
                     continue
                 result_flow_row = None
