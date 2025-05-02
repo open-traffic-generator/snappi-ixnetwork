@@ -136,7 +136,7 @@ def test(card="novus100g"):
 def extract_log():
     with open("myfile.log") as fp:
         out = fp.read()
-        total_selected_tests = re.findall(r"collected.*\s+(\d+)\s+items", out)[0]
+        total_selected_tests = re.findall(r"collecting.*\s+(\d+)\s+selected", out)[0]
         total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out)[0]
         if re.findall(r"=.*\s(\d+)\s+skipped",out):
             total_skipped_tests = re.findall(r"=.*\s(\d+)\s+skipped", out)[0]
