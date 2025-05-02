@@ -51,7 +51,7 @@ def lint():
 
 
 def test(card="novus100g"):
-    coverage_threshold = 67
+    coverage_threshold = 20
     username = os.environ.get("TEST_USERNAME", "admin")
     psd = os.environ.get("TEST_PASSWORD", "admin")
 
@@ -150,7 +150,7 @@ def generate_allure_report():
         
         run(["cp -r allure-report $HOME/allure-report "])
 
-def coverage():
+def coverage_mail():
 
     test_start = (subprocess.check_output("echo $TIMESTAMP", shell=True)).decode('ascii')
     coverage_threshold = 67

@@ -44,7 +44,7 @@ jobs:
           TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
       - name: Send Coverage Email
         run: |
-          ${{steps.path.outputs.pythonv}} do.py coverage
+          ${{steps.path.outputs.pythonv}} do.py coverage_mail
           
       - name: Generate Allure report
         run: |
