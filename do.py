@@ -155,11 +155,9 @@ def extract_log():
     val1 = total_selected_tests
     val2 = total_passed_tests
     val3 = total_failed_tests
-    pass_rate = (int(val2) / (int(val2) + int(val3))) * 100
-    val4 = pass_rate
-    val5 = total_skipped_tests
+    val4 = total_skipped_tests
 
-    return val1, val2, val3, val4, val5
+    return val1, val2, val3, val4
 
     
 def generate_allure_report():
