@@ -721,7 +721,8 @@ class TrafficItem(CustomField):
             )
 
         # egress only tracking
-        tr["egressOnlyTracking"] = []
+        if len(config.egress_only_tracking) > 0:
+            tr["egressOnlyTracking"] = []
         for snappi_eotr in config.egress_only_tracking:
             eotr_port_name = snappi_eotr.port_name
             eotr_xpath = "/traffic/egressOnlyTracking[%d]" % self.egress_only_tracking_index
