@@ -52,6 +52,7 @@ def lint():
 
 def test(card="novus100g"):
     coverage_threshold = 67
+    sanity_threshold = 90
     username = os.environ.get("TEST_USERNAME", "admin")
     psd = os.environ.get("TEST_PASSWORD", "admin")
 
@@ -102,7 +103,7 @@ def test(card="novus100g"):
 
     with open("./cov_report/index.html") as fp:
         out = fp.read()
-        result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[0]
+        result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[-1]
         if int(result) < coverage_threshold:
             raise Exception(
                 "Coverage thresold[{0}] is NOT achieved[{1}]".format(
@@ -115,6 +116,41 @@ def test(card="novus100g"):
                     coverage_threshold, result
                 )
             )
+        select_tc, passed_tc, failed_tc, skip_test = extract_log()
+        pass_rate = (int(passed_tc) / (int(failed_tc) + int(passed_tc))) * 100
+        print(pass_rate)
+        if int(pass_rate) < sanity_threshold:
+            raise Exception(
+                    "Sanity thresold[{0}] is NOT achieved[{1}]".format(
+                        sanity_threshold, pass_rate
+                    )
+            )
+        else:
+            print(
+                "Sanity thresold[{0}] is achieved[{1}]".format(
+                    sanity_threshold, pass_rate
+                )
+            )
+
+
+def extract_log():
+    with open("myfile.log") as fp:
+        out = fp.read()
+        total_selected_tests = re.findall(r"collecting.*\s+(\d+)\s+selected", out)[0]
+        total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out)[0]
+        if re.findall(r"=.*\s(\d+)\s+skipped",out):
+            total_skipped_tests = re.findall(r"=.*\s(\d+)\s+skipped", out)[0]
+        else:
+            total_skipped_tests = 0
+
+        total_failed_tests = int(total_selected_tests) - int(total_passed_tests) - int(total_skipped_tests)
+        
+    val1 = total_selected_tests
+    val2 = total_passed_tests
+    val3 = total_failed_tests
+    val4 = total_skipped_tests
+
+    return val1, val2, val3, val4
     
 def generate_allure_report():
         run(["mkdir -p allure-results/history"])
@@ -147,39 +183,34 @@ def generate_allure_report():
         
         run(["cp -r allure-report $HOME/allure-report "])
 
-def coverage():
+
+def coverage_mail():
 
     test_start = (subprocess.check_output("echo $TIMESTAMP", shell=True)).decode('ascii')
-    coverage_threshold = 67
     global result
-    with open("myfile.log") as fp:
-        out = fp.read()
-        total_selected_tests = re.findall(r"collecting.*\s+(\d+)\s+selected", out)[0]
-        total_passed_tests = re.findall(r"=.*\s(\d+)\s+passed", out)[0]
-        if re.findall(r"=.*\s(\d+)\s+skipped",out):
-            total_skipped_tests = re.findall(r"=.*\s(\d+)\s+skipped", out)[0]
-        else:
-            total_skipped_tests = 0
-        
-        total_failed_tests = int(total_selected_tests) - int(total_passed_tests) - int(total_skipped_tests)
+    select_tc, passed_tc, failed_tc, skip_test = extract_log()
+    pass_rate = (int(passed_tc) / (int(failed_tc) + int(passed_tc))) * 100
 
     with open("./cov_report/index.html") as fp:
         out = fp.read()
         result = re.findall(r"data-ratio.*?[>](\d+)\b", out)[-1]
 
     sender = "ixnetworksnappi@gmail.com"
-    #receiver = ["arkajyoti.dutta@keysight.com","indrani.bhattacharya@keysight.com","dipendu.ghosh@keysight.com","desai.mg@keysight.com"]
-    receiver = ["desai.mg@keysight.com"]
+    receiver = ["arkajyoti.dutta@keysight.com","indrani.bhattacharya@keysight.com","dipendu.ghosh@keysight.com","alakendu.jana@keysight.com", "satyam.singh@keysight.com", "subrata.sa@keysight.com"]
+    # receiver = ["indrani.bhattacharya@keysight.com"]
     msg = MIMEMultipart('alternative')
     msg['Subject'] = "Snappi-Ixnetwork Coverage Email"
     msg['From'] = sender
     msg['To'] = ", ".join(receiver)
 
-    val1=total_selected_tests
-    val2=total_passed_tests
-    val3=total_failed_tests
+    val1 = select_tc
+    val2 = passed_tc
+    val3 = failed_tc
+    pass_rate = (int(val2) / (int(val2) + int(val3))) * 100
+    val4 = pass_rate
+    val5 = skip_test
 
-    build_number=get_workflow_id()
+    build_number = get_workflow_id()
 
     # Create the body of the message (a plain-text and an HTML version).
     text = "Hi!"
@@ -197,22 +228,37 @@ def coverage():
     Build started on : <b>"""+str(test_start)+""" IST</b><br><br>
     </p>
 
+    <p><b>Test Coverage:</b></p>
+
+    <table style="width:100%">
+    <tr>
+        <td>Test Coverage Percentage</td>
+        <td>""" + str(result) + """</td>
+    </tr>
+    </table>
+
+    <p><b>Test Summary:</b></p>
+
     <table style="width:100%">
     <tr>
         <td>Total Testcases</td>
-        <td>"""+str(val1)+"""</td>
+        <td>""" + str(val1) + """</td>
     </tr>
     <tr>
-        <td>Total Test Pass</td>
-        <td>"""+str(val2)+"""</td>
+        <td>Skipped Tests</td>
+        <td>""" + str(val5) + """</td>
     </tr>
     <tr>
-        <td>Total Test Fail</td>
-        <td>"""+str(val3)+"""</td>
+        <td>Test Passed</td>
+        <td>""" + str(val2) + """</td>
     </tr>
     <tr>
-        <td>Test Coverage Percentage</td>
-        <td>"""+str(result)+"""</td>
+        <td>Test Failed</td>
+        <td>""" + str(val3) + """</td>
+    </tr>
+    <tr>
+        <td>Pass Rate</td>
+        <td>""" + str(val4) + """</td>
     </tr>
     </table>
 
