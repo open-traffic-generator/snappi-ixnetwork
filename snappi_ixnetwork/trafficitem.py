@@ -2169,7 +2169,7 @@ class TrafficItem(CustomField):
         for i_flow in self._api._initial_flows_config._items:
             initial_flownames.append(i_flow.name)
         errors = []
-        for appcgfs in append_flows_config:
+        for appcgfs in append_flows_config.config_append_list:
             for flow in appcgfs:
                 if flow.name in initial_flownames:
                     errors.append(
@@ -2196,7 +2196,7 @@ class TrafficItem(CustomField):
         for i_flow in self._api._initial_flows_config._items:
             initial_flownames.append(i_flow.name)
         errors = []
-        for delcgfs in delete_flows_config:
+        for delcgfs in delete_flows_config.config_delete_list:
             for flow in delcgfs.flows:
                 if flow not in initial_flownames:
                     errors.append(
