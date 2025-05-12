@@ -2163,6 +2163,9 @@ class TrafficItem(CustomField):
         Append the flows with list of flow objects
         """
         self._validate_append_flows_config(append_flows_config)
+        # hl = self._api._ixnetwork.Traffic.TrafficItem
+        # print("append flows")
+        # print(hl)
 
     def _validate_append_flows_config(self, append_flows_config):
         initial_flownames = []
@@ -2185,11 +2188,22 @@ class TrafficItem(CustomField):
         Delete the flows with list of flow names
         """
         self._validate_delete_flows_config(delete_flows_config)
-        # for flow in delete_flows_config:
-        #     hl = self._api._ixnetwork.Traffic.TrafficItem.find(
-        #         Name=flow
-        #     ).HighLevelStream.find()
-        # print("hl", hl)
+        
+        for delcfg in delete_flows_config.config_delete_list:
+            for flow in delcfg.flows:
+                ti = self._api._ixnetwork.Traffic.TrafficItem.find(
+                    Name=flow
+                )
+                if len(self._api._ixnetwork.Traffic.TrafficItem.find()) > 1:
+                    ti.remove()
+                    self._api._ixnetwork.Traffic.TrafficItem.find().refresh()
+                    self.traffic_index = self.traffic_index - 1
+                else:
+                    ti.remove()
+                    self._api._ixnetwork.Traffic.TrafficItem.find().refresh()
+                    self.traffic_index = 1
+                
+                
 
     def _validate_delete_flows_config(self, delete_flows_config):
         initial_flownames = []

@@ -2,9 +2,6 @@ import pytest
 import time
 
 
-@pytest.mark.skip(
-    reason="Not implemented yet"
-)
 def test_delete_flows(api, b2b_raw_config, utils):
     """
     This test is to validate delete_config API
@@ -46,13 +43,13 @@ def test_delete_flows(api, b2b_raw_config, utils):
 
     api.set_config(b2b_raw_config)
 
-    # utils.start_traffic(api, b2b_raw_config, start_capture=False)
+    utils.start_traffic(api, b2b_raw_config, start_capture=False)
 
     time.sleep(10)
-    # utils.stop_traffic(api, b2b_raw_config)
+    utils.stop_traffic(api, b2b_raw_config)
     cd = api.config_delete()
-    cd.config_delete_list.add().flows = ["tx_flow2"]
-    print("Test script: Deletion request for the flow", cd)
+    cd.config_delete_list.add().flows = ["tx_flow1"]
+    print("Deletion request for the flows", cd)
     api.delete_flows(cd)
     # config = api.get_config()
     # print(config)

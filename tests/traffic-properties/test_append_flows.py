@@ -1,10 +1,6 @@
 import pytest
 import time
 
-
-@pytest.mark.skip(
-    reason="Not implemented yet"
-)
 def test_append_flows(api, b2b_raw_config, utils):
     """
     This test is to validate append_config API
