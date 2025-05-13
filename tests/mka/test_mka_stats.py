@@ -37,6 +37,17 @@ def test_mka_stats(api, b2b_raw_config, utils):
     # Basic properties
     kay1.basic.key_derivation_function = kay2.basic.key_derivation_function = "aes_cmac_128"
 
+    kay1.basic.psk_chain_start_time.choice = kay2.basic.psk_chain_start_time.choice = "utc"
+    kay1_psk_chain_start_time = kay1.basic.psk_chain_start_time.utc
+    kay2_psk_chain_start_time = kay2.basic.psk_chain_start_time.utc
+
+    kay1_psk_chain_start_time.day = kay2_psk_chain_start_time.day = 6
+    kay1_psk_chain_start_time.month = kay2_psk_chain_start_time.month = 5
+    kay1_psk_chain_start_time.year = kay2_psk_chain_start_time.year = 2025
+    kay1_psk_chain_start_time.hour = kay2_psk_chain_start_time.hour = 7
+    kay1_psk_chain_start_time.minute = kay2_psk_chain_start_time.minute = 10
+    kay1_psk_chain_start_time.second = kay2_psk_chain_start_time.second = 56
+
     # Key source: PSK
     kay1_key_src, kay2_key_src = kay1.basic.key_source, kay2.basic.key_source
     kay1_key_src.choice = kay2_key_src.choice = "psk"
@@ -62,7 +73,7 @@ def test_mka_stats(api, b2b_raw_config, utils):
     kay1_psk2.start_offset_time.mm = kay2_psk2.start_offset_time.mm = 9 
 
     kay1_psk2.end_offset_time.hh = kay2_psk2.end_offset_time.hh = 0
-    kay1_psk2.end_offset_time.hh = kay2_psk2.end_offset_time.hh = 30
+    kay1_psk2.end_offset_time.mm = kay2_psk2.end_offset_time.mm = 0
 
     # Rekey mode
     kay1_rekey_mode, kay2_rekey_mode = kay1.basic.rekey_mode, kay2.basic.rekey_mode
