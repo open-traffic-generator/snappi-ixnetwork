@@ -158,6 +158,29 @@ class Mka(Base):
         self._config_key_source(basic, ixn_mka)
         self._config_rekey_mode(basic, ixn_mka)
         self._config_supported_cipher_suites(basic, ixn_mka)
+        self._config_test_start_time(basic, ixn_mka)
+
+    def _config_test_start_time(self, basic, ixn_mka):
+        self.logger.debug("Configuring test start time")
+        psk_chain_start_time = basic.psk_chain_start_time
+        if psk_chain_start_time.choice == "utc" and psk_chain_start_time.utc.day is not None:
+            utc_day = str(psk_chain_start_time.utc.day)
+            utc_month = str(psk_chain_start_time.utc.month)
+            utc_year = str(psk_chain_start_time.utc.year)
+            utc_hour = str(psk_chain_start_time.utc.hour)
+            utc_minute = str(psk_chain_start_time.utc.minute)
+            utc_second = str(psk_chain_start_time.utc.second)
+
+            utc_time = utc_day + "-" +     \
+                       utc_month + "-" +   \
+                       utc_year + " " +    \
+                       utc_hour + ":" +    \
+                       utc_minute + ":" +  \
+                       utc_second
+
+            ixn_mka_global_port_settings = self._ngpf.api._ixnetwork.Globals.Topology.find().Mka.find()
+            ixn_mka_global_test_start_time = ixn_mka_global_port_settings.TestStartTime
+            ixn_mka_global_test_start_time.Single(utc_time)
 
     def _config_supported_cipher_suites(self, basic, ixn_mka):
         self.logger.debug("Configuring basic properties: supported cipher suites")
