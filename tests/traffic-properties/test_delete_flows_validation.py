@@ -49,7 +49,7 @@ def test_delete_flows(api, b2b_raw_config, utils):
     cd = api.config_delete()
     cd.config_delete_list.add().flows = ["tx_flow3"]
     try:
-        api.delete_flows(cd)
+        api.delete_config(cd)
         assert False
     except Exception as e:
         print(e)

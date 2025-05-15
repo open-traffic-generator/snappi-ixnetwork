@@ -58,7 +58,7 @@ def test_append_flows(api, b2b_raw_config, utils):
     flow3.tx_rx.port.rx_name = ports[1].name
 
     print("Test script: Append request for the flow", ca)
-    api.append_flows(ca)
+    api.append_config(ca)
     # config = api.get_config()
     # print(config)
 

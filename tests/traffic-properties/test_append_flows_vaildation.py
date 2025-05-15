@@ -58,7 +58,7 @@ def test_append_flows_validation(api, b2b_raw_config, utils):
     flow3.tx_rx.port.rx_name = ports[1].name
 
     try:
-        api.append_flows(ca)
+        api.append_config(ca)
         assert False
     except Exception as e:
         print(e)

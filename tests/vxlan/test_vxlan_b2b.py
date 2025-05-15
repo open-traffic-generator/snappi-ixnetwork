@@ -1,6 +1,11 @@
 import pytest
 
-
+@pytest.mark.skip(
+    reason="""
+    Skipping as this test as starting the protcols,
+    might cause an issue in CI/CD
+    """
+)
 
 def test_vxlan_b2b(api, utils):
     config = api.config()

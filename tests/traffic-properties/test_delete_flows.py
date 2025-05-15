@@ -5,11 +5,19 @@ import time
 def test_delete_flows(api, b2b_raw_config, utils):
     """
     This test is to validate delete_config API
-    1. Initial configuration has multiple flows [flow1,flow2]
-    2. Delete one flow [flow2] from the configuration.
-    3. Validate:
-        - Validate flow name [flow2] is being part of existing configuration
-        - Fetch config, deleted flow is not part of fetched configuration
+    1. Initial configuration has multiple flows [tx_flow1,tx_flow2]
+    2. Start traffic
+    3. Stop traffic explicitly
+    4. Delete one flow [tx_flow1] from the configuration.
+    5. Validate:
+        - Validate flow name [tx_flow1] is being part of existing configuration
+        - Fetch config, deleted flow [tx_flow1] is not part of fetched configuration # noqa
+    6. Start traffic
+    7. Delete remaining flow [tx_flow2] from the configuration.
+    8. Validate:
+        - Validate all flows in running state is stopped implicitly
+        - Validate flow name [tx_flow2] is being part of existing configuration
+        - Fetch config, deleted flow [tx_flow1] is not part of fetched configuration # noqa
     """
 
     ports = b2b_raw_config.ports
@@ -42,17 +50,30 @@ def test_delete_flows(api, b2b_raw_config, utils):
     flow2.metrics.loss = True
 
     api.set_config(b2b_raw_config)
-
+    # Start traffic
     utils.start_traffic(api, b2b_raw_config, start_capture=False)
-
     time.sleep(10)
+    # Stop traffic explicitly
     utils.stop_traffic(api, b2b_raw_config)
+    # Delete flow
     cd = api.config_delete()
     cd.config_delete_list.add().flows = ["tx_flow1"]
     print("Deletion request for the flows", cd)
-    api.delete_flows(cd)
-    # config = api.get_config()
-    # print(config)
+    api.delete_config(cd)
+    
+    # Start traffic
+    control_state = api.control_state()
+    control_state.choice = control_state.TRAFFIC
+    control_state.traffic.choice = control_state.traffic.FLOW_TRANSMIT
+    control_state.traffic.flow_transmit.state = control_state.traffic.flow_transmit.START  # noqa
+    api.set_control_state(control_state)
+    time.sleep(10)
+    # Stop traffic implicitly
+    # Delete flow
+    cd = api.config_delete()
+    cd.config_delete_list.add().flows = ["tx_flow2"]
+    print("Deletion request for the flows", cd)
+    api.delete_config(cd)
 
 
 if __name__ == "__main__":

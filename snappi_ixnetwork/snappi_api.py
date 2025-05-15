@@ -634,7 +634,7 @@ class Api(snappi.Api):
             raise SnappiIxnException(err)
         return self._request_detail()
     
-    def append_flows(self, payload):
+    def append_config(self, payload):
         """
         Append Flows for config
         Args
@@ -653,7 +653,7 @@ class Api(snappi.Api):
             raise SnappiIxnException(err)
         return self._request_detail()
     
-    def delete_flows(self, payload):
+    def delete_config(self, payload):
         """
         Delete Flows from config
         Args
@@ -671,6 +671,7 @@ class Api(snappi.Api):
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()
+    
     
     def _get_max_convergence(self, rows):
         # We are extracting max value for multiple destination

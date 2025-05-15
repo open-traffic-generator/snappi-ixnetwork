@@ -2188,6 +2188,19 @@ class TrafficItem(CustomField):
         Delete the flows with list of flow names
         """
         self._validate_delete_flows_config(delete_flows_config)
+
+        # Stop traffic before deletion of flows
+        start_states = [
+            "txStopWatchExpected",
+            "locked",
+            "started",
+            "startedWaitingForStats",
+            "startedWaitingForStreams",
+            "stoppedWaitingForStats",
+        ]
+        state = self._api._ixnetwork.Traffic.State
+        if state in start_states:
+            self._api._ixnetwork.Traffic.StopStatelessTrafficBlocking()
         
         for delcfg in delete_flows_config.config_delete_list:
             for flow in delcfg.flows:
