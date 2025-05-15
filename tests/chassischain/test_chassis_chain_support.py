@@ -1,6 +1,6 @@
 import pytest
 
-# @pytest.mark.skip("chassis chain is not supported in ci")
+@pytest.mark.skip("chassis chain is not supported in ci")
 def test_counter_ip_dscp(api, b2b_raw_config, utils):
     """
     Configure a Chassis Chain setup

@@ -42,7 +42,7 @@ class Ethernet(Base):
         self.configure_multivalues(ethernet, ixn_eth, Ethernet._ETHERNET)
         vlans = ethernet.get("vlans")
         if vlans is not None and len(vlans) > 0:
-            ixn_eth["enableVlans"] = True
+            ixn_eth["enableVlans"] = self.multivalue(True)
             ixn_eth["vlanCount"] = len(vlans)
             self._configure_vlan(ixn_eth, vlans)
         self._configure_ipv4(ixn_eth, ethernet)
