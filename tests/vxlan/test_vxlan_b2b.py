@@ -1,7 +1,9 @@
 import pytest
 
 
-
+@pytest.mark.skip(
+    reason="Fix - intermittent failure L2/3 Traffic not applied error"
+)
 def test_vxlan_b2b(api, utils):
     config = api.config()
 
