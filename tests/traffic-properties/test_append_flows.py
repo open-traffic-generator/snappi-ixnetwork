@@ -42,7 +42,7 @@ def test_append_flows(api, b2b_raw_config, utils):
 
     api.set_config(b2b_raw_config)
 
-    # utils.start_traffic(api, b2b_raw_config, start_capture=False)
+    utils.start_traffic(api, b2b_raw_config, start_capture=False)
 
     time.sleep(10)
     # utils.stop_traffic(api, b2b_raw_config)
@@ -51,13 +51,27 @@ def test_append_flows(api, b2b_raw_config, utils):
     flow3 = caf.add()
     flow3.metrics.enable = True
     flow3.metrics.loss = True
+    flow3.size.fixed = 256
     flow3.rate.pps = 2000
     flow3.name = "tx_flow3"
     flow3.packet.ethernet().ipv4()
     flow3.tx_rx.port.tx_name = ports[0].name
     flow3.tx_rx.port.rx_name = ports[1].name
+    # api.append_config(ca)
+    # ca = api.config_append()
+    # caf = ca.config_append_list.add().flows
+    
+    flow4 = caf.add()
+    flow4.metrics.enable = True
+    flow4.metrics.loss = True
+    flow4.size.fixed = 512
+    flow4.rate.pps = 3000
+    flow4.name = "tx_flow4"
+    flow4.packet.ethernet().ipv4()
+    flow4.tx_rx.port.tx_name = ports[0].name
+    flow4.tx_rx.port.rx_name = ports[1].name
 
-    print("Test script: Append request for the flow", ca)
+    # print("Test script: Append request for the flow", ca)
     api.append_config(ca)
     # config = api.get_config()
     # print(config)
