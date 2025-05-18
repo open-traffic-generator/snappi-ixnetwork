@@ -94,6 +94,7 @@ class Api(snappi.Api):
         self._control_action = self.control_action()
         self._flows_update = self.config_update()
         self._flows_delete = self.config_delete()
+        self._flows_append = self.config_append()
         self._capture_request = self.capture_request()
         self.ixn_routes = []
         self.validation = Validation(self)
@@ -648,6 +649,25 @@ class Api(snappi.Api):
                 payload = self._flows_delete.deserialize(payload)
             self._connect()
             self.traffic_item.delete_configs(payload)
+        except Exception as err:
+            raise SnappiIxnException(err)
+        return self._request_detail()
+    
+    def append_config(self, payload):
+        """
+        Append Flows for config
+        Args
+        ----
+        - request (Union[ConfigAppendResources, str]): A request for Flow name for append.  # noqa
+          The request content MUST be vase on the OpenAPI model,
+          #/components/schemas/Config.Append
+          See the docs/openapi.yaml document for all model details
+        """
+        try:
+            if isinstance(payload, str) is True:
+                payload = self._flows_append.deserialize(payload)
+            self._connect()
+            self.traffic_item.append_configs(payload)
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()

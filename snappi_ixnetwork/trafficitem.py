@@ -2212,3 +2212,222 @@ class TrafficItem(CustomField):
         if errors:
             raise SnappiIxnException(400, "{}".format(("\n").join(errors)))
 
+    def append_configs(self, append_flows_config):
+        """
+        Append the flows with list of flow objects
+        """
+        for appcgfs in append_flows_config.config_append_list:
+            self._validate_append_flows_config(appcgfs)
+
+            # Stop traffic before appending flows
+            start_states = [
+                "txStopWatchExpected",
+                "locked",
+                "started",
+                "startedWaitingForStats",
+                "startedWaitingForStreams",
+                "stoppedWaitingForStats",
+            ]
+            state = self._api._ixnetwork.Traffic.State
+            if state in start_states:
+                self._api._ixnetwork.Traffic.StopStatelessTrafficBlocking()
+            ixn = self._api.assistant._ixnetwork
+            myfilter = [{"property": "name", "regex": ".*"}]
+            url, payload = self._get_search_payload(
+                "/traffic",
+                "(?i)^(trafficItem|egressOnlyTracking|configElement|frameRate"
+                "|frameSize|transmissionControl|stack|field|highLevelStream"
+                "|tracking|transmissionDistribution)$",
+                [
+                    "name",
+                    "trafficType",
+                    "type",
+                    "rate",
+                    "duration",
+                    "displayName",
+                    "valueFormat",
+                ],
+                myfilter,
+            )
+            self.ixn_config = None
+            tr = self._append_flows_config(appcgfs)
+            imports = {}
+            imports["traffic"] = tr
+            self._importconfig(imports)
+            ixn_traffic_item = ixn._connection._execute(url, payload)[0]
+            index = self.traffic_index
+            self.flows_has_latency = []
+            self.flows_has_timestamp = []
+            self.flows_has_loss = []
+            self.latency_mode = None
+            if ixn_traffic_item.get("trafficItem") is None:
+                # TODO raise Exception
+                return
+            ixn_traffic_item = ixn_traffic_item.get("trafficItem")
+            tr_json = {"traffic": {"xpath": "/traffic", "trafficItem": []}}
+            len_app_cfg = len(appcgfs) + 1
+            for i, flow in enumerate(appcgfs):
+                tr_item = {"xpath": ixn_traffic_item[index - len_app_cfg + i]["xpath"]}
+                if ixn_traffic_item[index - len_app_cfg + i].get("configElement") is None:
+                    raise Exception(
+                        "Endpoints are not properly configured in IxNetwork"
+                    )
+                ce_xpaths = [
+                    {"xpath": ce["xpath"]}
+                    for ce in ixn_traffic_item[index - len_app_cfg + i]["configElement"]
+                ]
+                tr_item["configElement"] = ce_xpaths
+                self._configure_size(
+                    tr_item["configElement"], flow.get("size", True)
+                )
+                self._configure_rate(
+                    tr_item["configElement"], flow.get("rate", True)
+                )
+                # TODO: ixNetwork is not creating flow groups for vxlan, remove
+                # hard coding of setting to 1 once the issue is fixed in ixn
+                if "highLevelStream" not in ixn_traffic_item[index - len_app_cfg + i].keys():
+                    hl_stream_count = 1
+                else:
+                    hl_stream_count = len(
+                        ixn_traffic_item[index - len_app_cfg + i]["highLevelStream"]
+                    )   
+                self._configure_duration(
+                    tr_item["configElement"],
+                    hl_stream_count,
+                    flow.get("duration", True),
+                )
+                # tr_type = ixn_traffic_item[i]["trafficType"]
+                if flow.tx_rx.choice == "device":
+                    for ind, ce in enumerate(
+                        ixn_traffic_item[index - len_app_cfg + i]["configElement"]
+                    ):
+                        stack = self._configure_packet(
+                            ce["stack"], self._flows_packet[index - len_app_cfg + i]
+                        )
+                        tr_item["configElement"][ind]["stack"] = stack
+
+                metrics = flow.get("metrics")
+                if metrics is not None and metrics.enable is True:
+                    tr_item.update(
+                        self._configure_tracking(ixn_traffic_item[index - len_app_cfg + i])
+                    )
+                    latency = metrics.get("latency")
+                    if latency is not None and latency.enable is True:
+                        self.flows_has_latency.append(flow.name)
+                        self._process_latency(latency)
+                    timestamps = metrics.get("timestamps")
+                    if timestamps is True:
+                        self.flows_has_timestamp.append(flow.name)
+                    loss = metrics.get("loss")
+                    if loss is True:
+                        self.flows_has_loss.append(flow.name)
+                tr_json["traffic"]["trafficItem"].append(tr_item)
+
+                self._importconfig(tr_json)
+
+                self._configure_options()
+                self._configure_latency()
+
+    def _append_flows_config(self, appcgfs):
+        config = self._config
+        ports = self.get_ports_encap(config)
+        devices = self.get_device_info(config)
+
+        tr = {"xpath": "/traffic", "trafficItem": []}
+        for index, flow in enumerate(appcgfs):
+            flow_name = flow._properties.get("name")
+            self.logger.debug("Creating Traffic Item %s" % flow_name)
+            if flow_name is None:
+                raise Exception("name shall not be null for flows")
+            if flow._properties.get("tx_rx") is None:
+                msg = (
+                    "Please configure the flow endpoint"
+                    "for flow indexed at %s" % index
+                )
+                raise Exception(msg)
+            self._endpoint_validation(flow)
+            if flow.tx_rx.choice is None:
+                msg = "Flow endpoint needs to be either port or device"
+                raise Exception(msg)
+
+            tr_xpath = "/traffic/trafficItem[%d]" % self.traffic_index
+            tr["trafficItem"].append(
+                {
+                    "xpath": tr_xpath,
+                    "name": "%s" % flow.name,
+                    "srcDestMesh": self._get_mesh_type(flow),
+                }
+            )
+
+            tr["trafficItem"][-1]["endpointSet"] = [
+                {
+                    "xpath": tr["trafficItem"][-1]["xpath"]
+                    + "/endpointSet[1]",
+                }
+            ]
+            if flow.tx_rx.choice == "port":
+                tr_type = "raw"
+                ep = getattr(flow.tx_rx, "port")
+                tx_objs = ["%s/protocols" % ports.get(ep.tx_name)]
+                rx_objs = ["%s/protocols" % ports.get(ep.rx_name)]
+                tr["trafficItem"][-1]["endpointSet"][0]["sources"] = [
+                    o for o in tx_objs
+                ]
+                tr["trafficItem"][-1]["endpointSet"][0]["destinations"] = [
+                    o for o in rx_objs
+                ]
+            else:
+                ep = getattr(flow.tx_rx, "device")
+                tr_type = devices[ep.tx_names[0]]["type"]
+                source = []
+                destinations = []
+                scalable_sources = []
+                scalable_destinations = []
+                self._gen_dev_endpoint(
+                    devices, ep.tx_names, source, scalable_sources
+                )
+                self._gen_dev_endpoint(
+                    devices, ep.rx_names, destinations, scalable_destinations
+                )
+                if len(source) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0]["sources"] = source
+                if len(destinations) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0][
+                        "destinations"
+                    ] = destinations
+                if len(scalable_sources) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0][
+                        "scalableSources"
+                    ] = scalable_sources
+                if len(scalable_destinations) > 0:
+                    tr["trafficItem"][-1]["endpointSet"][0][
+                        "scalableDestinations"
+                    ] = scalable_destinations
+
+            tr["trafficItem"][-1]["trafficType"] = tr_type
+            if tr_type == "raw":
+                tr["trafficItem"][-1]["configElement"] = self.config_raw_stack(
+                    tr_xpath, self._flows_packet[index]
+                )
+            self.traffic_index += 1
+            self.logger.debug(
+                "Flow %s converted to %s" % (flow_name, tr["trafficItem"][-1])
+            )
+        return tr
+
+    def _validate_append_flows_config(self, append_flows_config):
+        initial_flownames = []
+        for i_flow in self._api._config.flows._items:
+            initial_flownames.append(i_flow.name)
+        errors = []
+        for flow in append_flows_config:
+            if flow.name in initial_flownames:
+                errors.append(
+                    "flow {} is already present in the configuration".format(
+                        flow.name
+                    )
+                )
+            self._api._config.flows._items.append(flow)
+            
+        if errors:
+            raise SnappiIxnException(400, "{}".format(("\n").join(errors)))
