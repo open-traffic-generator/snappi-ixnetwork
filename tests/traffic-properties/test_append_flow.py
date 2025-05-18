@@ -4,22 +4,12 @@ import time
 
 def test_append_flows(api, utils):
     """
-    This test is to validate delete_config API
-    1. Initial configuration has multiple flows [flw1, flw2]
-    2. Start traffic
-    3. Stop traffic explicitly
-    4. Delete one flow [flw1] from the configuration.
-    5. Validate:
-        - Validate flow name [flw1] is being part of existing configuration
-        - Fetch config, deleted flow [flw1] is not part of fetched configuration # noqa
-        - Fetch flow metrics to ensure only existing flow's metric is showing
-    6. Start traffic
-    7. Delete remaining flow [flw2] from the configuration.
-
-    8. Validate:
-        - Validate all flows in running state is stopped implicitly
-        - Validate flow name [flw2] is being part of existing configuration
-        - Fetch config, deleted flow [flw2] is not part of fetched configuration # noqa
+    This test is to validate append_config API
+    1. Initial configuration has multiple flows [f1,f2]
+    2. Append one flow [f3] from the configuration.
+    3. Validate:
+        - Validate flow name [f3] is not being part of existing configuration
+        - Fetch config, newly added flow is part of fetched configuration
     """
     config = api.config()
     p1, p2 = config.ports.port(name="tx", location=utils.settings.ports[0]).port(
