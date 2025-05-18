@@ -2157,4 +2157,58 @@ class TrafficItem(CustomField):
                         # TODO print a warning maybe ?
                         pass
         return list(flow_rows.values())
+    
+    def delete_configs(self, delete_flows_config):
+        """
+        Delete the flows with list of flow names
+        """
+        self._validate_delete_flows_config(delete_flows_config)
+
+        # Stop traffic before deletion of flows
+        start_states = [
+            "txStopWatchExpected",
+            "locked",
+            "started",
+            "startedWaitingForStats",
+            "startedWaitingForStreams",
+            "stoppedWaitingForStats",
+        ]
+        state = self._api._ixnetwork.Traffic.State
+        if state in start_states:
+            self._api._ixnetwork.Traffic.StopStatelessTrafficBlocking()
+
+        for delcfg in delete_flows_config.config_delete_list:
+            for flow in delcfg.flows:
+                ti = self._api._ixnetwork.Traffic.TrafficItem.find(
+                    Name=flow
+                )
+                if len(self._api._ixnetwork.Traffic.TrafficItem.find()) > 1:
+                    ti.remove()
+                    self._api._ixnetwork.Traffic.TrafficItem.find().refresh()
+                    self.traffic_index = self.traffic_index - 1
+                else:
+                    ti.remove()
+                    self._api._ixnetwork.Traffic.TrafficItem.find().refresh()
+                    self.traffic_index = 1
+
+    def _validate_delete_flows_config(self, delete_flows_config):
+        initial_flownames = []
+        del_flow_name = []
+        for i_flow in self._api._config.flows._items:
+            initial_flownames.append(i_flow.name)
+        errors = []
+        for delcgfs in delete_flows_config.config_delete_list:
+            for flow in delcgfs.flows:
+                if flow not in initial_flownames:
+                    errors.append(
+                        "flow {} is not part of present configuration".format(
+                            flow
+                        )
+                    )
+                del_flow_name.append(flow)
+        for i_flow in self._api._config.flows._items:
+            if i_flow.name in del_flow_name:
+                self._api._config.flows._items.remove(i_flow)
+        if errors:
+            raise SnappiIxnException(400, "{}".format(("\n").join(errors)))
 

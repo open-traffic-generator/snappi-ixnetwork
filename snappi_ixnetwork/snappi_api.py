@@ -93,6 +93,7 @@ class Api(snappi.Api):
         self._control_state = self.control_state()
         self._control_action = self.control_action()
         self._flows_update = self.config_update()
+        self._flows_delete = self.config_delete()
         self._capture_request = self.capture_request()
         self.ixn_routes = []
         self.validation = Validation(self)
@@ -264,7 +265,7 @@ class Api(snappi.Api):
         return request_detail
 
     def set_config(self, config):
-        """Set or update the configuration"""
+        """Set, update, append or delete the configuration"""
         try:
             if isinstance(config, (type(self._config_type), str)) is False:
                 raise TypeError(
@@ -628,6 +629,25 @@ class Api(snappi.Api):
                 payload = self._flows_update.deserialize(payload)
             self._connect()
             self.traffic_item.update_flows(payload)
+        except Exception as err:
+            raise SnappiIxnException(err)
+        return self._request_detail()
+    
+    def delete_config(self, payload):
+        """
+        Delete Flows from config
+        Args
+        ----
+        - request (Union[ConfigDeleteResources, str]): A request for Flow name for deletion.  # noqa
+          The request content MUST be vase on the OpenAPI model,
+          #/components/schemas/Config.Delete
+          See the docs/openapi.yaml document for all model details
+        """
+        try:
+            if isinstance(payload, str) is True:
+                payload = self._flows_delete.deserialize(payload)
+            self._connect()
+            self.traffic_item.delete_configs(payload)
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()
