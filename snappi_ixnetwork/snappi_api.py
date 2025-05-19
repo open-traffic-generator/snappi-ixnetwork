@@ -21,6 +21,8 @@ from snappi_ixnetwork.trafficitem import TrafficItem
 from snappi_ixnetwork.validation import Validation
 from snappi_ixnetwork.vport import Vport
 from snappi_ixnetwork.ixnetworkconfig import IxNetworkConfig
+from snappi_ixnetwork.device.mka import Mka
+from snappi_ixnetwork.device.macsec import Macsec
 
 
 class Api(snappi.Api):
@@ -112,6 +114,8 @@ class Api(snappi.Api):
         self._convergence_timeout = 3
         self._event_info = None
         self._ixnet_specific_config = None
+        self._mka = Mka(self)
+        self._macsec = Macsec(self)
 
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
@@ -368,6 +372,16 @@ class Api(snappi.Api):
             # Start all protocols is workaround for pCPU crash reported by
             # Microsoft, need to revert once fix is available for pCPU crash
             if self._protocols_exists():
+                for device in self._config.devices:
+                    #After the config is pushed in IxNetwork, only then we can do ClearOverlays() in MKA Globals.
+                    #That is why it cannot be done from within MKA module itself.
+
+                    #Check if MACsec/MKA exists in topology
+                    macsec = device.get("macsec")
+                    if (macsec):
+                        if (self._macsec._is_dynamic_key(macsec)):
+                            #it is MKA
+                            self._mka._clear_overlays_in_globals(macsec)
                 self._start_interface()
             else:
                 if len(self._ixnetwork.Topology.find()) > 0:

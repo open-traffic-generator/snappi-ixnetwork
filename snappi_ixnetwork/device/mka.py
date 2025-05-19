@@ -160,6 +160,27 @@ class Mka(Base):
         self._config_supported_cipher_suites(basic, ixn_mka)
         self._config_test_start_time(basic, ixn_mka)
 
+    def _is_test_start_time_user_defined(self, macsec):
+        self.logger.debug("Checking if MKA is configured")
+        ethernet_interfaces = macsec.get("ethernet_interfaces")
+        for ethernet_interface in ethernet_interfaces:
+            secy = ethernet_interface.get("secure_entity")
+            key_generation_protocol = secy.get("key_generation_protocol")
+            protocol = key_generation_protocol.choice
+            if protocol == "mka":
+                kay = key_generation_protocol.get("mka")
+                if kay:
+                    basic = kay.get("basic")
+                    psk_chain_start_time = basic.psk_chain_start_time
+                    if psk_chain_start_time.choice == "utc" and psk_chain_start_time.utc.day is not None: 
+                        return True
+        return False
+                    
+    def _clear_overlays_in_globals(self, macsec):
+        if (self._is_test_start_time_user_defined(macsec)):
+            ixn_mka_globals_port_settings = self._ngpf._ixnetwork.Globals.Topology.find().Mka.find()
+            ixn_mka_globals_port_settings.TestStartTime.ClearOverlays()
+
     def _config_test_start_time(self, basic, ixn_mka):
         self.logger.debug("Configuring test start time")
         psk_chain_start_time = basic.psk_chain_start_time
@@ -182,9 +203,7 @@ class Mka(Base):
             ixn_mka_global_port_settings = ixn_topology.find().Mka.find()
             ixn_mka_global_test_start_time = ixn_mka_global_port_settings.TestStartTime
             print("SSA: start time new %s" % ixn_mka_global_test_start_time)
-            #ixn_mka_global_test_start_time.ClearOverlays()
             ixn_mka_global_test_start_time.ValueList([utc_time] * ixn_mka_global_test_start_time.Count)
-            #ixn_mka_global_test_start_time.ClearOverlays()
             print("SSA: start time new %s" % ixn_mka_global_test_start_time)
 
     def _config_supported_cipher_suites(self, basic, ixn_mka):
