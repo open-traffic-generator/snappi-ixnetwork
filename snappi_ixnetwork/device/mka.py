@@ -202,9 +202,8 @@ class Mka(Base):
             ixn_topology = self._ngpf.api._ixnetwork.Globals.Topology.refresh()
             ixn_mka_global_port_settings = ixn_topology.find().Mka.find()
             ixn_mka_global_test_start_time = ixn_mka_global_port_settings.TestStartTime
-            print("SSA: start time new %s" % ixn_mka_global_test_start_time)
             ixn_mka_global_test_start_time.ValueList([utc_time] * ixn_mka_global_test_start_time.Count)
-            print("SSA: start time new %s" % ixn_mka_global_test_start_time)
+            self.logger.debug("MKA global per port test start time set to %s" % ixn_mka_global_test_start_time)
 
     def _config_supported_cipher_suites(self, basic, ixn_mka):
         self.logger.debug("Configuring basic properties: supported cipher suites")
