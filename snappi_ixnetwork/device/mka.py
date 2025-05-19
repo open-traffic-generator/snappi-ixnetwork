@@ -178,9 +178,14 @@ class Mka(Base):
                        utc_minute + ":" +  \
                        utc_second
 
-            ixn_mka_global_port_settings = self._ngpf.api._ixnetwork.Globals.Topology.find().Mka.find()
+            ixn_topology = self._ngpf.api._ixnetwork.Globals.Topology.refresh()
+            ixn_mka_global_port_settings = ixn_topology.find().Mka.find()
             ixn_mka_global_test_start_time = ixn_mka_global_port_settings.TestStartTime
-            ixn_mka_global_test_start_time.Single(utc_time)
+            print("SSA: start time new %s" % ixn_mka_global_test_start_time)
+            #ixn_mka_global_test_start_time.ClearOverlays()
+            ixn_mka_global_test_start_time.ValueList([utc_time] * ixn_mka_global_test_start_time.Count)
+            #ixn_mka_global_test_start_time.ClearOverlays()
+            print("SSA: start time new %s" % ixn_mka_global_test_start_time)
 
     def _config_supported_cipher_suites(self, basic, ixn_mka):
         self.logger.debug("Configuring basic properties: supported cipher suites")
