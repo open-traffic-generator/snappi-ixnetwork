@@ -93,16 +93,30 @@ def test_append_flows(api, utils):
 
     utils.get_all_stats(api)
 
+    # Validate appended flows are part of configuration
     config = api.get_config()
-    print(config)
+    flow_list = []
+    for flow in config.flows:
+        flow_list.append(flow.name)
+        
+    flows_appended = ["flw3","flw4"]
+    for flow in flows_appended:
+        assert flow in flow_list
 
     cd = api.config_delete()
     cd.config_delete_list.add().flows = ["flw2"]
     print("Deletion request for the flows", cd)
     api.delete_config(cd)
 
+    # Validate deleted flows are not part of fetched configuration
     config = api.get_config()
-    print(config)
+    flow_list = []
+    for flow in config.flows:
+        flow_list.append(flow.name)
+        
+    flows_deleted = ["flw2"]
+    for flow in flows_deleted:
+        assert flow not in flow_list
     
 if __name__ == "__main__":
     pytest.main(["-s", __file__])

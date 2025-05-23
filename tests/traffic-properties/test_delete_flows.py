@@ -82,7 +82,15 @@ def test_delete_flows(api, utils):
     api.set_control_state(control_state)
     time.sleep(5)
 
-    utils.get_all_stats(api)
+    # utils.get_all_stats(api)
+    request = api.metrics_request()
+    request.choice = request.FLOW
+    request.flow.flow_names = ["flw1"]
+    try:
+        flow_results = api.get_metrics(request).flow_metrics
+        assert False
+    except Exception as e:
+        print(e)
 
     config = api.get_config()
     print(config)

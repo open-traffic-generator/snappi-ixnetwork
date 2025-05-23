@@ -2427,7 +2427,8 @@ class TrafficItem(CustomField):
                         flow.name
                     )
                 )
-            self._api._config.flows._items.append(flow)
+            else:
+                self._api._config.flows._items.append(flow)
             
         if errors:
             raise SnappiIxnException(400, "{}".format(("\n").join(errors)))
