@@ -257,6 +257,14 @@ class Vport(object):
                 if len(chassis) == 0:
                     add_addresses.append(chassis_address)
                 check_addresses.append(chassis_address)
+        chassis_chains = self._api.ixnet_specific_config.chassis_chains                
+        if chassis_chains:
+            for chassis_chain in chassis_chains:
+                add_addresses.append(chassis_chain.primary)
+                check_addresses.append(chassis_chain.primary)
+                for secondary in chassis_chain.secondary:
+                    add_addresses.append(secondary.location)
+                    check_addresses.append(secondary.location)
         add_addresses = set(add_addresses)
         check_addresses = set(check_addresses)
         if len(add_addresses) > 0:
