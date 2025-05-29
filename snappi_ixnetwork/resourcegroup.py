@@ -65,7 +65,7 @@ class ResourceGroup(object):
 
         if len(error_ports) > 0:
             raise Exception(
-                "Please check the speed of these ports ", error_ports
+                "Please check the speed mode or the port numbers for the provided speed mode for these ports ", error_ports
             )
         if len(idle_msgs) > 0:
             self._api.info(
