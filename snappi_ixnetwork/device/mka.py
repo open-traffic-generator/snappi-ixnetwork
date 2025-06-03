@@ -158,6 +158,52 @@ class Mka(Base):
         self._config_key_source(basic, ixn_mka)
         self._config_rekey_mode(basic, ixn_mka)
         self._config_supported_cipher_suites(basic, ixn_mka)
+        self._config_test_start_time(basic, ixn_mka)
+
+    def _is_test_start_time_user_defined(self, macsec):
+        self.logger.debug("Checking if MKA is configured")
+        ethernet_interfaces = macsec.get("ethernet_interfaces")
+        for ethernet_interface in ethernet_interfaces:
+            secy = ethernet_interface.get("secure_entity")
+            key_generation_protocol = secy.get("key_generation_protocol")
+            protocol = key_generation_protocol.choice
+            if protocol == "mka":
+                kay = key_generation_protocol.get("mka")
+                if kay:
+                    basic = kay.get("basic")
+                    psk_chain_start_time = basic.psk_chain_start_time
+                    if psk_chain_start_time.choice == "utc" and psk_chain_start_time.utc.day is not None: 
+                        return True
+        return False
+                    
+    def _clear_overlays_in_globals(self, macsec):
+        if (self._is_test_start_time_user_defined(macsec)):
+            ixn_mka_globals_port_settings = self._ngpf._ixnetwork.Globals.Topology.find().Mka.find()
+            ixn_mka_globals_port_settings.TestStartTime.ClearOverlays()
+
+    def _config_test_start_time(self, basic, ixn_mka):
+        self.logger.debug("Configuring test start time")
+        psk_chain_start_time = basic.psk_chain_start_time
+        if psk_chain_start_time.choice == "utc" and psk_chain_start_time.utc.day is not None:
+            utc_day = str(psk_chain_start_time.utc.day)
+            utc_month = str(psk_chain_start_time.utc.month)
+            utc_year = str(psk_chain_start_time.utc.year)
+            utc_hour = str(psk_chain_start_time.utc.hour)
+            utc_minute = str(psk_chain_start_time.utc.minute)
+            utc_second = str(psk_chain_start_time.utc.second)
+
+            utc_time = utc_day + "-" +     \
+                       utc_month + "-" +   \
+                       utc_year + " " +    \
+                       utc_hour + ":" +    \
+                       utc_minute + ":" +  \
+                       utc_second
+
+            ixn_topology = self._ngpf.api._ixnetwork.Globals.Topology.refresh()
+            ixn_mka_global_port_settings = ixn_topology.find().Mka.find()
+            ixn_mka_global_test_start_time = ixn_mka_global_port_settings.TestStartTime
+            ixn_mka_global_test_start_time.ValueList([utc_time] * ixn_mka_global_test_start_time.Count)
+            self.logger.debug("MKA global per port test start time set to %s" % ixn_mka_global_test_start_time)
 
     def _config_supported_cipher_suites(self, basic, ixn_mka):
         self.logger.debug("Configuring basic properties: supported cipher suites")
