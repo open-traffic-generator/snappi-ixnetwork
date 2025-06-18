@@ -754,8 +754,8 @@ class TrafficItem(CustomField):
                 msg = "At most three metric tag can be configured in egress_only_tracking at port %s" % eotr_port_name
                 raise Exception(msg)
 
-            # egress only tracking
-            eotr["egress"] = []
+            # egress only tracking V2 with Tx offset adjustment capability
+            eotr["egressV2"] = []
             mt_index = 0
             self.port_egress_only_tracking[eotr_port_name] = None
             per_port_mts = []
@@ -766,10 +766,15 @@ class TrafficItem(CustomField):
             per_port_mt_dict_result["metric_tags"] = []
 
             for snappi_mt in snappi_eotr_mts:
-                result = self.eotr_mt_bit_offset_length_to_4byte_clear_mask(snappi_mt.offset, snappi_mt.length)
+                # Tx offset adjutment is required when offsets of tracked metric is not same in Tx/ Rx packets
+                tx_offset_adjustment = 0
+                if snappi_mt.tx_offset.choice == "custom" and snappi_mt.tx_offset.custom.value is not None:
+                    tx_offset_adjustment = snappi_mt.tx_offset.custom.value - snappi_mt.rx_offset
+
+                result = self.eotr_mt_bit_offset_length_to_4byte_clear_mask(snappi_mt.rx_offset, snappi_mt.length)
                 if len(result) == 2:
-                    mt_dict = { "arg1": result[0], "arg2": result[1] }
-                    eotr["egress"].append(mt_dict)
+                    mt_dict = { "arg1": result[0], "arg2": result[1], "arg3": tx_offset_adjustment }
+                    eotr["egressV2"].append(mt_dict)
                     mt_dict_entry_result = { "name": snappi_mt.name, "length": snappi_mt.length }
                     per_port_mt_dict_result["metric_tags"].append(mt_dict_entry_result)
                 else:
