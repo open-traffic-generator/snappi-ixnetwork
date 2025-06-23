@@ -11,6 +11,7 @@ from snappi_ixnetwork.device.loopbackint import LoopbackInt
 from snappi_ixnetwork.device.compactor import Compactor
 from snappi_ixnetwork.device.createixnconfig import CreateIxnConfig
 from snappi_ixnetwork.device.rocev2 import RoCEv2
+from snappi_ixnetwork.device.isis import Isis
 
 
 class Ngpf(Base):
@@ -32,6 +33,9 @@ class Ngpf(Base):
         "SecureEntity": "ethernetVlan",
         "Rocev2V4Peer": "ipv4",
         "Rocev2V6Peer": "ipv6",
+        "Isis": "ethernetVlan",
+        "IsisV4Route": "ipv4",
+        "IsisV6Route": "ipv6",
     }
 
     _ROUTE_STATE = {"advertise": True, "withdraw": False}
@@ -50,6 +54,7 @@ class Ngpf(Base):
         self._macsec = Macsec(self)
         self._vxlan = VXLAN(self)
         self._rocev2 = RoCEv2(self)
+        self._isis = Isis(self)
         self._loop_back = LoopbackInt(self)
         self.compactor = Compactor(self.api)
         self._createixnconfig = CreateIxnConfig(self)
