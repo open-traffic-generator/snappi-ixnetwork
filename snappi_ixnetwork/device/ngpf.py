@@ -125,9 +125,13 @@ class Ngpf(Base):
         for device in self.api.snappi_config.devices:
             self._bgp.config(device)
 
-        #Configure all RoCEv2 interface before configure protocols
+        # Configure all RoCEv2 interface before configure protocols
         for device in self.api.snappi_config.devices:
             self._rocev2.config(device)
+
+        # Configure all Isis interface before configure protocols
+        for device in self.api.snappi_config.devices:
+            self._isis.config(device)
 
         # Compaction will take place in this order
         # Step-1: Compact chain DGs
