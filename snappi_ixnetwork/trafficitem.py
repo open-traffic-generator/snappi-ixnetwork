@@ -766,13 +766,13 @@ class TrafficItem(CustomField):
             per_port_mt_dict_result["metric_tags"] = []
 
             for snappi_mt in snappi_eotr_mts:
-                # Tx offset adjutment is required when offsets of tracked metric is not same in Tx/ Rx packets
-                tx_offset_adjustment = 0
-                if snappi_mt.tx_offset.choice == "custom" and snappi_mt.tx_offset.custom.value is not None:
-                    tx_offset_adjustment = snappi_mt.tx_offset.custom.value - snappi_mt.rx_offset
-
                 result = self.eotr_mt_bit_offset_length_to_4byte_clear_mask(snappi_mt.rx_offset, snappi_mt.length)
                 if len(result) == 2:
+                    # Tx offset adjsutment is required when offsets of tracked metric is not same in Tx/ Rx packets. Unit bytes.
+                    tx_offset_adjustment = 0
+                    if snappi_mt.tx_offset.choice == "custom" and snappi_mt.tx_offset.custom.value is not None:
+                        tx_offset_adjustment = self.word_aligned_byte_offset(snappi_mt.tx_offset.custom.value) - result[0]
+
                     mt_dict = { "arg1": result[0], "arg2": result[1], "arg3": tx_offset_adjustment }
                     eotr["egressV2"].append(mt_dict)
                     mt_dict_entry_result = { "name": snappi_mt.name, "length": snappi_mt.length }
@@ -787,6 +787,11 @@ class TrafficItem(CustomField):
             self.egress_only_tracking_index += 1
         return tr
 
+    def word_aligned_byte_offset(self, offset_in_bits):
+        # Word (2 bytes) aligned offset of the first byte in mask. Offset starts from beginning of frame.
+        word_aligned_first_byte_offset = offset_in_bits // 16
+        return word_aligned_first_byte_offset*2
+
     def eotr_mt_bit_offset_length_to_4byte_clear_mask(self, offset_in_bits, length_in_bits):
         result = {}
 
@@ -797,8 +802,6 @@ class TrafficItem(CustomField):
             # maximum length 4 bytes i.e. 32 bits
             return []
 
-        # Word (2 bytes) aligned offset of the first byte in mask. Offset starts from beginning of frame.
-        word_aligned_first_byte_offset = offset_in_bits // 16
         # Bit offset of the first clear mask bit within the first byte in mask
         first_bit_offset = offset_in_bits % 16
 
@@ -823,7 +826,7 @@ class TrafficItem(CustomField):
         mask_bytes = [mask_byte0, mask_byte1, mask_byte2, mask_byte3]
         mask_bytes_str = ''.join('{:02x}'.format(x) for x in mask_bytes)
 
-        return [word_aligned_first_byte_offset*2, mask_bytes_str]
+        return [self.word_aligned_byte_offset(offset_in_bits), mask_bytes_str]
 
     def config_raw_stack(self, xpath, packet):
         ce_path = "%s/configElement[1]" % xpath
