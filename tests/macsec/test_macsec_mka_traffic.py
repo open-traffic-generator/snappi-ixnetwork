@@ -176,12 +176,12 @@ def test_encrypt_with_mka(api, b2b_raw_config, utils):
     # eotr metric tag for destination MAC 3rd byte from MSB: LS 4 bits
     eotr1_mt1 = eotr1.metric_tags.add()
     eotr1_mt1.name = "dest_mac_addr"
-    eotr1_mt1.offset = 29
+    eotr1_mt1.rx_offset = 29
     eotr1_mt1.length = 3
 
     #eotr1_mt2 = eotr1.metric_tags.add()
     #eotr1_mt2.name = "macsec_sci"
-    #eotr1_mt2.offset = 189
+    #eotr1_mt2.rx_offset = 189
     #eotr1_mt2.length = 3
 
     utils.start_traffic(api, config)
