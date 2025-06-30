@@ -553,7 +553,7 @@ class TrafficItem(CustomField):
         myfilter = [{"property": "name", "regex": ".*"}]
         url, payload = self._get_search_payload(
             "/traffic",
-            "(?i)^(trafficItem|egressOnlyTracking|configElement|frameRate"
+            "(?i)^(trafficItem|enableEgressOnlyTracking|egressOnlyTracking|enableEgressOnlyTxStats|configElement|frameRate"
             "|frameSize|transmissionControl|stack|field|highLevelStream"
             "|tracking|transmissionDistribution)$",
             [
@@ -723,6 +723,9 @@ class TrafficItem(CustomField):
         # egress only tracking
         if len(config.egress_only_tracking) > 0:
             tr["egressOnlyTracking"] = []
+            tr["enableEgressOnlyTracking"] = True
+            # enable Tx statistics
+            tr["enableEgressOnlyTxStats"] = True
         for snappi_eotr in config.egress_only_tracking:
             eotr_port_name = snappi_eotr.port_name
             eotr_xpath = "/traffic/egressOnlyTracking[%d]" % self.egress_only_tracking_index
