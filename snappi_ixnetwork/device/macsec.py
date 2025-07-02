@@ -58,15 +58,14 @@ class Macsec(Base):
             self.logger.debug("MACsec validation failure")
         return is_valid
 
-    def _is_ip_allowed(self, device):
-        self.logger.debug("Checking if IPv4/ v6 is allowed")
-        is_allowed = True
+    def set_ip_restriction(self, device):
+        self.logger.debug("Checking if IPv4/ v6 is restricted")
         macsec = device.get("macsec")
         if macsec is None:
-            return is_allowed
+            return
         ethernet_interfaces = macsec.get("ethernet_interfaces")
         if ethernet_interfaces is None:
-            return is_allowed
+            return
         for ethernet_interface in ethernet_interfaces:
             secy = ethernet_interface.get("secure_entity")
             if secy is None:
@@ -81,13 +80,8 @@ class Macsec(Base):
             if crypto_engine is None:
                 continue 
             if crypto_engine.choice == "encrypt_only":
-                is_allowed = False
-                break
-        if is_allowed == True:
-            self.logger.debug("IPv4/ v6 is allowed")
-        else:
-            self.logger.debug("IPv4/ v6 is not allowed on configured crypto_engine in MACsec")
-        return is_allowed
+                self.logger.debug("IPv4/ v6 is restricted on ethernet %s as encrypt_only MACsec engine is configured" % ethernet_interface.get("eth_name"))
+                self._ngpf.set_ip_restricted(ethernet_interface.get("eth_name"))
 
     def _is_dynamic_key(self, macsec):
         self.logger.debug("Checking if MKA is configured")
