@@ -150,28 +150,26 @@ class Isis(Base):
         self._isis_router_name = isis.get("name")
         self._add_isis_router(isis)
 
-    def _add_isis_router(self, device):
+    def _add_isis_router(self, isis):
         self.logger.debug("Configuring Isis Router")
+        self.logger.debug("Configuring Isis interfaces")
+        interfaces = isis.get("interfaces")
+        if interfaces is None:
+            return
+        for interface in interfaces:
+            ethernet_name = interface.get("eth_name")
+            self._ngpf.working_dg = self._ngpf.api.ixn_objects.get_working_dg(
+                ethernet_name
+            )
+            if not self._is_valid(ethernet_name):
+                continue
 
-    # def _is_valid(self, ethernet_name):
-    #     is_valid = True
-    #     if is_valid:
-    #         self.logger.debug("Isis validation success")
-    #     else:
-    #         self.logger.debug("Isis validation failure")
-    #     return is_valid
+    def _is_valid(self, ethernet_name):
+        is_valid = True
+        if is_valid:
+            self.logger.debug("Isis validation success")
+        else:
+            self.logger.debug("Isis validation failure")
+        return is_valid
 
-    # def _config_ethernet_interfaces(self, device):
-    #     self.logger.debug("Configuring Isis interfaces")
-    #     isis = device.get("isis")
-    #     ethernet_interfaces = isis.get("ethernet_interfaces")
-    #     if ethernet_interfaces is None:
-    #         return
-    #     for ethernet_interface in ethernet_interfaces:
-    #         ethernet_name = ethernet_interface.get("eth_name")
-    #         self._ngpf.working_dg = self._ngpf.api.ixn_objects.get_working_dg(
-    #             ethernet_name
-    #         )
-    #         if not self._is_valid(ethernet_name):
-    #             continue
-    #         # self._config_isisInf(device, ethernet_interface)
+    
