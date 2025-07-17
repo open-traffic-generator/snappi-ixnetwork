@@ -26,6 +26,8 @@ class Isis(Base):
             "ixn_attr": "authType",
             "enum_map": {"md5": "md5", "password": "password"},
         },
+        "mde5": "md5",
+        "password": "password",
     }
 
     _ORIGIN_TYPE = {
@@ -152,7 +154,6 @@ class Isis(Base):
 
     def _add_isis_router(self, isis):
         self.logger.debug("Configuring Isis Router")
-        self.logger.debug("Configuring Isis interfaces")
         interfaces = isis.get("interfaces")
         if interfaces is None:
             return
@@ -163,6 +164,7 @@ class Isis(Base):
             )
             if not self._is_valid(ethernet_name):
                 continue
+            self._config_isis_interface(isis, interface)
 
     def _is_valid(self, ethernet_name):
         is_valid = True
@@ -172,4 +174,69 @@ class Isis(Base):
             self.logger.debug("Isis validation failure")
         return is_valid
 
+    def _config_isis_interface(self, isis, interface):
+        self.logger.debug("Configuring Isis interfaces")
+        ethernet_name = interface.get("eth_name")
+        ixn_eth = self._ngpf.api.ixn_objects.get_object(ethernet_name)
+        ixn_isis = self.create_node_elemet(
+            ixn_eth, "isisL3Interface", isis.get("name")
+        )
+        self._ngpf.set_device_info(isis, ixn_isis)
+        # Metric
+        metric = interface.get("metric")
+        ixn_isis["interfaceMetric"] = self.multivalue(metric)
+        # Network Type
+        network_type = interface.get("network_type")
+        self.configure_multivalues(network_type, ixn_isis, Isis._NETWORK_TYPE)
+        # Level Type
+        level_type = interface.get("level_type")
+        self.configure_multivalues(level_type, ixn_isis, Isis._LEVEL_TYPE)
+        # L1 Settings
+        l1_settings = interface.get("l1_settings")
+        if l1_settings is None:
+            return
+        self.logger.debug("priority %s hello_interval %s dead_interval %s " % (l1_settings.priority, l1_settings.hello_interval, l1_settings.dead_interval)) # noqa
+        self.configure_multivalues(l1_settings, ixn_isis, Isis._L1_SETTINGS)
+        # L2 Settings
+        l2_settings = interface.get("l2_settings")
+        if l2_settings is None:
+            return
+        self.logger.debug("priority %s hello_interval %s dead_interval %s " % (l2_settings.priority, l2_settings.hello_interval, l2_settings.dead_interval)) # noqa
+        self.configure_multivalues(l2_settings, ixn_isis, Isis._L2_SETTINGS)
+        # Multiple Topology IDs
+        self._configure_multi_topo_id(interface, ixn_isis)
+        # Traffic Engineering
+        self._configure_traffic_engineering(interface, ixn_isis)
+        # Authentication
+        auth = interface.get("authentication")
+        if auth is None:
+            return
+        self.logger.debug("authentication %s " % (auth.auth_type))
+        self.configure_multivalues(auth, ixn_isis, Isis._AUTH_TYPE)
+        # Advanced
+        advanced = interface.get("advanced")
+        if advanced is None:
+            return
+        self.logger.debug("auto_adjust_mtu %s auto_adjust_area %s auto_adjust_supported_protocols %s enable_3way_handshake %s p2p_hellos_to_unicast_mac %s " % (advanced.auto_adjust_mtu, advanced.auto_adjust_area, advanced.auto_adjust_supported_protocols, advanced.enable_3way_handshake, advanced.p2p_hellos_to_unicast_mac)) # noqa
+        self.configure_multivalues(advanced, ixn_isis, Isis._ADVANCED_INTERFACE) # noqa
+        # Link Protection
+        link_protection = interface.get("link_protection")
+        if link_protection is None:
+            return
+        self.logger.debug("")
+        self.configure_multivalues(link_protection, ixn_isis, Isis._LINK_PROTECTION) # noqa
+        
+
+    # TBD [array]
+    def _configure_multi_topo_id(self, interface, ixn_isis):
+        "Configuring multiple topology IDs"
     
+    # TBD [array]
+    def _configure_traffic_engineering(self, interface, ixn_isis):
+        "Configuring Traffic Engineering"
+         
+
+
+    
+
+
