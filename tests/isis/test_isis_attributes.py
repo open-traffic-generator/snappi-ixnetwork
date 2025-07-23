@@ -174,3 +174,6 @@ def test_isis_stats(api, b2b_raw_config, utils):
     api.start_transmit()
 
     time.sleep(30)
+
+if __name__ == "__main__":
+    pytest.main(["-vv", "-s", __file__])
