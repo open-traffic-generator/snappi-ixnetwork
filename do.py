@@ -70,12 +70,12 @@ def test(card="novus100g"):
         args = [
             '--location="https://10.36.70.119:443"',
             (
-                '--ports="10.36.70.119;1;1'
-                " 10.36.70.119;1;3"
-                " 10.36.70.119;1;2"
-                ' 10.36.70.119;1;4"'
+                '--ports="10.36.70.119;1;9'
+                " 10.36.70.119;1;10"
+                " 10.36.70.119;1;11"
+                ' 10.36.70.119;1;12"'
             ),
-            "--speed=speed_10_gbps",
+            "--speed=speed_400_gbps",
         ]
     else:
         raise Exception("card %s is not supported for testing" % card)
