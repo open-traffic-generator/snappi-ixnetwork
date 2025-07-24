@@ -50,10 +50,10 @@ def lint():
 
 
 def test(card="novus100g"):
-    coverage_threshold = 0
-    sanity_threshold = 0
+    coverage_threshold = 50
+    sanity_threshold = 50
     username = os.environ.get("TEST_USERNAME", "admin")
-    psd = os.environ.get("TEST_PASSWORD", "admin")
+    psd = os.environ.get("TEST_PASSWORD", "wrinkle#B52#B52")
 
     if card == "novus100g":
         args = [
@@ -68,14 +68,14 @@ def test(card="novus100g"):
         ]
     elif card == "novus10g":
         args = [
-            '--location="https://novus1-715849.ccu.is.keysight.com:443"',
+            '--location="https://10.36.70.119:443"',
             (
-                '--ports="novus1-715849.ccu.is.keysight.com;1;1'
-                " novus1-715849.ccu.is.keysight.com;1;2"
-                " novus1-715849.ccu.is.keysight.com;1;5"
-                ' novus1-715849.ccu.is.keysight.com;1;6"'
+                '--ports="10.36.70.119;1;9'
+                " 10.36.70.119;1;10"
+                " 10.36.70.119;1;11"
+                ' 10.36.70.119;1;12"'
             ),
-            "--speed=speed_10_gbps",
+            "--speed=speed_400_gbps",
         ]
     else:
         raise Exception("card %s is not supported for testing" % card)
