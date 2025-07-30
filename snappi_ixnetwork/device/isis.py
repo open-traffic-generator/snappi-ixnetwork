@@ -134,6 +134,13 @@ class Isis(Base):
             "enum_map": {"md5": "domainTransmitPasswordOrMD5Key", "password": "domainTransmitPasswordOrMD5Key"},    # noqa
         },
     }
+
+    _IP_POOL = {
+        "address": "networkAddress",
+        "prefix": "prefixLength",
+        "count": "numberOfAddressesAsy",
+        "step": "prefixAddrStep",
+    }
     
     def __init__(self, ngpf):
         super(Isis, self).__init__()
@@ -174,9 +181,8 @@ class Isis(Base):
             ixn_isis_router = self.create_node_elemet(
                 self._ngpf.working_dg, "isisL3Router", isis.get("name")
             )
-            # # TODO : system ID, map interface and router
             self._config_isis_router(isis, ixn_isis_router)
-            # self._add_isis_route_range(isis, ixn_isis_router, ixn_isis)
+            self._add_isis_route_range(isis, ixn_isis_router, ixn_isis)
             
 
 
@@ -242,7 +248,7 @@ class Isis(Base):
             self.logger.debug("srlg values")
             ixn_isis["enableSRLG"] = True
             ixn_isis["srlgCount"] = srlg_count
-            #TBD 
+        #TBD 
         # Adjacency Sids
         self._configure_adjacency_sids(interface, ixn_isis)     
 
@@ -310,6 +316,41 @@ class Isis(Base):
 
     def _add_isis_route_range(self, otg_isis_router, ixn_isis_router, ixn_isis):
         "Configuring ISIS route range"
+        v4_routes = otg_isis_router.get("v4_routes")
+        if v4_routes is not None:
+            self._configure_isisv4_route(v4_routes, ixn_isis_router, ixn_isis)
+        v6_routes = otg_isis_router.get("v6_routes")
+        if v6_routes is not None:
+            self._configure_isisv6_route(v6_routes, ixn_isis_router, ixn_isis)
+        self._ngpf.compactor.compact(self._ngpf.working_dg.get("networkGroup"))
         
+    def _configure_isisv4_route(self, v4_routes, ixn_isis_router, ixn_isis):
+        "Configuring ISIS v4 routes"
+        if v4_routes is None:
+            return
+        self.logger.debug("Configuring ISISv4 Route")
+        for route in v4_routes:
+            addresses = route.get("addresses")
+            ixn_ng = self.create_node_elemet(
+                self._ngpf.working_dg, "networkGroup", route.get("name")
+            )
+            ixn_ng["multiplier"] = 1
+            ixn_ip_pool = self.create_node_elemet(
+                ixn_ng, "ipv4PrefixPools", route.get("name")
+            )
+            ixn_connector = self.create_property(ixn_ip_pool, "connector")
+            ixn_connector["connectedTo"] = self.post_calculated(
+                "connectedTo", ref_ixnobj=ixn_isis_router
+            )
+            self.configure_multivalues(addresses, ixn_ip_pool, Isis._IP_POOL)
+            ixn_route = self.create_node_elemet(
+                ixn_ip_pool, "isisL3RouteProperty", route.get("name")
+            )
+            self._ngpf.set_device_info(route, ixn_ip_pool)
+            self._configurev4_route(route, ixn_route)
 
-
+    def _configure_isisv6_route(v6_routes, ixn_isis_router, ixn_isis):
+        "Configuring ISIS v4 routes"
+        # TBD
+    def _configurev4_route(self, route, ixn_route):
+        
