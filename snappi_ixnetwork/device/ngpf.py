@@ -34,6 +34,7 @@ class Ngpf(Base):
         "Rocev2V4Peer": "ipv4",
         "Rocev2V6Peer": "ipv6",
         "Isis": "ethernetVlan",
+        "IsisInterface": "ethernetVlan",
         "IsisV4Route": "ipv4",
         "IsisV6Route": "ipv6",
     }

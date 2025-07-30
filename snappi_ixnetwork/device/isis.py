@@ -165,17 +165,18 @@ class Isis(Base):
             if not self._is_valid(ethernet_name):
                 continue
             ixn_eth = self._ngpf.api.ixn_objects.get_object(ethernet_name)
+            
             ixn_isis = self.create_node_elemet(
-                ixn_eth, "isisL3Interface", isis.get("name")
+                ixn_eth, "isisL3", interface.get("name")
             )
-            self._ngpf.set_device_info(isis, ixn_isis)
+            self._ngpf.set_device_info(interface, ixn_isis)
             self._config_isis_interface(interface, ixn_isis)
             ixn_isis_router = self.create_node_elemet(
                 self._ngpf.working_dg, "isisL3Router", isis.get("name")
             )
-            # TODO : system ID, map interface and router
+            # # TODO : system ID, map interface and router
             self._config_isis_router(isis, ixn_isis_router)
-            self._add_isis_route_range(isis, ixn_isis_router, ixn_isis)
+            # self._add_isis_route_range(isis, ixn_isis_router, ixn_isis)
             
 
 
@@ -194,10 +195,12 @@ class Isis(Base):
         ixn_isis["interfaceMetric"] = self.multivalue(metric)
         # Network Type
         network_type = interface.get("network_type")
-        self.configure_multivalues(network_type, ixn_isis, Isis._NETWORK_TYPE)
+        mapped_type = Isis._NETWORK_TYPE["network_type"]["enum_map"][network_type]   # noqa
+        ixn_isis["networkType"] = self.multivalue(mapped_type)
         # Level Type
         level_type = interface.get("level_type")
-        self.configure_multivalues(level_type, ixn_isis, Isis._LEVEL_TYPE)
+        mapped_level = Isis._LEVEL_TYPE["level_type"]["enum_map"][level_type]   # noqa
+        ixn_isis["levelType"] = self.multivalue(mapped_level)
         # L1 Settings
         l1_settings = interface.get("l1_settings")
         if l1_settings is None:
@@ -234,7 +237,7 @@ class Isis(Base):
         self.configure_multivalues(link_protection, ixn_isis, Isis._LINK_PROTECTION) # noqa
         # srlg values
         srlg_vals = interface.get("srlg_values")
-        srlg_count =  len(srlg_vals)
+        srlg_count = len(srlg_vals)
         if srlg_count > 0:
             self.logger.debug("srlg values")
             ixn_isis["enableSRLG"] = True
@@ -271,32 +274,35 @@ class Isis(Base):
         "Configuring ISIS router basic"
         ipv4_te_router_id = otg_router_basic.get("ipv4_te_router_id")
         if ipv4_te_router_id is not None:
-            ixn_isis_router["enableTE"] = True
-            ixn_isis_router["tERouterId"] = ipv4_te_router_id
+            ixn_isis_router["enableTE"] = self.multivalue(True)
+            ixn_isis_router["tERouterId"] = self.multivalue(ipv4_te_router_id)
         else:
-            ixn_isis_router["enableTE"] = False
+            ixn_isis_router["enableTE"] = self.multivalue(False)
         hostname = otg_router_basic.get("hostname")
         if hostname is not None:
-            ixn_isis_router["enableHostName"] = True
-            ixn_isis_router["hostName"] = hostname
+            ixn_isis_router["enableHostName"] = self.multivalue(True)
+            ixn_isis_router["hostName"] = self.multivalue(hostname)
         else:
-            ixn_isis_router["enableHostName"] = False 
-        ixn_isis_router["discardLSPs"] = otg_router_basic.get("learned_lsp_filter") # noqa
-        ixn_isis_router["enableWideMetric"] = otg_router_basic.get("enableWideMetric") # noqa
+            ixn_isis_router["enableHostName"] = self.multivalue(False) 
+        ixn_isis_router["discardLSPs"] = self.multivalue(otg_router_basic.get("learned_lsp_filter")) # noqa
+        ixn_isis_router["enableWideMetric"] = self.multivalue(otg_router_basic.get("enable_wide_metric")) # noqa
 
     def _configure_isis_router_advanced(self, otg_router_advanced, ixn_isis_router): # noqa
         "Configuring ISIS router advanced"
-        ixn_isis_router["enableHelloPadding"] = otg_router_advanced.get("enable_hello_padding") # noqa
-        ixn_isis_router["maxAreaAddresses"] = otg_router_advanced.get("max_area_addresses") # noqa
+        ixn_isis_router["enableHelloPadding"] = self.multivalue(otg_router_advanced.get("enable_hello_padding")) # noqa
+        ixn_isis_router["maxAreaAddresses"] = self.multivalue(otg_router_advanced.get("max_area_addresses")) # noqa
         # TBD join strings
-        ixn_isis_router["areaAddresses"] = otg_router_advanced.get("area_addresses") # noqa
-        ixn_isis_router["lSPRefreshRate"] = otg_router_advanced.get("lsp_refresh_rate") # noqa
-        ixn_isis_router["lSPLifetime"] = otg_router_advanced.get("lsp_lifetime") # noqa
-        ixn_isis_router["pSNPInterval"] = otg_router_advanced.get("psnp_interval") # noqa
-        ixn_isis_router["cSNPInterval"] = otg_router_advanced.get("csnp_interval") # noqa
-        ixn_isis_router["maxLSPSize"] = otg_router_advanced.get("max_lsp_size") # noqa
-        ixn_isis_router["lSPorMGroupPDUMinTransmissionInterval"] = otg_router_advanced.get("lsp_mgroup_min_trans_interval") # noqa
-        ixn_isis_router["attached"] = otg_router_advanced.get("enable_attached_bit") # noqa
+        area_address = "490001"
+        if len(otg_router_advanced.get("area_addresses")) > 0:
+            area_address = "".join(otg_router_advanced.get("area_addresses"))
+        ixn_isis_router["areaAddresses"] = self.multivalue(area_address) # noqa
+        ixn_isis_router["lSPRefreshRate"] = self.multivalue(otg_router_advanced.get("lsp_refresh_rate")) # noqa
+        ixn_isis_router["lSPLifetime"] = self.multivalue(otg_router_advanced.get("lsp_lifetime")) # noqa
+        ixn_isis_router["pSNPInterval"] = self.multivalue(otg_router_advanced.get("psnp_interval")) # noqa
+        ixn_isis_router["cSNPInterval"] = self.multivalue(otg_router_advanced.get("csnp_interval")) # noqa
+        ixn_isis_router["maxLSPSize"] = self.multivalue(otg_router_advanced.get("max_lsp_size")) # noqa
+        ixn_isis_router["lSPorMGroupPDUMinTransmissionInterval"] = self.multivalue(otg_router_advanced.get("lsp_mgroup_min_trans_interval")) # noqa
+        ixn_isis_router["attached"] = self.multivalue(otg_router_advanced.get("enable_attached_bit")) # noqa
         
     def _configure_isis_router_auth(self, otg_router_auth, ixn_isis_router): # noqa
         "Configuring ISIS router authentication"
