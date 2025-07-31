@@ -712,14 +712,14 @@ class Vport(object):
     def _get_chassis_location_map(self):
         location_to_href_map = {}
         chassis = self._api._ixnetwork.AvailableHardware.Chassis.find()
-        with BatchFind(self._api._ixnetwork) as bf:
-            self._api._ixnetwork.Locations.find().Ports.find()
+        locations = self._api._ixnetwork.Locations.find()
 
         for ch in chassis:
             location_to_href_map[ch.Hostname] = ch.href
 
-        for port in bf.results.ports:
-            location_to_href_map[port.Location] = port.href
+        for loc in locations:
+            for p in loc.Ports.find():
+                location_to_href_map[p.Location] = p.href
 
         return location_to_href_map
 
@@ -774,10 +774,9 @@ class Vport(object):
                     if location in href_map:
                         location_hrefs[location] = href_map.get(location)
                     else:
-                        locations.add(Hostname=appliance)
+                        self._api._ixnetwork.Locations.add(Hostname=appliance)
                         href_map = self._get_chassis_location_map()
                         location_hrefs[location] = href_map.get(location)
-            print("time taken to get href ports ", str(time.time()-start))
             self._api.clear_ownership(available_hardware_hrefs, location_hrefs)
 
     def _set_result_value(
