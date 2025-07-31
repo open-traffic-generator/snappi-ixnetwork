@@ -123,7 +123,8 @@ class ProtocolMetrics(object):
             ("unknown_msg_rx", "Unknown MSG Rx", int),
         ],
         "isis": [
-            ("l1_sessions_up", "Sessions Up", int),
+            ("name", "Device Group", str),
+            ("l1_sessions_up", "L1 Sessions Up", int),
             ("l1_session_flap", "L1 Session Flap", int),
             ("l1_database_size", "L1 DB Size", int),
             ("l1_broadcast_hellos_sent", "L1 Hellos Tx", int),

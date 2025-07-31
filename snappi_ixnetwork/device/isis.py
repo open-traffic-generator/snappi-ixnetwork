@@ -119,10 +119,6 @@ class Isis(Base):
         "reserved_40": "reserved0x40",
         "reserved_80": "reserved0x80",
     }
-
-    # TBD
-    _ADJACENCY_SIDS = {}
-
     _ROUTER_AUTH = {
         "ignore_receive_md5": "ignoreReceiveMD5",
         "area_auth": {
@@ -252,15 +248,15 @@ class Isis(Base):
         # Adjacency Sids
         self._configure_adjacency_sids(interface, ixn_isis)     
 
-    # TBD [array]
+    # TBD 
     def _configure_multi_topo_id(self, interface, ixn_isis):
         "Configuring multiple topology IDs"
     
-    # TBD [array]
+    # TBD 
     def _configure_traffic_engineering(self, interface, ixn_isis):
         "Configuring Traffic Engineering"
 
-    # TBD [array]
+    # TBD 
     def _configure_adjacency_sids(self, interface, ixn_isis):
         "Configuring Adjacency sids"  
 
@@ -331,26 +327,39 @@ class Isis(Base):
         self.logger.debug("Configuring ISISv4 Route")
         for route in v4_routes:
             addresses = route.get("addresses")
-            ixn_ng = self.create_node_elemet(
-                self._ngpf.working_dg, "networkGroup", route.get("name")
-            )
-            ixn_ng["multiplier"] = 1
-            ixn_ip_pool = self.create_node_elemet(
-                ixn_ng, "ipv4PrefixPools", route.get("name")
-            )
-            ixn_connector = self.create_property(ixn_ip_pool, "connector")
-            ixn_connector["connectedTo"] = self.post_calculated(
-                "connectedTo", ref_ixnobj=ixn_isis_router
-            )
-            self.configure_multivalues(addresses, ixn_ip_pool, Isis._IP_POOL)
-            ixn_route = self.create_node_elemet(
-                ixn_ip_pool, "isisL3RouteProperty", route.get("name")
-            )
-            self._ngpf.set_device_info(route, ixn_ip_pool)
-            self._configurev4_route(route, ixn_route)
+            for address in addresses:
+                ixn_ng = self.create_node_elemet(
+                    self._ngpf.working_dg, "networkGroup", route.get("name")
+                )
+                ixn_ng["multiplier"] = 1
+                ixn_ip_pool = self.create_node_elemet(
+                    ixn_ng, "ipv4PrefixPools", route.get("name")
+                )
+                ixn_connector = self.create_property(ixn_ip_pool, "connector")
+                ixn_connector["connectedTo"] = self.post_calculated(
+                    "connectedTo", ref_ixnobj=ixn_isis
+                )
+                self.configure_multivalues(address, ixn_ip_pool, Isis._IP_POOL)
+                ixn_route = self.create_node_elemet(
+                    ixn_ip_pool, "isisL3RouteProperty", route.get("name")
+                )
+                self._ngpf.set_device_info(route, ixn_ip_pool)
+                self._configure_route(route, ixn_route)
 
-    def _configure_isisv6_route(v6_routes, ixn_isis_router, ixn_isis):
-        "Configuring ISIS v4 routes"
+    def _configure_isisv6_route(self, v6_routes, ixn_isis_router, ixn_isis):
+        "Configuring ISIS v6 routes"
         # TBD
-    def _configurev4_route(self, route, ixn_route):
+    def _configure_route(self, otg_route, ixn_route):
         "Configuring ISIS v4 routes"
+        self._ngpf.set_ixn_routes(otg_route, ixn_route)
+        # Link metric
+        metric = otg_route.get("link_metric")
+        ixn_route["metric"] = self.multivalue(metric)
+        # Origin Type
+        origin_type = otg_route.get("origin_type")
+        mapped_type = Isis._ORIGIN_TYPE["origin_type"]["enum_map"][origin_type]   # noqa
+        ixn_route["routeOrigin"] = self.multivalue(mapped_type)
+        # Redistribution Type
+        redistribution_type = otg_route.get("redistribution_type")
+        mapped_type = Isis._REDISTRIBUTION_TYPE["redistribution_type"]["enum_map"][redistribution_type]   # noqa
+        ixn_route["redistribution"] = self.multivalue(mapped_type)

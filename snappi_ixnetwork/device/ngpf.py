@@ -35,8 +35,8 @@ class Ngpf(Base):
         "Rocev2V6Peer": "ipv6",
         "Isis": "ethernetVlan",
         "IsisInterface": "ethernetVlan",
-        "IsisV4Route": "ipv4",
-        "IsisV6Route": "ipv6",
+        "IsisV4RouteRange": "ipv4",
+        "IsisV6RouteRange": "ipv6",
     }
 
     _ROUTE_STATE = {"advertise": True, "withdraw": False}
