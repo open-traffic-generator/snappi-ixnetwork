@@ -37,6 +37,7 @@ class Api(snappi.Api):
     - password (str): The password for Linux IxNetwork API Server
         This is not required when connecting to single session environments
     """
+
     _CONVERGENCE = {
         ("data_plane_convergence_us", "DP/DP Convergence Time (us)", float),
         (
@@ -198,12 +199,12 @@ class Api(snappi.Api):
     @property
     def dev_compacted(self):
         return self._dev_compacted
-    
+
     @property
     def ixnet_specific_config(self):
         if self._ixnet_specific_config is None:
             self._ixnet_specific_config = IxNetworkConfig(self)
-    
+
         return self._ixnet_specific_config
 
     def set_dev_compacted(self, dev_name, name_list):
@@ -306,10 +307,14 @@ class Api(snappi.Api):
                     if dp_events_enable:
                         if self.traffic_item.has_latency is True:
                             raise Exception(
-                                "We are supporting either latency or dp convergence"    
+                                "We are supporting either latency or dp convergence"
                             )
-                        ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor = True 
-                        ixn_cpdpconvergence.DataPlaneThreshold = rx_rate_threshold  
+                        ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor = (
+                            True
+                        )
+                        ixn_cpdpconvergence.DataPlaneThreshold = (
+                            rx_rate_threshold
+                        )
 
                 for ixn_traffic_item in self._traffic_item.find():
                     ixn_traffic_item.Tracking.find()[0].TrackBy = [
@@ -318,7 +323,7 @@ class Api(snappi.Api):
                     ]
             else:
                 ixn_cpdpconvergence.Enabled = False
-            
+
         except Exception as err:
             raise SnappiIxnException(err)
 
@@ -375,14 +380,14 @@ class Api(snappi.Api):
             # Microsoft, need to revert once fix is available for pCPU crash
             if self._protocols_exists():
                 for device in self._config.devices:
-                    #After the config is pushed in IxNetwork, only then we can do ClearOverlays() in MKA Globals.
-                    #That is why it cannot be done from within MKA module itself.
+                    # After the config is pushed in IxNetwork, only then we can do ClearOverlays() in MKA Globals.
+                    # That is why it cannot be done from within MKA module itself.
 
-                    #Check if MACsec/MKA exists in topology
+                    # Check if MACsec/MKA exists in topology
                     macsec = device.get("macsec")
-                    if (macsec):
-                        if (self._macsec._is_dynamic_key(macsec)):
-                            #it is MKA
+                    if macsec:
+                        if self._macsec._is_dynamic_key(macsec):
+                            # it is MKA
                             self._mka._clear_overlays_in_globals(macsec)
                 self._start_interface()
             else:
@@ -459,7 +464,9 @@ class Api(snappi.Api):
                 elif control_choice == "route":
                     event_state = request_payload.state
                     with Timer(self, "Setting route state"):
-                        event_names = self.ngpf.set_route_state(request_payload)
+                        event_names = self.ngpf.set_route_state(
+                            request_payload
+                        )
                 elif control_choice == "lacp":
                     self.ngpf.set_device_state(request_payload)
             elif control_option == "traffic":
@@ -579,7 +586,9 @@ class Api(snappi.Api):
                 metric_res.flow_metrics.deserialize(response)
                 return metric_res
             if request.get("choice") == "egress_only_tracking":
-                response = self.traffic_item.results_egress_only_tracking(request.egress_only_tracking)
+                response = self.traffic_item.results_egress_only_tracking(
+                    request.egress_only_tracking
+                )
                 metric_res = self.metrics_response()
                 metric_res.egress_only_tracking_metrics.deserialize(response)
                 return metric_res
@@ -599,7 +608,9 @@ class Api(snappi.Api):
                 metric_res.convergence_metrics.deserialize(response)
                 return metric_res
             if request.get("choice") == "rocev2_flow":
-                response = self.traffic_item.rocev2_flow_results(request.rocev2_flow)  # noqa
+                response = self.traffic_item.rocev2_flow_results(
+                    request.rocev2_flow
+                )  # noqa
                 metric_res = self.metrics_response()
                 metric_res.rocev2_flow_per_qp_metrics.deserialize(response)
                 return metric_res
@@ -609,14 +620,17 @@ class Api(snappi.Api):
             ):
                 response = self.protocol_metrics.results(request)
                 metric_res = self.metrics_response()
-                if (request.choice == "rocev2_ipv4" or request.choice == "rocev2_ipv6"):
-                    getattr(metric_res, request.choice + "_per_peer" + "_metrics").deserialize(
-                        response
-                    )
+                if (
+                    request.choice == "rocev2_ipv4"
+                    or request.choice == "rocev2_ipv6"
+                ):
+                    getattr(
+                        metric_res, request.choice + "_per_peer" + "_metrics"
+                    ).deserialize(response)
                 else:
-                    getattr(metric_res, request.choice + "_metrics").deserialize(
-                        response
-                    )
+                    getattr(
+                        metric_res, request.choice + "_metrics"
+                    ).deserialize(response)
                 return metric_res
         except Exception as err:
             raise SnappiIxnException(err)
@@ -647,7 +661,7 @@ class Api(snappi.Api):
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()
-    
+
     def delete_config(self, payload):
         """
         Delete Flows from config
@@ -666,7 +680,7 @@ class Api(snappi.Api):
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()
-    
+
     def append_config(self, payload):
         """
         Append Flows for config
@@ -685,7 +699,7 @@ class Api(snappi.Api):
         except Exception as err:
             raise SnappiIxnException(err)
         return self._request_detail()
-    
+
     def _get_max_convergence(self, rows):
         # We are extracting max value for multiple destination
         rows_len = len(rows)
@@ -745,7 +759,10 @@ class Api(snappi.Api):
             if drill_down.Rows is not None:
                 drill_down_result = self._get_max_convergence(drill_down.Rows)
             ixn_cpdpconvergence = self._traffic.Statistics.CpdpConvergence
-            if ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor and ixn_cpdpconvergence.EnableControlPlaneEvents: # noqa
+            if (
+                ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor
+                and ixn_cpdpconvergence.EnableControlPlaneEvents
+            ):  # noqa
                 for (
                     external_name,
                     internal_name,
@@ -766,7 +783,11 @@ class Api(snappi.Api):
                     if event_name == "":
                         continue
                     event = self._get_event(event_name)
-                    for external_name, internal_name, external_type in self._EVENT:
+                    for (
+                        external_name,
+                        internal_name,
+                        external_type,
+                    ) in self._EVENT:
                         value = int(flow_result[internal_name].split(".")[-1])
                         self._set_result_value(
                             event, external_name, value * 1000, external_type
@@ -795,7 +816,10 @@ class Api(snappi.Api):
                 convergence["events"] = events
 
             # for DP only metric
-            if ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor and not ixn_cpdpconvergence.EnableControlPlaneEvents: # noqa
+            if (
+                ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor
+                and not ixn_cpdpconvergence.EnableControlPlaneEvents
+            ):  # noqa
                 for (
                     external_name,
                     internal_name,
@@ -809,7 +833,6 @@ class Api(snappi.Api):
                     )
             response.append(convergence)
         return response
-    
 
     def _get_event(self, event_name):
         event = {}
@@ -877,9 +900,7 @@ class Api(snappi.Api):
                     drill_down_option,
                     flow_stat.TargetRowFilters()[drilldown_index],
                 )
-                flow_stat = self.assistant.StatViewAssistant(
-                    "Flow Statistics"
-                )
+                flow_stat = self.assistant.StatViewAssistant("Flow Statistics")
         has_flow = False
         while True:
             flow_rows = flow_stat.Rows
@@ -888,7 +909,10 @@ class Api(snappi.Api):
             for row in flow_rows:
                 if row["Traffic Item"] in flow_names:
                     has_flow = True
-                    if ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor and ixn_cpdpconvergence.EnableControlPlaneEvents: # noqa
+                    if (
+                        ixn_cpdpconvergence.EnableDataPlaneEventsRateMonitor
+                        and ixn_cpdpconvergence.EnableControlPlaneEvents
+                    ):  # noqa
                         if row["Event Name"] != "":
                             has_event = True
                             break

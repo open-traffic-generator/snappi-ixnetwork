@@ -158,7 +158,9 @@ class Ngpf(Base):
 
     def _is_ip_allowed(self):
         is_allowed = True
-        self.logger.debug("Checking if IPv4/ v6 is allowed when MACsec is present")
+        self.logger.debug(
+            "Checking if IPv4/ v6 is allowed when MACsec is present"
+        )
         for device in self.api.snappi_config.devices:
             is_allowed = self._macsec._is_ip_allowed(device)
             if is_allowed == False:
