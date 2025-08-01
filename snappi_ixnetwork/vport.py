@@ -3,6 +3,7 @@ import time
 import re
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.logger import get_ixnet_logger
+from ixnetwork_restpy import BatchFind
 
 
 class Vport(object):
@@ -257,7 +258,7 @@ class Vport(object):
                 if len(chassis) == 0:
                     add_addresses.append(chassis_address)
                 check_addresses.append(chassis_address)
-        chassis_chains = self._api.ixnet_specific_config.chassis_chains                
+        chassis_chains = self._api.ixnet_specific_config.chassis_chains
         if chassis_chains:
             for chassis_chain in chassis_chains:
                 add_addresses.append(chassis_chain.primary)
@@ -302,13 +303,19 @@ class Vport(object):
             for chassis_chain in chassis_chains:
                 chassis.find(Hostname="^%s$" % chassis_chain.primary)
                 if len(chassis) == 0:
-                    self.logger.debug("Primary chassis [%s] not found" % chassis_chain.primary)
+                    self.logger.debug(
+                        "Primary chassis [%s] not found"
+                        % chassis_chain.primary
+                    )
                     return
                 chassis[0].ChainTopology = chassis_chain.topology
                 for secondary in chassis_chain.secondary:
                     chassis.find(Hostname="^%s$" % secondary.location)
                     if len(chassis) == 0:
-                        self.logger.debug("Secondary chassis [%s] not found" % secondary.location)
+                        self.logger.debug(
+                            "Secondary chassis [%s] not found"
+                            % secondary.location
+                        )
                         return
                     chassis[0].ChainTopology = chassis_chain.topology
                     chassis[0].PrimaryChassis = chassis_chain.primary
@@ -628,9 +635,9 @@ class Vport(object):
             + "/l1Config/"
             + vport["type"].replace("Fcoe", ""),
             "speed": Vport._SPEED_MAP[layer1.speed],
-            "{0}".format(auto_field_name): False
-            if auto_negotiate is None
-            else auto_negotiate,
+            "{0}".format(auto_field_name): (
+                False if auto_negotiate is None else auto_negotiate
+            ),
             "enableRsFec": False if rs_fec is None else rs_fec,
             "linkTraining": False if link_training is None else link_training,
             "speedAuto": advertise,
@@ -702,7 +709,22 @@ class Vport(object):
             fcoe["supportDataCenterMode"] = True
         imports.append(fcoe)
 
+    def _get_chassis_location_map(self):
+        location_to_href_map = {}
+        chassis = self._api._ixnetwork.AvailableHardware.Chassis.find()
+        locations = self._api._ixnetwork.Locations.find()
+
+        for ch in chassis:
+            location_to_href_map[ch.Hostname] = ch.href
+
+        for loc in locations:
+            for p in loc.Ports.find():
+                location_to_href_map[p.Location] = p.href
+
+        return location_to_href_map
+
     def _clear_ownership(self, locations):
+        start = time.time()
         try:
             force_ownership = (
                 self._api.snappi_config.options.port_options.location_preemption
@@ -714,31 +736,47 @@ class Vport(object):
             self.logger.debug("We are clearing ownership")
             available_hardware_hrefs = {}
             location_hrefs = {}
+            href_map = self._get_chassis_location_map()
             for location in locations:
                 if ";" in location:
                     clp = location.split(";")
-                    chassis = (
-                        self._api._ixnetwork.AvailableHardware.Chassis.find(
-                            Hostname=clp[0]
-                        )
-                    )
-                    if len(chassis) > 0:
-                        available_hardware_hrefs[
-                            location
-                        ] = "%s/card/%s/port/%s" % (
-                            chassis.href,
-                            abs(int(clp[1])),
-                            abs(int(clp[2])),
+                    # chassis = (
+                    #     self._api._ixnetwork.AvailableHardware.Chassis.find(
+                    #         Hostname=clp[0]
+                    #     )
+                    # )
+                    # if len(chassis) > 0:
+                    #     available_hardware_hrefs[
+                    #         location
+                    #     ] = "%s/card/%s/port/%s" % (
+                    #         chassis.href,
+                    #         abs(int(clp[1])),
+                    #         abs(int(clp[2])),
+                    #     )
+                    if clp[0] in href_map:
+                        available_hardware_hrefs[location] = (
+                            "%s/card/%s/port/%s"
+                            % (
+                                href_map.get(clp[0]),
+                                abs(int(clp[1])),
+                                abs(int(clp[2])),
+                            )
                         )
                 elif "/" in location:
                     appliance = location.split("/")[0]
-                    locations = self._api._ixnetwork.Locations
-                    locations.find(Hostname=appliance)
-                    if len(locations) == 0:
-                        locations.add(Hostname=appliance)
-                    ports = locations.Ports.find(Location="^%s$" % location)
-                    if len(ports) > 0:
-                        location_hrefs[location] = ports.href
+                    # locations = self._api._ixnetwork.Locations
+                    # locations.find(Hostname=appliance)
+                    # if len(locations) == 0:
+                    #     locations.add(Hostname=appliance)
+                    # ports = locations.Ports.find(Location="^%s$" % location)
+                    # if len(ports) > 0:
+                    #     location_hrefs[location] = ports.href
+                    if location in href_map:
+                        location_hrefs[location] = href_map.get(location)
+                    else:
+                        self._api._ixnetwork.Locations.add(Hostname=appliance)
+                        href_map = self._get_chassis_location_map()
+                        location_hrefs[location] = href_map.get(location)
             self._api.clear_ownership(available_hardware_hrefs, location_hrefs)
 
     def _set_result_value(
@@ -808,9 +846,11 @@ class Vport(object):
             self._set_result_value(
                 port_row,
                 "link",
-                "up"
-                if vport["connectionState"] == "connectedLinkUp"
-                else "down",
+                (
+                    "up"
+                    if vport["connectionState"] == "connectedLinkUp"
+                    else "down"
+                ),
             )
             self._set_result_value(port_row, "capture", "stopped")
             # init all columns with corresponding zero-values so that

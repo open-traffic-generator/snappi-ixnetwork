@@ -311,9 +311,9 @@ class BgpEvpn(Base):
         )
         df_election_info = eth_segment_info.get_tab("df_election")
         if not df_election_info.is_all_null:
-            ixn_eth_segments[
-                "dfElectionTimer"
-            ] = df_election_info.get_multivalues("election_timer")
+            ixn_eth_segments["dfElectionTimer"] = (
+                df_election_info.get_multivalues("election_timer")
+            )
 
         self._config_advance(eth_segment_info, ixn_eth_segments)
         self._config_communities(eth_segment_info, ixn_eth_segments)
@@ -351,10 +351,10 @@ class BgpEvpn(Base):
         ixn_xvlan["rdASNumber"] = self.multivalue(convert_values.common_num)
         ixn_xvlan["rdEvi"] = self.multivalue(convert_values.assign_num)
         ixn_xvlan["rdIpAddress"] = self.multivalue(convert_values.ip_addr)
-        ixn_xvlan[
-            "autoConfigureRdIpAddress"
-        ] = distinguisher_info.get_multivalues(
-            "auto_config_rd_ip_addr", default=True
+        ixn_xvlan["autoConfigureRdIpAddress"] = (
+            distinguisher_info.get_multivalues(
+                "auto_config_rd_ip_addr", default=True
+            )
         )
 
         # Configure route_target_export
@@ -448,16 +448,16 @@ class BgpEvpn(Base):
         )
         if not broadcast_domains_info.is_all_null:
             if self._peer_class == "BgpV4Peer":
-                ixn_xvlan[
-                    "numBroadcastDomainV4"
-                ] = broadcast_domains_info.max_len
+                ixn_xvlan["numBroadcastDomainV4"] = (
+                    broadcast_domains_info.max_len
+                )
                 ixn_broadcast_domains = self.create_property(
                     ixn_xvlan, "broadcastDomainV4"
                 )
             else:
-                ixn_xvlan[
-                    "numBroadcastDomainV6"
-                ] = broadcast_domains_info.max_len
+                ixn_xvlan["numBroadcastDomainV6"] = (
+                    broadcast_domains_info.max_len
+                )
                 ixn_broadcast_domains = self.create_property(
                     ixn_xvlan, "broadcastDomainV6"
                 )

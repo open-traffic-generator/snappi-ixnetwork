@@ -7,7 +7,14 @@ class ProtocolMetrics(object):
     # TODO Need to enhance when device groups statistics reach
     # more than one page.
 
-    _SUPPORTED_PROTOCOLS_ = ["bgpv4", "bgpv6", "macsec", "mka", "rocev2_ipv4", "rocev2_ipv6"]
+    _SUPPORTED_PROTOCOLS_ = [
+        "bgpv4",
+        "bgpv6",
+        "macsec",
+        "mka",
+        "rocev2_ipv4",
+        "rocev2_ipv6",
+    ]
 
     _TOPO_STATS = {
         "name": "name",
@@ -352,7 +359,9 @@ class ProtocolMetrics(object):
         indices = set(
             [ports.index(p) for p in list(set(config_ports)) if p in ports]
         )
-        drill_options = self._PROTO_NAME_MAP_[protocol].get("drill_down_options", [])
+        drill_options = self._PROTO_NAME_MAP_[protocol].get(
+            "drill_down_options", []
+        )
         drill_name = self._PROTO_NAME_MAP_[protocol]["drill_down"]
         per_port = self._PROTO_NAME_MAP_[protocol]["per_port"]
         column_names = self._RESULT_COLUMNS.get(protocol, [])
@@ -407,9 +416,13 @@ class ProtocolMetrics(object):
             return
         if skip:
             warn = stat_name in self.columns
-            self._api.warning(
-                "{} metric has no implementation".format(stat_name)
-            ) if warn else None
+            (
+                self._api.warning(
+                    "{} metric has no implementation".format(stat_name)
+                )
+                if warn
+                else None
+            )
             row_dt[stat_name] = (
                 0 if stat_type.__name__ in ["float", "int"] else "na"
             )
@@ -438,10 +451,12 @@ class ProtocolMetrics(object):
         myfilter = [
             {
                 "property": "name",
-                "regex": ".*"
-                if len(self.device_names) == 0
-                else "^%s$"
-                % "|".join(self._api.special_char(self.device_names)),
+                "regex": (
+                    ".*"
+                    if len(self.device_names) == 0
+                    else "^%s$"
+                    % "|".join(self._api.special_char(self.device_names))
+                ),
             }
         ]
         url, payload = self._get_search_payload(

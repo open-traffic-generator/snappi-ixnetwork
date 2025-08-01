@@ -6,14 +6,19 @@ class Mka(Base):
     _BASIC = {
         "key_derivation_function": {
             "ixn_attr": "keyDerivationFunction",
-            "enum_map": {"aes_cmac_128": "aescmac128", "aes_cmac_256": "aescmac256"},
+            "enum_map": {
+                "aes_cmac_128": "aescmac128",
+                "aes_cmac_256": "aescmac256",
+            },
         },
         "macsec_capability": {
             "ixn_attr": "macsecCapability",
-            "enum_map": {"macsec_not_implemented": "macsecnotimplemented",
-                         "macsec_integrity_without_confidentiality": "macsecintegritywithoutconfidentiality",
-                         "macsec_integrity_with_no_confidentiality_offset": "acsecintegritywithnoconfidentialityoffset",
-                         "macsec_integrity_with_confidentiality_offset": "macsecintegritywithconfidentialityoffset"},
+            "enum_map": {
+                "macsec_not_implemented": "macsecnotimplemented",
+                "macsec_integrity_without_confidentiality": "macsecintegritywithoutconfidentiality",
+                "macsec_integrity_with_no_confidentiality_offset": "acsecintegritywithnoconfidentialityoffset",
+                "macsec_integrity_with_confidentiality_offset": "macsecintegritywithconfidentialityoffset",
+            },
         },
         "actor_priority": "keyServerPriority",
         "macsec_desired": "macsecDesired",
@@ -26,22 +31,26 @@ class Mka(Base):
     _KEY_SERVER = {
         "confidentialty_offset": {
             "ixn_attr": "confidentialityOffset",
-            "enum_map": {"no_confidentiality": "noconfidentiality",
-                         "no_confidentiality_offset": "noconfidentialityoffset",
-                         "confidentiality_offset_30_octets": "confidentialityoffset30octets",
-                         "confidentiality_offset_50_octets": "confidentialityoffset50octets"},
+            "enum_map": {
+                "no_confidentiality": "noconfidentiality",
+                "no_confidentiality_offset": "noconfidentialityoffset",
+                "confidentiality_offset_30_octets": "confidentialityoffset30octets",
+                "confidentiality_offset_50_octets": "confidentialityoffset50octets",
+            },
         },
         "cipher_suite": {
             "ixn_attr": "cipherSuite",
-            "enum_map": {"gcm_aes_128": "aes128",
-                         "gcm_aes_256": "aes256",
-                         "gcm_aes_xpn_128":"aesxpn128",
-                         "gcm_aes_xpn_256":"aesxpn256"},
+            "enum_map": {
+                "gcm_aes_128": "aes128",
+                "gcm_aes_256": "aes256",
+                "gcm_aes_xpn_128": "aesxpn128",
+                "gcm_aes_xpn_256": "aesxpn256",
+            },
         },
         "starting_key_number": "startingKeyNumber",
         "starting_distributed_an": "startingDistributedAN",
         "rekey_threshold_pn": "rekeyThresholdPN",
-        "rekey_threshold_xpn":"rekeyThresholdXPN",
+        "rekey_threshold_xpn": "rekeyThresholdXPN",
     }
 
     _TXSC = {
@@ -67,41 +76,35 @@ class Mka(Base):
         if kay is None:
             is_valid = False
         else:
-            self.logger.debug("Validating KaY of ethernert interface %s" % (ethernet_name))
-            #Validate basic properties
+            self.logger.debug(
+                "Validating KaY of ethernert interface %s" % (ethernet_name)
+            )
+            # Validate basic properties
             basic = kay.get("basic")
             key_src = basic.key_source
             if key_src.choice == "psk":
                 psks = key_src.psks
                 if len(psks) == 0:
                     self._ngpf.api.add_error(
-                        "No PSK added".format(
-                            name=ethernet_name
-                        )
+                        "No PSK added".format(name=ethernet_name)
                     )
                     is_valid = False
             else:
                 self._ngpf.api.add_error(
-                    "Key source other than PSK set".format(
-                        name=ethernet_name
-                    )
+                    "Key source other than PSK set".format(name=ethernet_name)
                 )
                 is_valid = False
-            #Validate TxSC properties
+            # Validate TxSC properties
             tx = kay.get("tx")
             txscs = tx.get("secure_channels")
             if len(txscs) == 0:
                 self._ngpf.api.add_error(
-                    "No TxSC added".format(
-                        name=ethernet_name
-                    )
+                    "No TxSC added".format(name=ethernet_name)
                 )
                 is_valid = False
             elif len(txscs) > 1:
                 self._ngpf.api.add_error(
-                    "More than one TxSC added".format(
-                        name=ethernet_name
-                    )
+                    "More than one TxSC added".format(name=ethernet_name)
                 )
                 is_valid = False
         if is_valid == True:
@@ -141,9 +144,7 @@ class Mka(Base):
         self.logger.debug("Configuring KaY")
         ethernet_name = ethernet_interface.get("eth_name")
         ixn_ethernet = self._ngpf.api.ixn_objects.get_object(ethernet_name)
-        ixn_mka = self.create_node_elemet(
-            ixn_ethernet, "mka", kay.get("name")
-        )
+        ixn_mka = self.create_node_elemet(ixn_ethernet, "mka", kay.get("name"))
         self._ngpf.set_device_info(kay, ixn_mka)
         self._config_basic(kay, ixn_mka)
         self._config_txsc(kay, ixn_mka)
@@ -154,7 +155,7 @@ class Mka(Base):
         basic = kay.get("basic")
         self.configure_multivalues(basic, ixn_mka, Mka._BASIC)
         ixn_mka["mkaLifeTime"] = basic.mka_life_time
-        ixn_mka["keyType"] =  basic.key_source.choice
+        ixn_mka["keyType"] = basic.key_source.choice
         self._config_key_source(basic, ixn_mka)
         self._config_rekey_mode(basic, ixn_mka)
         self._config_supported_cipher_suites(basic, ixn_mka)
@@ -172,19 +173,27 @@ class Mka(Base):
                 if kay:
                     basic = kay.get("basic")
                     psk_chain_start_time = basic.psk_chain_start_time
-                    if psk_chain_start_time.choice == "utc" and psk_chain_start_time.utc.day is not None: 
+                    if (
+                        psk_chain_start_time.choice == "utc"
+                        and psk_chain_start_time.utc.day is not None
+                    ):
                         return True
         return False
-                    
+
     def _clear_overlays_in_globals(self, macsec):
-        if (self._is_test_start_time_user_defined(macsec)):
-            ixn_mka_globals_port_settings = self._ngpf._ixnetwork.Globals.Topology.find().Mka.find()
+        if self._is_test_start_time_user_defined(macsec):
+            ixn_mka_globals_port_settings = (
+                self._ngpf._ixnetwork.Globals.Topology.find().Mka.find()
+            )
             ixn_mka_globals_port_settings.TestStartTime.ClearOverlays()
 
     def _config_test_start_time(self, basic, ixn_mka):
         self.logger.debug("Configuring test start time")
         psk_chain_start_time = basic.psk_chain_start_time
-        if psk_chain_start_time.choice == "utc" and psk_chain_start_time.utc.day is not None:
+        if (
+            psk_chain_start_time.choice == "utc"
+            and psk_chain_start_time.utc.day is not None
+        ):
             utc_day = str(psk_chain_start_time.utc.day)
             utc_month = str(psk_chain_start_time.utc.month)
             utc_year = str(psk_chain_start_time.utc.year)
@@ -192,21 +201,37 @@ class Mka(Base):
             utc_minute = str(psk_chain_start_time.utc.minute)
             utc_second = str(psk_chain_start_time.utc.second)
 
-            utc_time = utc_day + "-" +     \
-                       utc_month + "-" +   \
-                       utc_year + " " +    \
-                       utc_hour + ":" +    \
-                       utc_minute + ":" +  \
-                       utc_second
+            utc_time = (
+                utc_day
+                + "-"
+                + utc_month
+                + "-"
+                + utc_year
+                + " "
+                + utc_hour
+                + ":"
+                + utc_minute
+                + ":"
+                + utc_second
+            )
 
             ixn_topology = self._ngpf.api._ixnetwork.Globals.Topology.refresh()
             ixn_mka_global_port_settings = ixn_topology.find().Mka.find()
-            ixn_mka_global_test_start_time = ixn_mka_global_port_settings.TestStartTime
-            ixn_mka_global_test_start_time.ValueList([utc_time] * ixn_mka_global_test_start_time.Count)
-            self.logger.debug("MKA global per port test start time set to %s" % ixn_mka_global_test_start_time)
+            ixn_mka_global_test_start_time = (
+                ixn_mka_global_port_settings.TestStartTime
+            )
+            ixn_mka_global_test_start_time.ValueList(
+                [utc_time] * ixn_mka_global_test_start_time.Count
+            )
+            self.logger.debug(
+                "MKA global per port test start time set to %s"
+                % ixn_mka_global_test_start_time
+            )
 
     def _config_supported_cipher_suites(self, basic, ixn_mka):
-        self.logger.debug("Configuring basic properties: supported cipher suites")
+        self.logger.debug(
+            "Configuring basic properties: supported cipher suites"
+        )
         supported_cipher_suites = "selectciphers"
         if basic.supported_cipher_suites.gcm_aes_128:
             supported_cipher_suites += " gcm_aes_128"
@@ -237,16 +262,22 @@ class Mka(Base):
 
                 start_offset_time_hh = psk.start_offset_time.hh
                 start_offset_time_mm = psk.start_offset_time.mm
-                start_offset_time = str(start_offset_time_hh) + ":" + str(start_offset_time_mm)
+                start_offset_time = (
+                    str(start_offset_time_hh) + ":" + str(start_offset_time_mm)
+                )
                 cak_start_offset_times.append(start_offset_time)
-                start_offset_time_mm = start_offset_time_hh*60 + start_offset_time_mm
+                start_offset_time_mm = (
+                    start_offset_time_hh * 60 + start_offset_time_mm
+                )
 
                 end_offset_time_hh = psk.end_offset_time.hh
                 end_offset_time_mm = psk.end_offset_time.mm
-                end_offset_time_mm = end_offset_time_hh*60 + end_offset_time_mm
+                end_offset_time_mm = (
+                    end_offset_time_hh * 60 + end_offset_time_mm
+                )
 
                 if not overlapping_keys:
-                    if start_offset_time_mm < prev_end_offset_time_mm: 
+                    if start_offset_time_mm < prev_end_offset_time_mm:
                         overlapping_keys = True
                     else:
                         prev_end_offset_time_mm = end_offset_time_mm
@@ -262,9 +293,7 @@ class Mka(Base):
                 cak_duration = str(duration_hh) + ":" + str(duration_mm)
                 cak_durations.append(cak_duration)
 
-            ixn_psk = self.create_node_elemet(
-                ixn_mka, "cakCache", name=None
-            )
+            ixn_psk = self.create_node_elemet(ixn_mka, "cakCache", name=None)
             key_derivation_function = basic.key_derivation_function
             ixn_psk["cakName"] = self.multivalue(cak_names)
             if key_derivation_function == "aes_cmac_128":
@@ -272,7 +301,9 @@ class Mka(Base):
             elif key_derivation_function == "aes_cmac_256":
                 ixn_psk["cakValue256"] = self.multivalue(cak_values)
             ixn_psk["keyStartTime"] = self.multivalue(cak_start_offset_times)
-            ixn_psk["lifetimeValidity"] = self.multivalue(cak_lifetime_validities)
+            ixn_psk["lifetimeValidity"] = self.multivalue(
+                cak_lifetime_validities
+            )
             ixn_psk["overlappingKeys"] = overlapping_keys
             ixn_psk["keyDuration"] = self.multivalue(cak_durations)
 
@@ -302,8 +333,8 @@ class Mka(Base):
         txscs = tx.get("secure_channels")
         txsc = txscs[0]
         ixn_txsc = self.create_node_elemet(
-                ixn_mka, "txChannels", txsc.get("name")
-            )
+            ixn_mka, "txChannels", txsc.get("name")
+        )
         self.logger.debug("ixn_txsc %s" % ixn_txsc)
         self.configure_multivalues(txsc, ixn_txsc, Mka._TXSC)
 

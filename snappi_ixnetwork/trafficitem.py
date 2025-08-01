@@ -23,16 +23,16 @@ class TrafficItem(CustomField):
         ("bytes_tx", "Tx Bytes", int),
         ("bytes_rx", "Rx Bytes", int),
         ("loss", "Loss %", float),
-        ('tx_l1_rate_bps', 'Tx L1 Rate (bps)', float),
-        ('rx_l1_rate_bps', 'Rx L1 Rate (bps)', float),
-        ('tx_rate_bytes', 'Tx Rate (Bps)', float),
-        ('rx_rate_bytes', 'Rx Rate (Bps)', float),
-        ('tx_rate_bps', 'Tx Rate (bps)', float),
-        ('rx_rate_bps', 'Rx Rate (bps)', float),
-        ('tx_rate_kbps', 'Tx Rate (Kbps)', float),
-        ('rx_rate_kbps', 'Rx Rate (Kbps)', float),
-        ('tx_rate_mbps', 'Tx Rate (Mbps)', float),
-        ('rx_rate_mbps', 'Rx Rate (Mbps)', float),
+        ("tx_l1_rate_bps", "Tx L1 Rate (bps)", float),
+        ("rx_l1_rate_bps", "Rx L1 Rate (bps)", float),
+        ("tx_rate_bytes", "Tx Rate (Bps)", float),
+        ("rx_rate_bytes", "Rx Rate (Bps)", float),
+        ("tx_rate_bps", "Tx Rate (bps)", float),
+        ("rx_rate_bps", "Rx Rate (bps)", float),
+        ("tx_rate_kbps", "Tx Rate (Kbps)", float),
+        ("rx_rate_kbps", "Rx Rate (Kbps)", float),
+        ("tx_rate_mbps", "Tx Rate (Mbps)", float),
+        ("rx_rate_mbps", "Rx Rate (Mbps)", float),
     ]
 
     _RESULT_LATENCY_STORE_FORWARD = [
@@ -64,26 +64,26 @@ class TrafficItem(CustomField):
         ("frame_delta", "Frames Delta", int),
         ("data_frames_retransmitted", "Data Frames Retransmitted", int),
         ("tx_bytes", "Tx Bytes", int),
-        ('rx_bytes', 'Rx Bytes', int),
-        ('data_tx_rate', 'Data Tx Rate (Gbps)', int),
-        ('data_rx_rate', 'Data Rx Rate (Gbps)', int),
-        ('message_tx', 'Message Tx', int),
-        ('message_complete_rx', 'Message Complete Rx', int),
-        ('message_fail', 'Message Fail', int),
-        ('flow_completion_time', 'Flow Completion Time (ms)', int),
-        ('avg_latency', 'Avg Latency (ns)', int),
-        ('min_latency', 'Min Latency (ns)', int),
-        ('max_latency', 'Max Latency (ns)', int),
-        ('ecn_ce_rx', 'ECN-CE Rx', int),
-        ('cnp_tx', 'CNP Tx', int),
-        ('cnp_rx', 'CNP Rx', int),
-        ('ack_tx', 'ACK Tx', int),
-        ('ack_rx', 'ACK Rx', int),
-        ('nak_tx', 'NAK Tx', int),
-        ('nak_rx', 'NAK Rx', int),
-        ('frame_sequence_error', 'Frame Sequence Error', int),
-        ('first_timestamp', 'First TimeStamp', str),
-        ('last_timestamp', 'Last TimeStamp', str),
+        ("rx_bytes", "Rx Bytes", int),
+        ("data_tx_rate", "Data Tx Rate (Gbps)", int),
+        ("data_rx_rate", "Data Rx Rate (Gbps)", int),
+        ("message_tx", "Message Tx", int),
+        ("message_complete_rx", "Message Complete Rx", int),
+        ("message_fail", "Message Fail", int),
+        ("flow_completion_time", "Flow Completion Time (ms)", int),
+        ("avg_latency", "Avg Latency (ns)", int),
+        ("min_latency", "Min Latency (ns)", int),
+        ("max_latency", "Max Latency (ns)", int),
+        ("ecn_ce_rx", "ECN-CE Rx", int),
+        ("cnp_tx", "CNP Tx", int),
+        ("cnp_rx", "CNP Rx", int),
+        ("ack_tx", "ACK Tx", int),
+        ("ack_rx", "ACK Rx", int),
+        ("nak_tx", "NAK Tx", int),
+        ("nak_rx", "NAK Rx", int),
+        ("frame_sequence_error", "Frame Sequence Error", int),
+        ("first_timestamp", "First TimeStamp", str),
+        ("last_timestamp", "Last TimeStamp", str),
     ]
 
     _STACK_IGNORE = ["ethernet.fcs", "pfcPause.fcs"]
@@ -198,8 +198,7 @@ class TrafficItem(CustomField):
         "auto_to_default": ["src", "dst"],
     }
 
-    _MACSEC = {
-    }
+    _MACSEC = {}
 
     _ETHERNETPAUSE = {
         "dst": "ethernet.header.destinationAddress",
@@ -539,10 +538,16 @@ class TrafficItem(CustomField):
             return {}
         paths = {}
         for i, dev_name in enumerate(dev_names):
-            traffic_endpoint_dev_name = self._api.get_device_traffic_endpoint(dev_name)
+            traffic_endpoint_dev_name = self._api.get_device_traffic_endpoint(
+                dev_name
+            )
             if traffic_endpoint_dev_name is None:
-               traffic_endpoint_dev_name = dev_name
-            paths[dev_name] = {"dev_info": self._api.ixn_objects.get(traffic_endpoint_dev_name)}
+                traffic_endpoint_dev_name = dev_name
+            paths[dev_name] = {
+                "dev_info": self._api.ixn_objects.get(
+                    traffic_endpoint_dev_name
+                )
+            }
             paths[dev_name]["type"] = self._api.get_device_encap(dev_name)
         self.logger.debug("Device Information : %s" % paths)
         return paths
@@ -725,7 +730,10 @@ class TrafficItem(CustomField):
             tr["egressOnlyTracking"] = []
         for snappi_eotr in config.egress_only_tracking:
             eotr_port_name = snappi_eotr.port_name
-            eotr_xpath = "/traffic/egressOnlyTracking[%d]" % self.egress_only_tracking_index
+            eotr_xpath = (
+                "/traffic/egressOnlyTracking[%d]"
+                % self.egress_only_tracking_index
+            )
             tr["egressOnlyTracking"].append(
                 {
                     "xpath": eotr_xpath,
@@ -742,16 +750,28 @@ class TrafficItem(CustomField):
                     #
                     # 0xPQRS is ethernet type. When MACsec header is the first ethernet type, it is 0x88E5
                     # When clear text VLAN enabled, it is TPID e.g. 0x8810.
-                    self.logger.debug("MACsec auto signature is applied as filter for egress only tracking at port %s" % eotr_port_name)
+                    self.logger.debug(
+                        "MACsec auto signature is applied as filter for egress only tracking at port %s"
+                        % eotr_port_name
+                    )
                 else:
-                    self.logger.debug("Unknown filter. Only MACsec auto signature is is supported for egress only tracking at port %s" % eotr_port_name)
+                    self.logger.debug(
+                        "Unknown filter. Only MACsec auto signature is is supported for egress only tracking at port %s"
+                        % eotr_port_name
+                    )
 
             snappi_eotr_mts = snappi_eotr.metric_tags
             if len(snappi_eotr_mts) == 0:
-                msg = "At least one metric tag shall be configured in egress_only_tracking at port %s" % eotr_port_name
+                msg = (
+                    "At least one metric tag shall be configured in egress_only_tracking at port %s"
+                    % eotr_port_name
+                )
                 raise Exception(msg)
             elif len(snappi_eotr_mts) > 3:
-                msg = "At most three metric tag can be configured in egress_only_tracking at port %s" % eotr_port_name
+                msg = (
+                    "At most three metric tag can be configured in egress_only_tracking at port %s"
+                    % eotr_port_name
+                )
                 raise Exception(msg)
 
             # egress only tracking
@@ -762,27 +782,40 @@ class TrafficItem(CustomField):
 
             # egress only tracking result option
             per_port_mt_dict_result = {}
-            per_port_mt_dict_result["enable_timestamps"] = snappi_eotr.enable_timestamps
+            per_port_mt_dict_result["enable_timestamps"] = (
+                snappi_eotr.enable_timestamps
+            )
             per_port_mt_dict_result["metric_tags"] = []
 
             for snappi_mt in snappi_eotr_mts:
-                result = self.eotr_mt_bit_offset_length_to_4byte_clear_mask(snappi_mt.offset, snappi_mt.length)
+                result = self.eotr_mt_bit_offset_length_to_4byte_clear_mask(
+                    snappi_mt.offset, snappi_mt.length
+                )
                 if len(result) == 2:
-                    mt_dict = { "arg1": result[0], "arg2": result[1] }
+                    mt_dict = {"arg1": result[0], "arg2": result[1]}
                     eotr["egress"].append(mt_dict)
-                    mt_dict_entry_result = { "name": snappi_mt.name, "length": snappi_mt.length }
-                    per_port_mt_dict_result["metric_tags"].append(mt_dict_entry_result)
+                    mt_dict_entry_result = {
+                        "name": snappi_mt.name,
+                        "length": snappi_mt.length,
+                    }
+                    per_port_mt_dict_result["metric_tags"].append(
+                        mt_dict_entry_result
+                    )
                 else:
                     raise ValueError(
                         "%s metric tag has length error" % snappi_mt.name
                     )
                 mt_index += 1
             if len(per_port_mt_dict_result["metric_tags"]) > 0:
-                self.port_egress_only_tracking[eotr_port_name] = per_port_mt_dict_result
+                self.port_egress_only_tracking[eotr_port_name] = (
+                    per_port_mt_dict_result
+                )
             self.egress_only_tracking_index += 1
         return tr
 
-    def eotr_mt_bit_offset_length_to_4byte_clear_mask(self, offset_in_bits, length_in_bits):
+    def eotr_mt_bit_offset_length_to_4byte_clear_mask(
+        self, offset_in_bits, length_in_bits
+    ):
         result = {}
 
         if length_in_bits < 1:
@@ -809,16 +842,16 @@ class TrafficItem(CustomField):
         mask = ~mask
 
         # Clear mask bytes
-        mask_byte0 = ((mask >> 24) & 0xFF)
-        mask_byte1 = ((mask >> 16) & 0xFF)
-        mask_byte2 = ((mask >> 8) & 0xFF)
-        mask_byte3 = ((mask >> 0) & 0xFF)
+        mask_byte0 = (mask >> 24) & 0xFF
+        mask_byte1 = (mask >> 16) & 0xFF
+        mask_byte2 = (mask >> 8) & 0xFF
+        mask_byte3 = (mask >> 0) & 0xFF
 
         # Convert to hex string
         mask_bytes = [mask_byte0, mask_byte1, mask_byte2, mask_byte3]
-        mask_bytes_str = ''.join('{:02x}'.format(x) for x in mask_bytes)
+        mask_bytes_str = "".join("{:02x}".format(x) for x in mask_bytes)
 
-        return [word_aligned_first_byte_offset*2, mask_bytes_str]
+        return [word_aligned_first_byte_offset * 2, mask_bytes_str]
 
     def config_raw_stack(self, xpath, packet):
         ce_path = "%s/configElement[1]" % xpath
@@ -829,7 +862,8 @@ class TrafficItem(CustomField):
             )
             if stack_name == "macsec":
                 raise NotImplementedError(
-                    "%s stack in raw traffic is not implemented. Please enable MACsec in ethernet device and configure traffic between device endpoints." % stack_name
+                    "%s stack in raw traffic is not implemented. Please enable MACsec in ethernet device and configure traffic between device endpoints."
+                    % stack_name
                 )
             header_xpath = "%s/stack[@alias = '%s-%d']" % (
                 ce_path,
@@ -1030,8 +1064,8 @@ class TrafficItem(CustomField):
                 enable_min_frame_size = True
                 break
             if flow.size.choice == "weight_pairs":
-               enable_min_frame_size = True
-               break
+                enable_min_frame_size = True
+                break
         if self._api._traffic.EnableMinFrameSize != enable_min_frame_size:
             self._api._traffic.EnableMinFrameSize = enable_min_frame_size
 
@@ -1090,7 +1124,8 @@ class TrafficItem(CustomField):
         if snappi_header is not None:
             field_map = getattr(
                 self,
-                "_%s" % (self._getUhdHeader(snappi_header.parent.choice).upper()),
+                "_%s"
+                % (self._getUhdHeader(snappi_header.parent.choice).upper()),
             )
             stack_name = self._HEADER_TO_TYPE.get(
                 self._getUhdHeader(snappi_header.parent.choice)
@@ -1310,11 +1345,17 @@ class TrafficItem(CustomField):
                         ce["frameSize"]["presetDistribution"] = "tcpImix"
                     elif size.weight_pairs.predefined == "ipsec_imix":
                         ce["frameSize"]["presetDistribution"] = "ipSecImix"
-                    else :
-                        ce["frameSize"]["presetDistribution"] = size.weight_pairs.predefined
+                    else:
+                        ce["frameSize"][
+                            "presetDistribution"
+                        ] = size.weight_pairs.predefined
                 elif size.weight_pairs.choice == "custom":
                     ce["frameSize"]["type"] = "weightedPairs"
-                    ce["frameSize"]["weightedPairs"]=[item for t in size.weight_pairs.custom for item in (t.size, t.weight)]
+                    ce["frameSize"]["weightedPairs"] = [
+                        item
+                        for t in size.weight_pairs.custom
+                        for item in (t.size, t.weight)
+                    ]
             else:
                 print(
                     "Warning - We need to implement this %s choice"
@@ -1340,9 +1381,9 @@ class TrafficItem(CustomField):
                 value = rate.get("pps", True)
             else:
                 ce["frameRate"]["type"] = "bitsPerSecond"
-                ce["frameRate"][
-                    "bitRateUnitsType"
-                ] = TrafficItem._BIT_RATE_UNITS_TYPE[rate.choice]
+                ce["frameRate"]["bitRateUnitsType"] = (
+                    TrafficItem._BIT_RATE_UNITS_TYPE[rate.choice]
+                )
                 value = rate.get(rate.choice)
             ce["frameRate"]["rate"] = value
         return
@@ -1360,9 +1401,9 @@ class TrafficItem(CustomField):
             }
             if duration.choice == "continuous":
                 ce["transmissionControl"]["type"] = "continuous"
-                ce["transmissionControl"][
-                    "minGapBytes"
-                ] = duration.continuous.get("gap", True)
+                ce["transmissionControl"]["minGapBytes"] = (
+                    duration.continuous.get("gap", True)
+                )
                 delay = duration.continuous.get("delay", True)
                 value = delay.get(delay.choice, True)
                 unit = delay.choice
@@ -1377,9 +1418,9 @@ class TrafficItem(CustomField):
                     duration.fixed_packets.get("packets", True)
                     / hl_stream_count
                 )
-                ce["transmissionControl"][
-                    "minGapBytes"
-                ] = duration.fixed_packets.get("gap", True)
+                ce["transmissionControl"]["minGapBytes"] = (
+                    duration.fixed_packets.get("gap", True)
+                )
                 delay = duration.fixed_packets.get("delay", True)
                 value = delay.get(delay.choice, True)
                 unit = delay.choice
@@ -1390,12 +1431,12 @@ class TrafficItem(CustomField):
                 ce["transmissionControl"]["startDelayUnits"] = unit
             elif duration.choice == "fixed_seconds":
                 ce["transmissionControl"]["type"] = "fixedDuration"
-                ce["transmissionControl"][
-                    "duration"
-                ] = duration.fixed_seconds.get("seconds", True)
-                ce["transmissionControl"][
-                    "minGapBytes"
-                ] = duration.fixed_seconds.get("gap", True)
+                ce["transmissionControl"]["duration"] = (
+                    duration.fixed_seconds.get("seconds", True)
+                )
+                ce["transmissionControl"]["minGapBytes"] = (
+                    duration.fixed_seconds.get("gap", True)
+                )
                 delay = duration.fixed_seconds.get("delay", True)
                 value = delay.get(delay.choice, True)
                 unit = delay.choice
@@ -1406,9 +1447,9 @@ class TrafficItem(CustomField):
                 ce["transmissionControl"]["startDelayUnits"] = unit
             elif duration.choice == "burst":
                 ce["transmissionControl"]["type"] = "custom"
-                ce["transmissionControl"][
-                    "burstPacketCount"
-                ] = duration.burst.get("packets", True)
+                ce["transmissionControl"]["burstPacketCount"] = (
+                    duration.burst.get("packets", True)
+                )
                 gap = duration.burst.get("gap", True)
                 ce["transmissionControl"]["minGapBytes"] = gap
                 ce["transmissionControl"]["enableInterBurstGap"] = (
@@ -1451,21 +1492,27 @@ class TrafficItem(CustomField):
         if request.state == "start":
             ##This portion of code is to handle different stateful_traffic flow, currently only rocev2
             for device in self._api._config.devices:
-                #Check if rocev2 exists in topology
-                if device.get("rocev2") and self._api._config.get("stateful_flows"):
+                # Check if rocev2 exists in topology
+                if device.get("rocev2") and self._api._config.get(
+                    "stateful_flows"
+                ):
                     ####### Create and Apply RoCEv2 Flow Groups here, as we have identified that RoCEv2 is present in Topology
                     self._api._traffic.AddRoCEv2FlowGroups()
-                    rocev2_traffic = self._api._traffic.RoceV2Traffic.find(Enabled=True)
+                    rocev2_traffic = self._api._traffic.RoceV2Traffic.find(
+                        Enabled=True
+                    )
                     stateful_flow = None
                     options = None
                     if hasattr(self._api._config, "stateful_flows"):
                         stateful_flow = self._api._config.stateful_flows
                     if hasattr(self._api._config, "options"):
                         options = self._api._config.options
-                    self._rocev2._configureTrafficParameters(rocev2_traffic, stateful_flow, options)                    
+                    self._rocev2._configureTrafficParameters(
+                        rocev2_traffic, stateful_flow, options
+                    )
                     with Timer(self._api, "Flows generate/apply"):
                         self._api._traffic.Apply()
-                    print ("Starting Traffic")
+                    print("Starting Traffic")
                     self._api._traffic.Start()
                     break
             if len(self._api._topology.find()) > 0:
@@ -1494,8 +1541,12 @@ class TrafficItem(CustomField):
             self._api.capture._start_capture()
         self._api._traffic_item.find(Name=regex)
         for device in self._api._config.devices:
-            if device.get("rocev2") and self._api._config.get("stateful_flows") and request.state == "stop":
-                print ("Stopping RoCEv2 Traffic")
+            if (
+                device.get("rocev2")
+                and self._api._config.get("stateful_flows")
+                and request.state == "stop"
+            ):
+                print("Stopping RoCEv2 Traffic")
                 self._api._traffic.Stop()
                 break
         if len(self._api._traffic_item) > 0:
@@ -1839,10 +1890,13 @@ class TrafficItem(CustomField):
             port_rx = row["Rx Port"]
             if (
                 port_rx in req_port_names
-                and
-                self.port_egress_only_tracking[port_rx] is not None
+                and self.port_egress_only_tracking[port_rx] is not None
             ):
-                if include_empty_metrics is False and int(row["Tx Frames"]) == 0 and int(row["Rx Frames"]) == 0:
+                if (
+                    include_empty_metrics is False
+                    and int(row["Tx Frames"]) == 0
+                    and int(row["Rx Frames"]) == 0
+                ):
                     # skip empty row
                     continue
                 result_flow_row = None
@@ -1896,15 +1950,19 @@ class TrafficItem(CustomField):
                         )
                     except Exception as exception_err:
                         # TODO print a warning maybe ?
-                        self.logger.debug("set result value: error: %s" % exception_err)
+                        self.logger.debug(
+                            "set result value: error: %s" % exception_err
+                        )
                         pass
                 if len(result_flow_row) > 0:
-                    per_port_mt_dict_result = self.port_egress_only_tracking[port_rx]
+                    per_port_mt_dict_result = self.port_egress_only_tracking[
+                        port_rx
+                    ]
                     self._construct_pgid_tags(tagged_metric_row, row)
                     if per_port_mt_dict_result["enable_timestamps"] is True:
                         self._construct_timestamp(tagged_metric_row, row)
                     try:
-                        flow_row =  flow_rows[port_rx]
+                        flow_row = flow_rows[port_rx]
                     except KeyError:
                         flow_rows[port_rx] = {}
                         flow_row = flow_rows[port_rx]
@@ -1996,14 +2054,14 @@ class TrafficItem(CustomField):
             for mt in mts:
                 tag_name = mt["name"]
                 tag_length = mt["length"]
-                tag_mask = ((2 ** tag_length) - 1)
+                tag_mask = (2**tag_length) - 1
                 shift = tags_length_total - tag_length - tag_length_shifted
                 try:
-                    tag_val = (val >> shift)
-                    #tag_val = 2
+                    tag_val = val >> shift
+                    # tag_val = 2
                 except Exception as exception_shift_err:
                     pass
-                tag_val = (tag_val & tag_mask)
+                tag_val = tag_val & tag_mask
                 tag_length_shifted += tag_length
                 mt_result_dict = {}
                 mt_result_dict["name"] = tag_name
@@ -2131,9 +2189,7 @@ class TrafficItem(CustomField):
         for row in traffic_stat.Rows:
             flow_row = {}
             name = row["Flow Name"]
-            self._set_result_value(
-                flow_row, "flow_name", name
-            )
+            self._set_result_value(flow_row, "flow_name", name)
             flow_rows[name] = flow_row
         for row in traffic_stat.Rows:
             name = row["Flow Name"]
@@ -2157,7 +2213,7 @@ class TrafficItem(CustomField):
                         # TODO print a warning maybe ?
                         pass
         return list(flow_rows.values())
-    
+
     def delete_configs(self, delete_flows_config):
         """
         Delete the flows with list of flow names
@@ -2179,9 +2235,7 @@ class TrafficItem(CustomField):
 
         for delcfg in delete_flows_config.config_delete_list:
             for flow in delcfg.flows:
-                ti = self._api._ixnetwork.Traffic.TrafficItem.find(
-                    Name=flow
-                )
+                ti = self._api._ixnetwork.Traffic.TrafficItem.find(Name=flow)
                 if len(self._api._ixnetwork.Traffic.TrafficItem.find()) > 1:
                     ti.remove()
                     self._api._ixnetwork.Traffic.TrafficItem.find().refresh()
@@ -2267,14 +2321,23 @@ class TrafficItem(CustomField):
             tr_json = {"traffic": {"xpath": "/traffic", "trafficItem": []}}
             len_app_cfg = len(appcgfs) + 1
             for i, flow in enumerate(appcgfs):
-                tr_item = {"xpath": ixn_traffic_item[index - len_app_cfg + i]["xpath"]}
-                if ixn_traffic_item[index - len_app_cfg + i].get("configElement") is None:
+                tr_item = {
+                    "xpath": ixn_traffic_item[index - len_app_cfg + i]["xpath"]
+                }
+                if (
+                    ixn_traffic_item[index - len_app_cfg + i].get(
+                        "configElement"
+                    )
+                    is None
+                ):
                     raise Exception(
                         "Endpoints are not properly configured in IxNetwork"
                     )
                 ce_xpaths = [
                     {"xpath": ce["xpath"]}
-                    for ce in ixn_traffic_item[index - len_app_cfg + i]["configElement"]
+                    for ce in ixn_traffic_item[index - len_app_cfg + i][
+                        "configElement"
+                    ]
                 ]
                 tr_item["configElement"] = ce_xpaths
                 self._configure_size(
@@ -2285,12 +2348,17 @@ class TrafficItem(CustomField):
                 )
                 # TODO: ixNetwork is not creating flow groups for vxlan, remove
                 # hard coding of setting to 1 once the issue is fixed in ixn
-                if "highLevelStream" not in ixn_traffic_item[index - len_app_cfg + i].keys():
+                if (
+                    "highLevelStream"
+                    not in ixn_traffic_item[index - len_app_cfg + i].keys()
+                ):
                     hl_stream_count = 1
                 else:
                     hl_stream_count = len(
-                        ixn_traffic_item[index - len_app_cfg + i]["highLevelStream"]
-                    )   
+                        ixn_traffic_item[index - len_app_cfg + i][
+                            "highLevelStream"
+                        ]
+                    )
                 self._configure_duration(
                     tr_item["configElement"],
                     hl_stream_count,
@@ -2299,17 +2367,22 @@ class TrafficItem(CustomField):
                 # tr_type = ixn_traffic_item[i]["trafficType"]
                 if flow.tx_rx.choice == "device":
                     for ind, ce in enumerate(
-                        ixn_traffic_item[index - len_app_cfg + i]["configElement"]
+                        ixn_traffic_item[index - len_app_cfg + i][
+                            "configElement"
+                        ]
                     ):
                         stack = self._configure_packet(
-                            ce["stack"], self._flows_packet[index - len_app_cfg + i]
+                            ce["stack"],
+                            self._flows_packet[index - len_app_cfg + i],
                         )
                         tr_item["configElement"][ind]["stack"] = stack
 
                 metrics = flow.get("metrics")
                 if metrics is not None and metrics.enable is True:
                     tr_item.update(
-                        self._configure_tracking(ixn_traffic_item[index - len_app_cfg + i])
+                        self._configure_tracking(
+                            ixn_traffic_item[index - len_app_cfg + i]
+                        )
                     )
                     latency = metrics.get("latency")
                     if latency is not None and latency.enable is True:
@@ -2429,6 +2502,6 @@ class TrafficItem(CustomField):
                 )
             else:
                 self._api._config.flows._items.append(flow)
-            
+
         if errors:
             raise SnappiIxnException(400, "{}".format(("\n").join(errors)))

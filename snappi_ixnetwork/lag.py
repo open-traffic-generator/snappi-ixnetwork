@@ -469,9 +469,11 @@ class Lag(object):
             self._set_result_value(
                 port_row,
                 "link",
-                "up"
-                if vport["connectionState"] == "connectedLinkUp"
-                else "down",
+                (
+                    "up"
+                    if vport["connectionState"] == "connectedLinkUp"
+                    else "down"
+                ),
             )
             self._set_result_value(port_row, "capture", "stopped")
             port_rows[vport["name"]] = port_row
