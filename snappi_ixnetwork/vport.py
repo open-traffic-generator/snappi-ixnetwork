@@ -724,7 +724,6 @@ class Vport(object):
         return location_to_href_map
 
     def _clear_ownership(self, locations):
-        start = time.time()
         try:
             force_ownership = (
                 self._api.snappi_config.options.port_options.location_preemption

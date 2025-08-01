@@ -1489,7 +1489,6 @@ class Api(snappi.Api):
         names = list(available_hardware_hrefs.keys()) + list(
             location_hrefs.keys()
         )
-        print(hrefs)
         with Timer(self, "Location preemption [%s]" % ", ".join(names)):
             payload = {"arg1": [href for href in hrefs]}
             url = "%s/operations/clearownership" % payload["arg1"][0]
