@@ -53,7 +53,7 @@ def test(card="novus100g"):
     coverage_threshold = 50
     sanity_threshold = 50
     username = os.environ.get("TEST_USERNAME", "admin")
-    psd = os.environ.get("TEST_PASSWORD", "admin")
+    psd = os.environ.get("TEST_PASSWORD", "wrinkle#B52#B52")
 
     if card == "novus100g":
         args = [
@@ -70,12 +70,12 @@ def test(card="novus100g"):
         args = [
             '--location="https://10.36.70.162:443"',
             (
-                '--ports="10.39.44.224;1;1'
-                " 10.39.44.224;1;2"
-                " 10.39.44.224;1;3"
-                ' 10.39.44.224;1;4"'
+                '--ports="10.36.70.162;1;9'
+                " 10.36.70.162;1;10"
+                " 10.36.70.162;1;11"
+                ' 10.36.70.162;1;12"'
             ),
-            "--speed=speed_10_gbps",
+            "--speed=speed_400_gbps",
         ]
     else:
         raise Exception("card %s is not supported for testing" % card)
