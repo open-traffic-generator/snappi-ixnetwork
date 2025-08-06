@@ -4,20 +4,29 @@ from snappi_ixnetwork.logger import get_ixnet_logger
 
 class Isis(Base):
     _ISIS = {
-        "system_id": "systemId",
+        "system_id": "localSystemID",
     }
 
     _NETWORK_TYPE = {
         "network_type": {
             "ixn_attr": "networkType",
-            "enum_map": {"broadcast": "broadcast", "point_to_point": "pointpoint"}, # noqa
+            "default_value": "broadcast",
+            "enum_map": {
+                "broadcast": "broadcast",
+                "point_to_point": "pointpoint"
+            },
         },
     }
 
     _LEVEL_TYPE = {
         "level_type": {
             "ixn_attr": "levelType",
-            "enum_map": {"level_1": "level1", "level_2": "level2", "level_1_2": "l1l2"}, # noqa
+            "default_value": "level_2",
+            "enum_map": {
+                "level_1": "level1",
+                "level_2": "level2",
+                "level_1_2": "l1l2"
+            },
         },
     }
 
@@ -33,6 +42,7 @@ class Isis(Base):
     _ORIGIN_TYPE = {
         "origin_type": {
             "ixn_attr": "routeOrigin",
+            "default_value": "internal",
             "enum_map": {"internal": "internal", "external": "external"},
         }
     }
@@ -40,6 +50,7 @@ class Isis(Base):
     _REDISTRIBUTION_TYPE = {
         "redistribution_type": {
             "ixn_attr": "redistribution",
+            "default_value": "up",
             "enum_map": {"up": "up", "down": "down"},
         }
     }
@@ -157,6 +168,9 @@ class Isis(Base):
         interfaces = isis.get("interfaces")
         if interfaces is None:
             return
+        # IxNetwork supports single ISIS interface per router
+        if len(interfaces) > 1:
+            return
         for interface in interfaces:
             ethernet_name = interface.get("eth_name")
             self._ngpf.working_dg = self._ngpf.api.ixn_objects.get_working_dg(
@@ -170,6 +184,14 @@ class Isis(Base):
                 ixn_eth, "isisL3", interface.get("name")
             )
             self._ngpf.set_device_info(interface, ixn_isis)
+            system_id = isis.get("system_id")
+            ixn_isis["localSystemID"] = self.multivalue(system_id)
+            print("Debug 1----")
+            # print(ixn_isis_router["localSystemID"])
+            # print(ixn_isis.__dict__)
+            print(dir(ixn_isis))
+            print(ixn_isis.keys())
+            print(system_id)
             self._config_isis_interface(interface, ixn_isis)
             ixn_isis_router = self.create_node_elemet(
                 self._ngpf.working_dg, "isisL3Router", isis.get("name")
@@ -200,45 +222,41 @@ class Isis(Base):
         ixn_isis["levelType"] = self.multivalue(mapped_level)
         # L1 Settings
         l1_settings = interface.get("l1_settings")
-        if l1_settings is None:
-            return
-        self.logger.debug("priority %s hello_interval %s dead_interval %s " % (l1_settings.priority, l1_settings.hello_interval, l1_settings.dead_interval)) # noqa
-        self.configure_multivalues(l1_settings, ixn_isis, Isis._L1_SETTINGS)
+        if l1_settings is not None:
+            self.logger.debug("priority %s hello_interval %s dead_interval %s " % (l1_settings.priority, l1_settings.hello_interval, l1_settings.dead_interval)) # noqa
+            self.configure_multivalues(l1_settings, ixn_isis, Isis._L1_SETTINGS)
         # L2 Settings
         l2_settings = interface.get("l2_settings")
-        if l2_settings is None:
-            return
-        self.logger.debug("priority %s hello_interval %s dead_interval %s " % (l2_settings.priority, l2_settings.hello_interval, l2_settings.dead_interval)) # noqa
-        self.configure_multivalues(l2_settings, ixn_isis, Isis._L2_SETTINGS)
+        if l2_settings is not None:
+            self.logger.debug("priority %s hello_interval %s dead_interval %s " % (l2_settings.priority, l2_settings.hello_interval, l2_settings.dead_interval)) # noqa
+            self.configure_multivalues(l2_settings, ixn_isis, Isis._L2_SETTINGS)
         # Multiple Topology IDs
         self._configure_multi_topo_id(interface, ixn_isis)
         # Traffic Engineering
         self._configure_traffic_engineering(interface, ixn_isis)
         # Authentication
         auth = interface.get("authentication")
-        if auth is None:
-            return
-        self.logger.debug("authentication %s " % (auth.auth_type))
-        self.configure_multivalues(auth, ixn_isis, Isis._AUTH_TYPE)
+        if auth is not None:
+            self.logger.debug("authentication %s " % (auth.auth_type))
+            self.configure_multivalues(auth, ixn_isis, Isis._AUTH_TYPE)
         # Advanced
         advanced = interface.get("advanced")
-        if advanced is None:
-            return
-        self.logger.debug("auto_adjust_mtu %s auto_adjust_area %s auto_adjust_supported_protocols %s enable_3way_handshake %s p2p_hellos_to_unicast_mac %s " % (advanced.auto_adjust_mtu, advanced.auto_adjust_area, advanced.auto_adjust_supported_protocols, advanced.enable_3way_handshake, advanced.p2p_hellos_to_unicast_mac)) # noqa
-        self.configure_multivalues(advanced, ixn_isis, Isis._ADVANCED_INTERFACE) # noqa
+        if advanced is not None:
+            self.logger.debug("auto_adjust_mtu %s auto_adjust_area %s auto_adjust_supported_protocols %s enable_3way_handshake %s p2p_hellos_to_unicast_mac %s " % (advanced.auto_adjust_mtu, advanced.auto_adjust_area, advanced.auto_adjust_supported_protocols, advanced.enable_3way_handshake, advanced.p2p_hellos_to_unicast_mac)) # noqa
+            self.configure_multivalues(advanced, ixn_isis, Isis._ADVANCED_INTERFACE) # noqa
         # Link Protection
         link_protection = interface.get("link_protection")
-        if link_protection is None:
-            return
-        self.logger.debug("")
-        self.configure_multivalues(link_protection, ixn_isis, Isis._LINK_PROTECTION) # noqa
+        if link_protection is not None:
+            self.logger.debug("Configuring link protection")
+            self.configure_multivalues(link_protection, ixn_isis, Isis._LINK_PROTECTION) # noqa
         # srlg values
         srlg_vals = interface.get("srlg_values")
-        srlg_count = len(srlg_vals)
-        if srlg_count > 0:
-            self.logger.debug("srlg values")
-            ixn_isis["enableSRLG"] = True
-            ixn_isis["srlgCount"] = srlg_count
+        if srlg_vals is not None:
+            srlg_count = len(srlg_vals)
+            if srlg_count > 0:
+                self.logger.debug("srlg values")
+                ixn_isis["enableSRLG"] = True
+                ixn_isis["srlgCount"] = srlg_count
         #TBD 
         # Adjacency Sids
         self._configure_adjacency_sids(interface, ixn_isis)     
@@ -257,6 +275,12 @@ class Isis(Base):
 
     def _config_isis_router(self, otg_isis_router, ixn_isis_router):
         "Configuring Isis router"
+        system_id = otg_isis_router.get("system_id")
+        ixn_isis_router["localSystemID"] = self.multivalue(system_id)
+        print("Debug----")
+        # print(ixn_isis_router["localSystemID"])
+        print(ixn_isis_router.values())
+        print(system_id)
         isis_router_basic = otg_isis_router.get("basic")
         if isis_router_basic is not None:
             self._configure_isis_router_basic(isis_router_basic, ixn_isis_router) # noqa
