@@ -3,10 +3,6 @@ from snappi_ixnetwork.logger import get_ixnet_logger
 
 
 class Isis(Base):
-    _ISIS = {
-        "system_id": "localSystemID",
-    }
-
     _NETWORK_TYPE = {
         "network_type": {
             "ixn_attr": "networkType",
@@ -179,23 +175,18 @@ class Isis(Base):
             if not self._is_valid(ethernet_name):
                 continue
             ixn_eth = self._ngpf.api.ixn_objects.get_object(ethernet_name)
-            
             ixn_isis = self.create_node_elemet(
                 ixn_eth, "isisL3", interface.get("name")
             )
             self._ngpf.set_device_info(interface, ixn_isis)
-            system_id = isis.get("system_id")
-            ixn_isis["localSystemID"] = self.multivalue(system_id)
-            print("Debug 1----")
-            # print(ixn_isis_router["localSystemID"])
-            # print(ixn_isis.__dict__)
-            print(dir(ixn_isis))
-            print(ixn_isis.keys())
-            print(system_id)
             self._config_isis_interface(interface, ixn_isis)
             ixn_isis_router = self.create_node_elemet(
                 self._ngpf.working_dg, "isisL3Router", isis.get("name")
             )
+            ixn_bridged_data = self.create_node_elemet(
+                self._ngpf.working_dg, "bridgeData" 
+            )
+            self._config_system_id(isis, ixn_bridged_data)
             self._config_isis_router(isis, ixn_isis_router)
             self._add_isis_route_range(isis, ixn_isis_router, ixn_isis)
             
@@ -206,6 +197,10 @@ class Isis(Base):
         else:
             self.logger.debug("Isis validation failure")
         return is_valid
+
+    def _config_system_id(self, isis, ixn_bridged_data):
+        system_id = isis.get("system_id")
+        ixn_bridged_data["systemId"] = self.multivalue(system_id)
 
     def _config_isis_interface(self, interface, ixn_isis):
         self.logger.debug("Configuring Isis interfaces")        
@@ -224,12 +219,12 @@ class Isis(Base):
         l1_settings = interface.get("l1_settings")
         if l1_settings is not None:
             self.logger.debug("priority %s hello_interval %s dead_interval %s " % (l1_settings.priority, l1_settings.hello_interval, l1_settings.dead_interval)) # noqa
-            self.configure_multivalues(l1_settings, ixn_isis, Isis._L1_SETTINGS)
+            self.configure_multivalues(l1_settings, ixn_isis, Isis._L1_SETTINGS)  # noqa
         # L2 Settings
         l2_settings = interface.get("l2_settings")
         if l2_settings is not None:
             self.logger.debug("priority %s hello_interval %s dead_interval %s " % (l2_settings.priority, l2_settings.hello_interval, l2_settings.dead_interval)) # noqa
-            self.configure_multivalues(l2_settings, ixn_isis, Isis._L2_SETTINGS)
+            self.configure_multivalues(l2_settings, ixn_isis, Isis._L2_SETTINGS)  # noqa
         # Multiple Topology IDs
         self._configure_multi_topo_id(interface, ixn_isis)
         # Traffic Engineering
@@ -257,6 +252,8 @@ class Isis(Base):
                 self.logger.debug("srlg values")
                 ixn_isis["enableSRLG"] = True
                 ixn_isis["srlgCount"] = srlg_count
+                for index, value in enumerate(srlg_vals):
+                    ixn_isis["srlgValueList"][index] = self.multivalue(value)
         #TBD 
         # Adjacency Sids
         self._configure_adjacency_sids(interface, ixn_isis)     
@@ -275,12 +272,6 @@ class Isis(Base):
 
     def _config_isis_router(self, otg_isis_router, ixn_isis_router):
         "Configuring Isis router"
-        system_id = otg_isis_router.get("system_id")
-        ixn_isis_router["localSystemID"] = self.multivalue(system_id)
-        print("Debug----")
-        # print(ixn_isis_router["localSystemID"])
-        print(ixn_isis_router.values())
-        print(system_id)
         isis_router_basic = otg_isis_router.get("basic")
         if isis_router_basic is not None:
             self._configure_isis_router_basic(isis_router_basic, ixn_isis_router) # noqa

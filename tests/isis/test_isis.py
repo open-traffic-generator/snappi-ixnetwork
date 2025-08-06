@@ -93,7 +93,7 @@ def test_isis(api, b2b_raw_config, utils):
     # port 2 device 1 isis
     p2d1_isis = p2d1.isis
     p2d1_isis.name = "p2d1_isis"
-    p2d1_isis.system_id = "650000000001"
+    p2d1_isis.system_id = "680000000001"
 
     # port 2 device 1 isis basic
     p2d1_isis.basic.ipv4_te_router_id = p2d1_ipv4.address
