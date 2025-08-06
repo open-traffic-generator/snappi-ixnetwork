@@ -104,7 +104,6 @@ class Isis(Base):
         "auto_adjust_area": "autoAdjustArea",
         "auto_adjust_supported_protocols": "autoAdjustSupportedProtocols",
         "enable_3way_handshake": "enable3WayHandshake",
-        # "p2p_hellos_to_unicast_mac": "",
     }
 
     _LINK_PROTECTION = {
