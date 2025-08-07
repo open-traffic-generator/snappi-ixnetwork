@@ -60,9 +60,9 @@ def test(card="novus100g"):
             '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
             (
                 '--ports="snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;1'
-                " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;2"
+                " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;3"
                 " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;5"
-                ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;6"'
+                ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;7"'
             ),
             "--speed=speed_100_gbps",
         ]
