@@ -146,6 +146,8 @@ class Ngpf(Base):
             self.compactor.compact(ixn_topo.get("deviceGroup"))
             self._set_dev_compacted(ixn_topo.get("deviceGroup"))
 
+        self.compactor.compact(self._ixn_config.get("topology"), True)
+
     def _is_ip_allowed(self):
         is_allowed = True
         self.logger.debug(
