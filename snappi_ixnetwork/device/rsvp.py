@@ -74,6 +74,8 @@ class Rsvp(Base):
             return
         self._configure_rsvp_interfaces(interfaces, rsvp.name)
         lsp_ip_interfaces = rsvp.get("lsp_ipv4_interfaces")
+        if lsp_ip_interfaces is None:
+            return
         self._configure_rsvp_lsps(lsp_ip_interfaces, rsvp.name)
     
     def _get_interface_info(self):
@@ -149,5 +151,54 @@ class Rsvp(Base):
             timeout_multiplier = interface.get("timeout_multiplier")  
             ixn_rsvp["helloTimeoutMultiplier"] = self.multivalue(timeout_multiplier)  # noqa
             
-    def _configure_rsvp_lsps(self, lsps, rsvp_name):
+    def _configure_rsvp_lsps(self, lsp_interfaces, rsvp_name):
         self.logger.debug("Configuring RSVP LSP IPv4 Interfaces")
+        for interface in lsp_interfaces:
+            ipv4_name = interface.get("ipv4_name")
+            self._ngpf.working_dg = self._ngpf.api.ixn_objects.get_working_dg(
+                ipv4_name
+            )
+            if not self._is_valid(ipv4_name):
+                continue
+            ixn_ipv4 = self._ngpf.api.ixn_objects.get_object(ipv4_name)
+            ixn_rsvp = self.create_node_elemet(
+                ixn_ipv4, "rsvpteLsps", rsvp_name + "-" + "Lsps"
+            )
+            self._ngpf.set_device_info(interface, ixn_rsvp)
+            if interface.get("p2p_egress_ipv4_lsps") is not None:
+                self._configure_p2p_egress_lsps(ixn_rsvp, interface, rsvp_name)
+            else:
+                ixn_rsvp["enableP2PEgress"] = self.multivalue(False)
+            p2p_ingress_lsp = interface.get("p2p_ingress_ipv4_lsps")
+            if p2p_ingress_lsp is not None:
+                ingress_lsp_count = len(p2p_ingress_lsp)
+                if ingress_lsp_count > 0:
+                    ixn_rsvp["ingressP2PLsps"] = self.multivalue(ingress_lsp_count) # noqa
+                    self._configure_p2p_ingress_lsps(ixn_rsvp, p2p_ingress_lsp, rsvp_name)  # noqa
+            
+    def _configure_p2p_egress_lsps(self, ixn_rsvp, p2p_egress_lsps, rsvp_name):
+        self.logger.debug("Configuring RSVP P2P Egress IPv4 Interfaces")
+        ixn_rsvp_egress_lsp = self.create_node_elemet( 
+            ixn_rsvp, "rsvpP2PEgressLsps", rsvp_name + "-" + "egress" + "Lsps" # noqa
+        )
+        self._ngpf.set_device_info(p2p_egress_lsps, ixn_rsvp_egress_lsp)
+        refresh_interval = p2p_egress_lsps.get("refresh_interval")
+        ixn_rsvp_egress_lsp["refreshInterval"] = self.multivalue(refresh_interval) # noqa
+        timeout_multiplier = p2p_egress_lsps.get("timeout_multiplier")
+        ixn_rsvp_egress_lsp["timeoutMultiplier"] = self.multivalue(timeout_multiplier) # noqa
+        reservation_style = p2p_egress_lsps.get("reservation_style")
+        mapped_type = Rsvp._RESERVATION_STYLE["reservation_style"]["enum_map"][reservation_style]   # noqa
+        ixn_rsvp_egress_lsp["reservationStyle"] = self.multivalue(mapped_type)
+        enable_fixed_label = p2p_egress_lsps.get("enable_fixed_label")
+        ixn_rsvp_egress_lsp["enableFixedLabelForReservations"] = self.multivalue(enable_fixed_label) # noqa
+        fixed_label_value = p2p_egress_lsps.get("fixed_label_value")
+        ixn_rsvp_egress_lsp["labelValue"] = self.multivalue(fixed_label_value) # noqa
+
+
+    def _configure_p2p_ingress_lsps(self, ixn_rsvp, p2p_ingress_lsps, rsvp_name): # noqa
+        self.logger.debug("Configuring RSVP P2P Ingress IPv4 Interfaces")
+        ixn_rsvp_ingress_lsp = self.create_node_elemet( 
+            ixn_rsvp, "rsvpP2PIngressLsps", rsvp_name + "-" + "ingress" + "Lsps" # noqa
+        )
+        self._ngpf.set_device_info(p2p_ingress_lsps, ixn_rsvp_ingress_lsp)
+    
