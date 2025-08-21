@@ -51,6 +51,16 @@ class Rsvp(Base):
                 "loose": "true",
             },
         },
+    }
+
+    _P2P_INGRESS_LSPS = {
+        "tunnel_id": "tunnelId",
+        "lsp_id": "lspId",
+        "refresh_interval": "refreshInterval",
+        "timeout_multiplier": "timeoutMultiplier",
+        "backup_lsp_id": "backupLspId",
+        "lsp_switchover_delay": "lspSwitchOverDelayTime",
+
     }    
 
     def __init__(self, ngpf):
