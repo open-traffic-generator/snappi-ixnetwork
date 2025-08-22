@@ -51,17 +51,7 @@ class Rsvp(Base):
                 "loose": "true",
             },
         },
-    }
-
-    _P2P_INGRESS_LSPS = {
-        "tunnel_id": "tunnelId",
-        "lsp_id": "lspId",
-        "refresh_interval": "refreshInterval",
-        "timeout_multiplier": "timeoutMultiplier",
-        "backup_lsp_id": "backupLspId",
-        "lsp_switchover_delay": "lspSwitchOverDelayTime",
-
-    }    
+    } 
 
     def __init__(self, ngpf):
         super(Rsvp, self).__init__()
@@ -211,4 +201,92 @@ class Rsvp(Base):
             ixn_rsvp, "rsvpP2PIngressLsps", rsvp_name + "-" + "ingress" + "Lsps" # noqa
         )
         self._ngpf.set_device_info(p2p_ingress_lsps, ixn_rsvp_ingress_lsp)
-    
+        for ingress_lsp in p2p_ingress_lsps:
+            lsp_name = rsvp_name + "-" + ingress_lsp.get("remote_address") + "-" + ingress_lsp.get("tunnel_id") + "-" + ingress_lsp.get("lsp_id") # noqa
+            ixn_rsvp_ingress_lsp["name"] = self.multivalue(lsp_name)
+            remote_address = ingress_lsp.get("remote_address")
+            ixn_rsvp_ingress_lsp["remoteIp"] = self.multivalue(remote_address)
+            tunnel_id = ingress_lsp.get("tunnel_id")
+            ixn_rsvp_ingress_lsp["tunnelId"] = self.multivalue(tunnel_id)
+            lsp_id = ingress_lsp.get("lsp_id")
+            ixn_rsvp_ingress_lsp["lspId"] = self.multivalue(lsp_id)
+            refresh_interval = ingress_lsp.get("refresh_interval")
+            ixn_rsvp_ingress_lsp["refreshInterval"] = self.multivalue(refresh_interval) # noqa
+            timeout_multiplier = ingress_lsp.get("timeout_multiplier")
+            ixn_rsvp_ingress_lsp["timeoutMultiplier"] = self.multivalue(timeout_multiplier) # noqa
+            backup_lsp_id = ingress_lsp.get("backup_lsp_id")
+            ixn_rsvp_ingress_lsp["backupLspId"] = self.multivalue(backup_lsp_id) # noqa
+            lsp_switchover_delay = ingress_lsp.get("lsp_switchover_delay")
+            ixn_rsvp_ingress_lsp["lspSwitchOverDelayTime"] = self.multivalue(lsp_switchover_delay) # noqa
+            session_attribute = ingress_lsp.get("session_attribute")
+            if session_attribute is not None:
+                auto_generate_session_name = session_attribute.get("auto_generate_session_name") # noqa
+                ixn_rsvp_ingress_lsp["autoGenerateSessionName"] = self.multivalue(auto_generate_session_name) # noqa
+                session_name = session_attribute.get("session_name") 
+                ixn_rsvp_ingress_lsp["sessionName"] = self.multivalue(session_name) # noqa
+                setup_priority = session_attribute.get("setup_priority") 
+                ixn_rsvp_ingress_lsp["setupPriority"] = self.multivalue(setup_priority) # noqa
+                holding_priority = session_attribute.get("holding_priority") 
+                ixn_rsvp_ingress_lsp["holdingPriority"] = self.multivalue(holding_priority) # noqa
+                local_protection_desired = session_attribute.get("local_protection_desired") # noqa
+                ixn_rsvp_ingress_lsp["localProtectionDesired"] = self.multivalue(local_protection_desired) # noqa
+                label_recording_desired = session_attribute.get("label_recording_desired") # noqa
+                ixn_rsvp_ingress_lsp["labelRecordingDesired"] = self.multivalue(label_recording_desired) # noqa
+                se_style_desired = session_attribute.get("se_style_desired") # noqa
+                ixn_rsvp_ingress_lsp["seStyleDesired"] = self.multivalue(se_style_desired) # noqa
+                bandwidth_protection_desired = session_attribute.get("bandwidth_protection_desired") # noqa
+                ixn_rsvp_ingress_lsp["bandwidthProtectionDesired"] = self.multivalue(bandwidth_protection_desired) # noqa
+                node_protection_desired = session_attribute.get("node_protection_desired") # noqa
+                ixn_rsvp_ingress_lsp["nodeProtectionDesired"] = self.multivalue(node_protection_desired) # noqa
+                resource_affinity_type = session_attribute.get("resource_affinities") # noqa
+                if resource_affinity_type is not None:
+                    exclude_any = resource_affinity_type.get("exclude_any") 
+                    ixn_rsvp_ingress_lsp["excludeAny"] = self.multivalue(exclude_any) # noqa
+                    include_any = resource_affinity_type.get("include_any") 
+                    ixn_rsvp_ingress_lsp["includeAny"] = self.multivalue(include_any) # noqa
+                    include_all = resource_affinity_type.get("include_all") 
+                    ixn_rsvp_ingress_lsp["includeAll"] = self.multivalue(include_all) # noqa
+            tspec = ingress_lsp.get("tspec")
+            if tspec is not None:
+                token_bucket_rate = tspec.get("token_bucket_rate") 
+                ixn_rsvp_ingress_lsp["tokenBucketRate"] = self.multivalue(token_bucket_rate) # noqa
+                token_bucket_size = tspec.get("token_bucket_size") 
+                ixn_rsvp_ingress_lsp["tokenBucketSize"] = self.multivalue(token_bucket_size) # noqa
+                peak_data_rate = tspec.get("peak_data_rate") 
+                ixn_rsvp_ingress_lsp["peakDataRate"] = self.multivalue(peak_data_rate) # noqa
+                minimum_policed_unit = tspec.get("minimum_policed_unit") # noqa
+                ixn_rsvp_ingress_lsp["minimumPolicedUnit"] = self.multivalue(minimum_policed_unit) # noqa
+                maximum_policed_unit = tspec.get("maximum_policed_unit") # noqa
+                ixn_rsvp_ingress_lsp["maximumPacketSize"] = self.multivalue(maximum_policed_unit) # noqa
+            fast_reroute = ingress_lsp.get("fast_reroute")
+            if fast_reroute is not None:
+                setup_priority = fast_reroute.get("setup_priority") 
+                ixn_rsvp_ingress_lsp["setupPriority"] = self.multivalue(setup_priority) # noqa
+                holding_priority = fast_reroute.get("holding_priority") 
+                ixn_rsvp_ingress_lsp["holdingPriority"] = self.multivalue(holding_priority) # noqa
+                hop_limit = fast_reroute.get("hop_limit") 
+                ixn_rsvp_ingress_lsp["hopLimit"] = self.multivalue(hop_limit)
+                bandwidth = fast_reroute.get("bandwidth") 
+                ixn_rsvp_ingress_lsp["bandwidth"] = self.multivalue(bandwidth)
+                exclude_any = fast_reroute.get("exclude_any") 
+                ixn_rsvp_ingress_lsp["fastRerouteExcludeAny"] = self.multivalue(exclude_any) # noqa
+                include_any = fast_reroute.get("include_any") 
+                ixn_rsvp_ingress_lsp["fastRerouteIncludeAny"] = self.multivalue(include_any) # noqa
+                include_all = fast_reroute.get("include_all") 
+                ixn_rsvp_ingress_lsp["fastRerouteIncludeAll"] = self.multivalue(include_all) # noqa
+                one_to_one_backup_desired = fast_reroute.get("one_to_one_backup_desired") # noqa
+                ixn_rsvp_ingress_lsp["oneToOneBackupDesired"] = self.multivalue(one_to_one_backup_desired) # noqa
+                facility_backup_desired = fast_reroute.get("facility_backup_desired") # noqa
+                ixn_rsvp_ingress_lsp["facilityBackupDesired"] = self.multivalue(facility_backup_desired) # noqa
+            ero = ingress_lsp.get("ero")
+            if ero is not None:
+                prepend_neighbor_ip = ero.get("prepend_neighbor_ip")
+                mapped_level = Rsvp._PREPEND_NEIGHBOR_IP_TYPE["prepend_neighbor_ip"]["enum_map"][prepend_neighbor_ip]   # noqa
+                ixn_rsvp_ingress_lsp["prependDutToEro"] = self.multivalue(mapped_level) # noqa
+                prefix_length = ero.get("prefix_length") 
+                ixn_rsvp_ingress_lsp["prefixLength"] = self.multivalue(prefix_length) # noqa
+                # TBD: ERO Sub-objects
+
+
+
+
