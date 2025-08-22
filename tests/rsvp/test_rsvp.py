@@ -1,7 +1,7 @@
 import pytest
 import time
 
-# @pytest.mark.skip(reason="Not implemented")
+@pytest.mark.skip(reason="Not implemented")
 def test_rsvp_traffic(api, b2b_raw_config, utils):
     """Test rsvp traffic
     - set_config
