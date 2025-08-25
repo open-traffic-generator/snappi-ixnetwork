@@ -39,7 +39,9 @@ class Ngpf(Base):
         "IsisV4RouteRange": "ipv4",
         "IsisV6RouteRange": "ipv6",
         "Rsvp": "ipv4",
-        "LspV4Interface": "ipv4",
+        "RsvpIpv4Interface": "ipv4",
+        "RsvpLspIpv4Interface": "ipv4",
+        "RsvpLspIpv4InterfaceP2PIngressIpv4Lsp": "ipv4",
     }
 
     _ROUTE_STATE = {"advertise": True, "withdraw": False}
@@ -138,7 +140,7 @@ class Ngpf(Base):
         for device in self.api.snappi_config.devices:
             self._isis.config(device)
 
-        # Configure all Isis interface before configure protocols
+        # Configure all Rsvp interface before configure protocols
         for device in self.api.snappi_config.devices:
             self._rsvp.config(device)
 

@@ -3,7 +3,7 @@ from snappi_ixnetwork.logger import get_ixnet_logger
 
 
 class Rsvp(Base):
-    _BGP = {
+    _RSVP = {
         "neighbor_ip": "dutIp",
     }
 
@@ -111,7 +111,7 @@ class Rsvp(Base):
             is_invalid = False
         if len(same_dg_ips) > 0 and ip_name not in same_dg_ips:
             self._ngpf.api.add_error(
-                "BGP should not configured on top of different device"
+                "RSVP should not configured on top of different device"
             )
             is_invalid = False
         return is_invalid
@@ -187,8 +187,9 @@ class Rsvp(Base):
         timeout_multiplier = p2p_egress_lsps.get("timeout_multiplier")
         ixn_rsvp_egress_lsp["timeoutMultiplier"] = self.multivalue(timeout_multiplier) # noqa
         reservation_style = p2p_egress_lsps.get("reservation_style")
-        mapped_type = Rsvp._RESERVATION_STYLE["reservation_style"]["enum_map"][reservation_style]   # noqa
-        ixn_rsvp_egress_lsp["reservationStyle"] = self.multivalue(mapped_type)
+        if reservation_style is not None:
+            mapped_type = Rsvp._RESERVATION_STYLE["reservation_style"]["enum_map"][reservation_style]   # noqa
+            ixn_rsvp_egress_lsp["reservationStyle"] = self.multivalue(mapped_type) # noqa
         enable_fixed_label = p2p_egress_lsps.get("enable_fixed_label")
         ixn_rsvp_egress_lsp["enableFixedLabelForReservations"] = self.multivalue(enable_fixed_label) # noqa
         fixed_label_value = p2p_egress_lsps.get("fixed_label_value")
@@ -200,9 +201,9 @@ class Rsvp(Base):
         ixn_rsvp_ingress_lsp = self.create_node_elemet( 
             ixn_rsvp, "rsvpP2PIngressLsps", rsvp_name + "-" + "ingress" + "Lsps" # noqa
         )
-        self._ngpf.set_device_info(p2p_ingress_lsps, ixn_rsvp_ingress_lsp)
         for ingress_lsp in p2p_ingress_lsps:
-            lsp_name = rsvp_name + "-" + ingress_lsp.get("remote_address") + "-" + ingress_lsp.get("tunnel_id") + "-" + ingress_lsp.get("lsp_id") # noqa
+            self._ngpf.set_device_info(ingress_lsp, ixn_rsvp_ingress_lsp)
+            lsp_name = rsvp_name + "-" + ingress_lsp.get("remote_address") + "-" + str(ingress_lsp.get("tunnel_id")) + "-" + str(ingress_lsp.get("lsp_id")) # noqa
             ixn_rsvp_ingress_lsp["name"] = self.multivalue(lsp_name)
             remote_address = ingress_lsp.get("remote_address")
             ixn_rsvp_ingress_lsp["remoteIp"] = self.multivalue(remote_address)
