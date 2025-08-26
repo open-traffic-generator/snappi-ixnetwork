@@ -247,17 +247,16 @@ class Vport(object):
     def _add_hosts(self, HostReadyTimeout):
         self.logger.debug("Adding hosts in vport")
         chassis = self._api._ixnetwork.AvailableHardware.Chassis
-        add_addresses = []
-        check_addresses = []
-        for port in self._api.snappi_config.ports:
+        add_addresses, check_addresses = set(), set()
+        existing_chassis = {c.Hostname for c in chassis.find()}
+        ports = self._api.snappi_config.ports or []
+        for port in ports:
             location = port.get("location")
             if location is not None:
                 location_info = self._api.parse_location_info(location)
                 chassis_address = location_info.chassis_info
-                chassis.find(Hostname="^%s$" % chassis_address)
-                if len(chassis) == 0:
-                    add_addresses.append(chassis_address)
-                check_addresses.append(chassis_address)
+                if chassis_address not in existing_chassis:add_addresses.add(chassis_address)
+                check_addresses.add(chassis_address)
         chassis_chains = self._api.ixnet_specific_config.chassis_chains
         if chassis_chains:
             for chassis_chain in chassis_chains:
@@ -356,7 +355,7 @@ class Vport(object):
                 ].startswith("connectedLink"):
                     continue
 
-            self._api.ixn_objects.set(port.name, vport)
+            # self._api.ixn_objects.set(port.name, vport)
             vport = {"xpath": vports[port.name]["xpath"]}
             if location_supported is True:
                 vport["location"] = location
