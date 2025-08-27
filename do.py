@@ -296,7 +296,7 @@ def dist():
     clean()
     run(
         [
-            py() + " setup.py sdist bdist_wheel --universal",
+            py() + " setup.py sdist bdist_wheel",
         ]
     )
     print(os.listdir("dist"))
