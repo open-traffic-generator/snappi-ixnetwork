@@ -39,26 +39,26 @@ jobs:
       - name: Install snappi from dev branch when needed
         run: |
           ${{steps.path.outputs.pythonv}} do.py get_snappi_dev_branch
-      # - name: Run tests
-      #   run: |
-      #     TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
-      # - name: Send Coverage Email
-      #   if: github.ref == 'refs/heads/main'
-      #   run: |
-      #     ${{steps.path.outputs.pythonv}} do.py coverage_mail
+      - name: Run tests
+        run: |
+          TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
+      - name: Send Coverage Email
+        if: github.ref == 'refs/heads/main'
+        run: |
+          ${{steps.path.outputs.pythonv}} do.py coverage_mail
           
-      # - name: Generate Allure report
-      #   run: |
-      #     source ~/.profile
-      #     ${{steps.path.outputs.pythonv}} do.py generate_allure_report
+      - name: Generate Allure report
+        run: |
+          source ~/.profile
+          ${{steps.path.outputs.pythonv}} do.py generate_allure_report
 
-      # - name: Deploy report to Github Pages
-      #   if: always()
-      #   uses: peaceiris/actions-gh-pages@v2
-      #   env:
-      #     PERSONAL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     PUBLISH_BRANCH: gh-pages
-      #     PUBLISH_DIR: allure-report
+      - name: Deploy report to Github Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v2
+        env:
+          PERSONAL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISH_BRANCH: gh-pages
+          PUBLISH_DIR: allure-report
   
 
   publish_artifacts:
