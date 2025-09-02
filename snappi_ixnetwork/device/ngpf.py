@@ -296,6 +296,7 @@ class Ngpf(Base):
                     ixn_obj = obj
                     break
             if ixn_obj is None:
+                print("No Ixn_obj")
                 ixn_obj_idx_list[route_info] = list(
                     range(
                         route_info.index,
@@ -303,6 +304,7 @@ class Ngpf(Base):
                     )
                 )
             else:
+                print("ixn_obj not none")
                 ixn_obj_idx_list[route_info].extend(
                     list(
                         range(
