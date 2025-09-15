@@ -613,6 +613,9 @@ class TrafficItem(CustomField):
             dev_info = devices[name]["dev_info"]
             xpath = dev_info.xpath
             cmp_names = set(dev_info.names)
+            portId = 1
+            if self._api._compaction:
+                portId = dev_info.index + 1
             if len(cmp_names) > 0:
                 inter_names = cmp_names.intersection(set(names))
                 # todo: optimize within scalable
@@ -624,7 +627,7 @@ class TrafficItem(CustomField):
                     scalable_endpoints.append(
                         {
                             "arg1": xpath,
-                            "arg2": 1,
+                            "arg2": portId,
                             "arg3": 1,
                             "arg4": dev_info.index + 1,
                             "arg5": dev_info.multiplier,

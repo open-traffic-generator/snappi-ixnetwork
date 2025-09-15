@@ -124,29 +124,30 @@ class Ngpf(Base):
         for device in self.api.snappi_config.devices:
             self._rocev2.config(device)
 
-        # Compaction will take place in this order
-        # Step-1: Compact chain DGs
-        for chain_parent_dg in self._chain_parent_dgs:
-            self.compactor.compact(chain_parent_dg.get("deviceGroup"))
-            self._set_dev_compacted(chain_parent_dg.get("deviceGroup"))
+        if self.api._compaction:
+            # Compaction will take place in this order
+            # Step-1: Compact chain DGs
+            for chain_parent_dg in self._chain_parent_dgs:
+                self.compactor.compact(chain_parent_dg.get("deviceGroup"))
+                self._set_dev_compacted(chain_parent_dg.get("deviceGroup"))
 
-        # Step-2: Compact VXLAN
-        source_interfaces = self._vxlan.source_interfaces
-        for v4_int in source_interfaces.ipv4:
-            self.compactor.compact(v4_int.get("vxlan"))
-        for v6_int in source_interfaces.ipv6:
-            self.compactor.compact(v6_int.get("vxlanv6"))
+            # Step-2: Compact VXLAN
+            source_interfaces = self._vxlan.source_interfaces
+            for v4_int in source_interfaces.ipv4:
+                self.compactor.compact(v4_int.get("vxlan"))
+            for v6_int in source_interfaces.ipv6:
+                self.compactor.compact(v6_int.get("vxlanv6"))
 
-        # Step-3: First compact all loopback interfaces
-        for ix_parent_dg in self.loopback_parent_dgs:
-            self.compactor.compact(ix_parent_dg.get("deviceGroup"))
+            # Step-3: First compact all loopback interfaces
+            for ix_parent_dg in self.loopback_parent_dgs:
+                self.compactor.compact(ix_parent_dg.get("deviceGroup"))
 
-        # Step-4: Compact root Topology
-        for ixn_topo in self._ixn_topo_objects.values():
-            self.compactor.compact(ixn_topo.get("deviceGroup"))
-            self._set_dev_compacted(ixn_topo.get("deviceGroup"))
+            # Step-4: Compact root Topology
+            for ixn_topo in self._ixn_topo_objects.values():
+                self.compactor.compact(ixn_topo.get("deviceGroup"))
+                self._set_dev_compacted(ixn_topo.get("deviceGroup"))
 
-        self.compactor.compact(self._ixn_config.get("topology"), True)
+            self.compactor.compact(self._ixn_config.get("topology"), True)
 
     def _is_ip_allowed(self):
         is_allowed = True

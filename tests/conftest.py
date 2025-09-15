@@ -103,6 +103,43 @@ def b2b_raw_config(api):
 
 
 @pytest.fixture
+def b2b_raw_config_4port(api):
+    """
+    back to back raw config 4 ports
+    """
+    config = api.config()
+
+    tx1, rx1, tx2, rx2 = config.ports.port(
+        name="tx1", location=utl.settings.ports[0]).port(
+        name="rx1", location=utl.settings.ports[1]).port(
+        name="tx2", location=utl.settings.ports[2]).port(
+        name="rx2", location=utl.settings.ports[3])
+
+    l1 = config.layer1.layer1()[0]
+    l1.name = "l1"
+    l1.port_names = [rx1.name, tx1.name, rx2.name, tx2.name]
+    l1.media = utl.settings.media
+    l1.speed = utl.settings.speed
+
+    flow1 = config.flows.flow(name="f1")[-1]
+    flow1.tx_rx.port.tx_name = tx1.name
+    flow1.tx_rx.port.rx_name = rx1.name
+
+    flow2 = config.flows.flow(name="f2")[-1]
+    flow2.tx_rx.port.tx_name = tx2.name
+    flow2.tx_rx.port.rx_name = rx2.name
+
+    # this will allow us to take over ports that may already be in use
+    config.options.port_options.location_preemption = True
+
+    cap = config.captures.capture(name="c1")[-1]
+    cap.port_names = [rx1.name]
+    cap.format = cap.PCAPNG
+
+    return config
+
+
+@pytest.fixture
 def utils():
     return utl
 

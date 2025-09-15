@@ -119,6 +119,7 @@ class Api(snappi.Api):
         self._ixnet_specific_config = None
         self._mka = Mka(self)
         self._macsec = Macsec(self)
+        self._compaction = False
 
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
@@ -146,6 +147,9 @@ class Api(snappi.Api):
 
     def _enable_flow_tracking(self, _flow_tracking=False):
         self._flow_tracking = _flow_tracking
+
+    def _enable_compaction(self, _compaction=False):
+        self._compaction = _compaction
 
     @property
     def snappi_config(self):
