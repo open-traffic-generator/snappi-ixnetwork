@@ -614,7 +614,7 @@ class TrafficItem(CustomField):
             xpath = dev_info.xpath
             cmp_names = set(dev_info.names)
             portId = 1
-            if self._api._compaction:
+            if self._api._port_compaction:
                 portId = dev_info.index + 1
             if len(cmp_names) > 0:
                 inter_names = cmp_names.intersection(set(names))
