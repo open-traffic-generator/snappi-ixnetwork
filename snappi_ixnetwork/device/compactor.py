@@ -9,7 +9,7 @@ class Compactor(object):
         self._ignore_keys = ["xpath", "name"]
         self.logger = get_ixnet_logger(__name__)
 
-    def compact(self, roots):
+    def compact(self, roots, isTopoComp = False):
         if roots is None or len(roots) == 0:
             return
         similar_objs_list = []
@@ -26,7 +26,7 @@ class Compactor(object):
 
         for similar_objs in similar_objs_list:
             if len(similar_objs.objects) > 0:
-                similar_objs.compact(roots)
+                similar_objs.compact(roots, isTopoComp)
                 self.set_scalable(similar_objs.primary_obj)
 
     def _comparator(self, src, dst):
@@ -110,14 +110,15 @@ class SimilarObjects(Base):
     def append(self, object):
         self._objects.append(object)
 
-    def compact(self, roots):
+    def compact(self, roots, isTopoComp):
         multiplier = len(self._objects) + 1
         for object in self._objects:
-            self._value_compactor(self._primary_obj, object)
+            self._value_compactor(self._primary_obj, object, isTopoComp)
             roots.remove(object)
-        self._primary_obj["multiplier"] = multiplier
+        if not isTopoComp:
+            self._primary_obj["multiplier"] = multiplier
 
-    def _value_compactor(self, src, dst):
+    def _value_compactor(self, src, dst, isTopoComp):
         for key, value in src.items():
             if key in self._ignore_keys:
                 continue
@@ -140,10 +141,13 @@ class SimilarObjects(Base):
             if isinstance(dst_value, list):
                 for index, dst_dict in enumerate(dst_value):
                     if not isinstance(dst_dict, dict):
+                        if isTopoComp and key == "ports":
+                            src_value = src_value + dst_value
+                            src[key] = src_value    
                         continue
-                    self._value_compactor(src_value[index], dst_dict)
+                    self._value_compactor(src_value[index], dst_dict, isTopoComp)
             elif isinstance(dst_value, dict):
-                self._value_compactor(src_value, dst_value)
+                self._value_compactor(src_value, dst_value, isTopoComp)
             elif isinstance(src_value, MultiValue):
                 src_value = src_value.value
                 dst_value = dst_value.value
