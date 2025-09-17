@@ -1,3 +1,5 @@
+import pytest
+
 @pytest.mark.skip("4 port configuration is not supported in ci")
 def test_compaction_traffic_device(api, b2b_raw_config):
     # import snappi
