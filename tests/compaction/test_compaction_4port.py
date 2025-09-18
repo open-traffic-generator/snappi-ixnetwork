@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.skip("4 port configuration is not supported in ci")
+# @pytest.mark.skip("4 port configuration is not supported in ci")
 def test_compaction_4port(api, b2b_raw_config_4port, utils):
     """
     Test for the bgpv4 metrics
