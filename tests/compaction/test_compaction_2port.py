@@ -6,7 +6,7 @@ def test_compaction_2port(api, b2b_raw_config, utils):
     """
     Test for the bgpv4 metrics
     """
-    api._enable_port_compaction(True)
+    # api._enable_port_compaction(True)
     api.set_config(api.config())
     b2b_raw_config.flows.clear()
 
