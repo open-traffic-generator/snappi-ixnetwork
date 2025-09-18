@@ -5,7 +5,7 @@ def test_compaction_traffic_device(api, b2b_raw_config):
     # import snappi
 
     # config = snappi.Api().config()
-    # api._enable_port_compaction(True)
+    api._enable_port_compaction(True)
     b2b_raw_config.flows.clear()
     config = b2b_raw_config
     d1, d2 = config.devices.device(name="d1").device(name="d2")
@@ -35,3 +35,5 @@ def test_compaction_traffic_device(api, b2b_raw_config):
     f1.tx_rx.device.rx_names = [ip2.name]
     f1.packet.ethernet().vlan().tcp()
     api.set_config(config)
+    # Set the flag back to false else other tests will fail
+    api._enable_port_compaction(False)

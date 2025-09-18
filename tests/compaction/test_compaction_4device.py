@@ -6,7 +6,7 @@ def test_compaction_4device(api, b2b_raw_config, utils):
     """
     Test for the bgpv4 metrics
     """
-    # api._enable_port_compaction(True)
+    api._enable_port_compaction(True)
     api.set_config(api.config())
     b2b_raw_config.flows.clear()
 
@@ -44,6 +44,8 @@ def test_compaction_4device(api, b2b_raw_config, utils):
     f1.packet.ethernet().vlan().tcp()
 
     api.set_config(b2b_raw_config)
+    # Set the flag back to false else other tests will fail
+    api._enable_port_compaction(False)
 
 if __name__ == "__main__":
     pytest.main(["-vv", "-s", __file__])
