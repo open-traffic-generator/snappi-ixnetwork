@@ -1,13 +1,13 @@
 import pytest
-from bgp_convergence_config_b2b import bgp_convergence_config
+from bgp_convergence_config_multi_routes import bgp_convergence_multi_routes_config # noqa
 
 PRIMARY_ROUTES_NAME = "rx_rr"
 PRIMARY_PORT_NAME = "rx"
 
-@pytest.mark.skip(
-    reason="WIP"
-)
-def test_convergence(utils, api, bgp_convergence_config):
+# @pytest.mark.skip(
+#     reason="WIP"
+# )
+def test_convergence(utils, api, bgp_convergence_multi_routes_config):
     """
     1. set convergence config & start traffic
     Scenario 1:
@@ -19,11 +19,11 @@ def test_convergence(utils, api, bgp_convergence_config):
     """
     
     # convergence config
-    bgp_convergence_config.events.cp_events.enable = True
-    bgp_convergence_config.events.dp_events.enable = True
-    bgp_convergence_config.events.dp_events.rx_rate_threshold = 90
+    bgp_convergence_multi_routes_config.events.cp_events.enable = True
+    bgp_convergence_multi_routes_config.events.dp_events.enable = True
+    bgp_convergence_multi_routes_config.events.dp_events.rx_rate_threshold = 90
 
-    api.set_config(bgp_convergence_config)
+    api.set_config(bgp_convergence_multi_routes_config)
     print("Starting all protocols ...")
     ps = api.control_state()
     ps.choice = ps.PROTOCOL
