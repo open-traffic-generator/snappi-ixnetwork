@@ -6,4 +6,6 @@ flake8
 dpkt
 black
 pytest-cov
-allure-pytest; python_version > '3.6'
+allure-pytest ; python_version > '3.6'
+ixnetwork-restpy>=1.7.0
+build

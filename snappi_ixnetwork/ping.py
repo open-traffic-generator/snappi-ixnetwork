@@ -31,8 +31,10 @@ class Ping(object):
             for eth in device.ethernets:
                 for ip in eth.ipv6_addresses:
                     v6_names.append(ip.name)
-        if req_type==None :
-            raise Exception("req_type variable is mandatory to decide ipv4 or ipv6")
+        if req_type == None:
+            raise Exception(
+                "req_type variable is mandatory to decide ipv4 or ipv6"
+            )
         else:
             with Timer(self._api, "Ping requests completed in"):
                 for endpoint in ping_request.requests:

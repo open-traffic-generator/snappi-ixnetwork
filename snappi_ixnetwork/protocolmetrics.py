@@ -7,7 +7,15 @@ class ProtocolMetrics(object):
     # TODO Need to enhance when device groups statistics reach
     # more than one page.
 
-    _SUPPORTED_PROTOCOLS_ = ["bgpv4", "bgpv6", "macsec", "mka", "rocev2_ipv4", "rocev2_ipv6"]
+    _SUPPORTED_PROTOCOLS_ = [
+        "bgpv4",
+        "bgpv6",
+        "macsec",
+        "mka",
+        "rocev2_ipv4",
+        "rocev2_ipv6",
+        "isis",
+    ]
 
     _TOPO_STATS = {
         "name": "name",
@@ -122,6 +130,35 @@ class ProtocolMetrics(object):
             ("reject_rx", "Reject Tx", int),
             ("unknown_msg_rx", "Unknown MSG Rx", int),
         ],
+        "isis": [
+            ("name", "Device Group", str),
+            ("l1_sessions_up", "L1 Sessions Up", int),
+            ("l1_session_flap", "L1 Session Flap", int),
+            ("l1_database_size", "L1 DB Size", int),
+            ("l1_broadcast_hellos_sent", "L1 Hellos Tx", int),
+            ("l1_broadcast_hellos_received", "L1 Hellos Rx", int),
+            ("l1_point_to_point_hellos_sent", "L1 P2P Hellos Tx", int),
+            ("l1_point_to_point_hellos_received", "L1 P2P Hellos Rx", int),
+            ("l1_psnp_sent", "L1 PSNP Tx", int),
+            ("l1_psnp_received", "L1 PSNP Rx", int),
+            ("l1_csnp_sent", "L1 CSNP Tx", int),
+            ("l1_csnp_received", "L1 CSNP Rx", int),
+            ("l1_lsp_sent", "L1 LSP Tx", int),
+            ("l1_lsp_received", "L1 LSP Rx", int),
+            ("l2_sessions_up", "L2 Sessions Up", int),
+            ("l2_session_flap", "L2 Session Flap", int),
+            ("l2_database_size", "L2 DB Size", int),
+            ("l2_broadcast_hellos_sent", "L2 Hellos Tx", int),
+            ("l2_broadcast_hellos_received", "L2Hellos Rx", int),
+            ("l2_point_to_point_hellos_sent", "L2 P2P Hellos Tx", int),
+            ("l2_point_to_point_hellos_received", "L2 P2P Hellos Rx", int),
+            ("l2_psnp_sent", "L2 PSNP Tx", int),
+            ("l2_psnp_received", "L2 PSNP Rx", int),
+            ("l2_csnp_sent", "L2 CSNP Tx", int),
+            ("l2_csnp_received", "L2 CSNP Rx", int),
+            ("l2_lsp_sent", "L2 LSP Tx", int),
+            ("l2_lsp_received", "L2 LSP Rx", int),
+        ],
     }
 
     _PROTO_NAME_MAP_ = {
@@ -183,6 +220,16 @@ class ProtocolMetrics(object):
             "supported_stats": [s[0] for s in _RESULT_COLUMNS["rocev2_ipv6"]],
             "ixn_name": "roce6v2",
         },
+        "isis": {
+            "per_port": "ISIS-L3 RTR Per Port",
+            "drill_down": "ISIS-L3 RTR Drill Down",
+            "drill_down_options": [
+                "ISIS-L3 RTR:Per Device Group",
+                "ISIS-L3 RTR:Per Session",
+            ],
+            "supported_stats": [s[0] for s in _RESULT_COLUMNS["isis"]],
+            "ixn_name": "isisL3",
+        },
     }
 
     _PEER_NAMES = {
@@ -192,6 +239,7 @@ class ProtocolMetrics(object):
         "mka": "peer_names",
         "rocev2_ipv4": "peer_names",
         "rocev2_ipv6": "peer_names",
+        "isis": "router_names"
     }
 
     def __init__(self, ixnetworkapi):
@@ -352,7 +400,9 @@ class ProtocolMetrics(object):
         indices = set(
             [ports.index(p) for p in list(set(config_ports)) if p in ports]
         )
-        drill_options = self._PROTO_NAME_MAP_[protocol].get("drill_down_options", [])
+        drill_options = self._PROTO_NAME_MAP_[protocol].get(
+            "drill_down_options", []
+        )
         drill_name = self._PROTO_NAME_MAP_[protocol]["drill_down"]
         per_port = self._PROTO_NAME_MAP_[protocol]["per_port"]
         column_names = self._RESULT_COLUMNS.get(protocol, [])
@@ -407,9 +457,13 @@ class ProtocolMetrics(object):
             return
         if skip:
             warn = stat_name in self.columns
-            self._api.warning(
-                "{} metric has no implementation".format(stat_name)
-            ) if warn else None
+            (
+                self._api.warning(
+                    "{} metric has no implementation".format(stat_name)
+                )
+                if warn
+                else None
+            )
             row_dt[stat_name] = (
                 0 if stat_type.__name__ in ["float", "int"] else "na"
             )
@@ -438,10 +492,12 @@ class ProtocolMetrics(object):
         myfilter = [
             {
                 "property": "name",
-                "regex": ".*"
-                if len(self.device_names) == 0
-                else "^%s$"
-                % "|".join(self._api.special_char(self.device_names)),
+                "regex": (
+                    ".*"
+                    if len(self.device_names) == 0
+                    else "^%s$"
+                    % "|".join(self._api.special_char(self.device_names))
+                ),
             }
         ]
         url, payload = self._get_search_payload(

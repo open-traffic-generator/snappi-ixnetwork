@@ -60,20 +60,20 @@ def test(card="novus100g"):
             '--location="https://snappi-ixn-ci-novus100g.lbj.is.keysight.com:5000"',
             (
                 '--ports="snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;1'
-                " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;2"
+                " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;3"
                 " snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;5"
-                ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;6"'
+                ' snappi-ixn-ci-novus100g.lbj.is.keysight.com;1;7"'
             ),
             "--speed=speed_100_gbps",
         ]
     elif card == "novus10g":
         args = [
-            '--location="https://novus1-715849.ccu.is.keysight.com:443"',
+            '--location="https://10.39.44.224:443"',
             (
-                '--ports="novus1-715849.ccu.is.keysight.com;1;1'
-                " novus1-715849.ccu.is.keysight.com;1;2"
-                " novus1-715849.ccu.is.keysight.com;1;5"
-                ' novus1-715849.ccu.is.keysight.com;1;6"'
+                '--ports="10.39.44.224;1;1'
+                " 10.39.44.224;1;2"
+                " 10.39.44.224;1;3"
+                ' 10.39.44.224;1;4"'
             ),
             "--speed=speed_10_gbps",
         ]
@@ -294,16 +294,21 @@ def coverage_mail():
 
 def dist():
     clean()
+    with open("requirements.txt", 'r') as f_in:
+        lines = f_in.readlines()
+    # Write all lines back to the file except the first one
+    with open("requirements.txt", 'w') as f_out:
+        f_out.writelines(lines[1:])
     run(
         [
-            py() + " setup.py sdist bdist_wheel --universal",
+            py() + " -m build",
         ]
     )
     print(os.listdir("dist"))
 
 
 def install():
-    wheel = "{}-{}-py2.py3-none-any.whl".format(*pkg())
+    wheel = "{}-{}-py3-none-any.whl".format(*pkg())
     run(
         [
             "{} -m pip install --upgrade --force-reinstall {}[testing]".format(
@@ -364,9 +369,9 @@ def pkg():
     try:
         return pkg.pkg
     except AttributeError:
-        with open("setup.py") as f:
+        with open("pyproject.toml") as f:
             out = f.read()
-            name = re.findall(r"pkg_name = \"(.+)\"", out)[0]
+            name = re.findall(r"name = \"(.+)\"", out)[0]
             version = re.findall(r"version = \"(.+)\"", out)[0]
 
             pkg.pkg = (name, version)
@@ -445,23 +450,6 @@ def get_workflow_id():
     res = requests.get(cmd)
     workflow_id = res.json()["workflow_runs"][0]["workflow_id"]
     return workflow_id
-
-
-def check_release_flag(release_flag=None, release_version=None):
-    if release_flag == "1":
-        with open("setup.py") as f:
-            out = f.read()
-            snappi_convergence = re.findall(
-                r"\"snappi_convergence==(.+)\"", out
-            )[0]
-        release_version = release_version.replace("v", "")
-        with open("version.txt", "w+") as f:
-            f.write("version: {}\n".format(release_version))
-            f.write("snappi_convergence: {}\n".format(snappi_convergence))
-    else:
-        workflow_id = get_workflow_id()
-        with open("version.txt", "w+") as f:
-            f.write("workflow_id: {}".format(workflow_id))
 
 
 def install_requests(path):

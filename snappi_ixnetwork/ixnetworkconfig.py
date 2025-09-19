@@ -5,6 +5,7 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.logger import get_ixnet_logger
 import snappi
 
+
 class IxNetworkConfig(object):
     """
     Represents the IxNetwork configuration, managing chassis chains.
@@ -17,31 +18,30 @@ class IxNetworkConfig(object):
     secondary1.sequence_id = "2"
     secondary1.cable_length = "6"
     """
-    _TYPE = {
-        "chassis_chains": {"type": "ChassisChainIter"}
-    }
+
+    _TYPE = {"chassis_chains": {"type": "ChassisChainIter"}}
 
     def __init__(self, ixnetworkapi):
         """
         Initializes the IxNetworkConfig object.
-        
+
         :param ixnetworkapi: API object for interacting with IxNetwork.
         :param chassis_chains: Object to add new chassis chain objects
         """
         print(f"End {object.__class__}")
         self._api = ixnetworkapi
         self._chassis_chains = None
-    
+
     @property
     def chassis_chains(self):
         """
         Retrieves the chassis chains configuration.
-        
+
         :return: ChassisChainIter object.
         """
         if self._chassis_chains is None:
             self._chassis_chains = ChassisChainIter()
-    
+
         return self._chassis_chains
 
     def config(self):
@@ -50,17 +50,19 @@ class IxNetworkConfig(object):
         """
         self.logger.info("Configuring IxNConfig")
 
+
 class ChassisChain(object):
     """
     Represents a chassis chain configuration in the network.
     """
+
     _TYPES = {
         "primary": {"type": str},
         "topology": {"type": str},
-            "enum": [
-                "daisy",
-                "star",
-            ],
+        "enum": [
+            "daisy",
+            "star",
+        ],
         "secondary": {"type": "SecondaryIter"},
     }
 
@@ -72,7 +74,7 @@ class ChassisChain(object):
     def __init__(self, primary=None, topology=None):
         """
         Initializes a ChassisChain object.
-        
+
         :param primary: Primary chassis.
         :param topology: Network topology (daisy or star).
         """
@@ -84,7 +86,7 @@ class ChassisChain(object):
     def set(self, primary=None, topology=None):
         """
         Sets the primary chassis and topology.
-        
+
         :param primary: Primary chassis.
         :param topology: Network topology (daisy or star).
         """
@@ -102,14 +104,14 @@ class ChassisChain(object):
     def primary(self, value):
         """
         Sets the primary chassis.
-        
+
         :param value: Primary chassis value.
         :raises TypeError: If value is None.
         """
         if value is None:
             raise TypeError("Cannot set required property primary as None")
         self._primary = value
-        
+
     @property
     def topology(self):
         """
@@ -121,7 +123,7 @@ class ChassisChain(object):
     def topology(self, value):
         """
         Sets the topology type.
-        
+
         :param value: Topology type (daisy or star).
         :raises TypeError: If value is None.
         """
@@ -136,13 +138,15 @@ class ChassisChain(object):
         """
         if self._secondary is None:
             self._secondary = SecondaryIter()
-    
+
         return self._secondary
+
 
 class ChassisChainIter(snappi.snappi.OpenApiIter):
     """
     Iterator class for managing multiple ChassisChain objects.
     """
+
     def __init__(self):
         super(ChassisChainIter, self).__init__()
 
@@ -181,14 +185,15 @@ class ChassisChainIter(snappi.snappi.OpenApiIter):
         self._add(item)
         return item
 
+
 class Secondary(object):
     """
-        Initializes a Secondary chassis object.
-        
-        :param location: Secondary chassis.
-        :param sequence_id: Sequence ID of the secondary chassis.
-        :param cable_length: Cable Length of the secondary chassis.
-        """
+    Initializes a Secondary chassis object.
+
+    :param location: Secondary chassis.
+    :param sequence_id: Sequence ID of the secondary chassis.
+    :param cable_length: Cable Length of the secondary chassis.
+    """
 
     """
     Represents a secondary chassis configuration.
@@ -201,7 +206,6 @@ class Secondary(object):
 
     _REQUIRED = ("location",)
 
-
     def __init__(self, location=None, sequence_id=None, cable_length=None):
         super(Secondary, self).__init__()
         self._location = location
@@ -212,7 +216,7 @@ class Secondary(object):
         self._location = location
         self._sequence_id = sequence_id
         self._cable_length = cable_length
-        
+
     @property
     def location(self):
         return self._location
@@ -232,7 +236,7 @@ class Secondary(object):
         if value is None:
             raise TypeError("Cannot set required property sequence_id as None")
         self._sequence_id = value
-    
+
     @property
     def cable_length(self):
         return self._cable_length
@@ -240,13 +244,17 @@ class Secondary(object):
     @cable_length.setter
     def cable_length(self, value):
         if value is None:
-            raise TypeError("Cannot set required property cable_length as None")
+            raise TypeError(
+                "Cannot set required property cable_length as None"
+            )
         self._cable_length = value
-    
+
+
 class SecondaryIter(snappi.snappi.OpenApiIter):
     """
     Iterator class for managing multiple Secondary objects.
     """
+
     def __init__(self):
         super(SecondaryIter, self).__init__()
 
@@ -267,11 +275,19 @@ class SecondaryIter(snappi.snappi.OpenApiIter):
             raise Exception("Item is not an instance of Port")
 
     def secondary(self, location=None, sequence_id=None, cable_length=None):
-        item = Secondary(location=location, sequence_id=sequence_id, cable_length=cable_length)
+        item = Secondary(
+            location=location,
+            sequence_id=sequence_id,
+            cable_length=cable_length,
+        )
         self._add(item)
         return self
 
     def add(self, location=None, sequence_id=None, cable_length=None):
-        item = Secondary(location=location, sequence_id=sequence_id, cable_length=cable_length)
+        item = Secondary(
+            location=location,
+            sequence_id=sequence_id,
+            cable_length=cable_length,
+        )
         self._add(item)
         return item
