@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 [project]
 # Package identity
 name = "snappi_ixnetwork"
-version = "1.34.1"
+version = "1.34.2"
 dynamic = ["dependencies"]
 
 # Metadata
@@ -35,7 +35,7 @@ classifiers = [
 ]
 
 [tool.setuptools]
-packages    = ["snappi_ixnetwork"]
+packages    = ["snappi_ixnetwork", "snappi_ixnetwork.device"]
 include-package-data = true
 
 # Dynamic fields (populated from code/files)
