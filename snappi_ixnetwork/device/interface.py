@@ -70,7 +70,7 @@ class Ethernet(Base):
             self._ngpf.ether_v4gateway_map[eth_name].append(
                 ipv4_address.gateway
             )
-            if self._ngpf.is_ip_allowed == False:
+            if self._ngpf.is_ip_restricted(eth_name) == True:
                 ixn_ip = None
                 self._ngpf.set_device_info(ipv4_address, ixn_ip)
             else:
@@ -98,7 +98,7 @@ class Ethernet(Base):
             self._ngpf.ether_v6gateway_map[eth_name].append(
                 ipv6_address.gateway
             )
-            if self._ngpf.is_ip_allowed == False:
+            if self._ngpf.is_ip_restricted(eth_name) == True:
                 ixn_ip = None
                 self._ngpf.set_device_info(ipv6_address, ixn_ip)
             else:
