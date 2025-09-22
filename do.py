@@ -294,9 +294,14 @@ def coverage_mail():
 
 def dist():
     clean()
+    with open("requirements.txt", 'r') as f_in:
+        lines = f_in.readlines()
+    # Write all lines back to the file except the first one
+    with open("requirements.txt", 'w') as f_out:
+        f_out.writelines(lines[1:])
     run(
         [
-            py() + " setup.py sdist bdist_wheel",
+            py() + " -m build",
         ]
     )
     print(os.listdir("dist"))
@@ -364,9 +369,9 @@ def pkg():
     try:
         return pkg.pkg
     except AttributeError:
-        with open("setup.py") as f:
+        with open("pyproject.toml") as f:
             out = f.read()
-            name = re.findall(r"pkg_name = \"(.+)\"", out)[0]
+            name = re.findall(r"name = \"(.+)\"", out)[0]
             version = re.findall(r"version = \"(.+)\"", out)[0]
 
             pkg.pkg = (name, version)
@@ -445,23 +450,6 @@ def get_workflow_id():
     res = requests.get(cmd)
     workflow_id = res.json()["workflow_runs"][0]["workflow_id"]
     return workflow_id
-
-
-def check_release_flag(release_flag=None, release_version=None):
-    if release_flag == "1":
-        with open("setup.py") as f:
-            out = f.read()
-            snappi_convergence = re.findall(
-                r"\"snappi_convergence==(.+)\"", out
-            )[0]
-        release_version = release_version.replace("v", "")
-        with open("version.txt", "w+") as f:
-            f.write("version: {}\n".format(release_version))
-            f.write("snappi_convergence: {}\n".format(snappi_convergence))
-    else:
-        workflow_id = get_workflow_id()
-        with open("version.txt", "w+") as f:
-            f.write("workflow_id: {}".format(workflow_id))
 
 
 def install_requests(path):

@@ -1,2 +1,55 @@
 [tool.black]
 line-length = 79
+[build-system]
+requires = ["setuptools>=65.5.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# Package identity
+name = "snappi_ixnetwork"
+version = "1.34.3"
+dynamic = ["dependencies"]
+
+# Metadata
+description = "The Snappi IxNetwork Open Traffic Generator Python Package"
+readme = "readme.md"
+requires-python = ">=3.7,<4"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Keysight Technologies", email = "andy.balogh@keysight.com" }
+]
+keywords = ["snappi", "ixnetwork", "testing", "open traffic generator", "automation"]
+
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Testing :: Traffic Generation",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12"
+]
+
+[tool.setuptools]
+packages    = ["snappi_ixnetwork", "snappi_ixnetwork.device"]
+include-package-data = true
+
+# Dynamic fields (populated from code/files)
+[tool.setuptools.dynamic]
+dependencies = { file = "requirements.txt" }
+
+[project.optional-dependencies]
+testing   = [
+    "snappi==1.34.1",
+    "pytest",
+    "mock",
+    "dpkt==1.9.4",
+]
+
+[project.urls]
+Repository = "https://github.com/open-traffic-generator/snappi-ixnetwork"
+
