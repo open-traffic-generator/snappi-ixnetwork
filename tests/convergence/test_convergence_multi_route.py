@@ -1,5 +1,5 @@
 import pytest
-from bgp_convergence_config_multi_routes import bgp_convergence_multi_routes_config # noqa
+from bgp_convergece_config_ipv6 import bgp_convergence_multi_routes_ipv6_config # noqa
 
 PRIMARY_ROUTES_NAME = "rx_rr"
 PRIMARY_PORT_NAME = "rx"
@@ -7,7 +7,7 @@ PRIMARY_PORT_NAME = "rx"
 # @pytest.mark.skip(
 #     reason="WIP"
 # )
-def test_convergence(utils, api, bgp_convergence_multi_routes_config):
+def test_convergence(utils, api, bgp_convergence_multi_routes_ipv6_config):
     """
     1. set convergence config & start traffic
     Scenario 1:
@@ -19,11 +19,11 @@ def test_convergence(utils, api, bgp_convergence_multi_routes_config):
     """
     
     # convergence config
-    bgp_convergence_multi_routes_config.events.cp_events.enable = True
-    bgp_convergence_multi_routes_config.events.dp_events.enable = True
-    bgp_convergence_multi_routes_config.events.dp_events.rx_rate_threshold = 90
+    bgp_convergence_multi_routes_ipv6_config.events.cp_events.enable = True
+    bgp_convergence_multi_routes_ipv6_config.events.dp_events.enable = True
+    bgp_convergence_multi_routes_ipv6_config.events.dp_events.rx_rate_threshold = 90
 
-    api.set_config(bgp_convergence_multi_routes_config)
+    api.set_config(bgp_convergence_multi_routes_ipv6_config)
     print("Starting all protocols ...")
     ps = api.control_state()
     ps.choice = ps.PROTOCOL
@@ -60,14 +60,14 @@ def test_convergence(utils, api, bgp_convergence_multi_routes_config):
     flow_metrics = api.get_metrics(req).flow_metrics
     utils.print_stats(flow_stats=flow_metrics)
 
-    # BGPv4 metrics
+    # BGPv6 metrics
     req = api.metrics_request()
-    req.bgpv4.peer_names = []
-    bgpv4_metrics = api.get_metrics(req).bgpv4_metrics
-    utils.print_stats(bgpv4_stats=bgpv4_metrics)
+    req.bgpv6.peer_names = []
+    bgpv6_metrics = api.get_metrics(req).bgpv6_metrics
+    utils.print_stats(bgpv6_stats=bgpv6_metrics)
 
     # Validate all BGPv4 sessions are up
-    for bgp_metric in bgpv4_metrics:
+    for bgp_metric in bgpv6_metrics:
         assert bgp_metric.session_state == "up"
 
     # Withdraw routes from primary path

@@ -843,7 +843,7 @@ class Api(snappi.Api):
                 event["type"] = "link_down"
         else:
             for route_name in self.ixn_routes.names:
-                if re.search(route_name, event_name) is not None:
+                if re.search(route_name, event_name) is not None: 
                     event["source"] = route_name
                     event_type = event_name.split(route_name)[-1]
                     if event_type.strip().lower() == "disable":
@@ -852,6 +852,15 @@ class Api(snappi.Api):
                         event_type = "route_advertise"
                     event["type"] = event_type
                     break
+                else:
+                    event["source"] = route_name
+                    if re.search("Disable", event_name) is not None:
+                        event_type = "route_withdraw"
+                    else:
+                        event_type = "route_advertise"
+                    event["type"] = event_type
+                    break
+
         return event
 
     def _set_result_value(
