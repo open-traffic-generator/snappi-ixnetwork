@@ -852,15 +852,6 @@ class Api(snappi.Api):
                         event_type = "route_advertise"
                     event["type"] = event_type
                     break
-                else:
-                    event["source"] = route_name
-                    if re.search("Disable", event_name) is not None:
-                        event_type = "route_withdraw"
-                    else:
-                        event_type = "route_advertise"
-                    event["type"] = event_type
-                    break
-
         return event
 
     def _set_result_value(
