@@ -558,7 +558,7 @@ class TrafficItem(CustomField):
         myfilter = [{"property": "name", "regex": ".*"}]
         url, payload = self._get_search_payload(
             "/traffic",
-            "(?i)^(trafficItem|egressOnlyTracking|configElement|frameRate"
+            "(?i)^(trafficItem|enableEgressOnlyTracking|egressOnlyTracking|enableEgressOnlyTxStats|configElement|frameRate"
             "|frameSize|transmissionControl|stack|field|highLevelStream"
             "|tracking|transmissionDistribution)$",
             [
@@ -728,6 +728,9 @@ class TrafficItem(CustomField):
         # egress only tracking
         if len(config.egress_only_tracking) > 0:
             tr["egressOnlyTracking"] = []
+            tr["enableEgressOnlyTracking"] = True
+            # enable Tx statistics
+            tr["enableEgressOnlyTxStats"] = True
         for snappi_eotr in config.egress_only_tracking:
             eotr_port_name = snappi_eotr.port_name
             eotr_xpath = (
@@ -744,21 +747,35 @@ class TrafficItem(CustomField):
             eotr = tr["egressOnlyTracking"][-1]
             # signature
             for f in snappi_eotr.filters:
+                tr["trafficItem"][-1]["enableMacsecEgressOnlyAutoConfig"] = False
                 if f.choice == "auto_macsec":
                     # Tweleve bytes 00 AB CD EF 00 00 00 00 00 00 PQ RS signature is set at offset 2.
                     # 0xABCDEF is value of common last three bytes of all ethernet addresses of all MACsec devices with "encrypt_only" crypto engine.
                     #
                     # 0xPQRS is ethernet type. When MACsec header is the first ethernet type, it is 0x88E5
                     # When clear text VLAN enabled, it is TPID e.g. 0x8810.
+                    tr["trafficItem"][-1]["enableMacsecEgressOnlyAutoConfig"] = True
                     self.logger.debug(
-                        "MACsec auto signature is applied as filter for egress only tracking at port %s"
+                        "Auto MACsec filter. MACsec auto signature is applied as filter for egress only tracking at port %s"
                         % eotr_port_name
                     )
+                elif f.choice == "none":
+                    msg =  (
+                        "None filter. Egress only traffic signature is reset so that all packets are filtered in at port %s. Please ensure that there is no device with protocols configured on this port or this port is not part of ann LACP LAG."
+                        % eotr_port_name
+                    )
+                    self._api.warning(msg)
+                    # Filter in all packets
+                    eotr["signatureLengthType"] = "fourByte"
+                    eotr["signatureOffset"] = 0
+                    eotr["signatureMask"] = "FFFFFFFF"
+                    eotr["signatureValue"] = "00000000"
                 else:
-                    self.logger.debug(
-                        "Unknown filter. Only MACsec auto signature is is supported for egress only tracking at port %s"
+                    msg = (
+                        "Unknown filter. Only auto_macsec and none filtes are supported for egress only tracking at port %s"
                         % eotr_port_name
                     )
+                    raise Exception(msg)
 
             snappi_eotr_mts = snappi_eotr.metric_tags
             if len(snappi_eotr_mts) == 0:
@@ -774,8 +791,8 @@ class TrafficItem(CustomField):
                 )
                 raise Exception(msg)
 
-            # egress only tracking
-            eotr["egress"] = []
+            # egress only tracking V2 with Tx offset adjustment capability
+            eotr["egressV2"] = []
             mt_index = 0
             self.port_egress_only_tracking[eotr_port_name] = None
             per_port_mts = []
@@ -788,19 +805,17 @@ class TrafficItem(CustomField):
             per_port_mt_dict_result["metric_tags"] = []
 
             for snappi_mt in snappi_eotr_mts:
-                result = self.eotr_mt_bit_offset_length_to_4byte_clear_mask(
-                    snappi_mt.offset, snappi_mt.length
-                )
+                result = self.eotr_mt_bit_offset_length_to_4byte_clear_mask(snappi_mt.rx_offset, snappi_mt.length)
                 if len(result) == 2:
-                    mt_dict = {"arg1": result[0], "arg2": result[1]}
-                    eotr["egress"].append(mt_dict)
-                    mt_dict_entry_result = {
-                        "name": snappi_mt.name,
-                        "length": snappi_mt.length,
-                    }
-                    per_port_mt_dict_result["metric_tags"].append(
-                        mt_dict_entry_result
-                    )
+                    # Tx offset adjsutment is required when offsets of tracked metric is not same in Tx/ Rx packets. Unit bytes.
+                    tx_offset_adjustment = 0
+                    if snappi_mt.tx_offset.choice == "custom" and snappi_mt.tx_offset.custom.value is not None:
+                        tx_offset_adjustment = self.word_aligned_byte_offset(snappi_mt.tx_offset.custom.value) - result[0]
+
+                    mt_dict = { "arg1": result[0], "arg2": result[1], "arg3": tx_offset_adjustment }
+                    eotr["egressV2"].append(mt_dict)
+                    mt_dict_entry_result = { "name": snappi_mt.name, "length": snappi_mt.length }
+                    per_port_mt_dict_result["metric_tags"].append(mt_dict_entry_result)
                 else:
                     raise ValueError(
                         "%s metric tag has length error" % snappi_mt.name
@@ -813,9 +828,12 @@ class TrafficItem(CustomField):
             self.egress_only_tracking_index += 1
         return tr
 
-    def eotr_mt_bit_offset_length_to_4byte_clear_mask(
-        self, offset_in_bits, length_in_bits
-    ):
+    def word_aligned_byte_offset(self, offset_in_bits):
+        # Word (2 bytes) aligned offset of the first byte in mask. Offset starts from beginning of frame.
+        word_aligned_first_byte_offset = offset_in_bits // 16
+        return word_aligned_first_byte_offset*2
+
+    def eotr_mt_bit_offset_length_to_4byte_clear_mask(self, offset_in_bits, length_in_bits):
         result = {}
 
         if length_in_bits < 1:
@@ -825,8 +843,6 @@ class TrafficItem(CustomField):
             # maximum length 4 bytes i.e. 32 bits
             return []
 
-        # Word (2 bytes) aligned offset of the first byte in mask. Offset starts from beginning of frame.
-        word_aligned_first_byte_offset = offset_in_bits // 16
         # Bit offset of the first clear mask bit within the first byte in mask
         first_bit_offset = offset_in_bits % 16
 
@@ -851,7 +867,7 @@ class TrafficItem(CustomField):
         mask_bytes = [mask_byte0, mask_byte1, mask_byte2, mask_byte3]
         mask_bytes_str = "".join("{:02x}".format(x) for x in mask_bytes)
 
-        return [word_aligned_first_byte_offset * 2, mask_bytes_str]
+        return [self.word_aligned_byte_offset(offset_in_bits), mask_bytes_str]
 
     def config_raw_stack(self, xpath, packet):
         ce_path = "%s/configElement[1]" % xpath

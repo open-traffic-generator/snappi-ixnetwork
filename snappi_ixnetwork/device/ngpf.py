@@ -49,6 +49,7 @@ class Ngpf(Base):
         self._ixn_topo_objects = {}
         self.ether_v4gateway_map = {}
         self.ether_v6gateway_map = {}
+        self.ether_ip_restriction_map = {}
         self.logger = get_ixnet_logger(__name__)
         self._ethernet = Ethernet(self)
         self._bgp = Bgp(self)
@@ -59,7 +60,6 @@ class Ngpf(Base):
         self._loop_back = LoopbackInt(self)
         self.compactor = Compactor(self.api)
         self._createixnconfig = CreateIxnConfig(self)
-        self.is_ip_allowed = True
 
     def config(self):
         self._ixn_topo_objects = {}
@@ -67,6 +67,7 @@ class Ngpf(Base):
         self._ixn_config = dict()
         self.ether_v4gateway_map = {}
         self.ether_v6gateway_map = {}
+        self.ether_ip_restriction_map = {}
         self._chain_parent_dgs = []
         self.loopback_parent_dgs = []
         self._ixn_config["xpath"] = "/"
@@ -156,22 +157,32 @@ class Ngpf(Base):
             self.compactor.compact(ixn_topo.get("deviceGroup"))
             self._set_dev_compacted(ixn_topo.get("deviceGroup"))
 
-    def _is_ip_allowed(self):
-        is_allowed = True
-        self.logger.debug(
-            "Checking if IPv4/ v6 is allowed when MACsec is present"
-        )
+    # internal API
+    def _set_ip_restriction(self):
+        self.logger.debug("Checking if IPv4/ v6 is restricted when MACsec is present")
         for device in self.api.snappi_config.devices:
-            is_allowed = self._macsec._is_ip_allowed(device)
-            if is_allowed == False:
-                break
-        return is_allowed
+            self._macsec.set_ip_restriction(device)
+
+    # external API to be called e.g. from MACsec
+    def set_ip_restricted(self, ethernet_name):
+        self.ether_ip_restriction_map[ethernet_name] = True
+        self.logger.debug("Set IPv4/ v6 restricted for ethernet %s e.g. when MACsec is present" % ethernet_name)
+
+    # external API to be called e.g. from interace
+    def is_ip_restricted(self, ethernet_name):
+        is_restricted = False
+        try:
+            is_restricted = self.ether_ip_restriction_map[ethernet_name]
+        except KeyError:
+            pass
+        self.logger.debug("IPv4/ v6 restricted for ethernet %s: %s" % (ethernet_name, "True" if is_restricted == True else "False"))
+        return is_restricted
 
     def _configure_device_group(self, ixn_topos):
         """map ethernet with a ixn deviceGroup with multiplier = 1"""
         port_name = None
         device_chain_dgs = {}
-        self.is_ip_allowed = self._is_ip_allowed()
+        self._set_ip_restriction()
         for device in self.api.snappi_config.devices:
             chin_dgs = {}
             ethernets = device.get("ethernets")
