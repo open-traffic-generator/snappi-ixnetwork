@@ -3,7 +3,7 @@ import time
 import re
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.logger import get_ixnet_logger
-from ixnetwork_restpy import BatchFind
+from ixnetwork_restpy import BatchFind, BatchAdd
 
 
 class Vport(object):
@@ -260,19 +260,18 @@ class Vport(object):
         chassis_chains = self._api.ixnet_specific_config.chassis_chains
         if chassis_chains:
             for chassis_chain in chassis_chains:
-                add_addresses.append(chassis_chain.primary)
-                check_addresses.append(chassis_chain.primary)
+                add_addresses.add(chassis_chain.primary)
+                check_addresses.add(chassis_chain.primary)
                 for secondary in chassis_chain.secondary:
-                    add_addresses.append(secondary.location)
-                    check_addresses.append(secondary.location)
-        add_addresses = set(add_addresses)
-        check_addresses = set(check_addresses)
+                    add_addresses.add(secondary.location)
+                    check_addresses.add(secondary.location)
         if len(add_addresses) > 0:
             with Timer(
                 self._api, "Add location hosts [%s]" % ", ".join(add_addresses)
             ):
-                for add_address in add_addresses:
-                    chassis.add(Hostname=add_address)
+                with BatchAdd(self._api._ixnetwork):
+                    for add_address in add_addresses:
+                        chassis.add(Hostname=add_address)
         if len(check_addresses) > 0:
             with Timer(
                 self._api,
