@@ -130,7 +130,7 @@ class Ngpf(Base):
         # Configure all RoCEv2 interface before configure protocols
         for device in self.api.snappi_config.devices:
             self._rocev2.config(device)
-
+        
         # Configure all Isis interface before configure protocols
         for device in self.api.snappi_config.devices:
             self._isis.config(device)
@@ -156,6 +156,9 @@ class Ngpf(Base):
         for ixn_topo in self._ixn_topo_objects.values():
             self.compactor.compact(ixn_topo.get("deviceGroup"))
             self._set_dev_compacted(ixn_topo.get("deviceGroup"))
+
+        if self.api._port_compaction:
+            self.compactor.compact(self._ixn_config.get("topology"), True)
 
     # internal API
     def _set_ip_restriction(self):
