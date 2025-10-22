@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 [project]
 # Package identity
 name = "snappi_ixnetwork"
-version = "1.39.2"
+version = "1.40.0"
 dynamic = ["dependencies"]
 
 # Metadata
@@ -44,7 +44,7 @@ dependencies = { file = "requirements.txt" }
 
 [project.optional-dependencies]
 testing   = [
-    "snappi==1.39.0",
+    "snappi==1.40.0",
     "pytest",
     "mock",
     "dpkt==1.9.4",
