@@ -35,5 +35,14 @@ def test_compaction_traffic_device(api, b2b_raw_config):
     f1.tx_rx.device.rx_names = [ip2.name]
     f1.packet.ethernet().vlan().tcp()
     api.set_config(config)
+
+    assert (api._ixnetwork.Topology.find()[0]
+            .DeviceGroup.find()
+            .Multiplier) == 1
+    
+    assert (api._ixnetwork.Topology.find()[0]
+            .DeviceGroup.find()
+            .Count) == 2
+    
     # Set the flag back to false else other tests will fail
     api._enable_port_compaction(False)

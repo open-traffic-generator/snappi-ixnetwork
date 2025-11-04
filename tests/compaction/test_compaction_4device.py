@@ -44,6 +44,15 @@ def test_compaction_4device(api, b2b_raw_config, utils):
     f1.packet.ethernet().vlan().tcp()
 
     api.set_config(b2b_raw_config)
+
+    assert (api._ixnetwork.Topology.find()[0]
+            .DeviceGroup.find()
+            .Multiplier) == 4
+    
+    assert (api._ixnetwork.Topology.find()[0]
+            .DeviceGroup.find()
+            .Count) == 8
+    
     # Set the flag back to false else other tests will fail
     api._enable_port_compaction(False)
 

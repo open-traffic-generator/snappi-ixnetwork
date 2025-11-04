@@ -83,6 +83,15 @@ def test_compaction_4port(api, b2b_raw_config_4port, utils):
     flow_2.packet.ethernet().vlan().tcp()
 
     api.set_config(b2b_raw_config_4port)
+
+    assert (api._ixnetwork.Topology.find()[0]
+            .DeviceGroup.find()
+            .Multiplier) == 1
+    
+    assert (api._ixnetwork.Topology.find()[0]
+            .DeviceGroup.find()
+            .Count) == 4
+
     # Set the flag back to false else other tests will fail
     api._enable_port_compaction(False)
 
