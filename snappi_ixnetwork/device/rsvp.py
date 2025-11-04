@@ -120,6 +120,8 @@ class Rsvp(Base):
         self.logger.debug("Configuring RSVP Interfaces")
         for interface in interfaces:
             ipv4_name = interface.get("ipv4_name")
+            if ipv4_name is None:
+                return 
             self._ngpf.working_dg = self._ngpf.api.ixn_objects.get_working_dg(
                 ipv4_name
             )
@@ -131,6 +133,8 @@ class Rsvp(Base):
             )
             self._ngpf.set_device_info(interface, ixn_rsvp)
             neighbor_ip = interface.get("neighbor_ip")
+            if neighbor_ip is None:
+                return
             ixn_rsvp["dutIp"] = self.multivalue(neighbor_ip)
             label_space_start = interface.get("label_space_start")
             ixn_rsvp["labelSpaceStart"] = self.multivalue(label_space_start)
@@ -166,6 +170,7 @@ class Rsvp(Base):
             )
             self._ngpf.set_device_info(interface, ixn_rsvp)
             if interface.get("p2p_egress_ipv4_lsps") is not None:
+                ixn_rsvp["enableP2PEgress"] = self.multivalue(True)
                 self._configure_p2p_egress_lsps(ixn_rsvp, interface, rsvp_name)
             else:
                 ixn_rsvp["enableP2PEgress"] = self.multivalue(False)
@@ -175,6 +180,8 @@ class Rsvp(Base):
                 if ingress_lsp_count > 0:
                     ixn_rsvp["ingressP2PLsps"] = self.multivalue(ingress_lsp_count) # noqa
                     self._configure_p2p_ingress_lsps(ixn_rsvp, p2p_ingress_lsp, rsvp_name)  # noqa
+                else:
+                    ixn_rsvp["ingressP2PLsps"] = self.multivalue(0)
             
     def _configure_p2p_egress_lsps(self, ixn_rsvp, p2p_egress_lsps, rsvp_name):
         self.logger.debug("Configuring RSVP P2P Egress IPv4 Interfaces")
