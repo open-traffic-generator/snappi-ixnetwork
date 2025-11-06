@@ -119,5 +119,30 @@ def test_rsvp_traffic(api, b2b_raw_config, utils):
     f2_ip_pkt.dst.value = p1d1_ipv4.address
 
     api.set_config(b2b_raw_config)
+    # utils.start_traffic(api, b2b_raw_config)
+
+    # # RSVP metrics
+    # req = api.metrics_request()
+    # req.isis.router_names = []
+    # # req.isis.column_names = enums[:3]
+    # results = api.get_metrics(req)
+    # print(results)
+
+    # control_state = api.control_state()
+    # control_state.choice = control_state.PROTOCOLS
+    # control_state.protocols.choice = control_state.protocols.START_ALL_PROTOCOLS  # noqa
+    # res = api.set_control_state(control_state)
+    # if len(res.warnings) > 0:
+    #     print("Warnings: {}".format(res.warnings))
+    # time.sleep(10)
+
+    # control_state = api.control_state()
+    # control_state.choice = control_state.TRAFFIC
+    # control_state.traffic.choice = control_state.traffic.FLOW_TRANSMIT
+    # control_state.traffic.flow_transmit.state = control_state.traffic.flow_transmit.START  # noqa
+    # res = api.set_control_state(control_state)
+    # if len(res.warnings) > 0:
+    #     print("Warnings: {}".format(res.warnings))
+
 
 

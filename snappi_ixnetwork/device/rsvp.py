@@ -165,13 +165,14 @@ class Rsvp(Base):
             if not self._is_valid(ipv4_name):
                 continue
             ixn_ipv4 = self._ngpf.api.ixn_objects.get_object(ipv4_name)
+            lsp_name = rsvp_name + "-" + "Lsps"
             ixn_rsvp = self.create_node_elemet(
-                ixn_ipv4, "rsvpteLsps", rsvp_name + "-" + "Lsps"
+                ixn_ipv4, "rsvpteLsps", lsp_name
             )
             self._ngpf.set_device_info(interface, ixn_rsvp)
             if interface.get("p2p_egress_ipv4_lsps") is not None:
                 ixn_rsvp["enableP2PEgress"] = self.multivalue(True)
-                self._configure_p2p_egress_lsps(ixn_rsvp, interface, rsvp_name)
+                self._configure_p2p_egress_lsps(interface, lsp_name)
             else:
                 ixn_rsvp["enableP2PEgress"] = self.multivalue(False)
             p2p_ingress_lsp = interface.get("p2p_ingress_ipv4_lsps")
@@ -183,13 +184,17 @@ class Rsvp(Base):
                 else:
                     ixn_rsvp["ingressP2PLsps"] = self.multivalue(0)
             
-    def _configure_p2p_egress_lsps(self, ixn_rsvp, p2p_egress_lsps, rsvp_name):
+    def _configure_p2p_egress_lsps(self, p2p_egress_lsps, lsp_name): # noqa
         self.logger.debug("Configuring RSVP P2P Egress IPv4 Interfaces")
-        ixn_rsvp_egress_lsp = self.create_node_elemet( 
-            ixn_rsvp, "rsvpP2PEgressLsps", rsvp_name + "-" + "egress" + "Lsps" # noqa
-        )
+        egress_lsp_name = p2p_egress_lsps.get("name")
+        if egress_lsp_name is None:
+            ixn_rsvp = self._ngpf.api.ixn_objects.get_object(lsp_name)
+            ixn_rsvp_egress_lsp = self.create_node_elemet( 
+                ixn_rsvp, "rsvpP2PEgressLsps", egress_lsp_name
+            )
         self._ngpf.set_device_info(p2p_egress_lsps, ixn_rsvp_egress_lsp)
         refresh_interval = p2p_egress_lsps.get("refresh_interval")
+        print("refresh_interval:", refresh_interval)
         ixn_rsvp_egress_lsp["refreshInterval"] = self.multivalue(refresh_interval) # noqa
         timeout_multiplier = p2p_egress_lsps.get("timeout_multiplier")
         ixn_rsvp_egress_lsp["timeoutMultiplier"] = self.multivalue(timeout_multiplier) # noqa

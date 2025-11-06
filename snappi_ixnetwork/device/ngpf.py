@@ -41,6 +41,7 @@ class Ngpf(Base):
         "Rsvp": "ipv4",
         "RsvpIpv4Interface": "ipv4",
         "RsvpLspIpv4Interface": "ipv4",
+        "RsvpLspIpv4InterfaceP2PEgressIpv4Lsp": "ipv4",
         "RsvpLspIpv4InterfaceP2PIngressIpv4Lsp": "ipv4",
     }
 
