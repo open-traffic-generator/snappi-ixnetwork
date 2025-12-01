@@ -104,6 +104,7 @@ class TrafficItem(CustomField):
         "macsec": "macsec",
         "payloadProtocolType": "payloadProtocolType",
         "icmpv2": "icmp",
+        "icmpv6": "icmpv6",
     }
 
     _HEADER_TO_TYPE = {
@@ -124,6 +125,7 @@ class TrafficItem(CustomField):
         "macsec": "macsec",
         "payloadProtocolType": "payloadProtocolType",
         "icmp": "icmpv2",
+        "icmpv6": "icmpv6",
     }
 
     _ETHERNETPAUSEUHD = {
@@ -422,6 +424,16 @@ class TrafficItem(CustomField):
         "identifier": "icmpv2.message.identifier",
         "sequence_number": "icmpv2.message.sequenceNumber",
         "order": ["type", "code", "checksum", "identifier", "sequence_number"],
+    }
+
+    _ICMPV6 = {
+        "echo": CustomField._process_icmpv6_echo,
+        "type": "icmpv6.icmpv6Message.icmpv6MessegeType.echoRequestMessage.messageType-17",
+        "code": "icmpv6.icmpv6Message.icmpv6MessegeType.echoRequestMessage.code-18",
+        "identifier": "icmpv6.icmpv6Message.icmpv6MessegeType.echoRequestMessage.identifier-20",
+        "sequence_number": "icmpv6.icmpv6Message.icmpv6MessegeType.echoRequestMessage.sequenceNumber-21",
+        "checksum": "icmpv6.icmpv6Message.icmpv6MessegeType.echoRequestMessage.checksum-19",
+        "order": ["type", "code", "identifier", "sequence_number", "checksum"],
     }
 
     def __init__(self, ixnetworkapi):
@@ -1183,7 +1195,11 @@ class TrafficItem(CustomField):
         for i, f in enumerate(field_map["order"]):
             if not isinstance(field_map[f], str):
                 continue
-            fmap = "%s-%s" % (field_map[f], i + 1)
+            # xpath has been defined. This is needed in certain cases. e.g. ICMPv6
+            if "-" in field_map[f]:
+                fmap = field_map[f]
+            else:
+                fmap = "%s-%s" % (field_map[f], i + 1)
             fields.append({"xpath": "%s/field[@alias = '%s']" % (xpath, fmap)})
         return fields
 

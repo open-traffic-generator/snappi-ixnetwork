@@ -1,7 +1,7 @@
 
 def test_icmp_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     """
-    Configure three raw ICMP flows with:
+    Configure raw ICMP flows with:
     - fixed pattern for all ICMP fields
     - counter pattern for all ICMP fields
     Validate using utils.validate_config.

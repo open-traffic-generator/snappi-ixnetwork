@@ -147,3 +147,28 @@ class CustomField(object):
             tr_instance._config_field_pattern(
                 property, ixn_fields[ind], None, True
             )
+
+    @classmethod
+    def _process_icmpv6_echo(
+        cls,
+        tr_instance,
+        ixn_fields,
+        field_names,
+        snappi_header,
+        icmpv6,
+        stacks=None,
+    ):
+
+        echo = snappi_header.get(icmpv6, True)
+        field_map = tr_instance._ICMPV6
+        prop_types = sorted(echo._TYPES)
+        prop_types.reverse()
+        for field in prop_types:
+            property = echo.get(field, True)
+            try:
+                ind = field_names.index(field_map[field][:-3])
+            except Exception:
+                continue
+            tr_instance._config_field_pattern(
+                property, ixn_fields[ind], None, True
+            )
