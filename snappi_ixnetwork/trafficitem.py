@@ -1149,7 +1149,6 @@ class TrafficItem(CustomField):
         header_index=None,
         is_raw_traffic=False,
     ):
-        # import pdb; pdb.set_trace()
         
         if snappi_header is not None:
             field_map = getattr(
@@ -1220,7 +1219,6 @@ class TrafficItem(CustomField):
     def _configure_stack_fields(
         self, ixn_fields, snappi_header, stacks, is_raw_traffic=False
     ):
-        # import pdb; pdb.set_trace()
         fields = [{"xpath": f["xpath"]} for f in ixn_fields]
         field_names = [
             f["xpath"].split(" = ")[-1].strip("']").split("-")[0]
