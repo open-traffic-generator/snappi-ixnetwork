@@ -103,6 +103,7 @@ class TrafficItem(CustomField):
         "ethernetARP": "arp",
         "macsec": "macsec",
         "payloadProtocolType": "payloadProtocolType",
+        "icmpv2": "icmp",
     }
 
     _HEADER_TO_TYPE = {
@@ -122,6 +123,7 @@ class TrafficItem(CustomField):
         "arp": "ethernetARP",
         "macsec": "macsec",
         "payloadProtocolType": "payloadProtocolType",
+        "icmp": "icmpv2",
     }
 
     _ETHERNETPAUSEUHD = {
@@ -410,6 +412,16 @@ class TrafficItem(CustomField):
         "reserved1": "vxlan.header.reserved8",
         "order": ["flags", "reserved0", "vni", "reserved1"],
         "convert_int_to_hex": ["flags", "reserved0", "reserved1"],
+    }
+
+    _ICMP = {
+        "echo": CustomField._process_icmp_echo,
+        "type": "icmpv2.message.messageType",
+        "code": "icmpv2.message.codeValue",
+        "checksum": "icmpv2.message.icmpChecksum",
+        "identifier": "icmpv2.message.identifier",
+        "sequence_number": "icmpv2.message.sequenceNumber",
+        "order": ["type", "code", "checksum", "identifier", "sequence_number"],
     }
 
     def __init__(self, ixnetworkapi):
@@ -1137,6 +1149,8 @@ class TrafficItem(CustomField):
         header_index=None,
         is_raw_traffic=False,
     ):
+        # import pdb; pdb.set_trace()
+        
         if snappi_header is not None:
             field_map = getattr(
                 self,
@@ -1206,6 +1220,7 @@ class TrafficItem(CustomField):
     def _configure_stack_fields(
         self, ixn_fields, snappi_header, stacks, is_raw_traffic=False
     ):
+        # import pdb; pdb.set_trace()
         fields = [{"xpath": f["xpath"]} for f in ixn_fields]
         field_names = [
             f["xpath"].split(" = ")[-1].strip("']").split("-")[0]

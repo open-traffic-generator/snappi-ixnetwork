@@ -22,6 +22,7 @@ class CustomField(object):
         priority,
         stacks=None,
     ):
+        import pdb; pdb.set_trace()
         priority = snappi_header.get(priority, True)
         choice = priority.get("choice")
         field_map = tr_instance._IPV4
@@ -122,3 +123,49 @@ class CustomField(object):
         gtp_option.__setattr__("gtpv1option", header.gtpv1)
         gtp_option.__delattr__("gtpv1")
         new_headers.append(gtp_option)
+
+    @classmethod
+    def _process_icmp_echo(
+        cls,
+        tr_instance,
+        ixn_fields,
+        field_names,
+        snappi_header,
+        icmp,
+        stacks=None,
+    ):
+        import pdb; pdb.set_trace()
+
+        echo = snappi_header.get(icmp, True)
+        field_map = tr_instance._ICMP
+
+        type = echo.get("type")
+        type_obj = echo.get(type, True)
+        prop_types = sorted(type_obj._TYPES)
+        type_value = tr_instance._get_first_value(echo.get("type", True))
+        type_index = field_names.index(field_map["type"])
+        type_xpath = ixn_fields[type_index]
+        property = type_obj.get(type, True)
+        tr_instance._config_field_pattern(property, type_xpath, None, True)
+        # tr_instance._append_header(type_xpath, stacks, snappi_header, insert_header=True, header_index=type_index)
+    
+        code_value = tr_instance._get_first_value(echo.get("code", True))
+        code_index = field_names.index(field_map["code"])
+        code_xpath = ixn_fields[code_index]
+        # tr_instance._append_header(code_xpath, stacks, snappi_header, insert_header=True, header_index=code_index)
+       
+        checksum_value = tr_instance._get_first_value(echo.get("checksum", True))
+        checksum_index = field_names.index(field_map["checksum"])
+        checksum_xpath = ixn_fields[checksum_index]
+        # tr_instance._append_header(checksum_xpath, stacks, snappi_header, insert_header=True, header_index=checksum_index)
+        
+        identifier_value = tr_instance._get_first_value(echo.get("identifier", True))
+        identifier_index = field_names.index(field_map["identifier"])
+        identifier_xpath = ixn_fields[identifier_index]
+        # tr_instance._append_header(identifier_xpath, stacks, snappi_header, insert_header=True, header_index=identifier_index)
+        
+        sequence_number_value = tr_instance._get_first_value(echo.get("sequence_number", True))
+        sequence_number_index = field_names.index(field_map["sequence_number"])
+        sequence_number_xpath = ixn_fields[sequence_number_index]
+        # tr_instance._append_header(sequence_number_xpath, stacks, snappi_header, insert_header=True, header_index=sequence_number_index)
+        
