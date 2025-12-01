@@ -30,7 +30,6 @@ def test_icmp_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     icmp1.echo.identifier.value = icmp_identifier
     icmp1.echo.sequence_number.value = icmp_seq_num
 
-    # import pdb; pdb.set_trace()
     # # List pattern
     # flow2 = b2b_raw_config_vports.flows.flow(name="f2")[-1]
     # flow2.tx_rx.port.tx_name = tx_vport.name
