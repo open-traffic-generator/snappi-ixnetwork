@@ -166,7 +166,7 @@ class CustomField(object):
         for field in prop_types:
             property = echo.get(field, True)
             try:
-                ind = field_names.index(field_map[field][:-3])
+                ind = field_names.index(field_map[field].split("-")[0])
             except Exception:
                 continue
             tr_instance._config_field_pattern(
