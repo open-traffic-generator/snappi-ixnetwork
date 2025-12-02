@@ -122,3 +122,53 @@ class CustomField(object):
         gtp_option.__setattr__("gtpv1option", header.gtpv1)
         gtp_option.__delattr__("gtpv1")
         new_headers.append(gtp_option)
+
+    @classmethod
+    def _process_icmp_echo(
+        cls,
+        tr_instance,
+        ixn_fields,
+        field_names,
+        snappi_header,
+        icmp,
+        stacks=None,
+    ):
+
+        echo = snappi_header.get(icmp, True)
+        field_map = tr_instance._ICMP
+        prop_types = sorted(echo._TYPES)
+        prop_types.reverse()
+        for field in prop_types:
+            property = echo.get(field, True)
+            try:
+                ind = field_names.index(field_map[field])
+            except Exception:
+                continue
+            tr_instance._config_field_pattern(
+                property, ixn_fields[ind], None, True
+            )
+
+    @classmethod
+    def _process_icmpv6_echo(
+        cls,
+        tr_instance,
+        ixn_fields,
+        field_names,
+        snappi_header,
+        icmpv6,
+        stacks=None,
+    ):
+
+        echo = snappi_header.get(icmpv6, True)
+        field_map = tr_instance._ICMPV6
+        prop_types = sorted(echo._TYPES)
+        prop_types.reverse()
+        for field in prop_types:
+            property = echo.get(field, True)
+            try:
+                ind = field_names.index(field_map[field].split("-")[0])
+            except Exception:
+                continue
+            tr_instance._config_field_pattern(
+                property, ixn_fields[ind], None, True
+            )
