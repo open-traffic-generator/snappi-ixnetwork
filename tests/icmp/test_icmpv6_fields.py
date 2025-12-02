@@ -2,7 +2,6 @@ def test_icmpv6_fields(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     """
     Configure raw ICMPv6 flows with ,
     - fixed pattern for the fields
-    - list pattern for the fields
     - counter pattern for the fields
 
     Validate,
