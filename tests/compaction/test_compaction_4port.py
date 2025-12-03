@@ -7,6 +7,7 @@ def test_compaction_4port(api, b2b_raw_config_4port, utils):
     Test for the bgpv4 metrics
     """
     api._enable_port_compaction(True)
+    packets = 10000
     api.set_config(api.config())
     b2b_raw_config_4port.flows.clear()
 
@@ -50,11 +51,11 @@ def test_compaction_4port(api, b2b_raw_config_4port, utils):
 
     bgp1_peer.peer_address = "10.1.1.2"
     bgp1_peer.as_type = "ibgp"
-    bgp1_peer.as_number = 10
+    bgp1_peer.as_number = packets
 
     bgp2_peer.peer_address = "10.1.1.1"
     bgp2_peer.as_type = "ibgp"
-    bgp2_peer.as_number = 10
+    bgp2_peer.as_number = packets
 
     ip3.address = "10.2.1.1"
     ip3.gateway = "10.2.1.2"
@@ -66,23 +67,43 @@ def test_compaction_4port(api, b2b_raw_config_4port, utils):
 
     bgp3_peer.peer_address = "10.2.1.2"
     bgp3_peer.as_type = "ibgp"
-    bgp3_peer.as_number = 10
+    bgp3_peer.as_number = packets
 
     bgp4_peer.peer_address = "10.2.1.1"
     bgp4_peer.as_type = "ibgp"
-    bgp4_peer.as_number = 10
+    bgp4_peer.as_number = packets
 
-    flow_1 = b2b_raw_config_4port.flows.flow(name="f1")[-1]
+    flow_1 = b2b_raw_config_4port.flows.flow(name="flow_1")[-1]
     flow_1.tx_rx.device.tx_names = [ip1.name]
     flow_1.tx_rx.device.rx_names = [ip2.name]
-    flow_1.packet.ethernet().vlan().tcp()
+    flow_1.size.fixed = 128
+    flow_1.rate.pps = 1000
+    flow_1.duration.fixed_packets.packets = packets
+    flow_1.metrics.enable = True
+    flow_1.packet.ethernet().ipv4()
 
-    flow_2 = b2b_raw_config_4port.flows.flow(name="f2")[-1]
+    flow_2 = b2b_raw_config_4port.flows.flow(name="flow_2")[-1]
     flow_2.tx_rx.device.tx_names = [ip3.name]
     flow_2.tx_rx.device.rx_names = [ip4.name]
-    flow_2.packet.ethernet().vlan().tcp()
+    flow_2.size.fixed = 128
+    flow_2.rate.pps = 1000
+    flow_2.duration.fixed_packets.packets = packets
+    flow_2.metrics.enable = True
+    flow_2.packet.ethernet().ipv4()
 
     api.set_config(b2b_raw_config_4port)
+
+    utils.start_traffic(api, b2b_raw_config_4port)
+
+    utils.wait_for(
+        lambda: results_ok(api),
+        "states to be as expected",
+        timeout_seconds=30,
+    )
+
+    utils.stop_traffic(api, b2b_raw_config_4port)
+
+    captures_ok(api, b2b_raw_config_4port, utils)
 
     assert (api._ixnetwork.Topology.find()[0]
             .DeviceGroup.find()
@@ -94,6 +115,39 @@ def test_compaction_4port(api, b2b_raw_config_4port, utils):
 
     # Set the flag back to false else other tests will fail
     api._enable_port_compaction(False)
+
+def results_ok(api):
+    """
+    Returns True if there is no traffic loss else False
+    """
+    req = api.metrics_request()
+    req.bgpv4.column_names = ["session_state"]
+    results = api.get_metrics(req)
+    ok = []
+    for r in results.bgpv4_metrics:
+        ok.append(r.session_state == "up")
+    return all(ok)
+
+def captures_ok(api, cfg, utils):
+    """
+    Returns normally if patterns in captured packets are as expected.
+    """
+    src_mac = [0x00, 0x00, 0x00, 0x00, 0x00, 0x11]
+    dst_mac = [0x00, 0x00, 0x00, 0x00, 0x00, 0x22]
+
+    src_ip = [0x0A, 0x01, 0x01, 0x01]
+    dst_ip = [0x0A, 0x01, 0x01, 0x02]
+
+    src_port = [0x00, 0xB3]
+    dst_port = [0x80, 0x11]
+
+    cap_dict = utils.get_all_captures(api, cfg)
+    assert len(cap_dict) == 1
+    for b in cap_dict[list(cap_dict.keys())[0]]:
+        assert (b[0:6] == dst_mac and b[6:12] == src_mac) or (b[0:6] == src_mac and b[6:12] == dst_mac)
+        assert (b[26:30] == src_ip and b[30:34] == dst_ip) or (b[26:30] == dst_ip and b[30:34] == src_ip)
+        if len(b) == 256:
+            assert (b[34:36] == src_port and b[36:38] == dst_port) or (b[34:36] == dst_port and b[36:38] == src_port)
 
 if __name__ == "__main__":
     pytest.main(["-vv", "-s", __file__])
