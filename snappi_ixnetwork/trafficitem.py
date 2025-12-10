@@ -583,7 +583,7 @@ class TrafficItem(CustomField):
         url, payload = self._get_search_payload(
             "/traffic",
             "(?i)^(trafficItem|enableEgressOnlyTracking|egressOnlyTracking|enableEgressOnlyTxStats|configElement|frameRate"
-            "|frameSize|transmissionControl|stack|field|highLevelStream"
+            "|frameSize|framePayload|transmissionControl|stack|field|highLevelStream"
             "|tracking|transmissionDistribution)$",
             [
                 "name",
@@ -1014,6 +1014,9 @@ class TrafficItem(CustomField):
                 self._configure_rate(
                     tr_item["configElement"], flow.get("rate", True)
                 )
+                self._configure_payload(
+                    tr_item["configElement"], flow.get("payload", True)
+                )
                 # TODO: ixNetwork is not creating flow groups for vxlan, remove
                 # hard coding of setting to 1 once the issue is fixed in ixn
                 if "highLevelStream" not in ixn_traffic_item[i].keys():
@@ -1431,6 +1434,32 @@ class TrafficItem(CustomField):
                 )
                 value = rate.get(rate.choice)
             ce["frameRate"]["rate"] = value
+        return
+    
+    def _configure_payload(self, ce_dict, payload):
+        """Transform framePayload flows.payload to
+        /traffic/trafficItem[*]/configElement[*]/framePayload"""
+        if payload is None:
+            return
+        for ce in ce_dict:
+            ce["framePayload"] = {"xpath": "%s/framePayload" % ce["xpath"]}
+            if payload.choice == "fixed":
+                ce["framePayload"]["type"] = "custom"
+                ce["framePayload"]["customPattern"] = payload.fixed.pattern
+                ce["framePayload"]["customRepeat"] = payload.fixed.repeat
+            elif payload.choice == "increment_byte":
+                ce["framePayload"]["type"] = "incrementByte"
+            elif payload.choice == "decrement_byte":
+                ce["framePayload"]["type"] = "decrementByte"
+            elif payload.choice == "increment_word":
+                ce["framePayload"]["type"] = "incrementWord"
+            elif payload.choice == "decrement_word":
+                ce["framePayload"]["type"] = "decrementWord"
+            else:
+                print(
+                    "Warning - We need to implement this %s choice"
+                    % payload.choice
+                )
         return
 
     def _configure_duration(self, ce_dict, hl_stream_count, duration):
@@ -2335,7 +2364,7 @@ class TrafficItem(CustomField):
             url, payload = self._get_search_payload(
                 "/traffic",
                 "(?i)^(trafficItem|egressOnlyTracking|configElement|frameRate"
-                "|frameSize|transmissionControl|stack|field|highLevelStream"
+                "|frameSize|framePayload|transmissionControl|stack|field|highLevelStream"
                 "|tracking|transmissionDistribution)$",
                 [
                     "name",
@@ -2390,6 +2419,9 @@ class TrafficItem(CustomField):
                 )
                 self._configure_rate(
                     tr_item["configElement"], flow.get("rate", True)
+                )
+                self._configure_payload(
+                    tr_item["configElement"], flow.get("payload", True)
                 )
                 # TODO: ixNetwork is not creating flow groups for vxlan, remove
                 # hard coding of setting to 1 once the issue is fixed in ixn
