@@ -103,6 +103,8 @@ class TrafficItem(CustomField):
         "ethernetARP": "arp",
         "macsec": "macsec",
         "payloadProtocolType": "payloadProtocolType",
+        "icmpv2": "icmp",
+        "icmpv6": "icmpv6",
     }
 
     _HEADER_TO_TYPE = {
@@ -122,6 +124,8 @@ class TrafficItem(CustomField):
         "arp": "ethernetARP",
         "macsec": "macsec",
         "payloadProtocolType": "payloadProtocolType",
+        "icmp": "icmpv2",
+        "icmpv6": "icmpv6",
     }
 
     _ETHERNETPAUSEUHD = {
@@ -412,6 +416,26 @@ class TrafficItem(CustomField):
         "convert_int_to_hex": ["flags", "reserved0", "reserved1"],
     }
 
+    _ICMP = {
+        "echo": CustomField._process_icmp_echo,
+        "type": "icmpv2.message.messageType",
+        "code": "icmpv2.message.codeValue",
+        "checksum": "icmpv2.message.icmpChecksum",
+        "identifier": "icmpv2.message.identifier",
+        "sequence_number": "icmpv2.message.sequenceNumber",
+        "order": ["type", "code", "checksum", "identifier", "sequence_number"],
+    }
+
+    _ICMPV6 = {
+        "echo": CustomField._process_icmpv6_echo,
+        "type": "icmpv6.icmpv6Message.icmpv6MessegeType.echoRequestMessage.messageType-17",
+        "code": "icmpv6.icmpv6Message.icmpv6MessegeType.echoRequestMessage.code-18",
+        "identifier": "icmpv6.icmpv6Message.icmpv6MessegeType.echoRequestMessage.identifier-20",
+        "sequence_number": "icmpv6.icmpv6Message.icmpv6MessegeType.echoRequestMessage.sequenceNumber-21",
+        "checksum": "icmpv6.icmpv6Message.icmpv6MessegeType.echoRequestMessage.checksum-19",
+        "order": ["type", "code", "identifier", "sequence_number", "checksum"],
+    }
+
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
         self.ixn_config = None
@@ -559,7 +583,7 @@ class TrafficItem(CustomField):
         url, payload = self._get_search_payload(
             "/traffic",
             "(?i)^(trafficItem|enableEgressOnlyTracking|egressOnlyTracking|enableEgressOnlyTxStats|configElement|frameRate"
-            "|frameSize|transmissionControl|stack|field|highLevelStream"
+            "|frameSize|framePayload|transmissionControl|stack|field|highLevelStream"
             "|tracking|transmissionDistribution)$",
             [
                 "name",
@@ -605,7 +629,7 @@ class TrafficItem(CustomField):
             self._api._ixnetwork.Traffic.EgressOnlyTracking.find().refresh()
         self.egress_only_tracking_index = 1
 
-    def _gen_dev_endpoint(self, devices, names, endpoints, scalable_endpoints):
+    def _gen_dev_endpoint(self, devices, portId, names, endpoints, scalable_endpoints):
         self.logger.debug("Generating Device Endpoints with names %s" % names)
         while len(names) > 0:
             gen_name = None
@@ -624,7 +648,7 @@ class TrafficItem(CustomField):
                     scalable_endpoints.append(
                         {
                             "arg1": xpath,
-                            "arg2": 1,
+                            "arg2": portId,
                             "arg3": 1,
                             "arg4": dev_info.index + 1,
                             "arg5": dev_info.multiplier,
@@ -644,6 +668,8 @@ class TrafficItem(CustomField):
         flows = config.flows
         tr = {"xpath": "/traffic", "trafficItem": []}
         ports = self.get_ports_encap(config)
+        portId = 1
+        portCount = len(config.ports)
         devices = self.get_device_info(config)
         for index, flow in enumerate(flows):
             flow_name = flow._properties.get("name")
@@ -695,11 +721,23 @@ class TrafficItem(CustomField):
                 scalable_sources = []
                 scalable_destinations = []
                 self._gen_dev_endpoint(
-                    devices, ep.tx_names, source, scalable_sources
+                    devices, portId, ep.tx_names, source, scalable_sources
                 )
+                if self._api._port_compaction:
+                    portId = portId + 1
+                else:
+                    portId = 1
+                if portId > portCount:
+                    portId = 1
                 self._gen_dev_endpoint(
-                    devices, ep.rx_names, destinations, scalable_destinations
+                    devices, portId, ep.rx_names, destinations, scalable_destinations
                 )
+                if self._api._port_compaction:
+                    portId = portId + 1
+                else:
+                    portId = 1
+                if portId > portCount:
+                    portId = 1
                 if len(source) > 0:
                     tr["trafficItem"][-1]["endpointSet"][0]["sources"] = source
                 if len(destinations) > 0:
@@ -990,6 +1028,9 @@ class TrafficItem(CustomField):
                 self._configure_rate(
                     tr_item["configElement"], flow.get("rate", True)
                 )
+                self._configure_payload(
+                    tr_item["configElement"], flow.get("payload", True)
+                )
                 # TODO: ixNetwork is not creating flow groups for vxlan, remove
                 # hard coding of setting to 1 once the issue is fixed in ixn
                 if "highLevelStream" not in ixn_traffic_item[i].keys():
@@ -1137,6 +1178,7 @@ class TrafficItem(CustomField):
         header_index=None,
         is_raw_traffic=False,
     ):
+        
         if snappi_header is not None:
             field_map = getattr(
                 self,
@@ -1170,7 +1212,11 @@ class TrafficItem(CustomField):
         for i, f in enumerate(field_map["order"]):
             if not isinstance(field_map[f], str):
                 continue
-            fmap = "%s-%s" % (field_map[f], i + 1)
+            # xpath has been defined. This is needed in certain cases. e.g. ICMPv6
+            if "-" in field_map[f]:
+                fmap = field_map[f]
+            else:
+                fmap = "%s-%s" % (field_map[f], i + 1)
             fields.append({"xpath": "%s/field[@alias = '%s']" % (xpath, fmap)})
         return fields
 
@@ -1402,6 +1448,32 @@ class TrafficItem(CustomField):
                 )
                 value = rate.get(rate.choice)
             ce["frameRate"]["rate"] = value
+        return
+    
+    def _configure_payload(self, ce_dict, payload):
+        """Transform framePayload flows.payload to
+        /traffic/trafficItem[*]/configElement[*]/framePayload"""
+        if payload is None:
+            return
+        for ce in ce_dict:
+            ce["framePayload"] = {"xpath": "%s/framePayload" % ce["xpath"]}
+            if payload.choice == "fixed":
+                ce["framePayload"]["type"] = "custom"
+                ce["framePayload"]["customPattern"] = payload.fixed.pattern
+                ce["framePayload"]["customRepeat"] = payload.fixed.repeat
+            elif payload.choice == "increment_byte":
+                ce["framePayload"]["type"] = "incrementByte"
+            elif payload.choice == "decrement_byte":
+                ce["framePayload"]["type"] = "decrementByte"
+            elif payload.choice == "increment_word":
+                ce["framePayload"]["type"] = "incrementWord"
+            elif payload.choice == "decrement_word":
+                ce["framePayload"]["type"] = "decrementWord"
+            else:
+                print(
+                    "Warning - We need to implement this %s choice"
+                    % payload.choice
+                )
         return
 
     def _configure_duration(self, ce_dict, hl_stream_count, duration):
@@ -2306,7 +2378,7 @@ class TrafficItem(CustomField):
             url, payload = self._get_search_payload(
                 "/traffic",
                 "(?i)^(trafficItem|egressOnlyTracking|configElement|frameRate"
-                "|frameSize|transmissionControl|stack|field|highLevelStream"
+                "|frameSize|framePayload|transmissionControl|stack|field|highLevelStream"
                 "|tracking|transmissionDistribution)$",
                 [
                     "name",
@@ -2361,6 +2433,9 @@ class TrafficItem(CustomField):
                 )
                 self._configure_rate(
                     tr_item["configElement"], flow.get("rate", True)
+                )
+                self._configure_payload(
+                    tr_item["configElement"], flow.get("payload", True)
                 )
                 # TODO: ixNetwork is not creating flow groups for vxlan, remove
                 # hard coding of setting to 1 once the issue is fixed in ixn
@@ -2421,6 +2496,8 @@ class TrafficItem(CustomField):
         config = self._config
         ports = self.get_ports_encap(config)
         devices = self.get_device_info(config)
+        portId = 1
+        portCount = len(config.ports)
 
         tr = {"xpath": "/traffic", "trafficItem": []}
         for index, flow in enumerate(appcgfs):
@@ -2473,11 +2550,23 @@ class TrafficItem(CustomField):
                 scalable_sources = []
                 scalable_destinations = []
                 self._gen_dev_endpoint(
-                    devices, ep.tx_names, source, scalable_sources
+                    devices, portId, ep.tx_names, source, scalable_sources
                 )
+                if self._api._port_compaction:
+                    portId = portId + 1
+                else:
+                    portId = 1
+                if portId > portCount:
+                    portId = 1
                 self._gen_dev_endpoint(
-                    devices, ep.rx_names, destinations, scalable_destinations
+                    devices, portId, ep.rx_names, destinations, scalable_destinations
                 )
+                if self._api._port_compaction:
+                    portId = portId + 1
+                else:
+                    portId = 1
+                if portId > portCount:
+                    portId = 1
                 if len(source) > 0:
                     tr["trafficItem"][-1]["endpointSet"][0]["sources"] = source
                 if len(destinations) > 0:
