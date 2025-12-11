@@ -629,7 +629,7 @@ class TrafficItem(CustomField):
             self._api._ixnetwork.Traffic.EgressOnlyTracking.find().refresh()
         self.egress_only_tracking_index = 1
 
-    def _gen_dev_endpoint(self, devices, names, endpoints, scalable_endpoints):
+    def _gen_dev_endpoint(self, devices, portId, names, endpoints, scalable_endpoints):
         self.logger.debug("Generating Device Endpoints with names %s" % names)
         while len(names) > 0:
             gen_name = None
@@ -648,7 +648,7 @@ class TrafficItem(CustomField):
                     scalable_endpoints.append(
                         {
                             "arg1": xpath,
-                            "arg2": 1,
+                            "arg2": portId,
                             "arg3": 1,
                             "arg4": dev_info.index + 1,
                             "arg5": dev_info.multiplier,
@@ -668,6 +668,8 @@ class TrafficItem(CustomField):
         flows = config.flows
         tr = {"xpath": "/traffic", "trafficItem": []}
         ports = self.get_ports_encap(config)
+        portId = 1
+        portCount = len(config.ports)
         devices = self.get_device_info(config)
         for index, flow in enumerate(flows):
             flow_name = flow._properties.get("name")
@@ -719,11 +721,23 @@ class TrafficItem(CustomField):
                 scalable_sources = []
                 scalable_destinations = []
                 self._gen_dev_endpoint(
-                    devices, ep.tx_names, source, scalable_sources
+                    devices, portId, ep.tx_names, source, scalable_sources
                 )
+                if self._api._port_compaction:
+                    portId = portId + 1
+                else:
+                    portId = 1
+                if portId > portCount:
+                    portId = 1
                 self._gen_dev_endpoint(
-                    devices, ep.rx_names, destinations, scalable_destinations
+                    devices, portId, ep.rx_names, destinations, scalable_destinations
                 )
+                if self._api._port_compaction:
+                    portId = portId + 1
+                else:
+                    portId = 1
+                if portId > portCount:
+                    portId = 1
                 if len(source) > 0:
                     tr["trafficItem"][-1]["endpointSet"][0]["sources"] = source
                 if len(destinations) > 0:
@@ -2482,6 +2496,8 @@ class TrafficItem(CustomField):
         config = self._config
         ports = self.get_ports_encap(config)
         devices = self.get_device_info(config)
+        portId = 1
+        portCount = len(config.ports)
 
         tr = {"xpath": "/traffic", "trafficItem": []}
         for index, flow in enumerate(appcgfs):
@@ -2534,11 +2550,23 @@ class TrafficItem(CustomField):
                 scalable_sources = []
                 scalable_destinations = []
                 self._gen_dev_endpoint(
-                    devices, ep.tx_names, source, scalable_sources
+                    devices, portId, ep.tx_names, source, scalable_sources
                 )
+                if self._api._port_compaction:
+                    portId = portId + 1
+                else:
+                    portId = 1
+                if portId > portCount:
+                    portId = 1
                 self._gen_dev_endpoint(
-                    devices, ep.rx_names, destinations, scalable_destinations
+                    devices, portId, ep.rx_names, destinations, scalable_destinations
                 )
+                if self._api._port_compaction:
+                    portId = portId + 1
+                else:
+                    portId = 1
+                if portId > portCount:
+                    portId = 1
                 if len(source) > 0:
                     tr["trafficItem"][-1]["endpointSet"][0]["sources"] = source
                 if len(destinations) > 0:
