@@ -98,43 +98,8 @@ class Bgp(Base):
         self._config_ipv4_interfaces(bgp)
         self._config_ipv6_interfaces(bgp)
 
-    def _get_interface_info(self):
-        ip_types = ["ipv4", "ipv6"]
-        same_dg_ips = []
-        invalid_ips = []
-        ethernets = self._ngpf.working_dg.get("ethernet")
-        if ethernets is None:
-            return same_dg_ips, invalid_ips
-        for ethernet in ethernets:
-            for ip_type in ip_types:
-                ips = ethernet.get(ip_type)
-                if ips is not None:
-                    ip_names = [ip.get("name").value for ip in ips]
-                    same_dg_ips.extend(ip_names)
-                    if len(ips) > 1:
-                        invalid_ips.extend(ip_names)
-        return same_dg_ips, invalid_ips
-
     def _is_valid(self, ip_name):
-        is_invalid = True
-        same_dg_ips, invalid_ips = self._get_interface_info()
-        self.logger.debug(
-            "Validating %s against interface same_dg_ips : %s invalid_ips %s"
-            % (ip_name, same_dg_ips, invalid_ips)
-        )
-        if ip_name in invalid_ips:
-            self._ngpf.api.add_error(
-                "Multiple IP {name} on top of name Ethernet".format(
-                    name=ip_name
-                )
-            )
-            is_invalid = False
-        if len(same_dg_ips) > 0 and ip_name not in same_dg_ips:
-            self._ngpf.api.add_error(
-                "BGP should not configured on top of different device"
-            )
-            is_invalid = False
-        return is_invalid
+        return self._validate_device_config(self._ngpf, ip_name, "BGP")
 
     def _config_ipv4_interfaces(self, bgp):
         self.logger.debug("Configuring BGP IPv4 interfaces")
@@ -231,11 +196,23 @@ class Bgp(Base):
             self._configure_bgpv6_route(v6_routes, ixn_bgp)
         self._ngpf.compactor.compact(self._ngpf.working_dg.get("networkGroup"))
 
-    def _configure_bgpv4_route(self, v4_routes, ixn_bgp):
-        if v4_routes is None:
+    def _configure_bgp_route(self, routes, ixn_bgp, ip_version):
+        """Configure BGP routes for IPv4 or IPv6.
+        
+        Args:
+            routes: List of route configurations
+            ixn_bgp: IxNetwork BGP object
+            ip_version: "v4" or "v6"
+        """
+        if routes is None:
             return
-        self.logger.debug("Configuring BGPv4 Route")
-        for route in v4_routes:
+        self.logger.debug("Configuring BGP{} Route".format(ip_version))
+        prefix_pool_name = "ipv{}PrefixPools".format(ip_version[1])
+        route_property_name = "bgp{}IPRouteProperty".format(
+            "V6" if ip_version == "v6" else ""
+        )
+        
+        for route in routes:
             addresses = route.get("addresses")
             for addresse in addresses:
                 ixn_ng = self.create_node_elemet(
@@ -243,7 +220,7 @@ class Bgp(Base):
                 )
                 ixn_ng["multiplier"] = 1
                 ixn_ip_pool = self.create_node_elemet(
-                    ixn_ng, "ipv4PrefixPools", route.get("name")
+                    ixn_ng, prefix_pool_name, route.get("name")
                 )
                 ixn_connector = self.create_property(ixn_ip_pool, "connector")
                 ixn_connector["connectedTo"] = self.post_calculated(
@@ -251,35 +228,16 @@ class Bgp(Base):
                 )
                 self.configure_multivalues(addresse, ixn_ip_pool, Bgp._IP_POOL)
                 ixn_route = self.create_node_elemet(
-                    ixn_ip_pool, "bgpIPRouteProperty", route.get("name")
+                    ixn_ip_pool, route_property_name, route.get("name")
                 )
                 self._ngpf.set_device_info(route, ixn_ip_pool)
                 self._configure_route(route, ixn_route)
 
+    def _configure_bgpv4_route(self, v4_routes, ixn_bgp):
+        return self._configure_bgp_route(v4_routes, ixn_bgp, "v4")
+
     def _configure_bgpv6_route(self, v6_routes, ixn_bgp):
-        if v6_routes is None:
-            return
-        self.logger.debug("Configuring BGPv6 Route")
-        for route in v6_routes:
-            addresses = route.get("addresses")
-            for addresse in addresses:
-                ixn_ng = self.create_node_elemet(
-                    self._ngpf.working_dg, "networkGroup", route.get("name")
-                )
-                ixn_ng["multiplier"] = 1
-                ixn_ip_pool = self.create_node_elemet(
-                    ixn_ng, "ipv6PrefixPools", route.get("name")
-                )
-                ixn_connector = self.create_property(ixn_ip_pool, "connector")
-                ixn_connector["connectedTo"] = self.post_calculated(
-                    "connectedTo", ref_ixnobj=ixn_bgp
-                )
-                self.configure_multivalues(addresse, ixn_ip_pool, Bgp._IP_POOL)
-                ixn_route = self.create_node_elemet(
-                    ixn_ip_pool, "bgpV6IPRouteProperty", route.get("name")
-                )
-                self._ngpf.set_device_info(route, ixn_ip_pool)
-                self._configure_route(route, ixn_route)
+        return self._configure_bgp_route(v6_routes, ixn_bgp, "v6")
 
     def _configure_route(self, route, ixn_route):
         self._ngpf.set_ixn_routes(route, ixn_route)

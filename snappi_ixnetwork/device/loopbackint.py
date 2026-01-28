@@ -15,13 +15,13 @@ class LoopbackInt(Base):
             vxlan_source_int_list = self._get_vxlan_source_ints(device)
             ipv4_loopbacks = device.get("ipv4_loopbacks")
             if ipv4_loopbacks is not None:
-                self._config_ipv4_loopbacks(
-                    ipv4_loopbacks, device, vxlan_source_int_list
+                self._config_loopbacks(
+                    ipv4_loopbacks, device, vxlan_source_int_list, "ipv4"
                 )
             ipv6_loopbacks = device.get("ipv6_loopbacks")
             if ipv6_loopbacks is not None:
-                self._config_ipv6_loopbacks(
-                    ipv6_loopbacks, device, vxlan_source_int_list
+                self._config_loopbacks(
+                    ipv6_loopbacks, device, vxlan_source_int_list, "ipv6"
                 )
         return self._ixn_parent_dgs
 
@@ -63,52 +63,38 @@ class LoopbackInt(Base):
         self._ngpf.set_device_info(device, ixn_dg)
         return ixn_dg
 
-    def _config_ipv4_loopbacks(
-        self, ipv4_loopbacks, device, vxlan_source_int_list
+    def _config_loopbacks(
+        self, loopbacks, device, vxlan_source_int_list, ip_version
     ):
-        self.logger.debug("Configuring IPv4 loopback interface")
-        for ipv4_loopback in ipv4_loopbacks:
-            ixn_dg = self._create_dg(ipv4_loopback, device)
-            name = ipv4_loopback.get("name")
+        """Configure loopback interfaces for IPv4 or IPv6.
+        
+        Args:
+            loopbacks: List of loopback configurations
+            device: Device configuration
+            vxlan_source_int_list: List of VXLAN source interface names
+            ip_version: "ipv4" or "ipv6"
+        """
+        self.logger.debug("Configuring %s loopback interface" % ip_version.upper())
+        node_name = ip_version
+        loopback_node_name = "{}Loopback".format(ip_version)
+        
+        for loopback in loopbacks:
+            ixn_dg = self._create_dg(loopback, device)
+            name = loopback.get("name")
             if name in vxlan_source_int_list:
                 ixn_eth = self.create_node_elemet(
                     ixn_dg, "ethernet", "eth {}".format(name)
                 )
-                ixn_v4 = self.create_node_elemet(ixn_eth, "ipv4", name)
-                self._ngpf.set_device_info(ipv4_loopback, ixn_v4)
-                ixn_v4["address"] = self.as_multivalue(
-                    ipv4_loopback, "address"
+                ixn_ip = self.create_node_elemet(ixn_eth, node_name, name)
+                self._ngpf.set_device_info(loopback, ixn_ip)
+                ixn_ip["address"] = self.as_multivalue(
+                    loopback, "address"
                 )
             else:
-                ixn_v4lb = self.create_node_elemet(
-                    ixn_dg, "ipv4Loopback", name
+                ixn_lb = self.create_node_elemet(
+                    ixn_dg, loopback_node_name, name
                 )
-                self._ngpf.set_device_info(ipv4_loopback, ixn_v4lb)
-                ixn_v4lb["address"] = self.as_multivalue(
-                    ipv4_loopback, "address"
-                )
-
-    def _config_ipv6_loopbacks(
-        self, ipv6_loopbacks, device, vxlan_source_int_list
-    ):
-        self.logger.debug("Configuring IPv6 loopback interface")
-        for ipv6_loopback in ipv6_loopbacks:
-            ixn_dg = self._create_dg(ipv6_loopback, device)
-            name = ipv6_loopback.get("name")
-            if name in vxlan_source_int_list:
-                ixn_eth = self.create_node_elemet(
-                    ixn_dg, "ethernet", "eth {}".format(name)
-                )
-                ixn_v6 = self.create_node_elemet(ixn_eth, "ipv6", name)
-                self._ngpf.set_device_info(ipv6_loopback, ixn_v6)
-                ixn_v6["address"] = self.as_multivalue(
-                    ipv6_loopback, "address"
-                )
-            else:
-                ixn_v4lb = self.create_node_elemet(
-                    ixn_dg, "ipv6Loopback", ipv6_loopback.get("name")
-                )
-                self._ngpf.set_device_info(ipv6_loopback, ixn_v4lb)
-                ixn_v4lb["address"] = self.as_multivalue(
-                    ipv6_loopback, "address"
+                self._ngpf.set_device_info(loopback, ixn_lb)
+                ixn_lb["address"] = self.as_multivalue(
+                    loopback, "address"
                 )

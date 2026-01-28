@@ -154,6 +154,62 @@ class Base(object):
                         symmetric_nodes.append(node)
         return NodesInfo(max_len, active_list, symmetric_nodes)
 
+    def _get_interface_info(self, ngpf):
+        """Get interface information from working device group.
+        
+        Returns tuple of (same_dg_ips, invalid_ips) where:
+        - same_dg_ips: list of all IP names in the same device group
+        - invalid_ips: list of IP names with multiple IPs on same ethernet
+        """
+        ip_types = ["ipv4", "ipv6"]
+        same_dg_ips = []
+        invalid_ips = []
+        ethernets = ngpf.working_dg.get("ethernet")
+        if ethernets is None:
+            return same_dg_ips, invalid_ips
+        for ethernet in ethernets:
+            for ip_type in ip_types:
+                ips = ethernet.get(ip_type)
+                if ips is not None:
+                    ip_names = [ip.get("name").value for ip in ips]
+                    same_dg_ips.extend(ip_names)
+                    if len(ips) > 1:
+                        invalid_ips.extend(ip_names)
+        return same_dg_ips, invalid_ips
+
+    def _validate_device_config(self, ngpf, ip_name, protocol_name):
+        """Validate device configuration for protocols like BGP and RoCEv2.
+        
+        Args:
+            ngpf: NGPF instance
+            ip_name: Name of the IP interface
+            protocol_name: Name of the protocol (e.g., "BGP", "RoCEv2")
+            
+        Returns:
+            bool: True if valid, False otherwise
+        """
+        is_invalid = True
+        same_dg_ips, invalid_ips = self._get_interface_info(ngpf)
+        self.logger.debug(
+            "Validating %s against interface same_dg_ips : %s invalid_ips %s"
+            % (ip_name, same_dg_ips, invalid_ips)
+        )
+        if ip_name in invalid_ips:
+            ngpf.api.add_error(
+                "Multiple IP {name} on top of name Ethernet".format(
+                    name=ip_name
+                )
+            )
+            is_invalid = False
+        if len(same_dg_ips) > 0 and ip_name not in same_dg_ips:
+            ngpf.api.add_error(
+                "{protocol} should not configured on top of different device".format(
+                    protocol=protocol_name
+                )
+            )
+            is_invalid = False
+        return is_invalid
+
 
 class NodesInfo(object):
     def __init__(self, max_len, active_list, symmetric_nodes):

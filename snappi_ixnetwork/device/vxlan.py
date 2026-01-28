@@ -21,11 +21,11 @@ class VXLAN(Base):
     def config(self, vxlan):
         v4_tunnels = vxlan.get("v4_tunnels")
         if v4_tunnels is not None and len(v4_tunnels) > 0:
-            self._config_v4_tunnels(v4_tunnels)
+            self._config_tunnels(v4_tunnels, "ipv4")
 
         v6_tunnels = vxlan.get("v6_tunnels")
         if v6_tunnels is not None and len(v6_tunnels) > 0:
-            self._config_v6_tunnels(v6_tunnels)
+            self._config_tunnels(v6_tunnels, "ipv6")
 
     def _store_source_interface(self, ixn_inter, ip_type):
         if ip_type == "ipv4":
@@ -35,65 +35,45 @@ class VXLAN(Base):
             if ixn_inter not in self._source_interfaces.ipv6:
                 self._source_interfaces.ipv6.append(ixn_inter)
 
-    def _config_v4_tunnels(self, v4_tunnels):
-        for v4_tunnel in v4_tunnels:
-            source_interface = v4_tunnel.get("source_interface")
+    def _config_tunnels(self, tunnels, ip_version):
+        """Configure VXLAN tunnels for IPv4 or IPv6.
+        
+        Args:
+            tunnels: List of tunnel configurations
+            ip_version: "ipv4" or "ipv6"
+        """
+        node_name = "vxlan" if ip_version == "ipv4" else "vxlanv6"
+        multicast_attr = "{}_multicast".format(ip_version)
+        
+        for tunnel in tunnels:
+            source_interface = tunnel.get("source_interface")
             ixnet_info = self._ngpf.api.ixn_objects.get(source_interface)
             ixn_inter = ixnet_info.ixnobject
             self._ngpf.working_dg = ixnet_info.working_dg
             ip_type = self._ngpf.api.get_device_encap(source_interface)
-            if ip_type != "ipv4":
+            if ip_type != ip_version:
                 raise TypeError(
-                    "source_interface {} should support IPv4".format(
-                        source_interface
+                    "source_interface {} should support {}".format(
+                        source_interface, ip_version.upper()
                     )
                 )
             self._store_source_interface(ixn_inter, ip_type)
             ixn_vxlan = self.create_node_elemet(
-                ixn_inter, "vxlan", v4_tunnel.get("name")
+                ixn_inter, node_name, tunnel.get("name")
             )
-            self._ngpf.set_device_info(v4_tunnel, ixn_vxlan)
+            self._ngpf.set_device_info(tunnel, ixn_vxlan)
             ixn_vxlan["multiplier"] = 1
-            ixn_vxlan["vni"] = self.as_multivalue(v4_tunnel, "vni")
-            destination_ip_mode = v4_tunnel.destination_ip_mode
+            ixn_vxlan["vni"] = self.as_multivalue(tunnel, "vni")
+            destination_ip_mode = tunnel.destination_ip_mode
             if destination_ip_mode.choice == "unicast":
                 ixn_vxlan["enableStaticInfo"] = True
-                self._config_v4_unicast(destination_ip_mode.unicast, ixn_vxlan)
+                self._config_v4_unicast(
+                    destination_ip_mode.unicast, ixn_vxlan, 
+                    v4_tunnel=(ip_version == "ipv4")
+                )
             else:
                 ixn_vxlan["enableStaticInfo"] = False
-                ixn_vxlan["ipv4_multicast"] = self.as_multivalue(
-                    destination_ip_mode.multicast, "address"
-                )
-
-    def _config_v6_tunnels(self, v6_tunnels):
-        for v6_tunnel in v6_tunnels:
-            source_interface = v6_tunnel.get("source_interface")
-            ixnet_info = self._ngpf.api.ixn_objects.get(source_interface)
-            ixn_inter = ixnet_info.ixnobject
-            self._ngpf.working_dg = ixnet_info.working_dg
-            ip_type = self._ngpf.api.get_device_encap(source_interface)
-            if ip_type != "ipv6":
-                raise TypeError(
-                    "source_interface {} should support IPv6".format(
-                        source_interface
-                    )
-                )
-            self._store_source_interface(ixn_inter, ip_type)
-            ixn_vxlan6 = self.create_node_elemet(
-                ixn_inter, "vxlanv6", v6_tunnel.get("name")
-            )
-            self._ngpf.set_device_info(v6_tunnel, ixn_vxlan6)
-            ixn_vxlan6["multiplier"] = 1
-            ixn_vxlan6["vni"] = self.as_multivalue(v6_tunnel, "vni")
-            destination_ip_mode = v6_tunnel.destination_ip_mode
-            if destination_ip_mode.choice == "unicast":
-                ixn_vxlan6["enableStaticInfo"] = True
-                self._config_v4_unicast(
-                    destination_ip_mode.unicast, ixn_vxlan6, v4_tunnel=False
-                )
-            else:
-                ixn_vxlan6["enableStaticInfo"] = False
-                ixn_vxlan6["ipv6_multicast"] = self.as_multivalue(
+                ixn_vxlan[multicast_attr] = self.as_multivalue(
                     destination_ip_mode.multicast, "address"
                 )
 
