@@ -1,6 +1,12 @@
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.device.bgpevpn import BgpEvpn
+from snappi_ixnetwork.device.constants import (
+    AS_SET_MODE,
+    SEGMENT_TYPE,
+    IP_POOL_MAPPING,
+    COMMUNITY_TYPE_MAPPING,
+)
 
 
 class Bgp(Base):
@@ -51,12 +57,7 @@ class Bgp(Base):
         # "ipv6_mdt": "",
     }
 
-    _IP_POOL = {
-        "address": "networkAddress",
-        "prefix": "prefixLength",
-        "count": "numberOfAddressesAsy",
-        "step": "prefixAddrStep",
-    }
+    _IP_POOL = IP_POOL_MAPPING
 
     _ROUTE = {
         "next_hop_mode": {
@@ -71,34 +72,15 @@ class Bgp(Base):
     _COMMUNITY = {
         "type": {
             "ixn_attr": "type",
-            "enum_map": {
-                "manual_as_number": "manual",
-                "no_export": "noexport",
-                "no_advertised": "noadvertised",
-                "no_export_subconfed": "noexport_subconfed",
-                "llgr_stale": "llgr_stale",
-                "no_llgr": "no_llgr",
-            },
+            "enum_map": COMMUNITY_TYPE_MAPPING,
         },
         "as_number": "asNumber",
         "as_custom": "lastTwoOctets",
     }
 
-    _BGP_AS_MODE = {
-        "do_not_include_local_as": "dontincludelocalas",
-        "include_as_seq": "includelocalasasasseq",
-        "include_as_set": "includelocalasasasset",
-        "include_as_confed_seq": "includelocalasasasseqconfederation",
-        "include_as_confed_set": "includelocalasasassetconfederation",
-        "prepend_to_first_segment": "prependlocalastofirstsegment",
-    }
+    _BGP_AS_MODE = AS_SET_MODE
 
-    _BGP_SEG_TYPE = {
-        "as_seq": "asseq",
-        "as_set": "asset",
-        "as_confed_seq": "asseqconfederation",
-        "as_confed_set": "assetconfederation",
-    }
+    _BGP_SEG_TYPE = SEGMENT_TYPE
 
     def __init__(self, ngpf):
         super(Bgp, self).__init__()

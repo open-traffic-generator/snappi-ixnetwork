@@ -1,5 +1,10 @@
 from snappi_ixnetwork.device.base import Base, NodesInfo
 from snappi_ixnetwork.device.utils import convert_as_values, hex_to_ipv4
+from snappi_ixnetwork.device.constants import (
+    AS_SET_MODE,
+    SEGMENT_TYPE,
+    COMMUNITY_TYPE_MAPPING,
+)
 
 
 class BgpEvpn(Base):
@@ -16,14 +21,7 @@ class BgpEvpn(Base):
         "type": {
             "ixn_attr": "type",
             "default_value": "no_export",
-            "enum_map": {
-                "manual_as_number": "manual",
-                "no_export": "noexport",
-                "no_advertised": "noadvertised",
-                "no_export_subconfed": "noexport_subconfed",
-                "llgr_stale": "llgr_stale",
-                "no_llgr": "no_llgr",
-            },
+            "enum_map": COMMUNITY_TYPE_MAPPING,
         },
         "as_number": "asNumber",
         "as_custom": "lastTwoOctets",
@@ -56,21 +54,9 @@ class BgpEvpn(Base):
         },
     }
 
-    _AS_SET_MODE = {
-        "do_not_include_local_as": "dontincludelocalas",
-        "include_as_seq": "includelocalasasasseq",
-        "include_as_set": "includelocalasasasset",
-        "include_as_confed_seq": "includelocalasasasseqconfederation",
-        "include_as_confed_set": "includelocalasasassetconfederation",
-        "prepend_to_first_segment": "prependlocalastofirstsegment",
-    }
+    _AS_SET_MODE = AS_SET_MODE
 
-    _SEGMENT_TYPE = {
-        "as_seq": "asseq",
-        "as_set": "asset",
-        "as_confed_seq": "asseqconfederation",
-        "as_confed_set": "assetconfederation",
-    }
+    _SEGMENT_TYPE = SEGMENT_TYPE
 
     _VXLAN = {
         "ad_label": "adRouteLabel",

@@ -1,5 +1,6 @@
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.logger import get_ixnet_logger
+from snappi_ixnetwork.device.constants import CIPHER_SUITE_MAPPING
 
 
 class Mka(Base):
@@ -40,12 +41,7 @@ class Mka(Base):
         },
         "cipher_suite": {
             "ixn_attr": "cipherSuite",
-            "enum_map": {
-                "gcm_aes_128": "aes128",
-                "gcm_aes_256": "aes256",
-                "gcm_aes_xpn_128": "aesxpn128",
-                "gcm_aes_xpn_256": "aesxpn256",
-            },
+            "enum_map": CIPHER_SUITE_MAPPING,
         },
         "starting_key_number": "startingKeyNumber",
         "starting_distributed_an": "startingDistributedAN",

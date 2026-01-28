@@ -1,5 +1,6 @@
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.logger import get_ixnet_logger
+from snappi_ixnetwork.device.constants import IP_POOL_MAPPING
 
 
 class Isis(Base):
@@ -135,12 +136,7 @@ class Isis(Base):
         },
     }
 
-    _IP_POOL = {
-        "address": "networkAddress",
-        "prefix": "prefixLength",
-        "count": "numberOfAddressesAsy",
-        "step": "prefixAddrStep",
-    }
+    _IP_POOL = IP_POOL_MAPPING
     
     def __init__(self, ngpf):
         super(Isis, self).__init__()
