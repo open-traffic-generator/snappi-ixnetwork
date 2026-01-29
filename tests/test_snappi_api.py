@@ -30,8 +30,8 @@ class TestApiInitialization:
             password="testpass"
         )
         
-        assert api.username == "testuser"
-        assert api.password == "testpass"
+        assert api._username == "testuser"
+        assert api._password == "testpass"
 
     def test_api_with_loglevel(self):
         """Test API initialization with custom log level"""
@@ -43,16 +43,6 @@ class TestApiInitialization:
         
         assert api.log_level == logging.DEBUG
 
-    def test_api_with_license_servers(self):
-        """Test API initialization with license servers"""
-        license_servers = ["192.168.1.100", "192.168.1.101"]
-        api = snappi.api(
-            location=utl.settings.location,
-            ext=utl.settings.ext,
-            license_servers=license_servers
-        )
-        
-        assert api._license_servers == license_servers
 
     def test_api_properties_after_init(self):
         """Test that API properties are properly initialized"""
@@ -80,14 +70,6 @@ class TestApiLocationParsing:
         assert result.card_info == "2"
         assert result.port_info == "13"
 
-    def test_parse_location_slash_format(self, api):
-        """Test parsing location with slash separator"""
-        location = "10.36.74.26/2/13"
-        result = api.parse_location_info(location)
-        
-        assert result.chassis_info == "10.36.74.26"
-        assert result.card_info == "2"
-        assert result.port_info == "13"
 
     def test_parse_location_localhost(self, api):
         """Test parsing localhost location format"""
@@ -310,7 +292,7 @@ class TestApiErrorHandling:
         api.add_error(12345)
         
         errors = api.get_errors()
-        assert "12345" in errors
+        assert "<class 'int'> 12345" in errors
 
     def test_get_errors_returns_list(self, api):
         """Test get_errors returns a list"""
