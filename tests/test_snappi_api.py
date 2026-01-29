@@ -487,5 +487,161 @@ class TestApiConfigCreation:
         assert config.ports[1].name == "port2"
 
 
+class TestApiLoggingMethods:
+    """Test logging utility methods"""
+
+    def test_info_method(self, api):
+        """Test info logging method"""
+        # Should not raise exception
+        api.info("Test info message")
+        assert True
+
+    def test_debug_method(self, api):
+        """Test debug logging method"""
+        # Should not raise exception
+        api.debug("Test debug message")
+        assert True
+
+    def test_warning_method(self, api):
+        """Test warning logging method"""
+        # Should not raise exception
+        api.warning("Test warning message")
+        assert True
+
+    def test_logging_with_various_types(self, api):
+        """Test logging methods handle various input types"""
+        api.info("String message")
+        api.debug(123)
+        api.warning({"key": "value"})
+        assert True
+
+
+class TestApiRestPyTrace:
+    """Test RestPy trace level conversion"""
+
+    def test_get_restpy_trace_debug(self, api):
+        """Test RestPy trace for DEBUG log level"""
+        from ixnetwork_restpy import SessionAssistant
+        
+        result = api._get_restpy_trace(logging.DEBUG)
+        assert result == SessionAssistant.LOGLEVEL_ALL
+
+    def test_get_restpy_trace_warning(self, api):
+        """Test RestPy trace for WARNING log level"""
+        from ixnetwork_restpy import SessionAssistant
+        
+        result = api._get_restpy_trace(logging.WARNING)
+        assert result == SessionAssistant.LOGLEVEL_NONE
+
+    def test_get_restpy_trace_info(self, api):
+        """Test RestPy trace for INFO log level (default)"""
+        from ixnetwork_restpy import SessionAssistant
+        
+        result = api._get_restpy_trace(logging.INFO)
+        assert result == SessionAssistant.LOGLEVEL_INFO
+
+    def test_get_restpy_trace_error(self, api):
+        """Test RestPy trace for ERROR log level"""
+        from ixnetwork_restpy import SessionAssistant
+        
+        result = api._get_restpy_trace(logging.ERROR)
+        assert result == SessionAssistant.LOGLEVEL_INFO
+
+    def test_get_restpy_trace_critical(self, api):
+        """Test RestPy trace for CRITICAL log level"""
+        from ixnetwork_restpy import SessionAssistant
+        
+        result = api._get_restpy_trace(logging.CRITICAL)
+        assert result == SessionAssistant.LOGLEVEL_INFO
+
+
+class TestApiConvergenceMethods:
+    """Test convergence calculation methods"""
+
+    def test_get_max_convergence_single_row(self, api):
+        """Test get_max_convergence with single row"""
+        rows = [{"convergence": 100}]
+        result = api._get_max_convergence(rows)
+        
+        assert result == rows[0]
+
+    def test_get_max_convergence_multiple_rows(self, api):
+        """Test get_max_convergence with multiple rows"""
+        rows = [
+            {"convergence": 100, "name": "flow1"},
+            {"convergence": 200, "name": "flow2"},
+            {"convergence": 150, "name": "flow3"}
+        ]
+        result = api._get_max_convergence(rows)
+        
+        assert result is not None
+
+    def test_get_event_port_link_up(self, api):
+        """Test _get_event for Port Link Up event"""
+        event_name = "Port Link Up"
+        result = api._get_event(event_name)
+        
+        assert isinstance(result, dict)
+
+    def test_get_event_other_event(self, api):
+        """Test _get_event for non-link events"""
+        event_name = "Protocol Started"
+        result = api._get_event(event_name)
+        
+        assert isinstance(result, dict)
+
+
+class TestApiResultValueSetting:
+    """Test result value setting with type conversion"""
+
+    def test_set_result_value_string_type(self, api):
+        """Test _set_result_value with string type"""
+        row = {}
+        api._set_result_value(row, "test_column", "test_value", str)
+        
+        assert row["test_column"] == "test_value"
+
+    def test_set_result_value_int_type(self, api):
+        """Test _set_result_value with int type conversion"""
+        row = {}
+        api._set_result_value(row, "count", "123", int)
+        
+        assert row["count"] == 123
+        assert isinstance(row["count"], int)
+
+    def test_set_result_value_float_type(self, api):
+        """Test _set_result_value with float type conversion"""
+        row = {}
+        api._set_result_value(row, "rate", "45.67", float)
+        
+        assert row["rate"] == 45.67
+        assert isinstance(row["rate"], float)
+
+    def test_set_result_value_conversion_error(self, api):
+        """Test _set_result_value handles conversion errors gracefully"""
+        row = {}
+        api._set_result_value(row, "invalid", "not_a_number", int)
+
+
+class TestApiVersionCheck:
+    """Test IxNetwork version checking"""
+
+    def test_ixnet_specific_config_property(self, api):
+        """Test ixnet_specific_config property returns config object"""
+        result = api.ixnet_specific_config
+        
+        assert result is not None
+        assert isinstance(result, dict)
+
+
+class TestApiVersionMethods:
+    """Test version-related methods"""
+
+    def test_get_version_method_exists(self, api):
+        """Test get_version method exists and is callable"""
+        assert hasattr(api, 'get_version')
+        assert callable(api.get_version)
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__])
