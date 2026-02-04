@@ -299,45 +299,115 @@ class Ngpf(Base):
         names = payload.names
         if len(names) == 0:
             names = self.api.ixn_routes.names
+        
+        # Group routes by xpath AND route type to avoid conflicts in dual-stack mode
+        # Key: (xpath, route_type) where route_type helps differentiate v4 vs v6 routes
         ixn_obj_idx_list = {}
         names = list(set(names))
         self.logger.debug("set route state for %s" % names)
+        
         for name in names:
             route_info = self.api.ixn_routes.get(name)
-            ixn_obj = None
-            for obj in ixn_obj_idx_list.keys():
-                if obj.xpath == route_info.xpath:
-                    ixn_obj = obj
+            xpath = route_info.xpath
+            
+            # Determine route type from xpath to differentiate v4 and v6 routes
+            route_type = self._get_route_type_from_xpath(xpath)
+            route_key = (xpath, route_type)
+            
+            self.logger.debug(
+                "Processing route '%s': xpath=%s, type=%s, index=%d, multiplier=%d" 
+                % (name, xpath, route_type, route_info.index, route_info.multiplier)
+            )
+            
+            # Check if we already have this xpath+type combination
+            existing_info = None
+            for (existing_xpath, existing_type), info in ixn_obj_idx_list.items():
+                if existing_xpath == xpath and existing_type == route_type:
+                    existing_info = info
                     break
-            if ixn_obj is None:
-                ixn_obj_idx_list[route_info] = list(
-                    range(
-                        route_info.index,
-                        route_info.index + route_info.multiplier,
-                    )
-                )
+            
+            # Build index range for this route
+            index_range = list(range(
+                route_info.index,
+                route_info.index + route_info.multiplier,
+            ))
+            
+            if existing_info is None:
+                # Store route_info and index list together
+                ixn_obj_idx_list[route_key] = {
+                    'route_info': route_info,
+                    'indices': index_range
+                }
             else:
-                ixn_obj_idx_list[route_info].extend(
-                    list(
-                        range(
-                            route_info.index,
-                            route_info.index + route_info.multiplier,
-                        )
-                    )
-                )
+                # Extend existing index list
+                existing_info['indices'].extend(index_range)
+        
         imports = []
-        for obj, index_list in ixn_obj_idx_list.items():
-            xpath = obj.xpath
+        for route_key, info in ixn_obj_idx_list.items():
+            xpath, route_type = route_key
+            route_info = info['route_info']
+            index_list = list(set(info['indices']))  # Remove duplicates
+            
             active = "active"
-            index_list = list(set(index_list))
-            object_info = self.select_properties(xpath, properties=[active])
-            values = object_info[active]["values"]
-            for idx in index_list:
-                values[idx] = Ngpf._ROUTE_STATE[payload.state]
-            imports.append(self.configure_value(xpath, active, values))
+            
+            self.logger.debug(
+                "Setting state for route type '%s' at xpath %s with indices %s" 
+                % (route_type, xpath, index_list)
+            )
+            
+            try:
+                object_info = self.select_properties(xpath, properties=[active])
+                values = object_info[active]["values"]
+                
+                # Validate indices are within bounds
+                max_index = len(values) - 1
+                for idx in index_list:
+                    if idx > max_index:
+                        self.logger.warning(
+                            "Index %d exceeds max index %d for %s route at %s" 
+                            % (idx, max_index, route_type, xpath)
+                        )
+                        continue
+                    values[idx] = Ngpf._ROUTE_STATE[payload.state]
+                
+                imports.append(self.configure_value(xpath, active, values))
+                
+            except Exception as e:
+                self.logger.error(
+                    "Failed to set route state for %s route at %s: %s" 
+                    % (route_type, xpath, str(e))
+                )
+                raise
+        
         self.imports(imports)
         self.api._ixnetwork.Globals.Topology.ApplyOnTheFly()
         return names
+    
+    def _get_route_type_from_xpath(self, xpath):
+        """
+        Determine route type (v4 or v6) from xpath.
+        Returns 'ipv4', 'ipv6', or 'unknown' to differentiate route objects.
+        """
+        if xpath is None:
+            return 'unknown'
+        
+        xpath_lower = xpath.lower()
+        
+        # Check for IPv6 route indicators
+        if 'bgpv6iprouteproperty' in xpath_lower or 'bgpv6' in xpath_lower:
+            return 'ipv6'
+        # Check for IPv4 route indicators  
+        elif 'bgpiprouteproperty' in xpath_lower or 'bgpipv4' in xpath_lower:
+            return 'ipv4'
+        # Check for ISIS v4/v6 routes
+        elif 'isisv6routeproperty' in xpath_lower:
+            return 'ipv6'
+        elif 'isisv4routeproperty' in xpath_lower:
+            return 'ipv4'
+        
+        # Default fallback - log for investigation
+        self.logger.warning("Could not determine route type from xpath: %s" % xpath)
+        return 'unknown'
 
     def set_device_state(self, payload):
         lmp_names = payload.member_ports.lag_member_names
