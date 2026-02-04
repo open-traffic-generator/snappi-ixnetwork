@@ -185,6 +185,14 @@ def test_bgpv6_dual_stack_routes(api, b2b_raw_config, utils):
     for bgp_metric in bgpv6_metrics:
         assert bgp_metric.session_state == "up"
 
+    # Withdraw routes from primary path
+    cs = api.control_state()
+    cs.protocol.route.names = ["bgp2_v6_routes"]
+    cs.protocol.route.state = cs.protocol.route.WITHDRAW
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
+
     # Stop traffic
     cs = api.control_state()
     cs.choice = cs.TRAFFIC
