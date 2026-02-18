@@ -143,7 +143,8 @@ class RoCEv2(Base):
 
             # Populate Destination IP Address
             peerIPlist = rocev2_peer.get("destination_ip_address")
-            ixn_rocev2v4["peerIPList"] = peerIPlist
+            cleaned_list = [x for x in peerIPlist.split(",") if x]
+            ixn_rocev2v4["peerIPList"] = cleaned_list
             self._configureFlowSettings(
                 rocev2_peer, ixn_rocev2v4, stateful_flow, options
             )
@@ -186,7 +187,8 @@ class RoCEv2(Base):
             ixn_rocev2v6["qpCount"] = len(rocev2_peer.qps)
 
             peerIPlist = rocev2_peer.get("destination_ip_address")
-            ixn_rocev2v6["peerIPList"] = peerIPlist
+            cleaned_list = [x for x in peerIPlist.split(",") if x]
+            ixn_rocev2v6["peerIPList"] = cleaned_list
             self._configureFlowSettings(
                 rocev2_peer, ixn_rocev2v6, stateful_flow, options
             )

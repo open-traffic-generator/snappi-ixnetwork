@@ -39,7 +39,7 @@ def test_rocev2_stats(api, utils):
     rocev2_1_int.ib_mtu, rocev2_2_int.ib_mtu = 1027, 1027
     rocev2_1_peer, rocev2_2_peer = rocev2_1_int.peers.add(), rocev2_2_int.peers.add()
     rocev2_1_peer.name, rocev2_2_peer.name = "RoCEv2 1", "RoCEv2 2"
-    rocev2_1_peer.destination_ip_address, rocev2_2_peer.destination_ip_address = [ip2.address], [ip1.address]
+    rocev2_1_peer.destination_ip_address, rocev2_2_peer.destination_ip_address = ip2.address, ip1.address
 
     peer1_qp_1 = rocev2_1_peer.qps.add()
     peer2_qp_1 = rocev2_2_peer.qps.add()
