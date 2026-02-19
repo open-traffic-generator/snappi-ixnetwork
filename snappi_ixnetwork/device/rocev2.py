@@ -149,7 +149,7 @@ class RoCEv2(Base):
                 rocev2_peer, ixn_rocev2v4, stateful_flow, options
             )
 
-    def _config_ipv6_interfaces(self, rocev2, stateful_flow, options):
+    def _config_ipv6_interfaces(self, rocev2, stateful_flow=None, options=None):
         self.logger.debug("Configuring RoCEv2 IPv6 interfaces")
         ipv6_interfaces = rocev2.get("ipv6_interfaces")
         if ipv6_interfaces is None:
@@ -162,7 +162,13 @@ class RoCEv2(Base):
             if not self._is_valid(ipv6_name):
                 continue
             ixn_ipv6 = self._ngpf.api.ixn_objects.get_object(ipv6_name)
-            self._config_rocev2v6(ipv6_interface.get("peers"), ixn_ipv6)
+            self._config_rocev2v6(
+                ipv6_interface,
+                ipv6_interface.get("peers"),
+                ixn_ipv6,
+                stateful_flow,
+                options,
+            )
 
     def _config_rocev2v6(
         self, ipv6_interface, rocev2_peers, ixn_ipv6, stateful_flow, options
@@ -179,7 +185,6 @@ class RoCEv2(Base):
                 rocev2_peer, ixn_rocev2v6, RoCEv2._RoCEv2
             )
             ixn_rocev2v6["qpCount"] = len(rocev2_peer.qps)
-            self._configureFlowSettings(rocev2_peer, ixn_rocev2v6)
 
             peerIPlist = rocev2_peer.get("destination_ip_address")
             cleaned_list = [x for x in peerIPlist.split(",") if x]
@@ -402,7 +407,7 @@ class RoCEv2(Base):
         trafficPortConfigs = rocev2_traffic.RoceV2PortConfig.find()
         trafficflows = rocev2_traffic.RoceV2Stream.find()
         rocev2s = []
-        if stateful_flow is not None:
+        if stateful_flow is not None and stateful_flow.get("rocev2") is not None:
             rocev2s = stateful_flow.get("rocev2")
         for trafficportconfig in trafficPortConfigs:
             for rocev2 in rocev2s:
@@ -411,7 +416,7 @@ class RoCEv2(Base):
                         trafficportconfig.TargetLineRateInPercent = (
                             tx_port.transmit_type.target_line_rate.value
                         )
-        if options is not None:
+        if options is not None and options.get("per_port_options") is not None:
             for trafficportconfig in trafficPortConfigs:
                 dcqcn_params = trafficportconfig.RoceV2DcqcnParams
                 for dcqcn_param in dcqcn_params:
