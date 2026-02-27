@@ -11,7 +11,7 @@ from email.mime.text import MIMEText
 
 global ixnexception
 
-SNAPPI_BRANCH=None
+SNAPPI_BRANCH="custom_speed_mode"
 def get_snappi_dev_branch():
     if SNAPPI_BRANCH is not None and SNAPPI_BRANCH != "":
         print(f"Test is using this snappi branch {SNAPPI_BRANCH}")

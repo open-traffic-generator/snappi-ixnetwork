@@ -207,6 +207,7 @@ class StoreProperty(object):
         self._port = port.lstrip("0")
         self._port_name = port_name
         self._speed = layer1.speed
+        self._speed_mode = layer1.custom_speed
         self._l1name = layer1.name
         self._chassis_id = None
         self._card_id = None
@@ -253,7 +254,10 @@ class StoreProperty(object):
             map_speed = "normal"
         else:
             try:
-                map_speed = Vport._SPEED_MODE_MAP[self._speed]
+                if self._speed == "custom_speed":
+                    map_speed = self._speed_mode.lower()
+                else:
+                    map_speed = Vport._SPEED_MODE_MAP[self._speed]
             except Exception:
                 raise Exception(
                     "Speed %s not available within internal map" % self._speed

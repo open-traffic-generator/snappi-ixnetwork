@@ -489,9 +489,10 @@ class Vport(object):
             return
 
         aggregation_mode = None
-        if layer1.speed in Vport._SPEED_MODE_MAP:
+        speed, mode = self.get_speed_mode(layer1)
+        
+        if speed in Vport._SPEED_MODE_MAP:
             card = self._api.select_chassis_card(vport)
-            mode = Vport._SPEED_MODE_MAP[layer1.speed]
             for available_mode in card["availableModes"]:
                 if re.search(mode, available_mode.lower()) is not None:
                     aggregation_mode = available_mode
@@ -509,7 +510,8 @@ class Vport(object):
             )
 
     def _set_auto_negotiation(self, vport, layer1, imports):
-        if layer1.speed.endswith("_mbps") or layer1.speed == "speed_1_gbps":
+        speed, mode = self.get_speed_mode(layer1)
+        if speed.endswith("_mbps") or speed == "speed_1_gbps":
             self._set_ethernet_auto_negotiation(vport, layer1, imports)
         else:
             self._set_gigabit_auto_negotiation(vport, layer1, imports)
@@ -556,28 +558,29 @@ class Vport(object):
         return vport_type
 
     def _set_ethernet_auto_negotiation(self, vport, layer1, imports):
+        speed, mode = self.get_speed_mode(layer1)
         advertise = []
-        if layer1.speed == "speed_1_gbps":
+        if speed == "speed_1_gbps":
             advertise.append(
                 Vport._ADVERTISE_MAP["advertise_one_thousand_mbps"]
             )
-        if layer1.speed == "speed_100_fd_mbps":
+        if speed == "speed_100_fd_mbps":
             advertise.append(
                 Vport._ADVERTISE_MAP["advertise_one_hundred_fd_mbps"]
             )
-        if layer1.speed == "speed_100_hd_mbps":
+        if speed == "speed_100_hd_mbps":
             advertise.append(
                 Vport._ADVERTISE_MAP["advertise_one_hundred_hd_mbps"]
             )
-        if layer1.speed == "speed_10_fd_mbps":
+        if speed == "speed_10_fd_mbps":
             advertise.append(Vport._ADVERTISE_MAP["advertise_ten_fd_mbps"])
-        if layer1.speed == "speed_10_hd_mbps":
+        if speed == "speed_10_hd_mbps":
             advertise.append(Vport._ADVERTISE_MAP["advertise_ten_hd_mbps"])
         proposed_import = {
             "xpath": vport["xpath"]
             + "/l1Config/"
             + vport["type"].replace("Fcoe", ""),
-            "speed": self._get_speed(vport, layer1),
+            "speed": self._get_speed(vport, speed),
             "media": layer1.get("media", with_default=True),
             "autoNegotiate": layer1.get("auto_negotiate", with_default=True),
             "speedAuto": advertise,
@@ -603,8 +606,9 @@ class Vport(object):
 
     def _set_gigabit_auto_negotiation(self, vport, layer1, imports):
         advertise = []
+        speed, mode = self.get_speed_mode(layer1)
         advertise.append(
-            Vport._SPEED_MAP[layer1.get("speed", with_default=True)]
+            Vport._SPEED_MAP[speed]
         )
         auto_field_name = "enableAutoNegotiation"
         if re.search("novustengiglan", vport["type"].lower()) is not None:
@@ -632,7 +636,7 @@ class Vport(object):
             "xpath": vport["xpath"]
             + "/l1Config/"
             + vport["type"].replace("Fcoe", ""),
-            "speed": Vport._SPEED_MAP[layer1.speed],
+            "speed": Vport._SPEED_MAP[speed],
             "{0}".format(auto_field_name): (
                 False if auto_negotiate is None else auto_negotiate
             ),
@@ -643,16 +647,44 @@ class Vport(object):
         proposed_import["media"] = layer1.get("media", with_default=True)
         self._add_l1config_import(vport, proposed_import, imports)
 
-    def _get_speed(self, vport, layer1):
+    def _get_speed(self, vport, speed):
         if vport["type"] == "ethernetvm":
-            return Vport._VM_SPEED_MAP[layer1.speed]
+            return Vport._VM_SPEED_MAP[speed]
         else:
-            return Vport._SPEED_MAP[layer1.speed]
+            return Vport._SPEED_MAP[speed]
+
+    def get_speed_mode(self, layer1):
+        speed = ""
+        mode = ""
+        if layer1.get("speed") == "custom_speed":
+            custom_speed = layer1.get("custom_speed")
+            if custom_speed is not None:
+                for speed_key, speed_value in reversed(list(Vport._SPEED_MODE_MAP.items())):
+                    if speed_value.startswith("^"):
+                        if re.match(speed_value.lower(), custom_speed.lower()):
+                            speed = speed_key
+                            break
+                    else:
+                        if speed_value.lower() in custom_speed.lower():
+                            speed = speed_key
+                            break
+                if speed != "":
+                    mode = custom_speed.lower()
+                else:
+                     raise Exception(
+                    "Please check the speed mode or the port numbers for the provided speed mode",
+                    )
+        else:
+            speed = layer1.get("speed", with_default=True)
+            mode = Vport._SPEED_MODE_MAP[layer1.speed]
+                
+        return speed, mode
 
     def _reset_auto_negotiation(self, vport, layer1, imports):
+        speed, mode = self.get_speed_mode(layer1)
         if (
-            layer1.speed.endswith("_mbps") is False
-            and layer1.speed != "speed_1_gbps"
+            speed.endswith("_mbps") is False
+            and speed != "speed_1_gbps"
         ):
             imports.append(
                 {
