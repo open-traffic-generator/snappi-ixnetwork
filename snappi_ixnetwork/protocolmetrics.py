@@ -15,6 +15,7 @@ class ProtocolMetrics(object):
         "rocev2_ipv4",
         "rocev2_ipv6",
         "isis",
+        "rsvp",
     ]
 
     _TOPO_STATS = {
@@ -159,6 +160,39 @@ class ProtocolMetrics(object):
             ("l2_lsp_sent", "L2 LSP Tx", int),
             ("l2_lsp_received", "L2 LSP Rx", int),
         ],
+        "rsvp": [
+            ("name", "Device Group", str),
+            ("ingress_p2p_lsps_configured", "Ingress LSPs Configured", int),
+            ("ingress_p2p_lsps_up", "Ingress LSPs Up", int),
+            ("egress_p2p_lsps_up", "Egress LSPs Up", int),
+            ("lsp_flap_count", "Session Flap Count", int),
+            ("paths_tx", "Paths Tx", int),
+            ("paths_rx", "Paths Rx", int),
+            ("resvs_tx", "RESVs Tx", int),
+            ("resvs_rx", "RESVs Rx", int),
+            ("path_tears_tx", "Path Tears Tx", int),
+            ("path_tears_rx", "Path Tears Rx", int),
+            ("resv_tears_tx", "RESV Tears Tx", int),
+            ("resv_tears_rx", "RESV Tears Rx", int),
+            ("path_errors_tx", "Path-ERRs Tx", int),
+            ("path_errors_rx", "Path-ERRs Rx", int),
+            ("resv_errors_tx", "RESV-ERRs Tx", int),
+            ("resv_errors_rx", "RESV-ERRs Rx", int),
+            ("resv_conf_tx", "RESV-CONFs Tx", int),
+            ("resv_conf_rx", "RESV-CONFs Rx", int),
+            ("hellos_tx", "HELLOs Tx", int),
+            ("hellos_rx", "HELLOs Rx", int),
+            ("acks_tx", "ACKs Tx", int),
+            ("acks_rx", "ACKs Rx", int),
+            ("nacks_tx", "NACKs Tx", int),
+            ("nacks_rx", "NACKs Rx", int),
+            ("srefresh_tx", "SREFRESHs Tx", int),
+            ("srefresh_rx", "SREFRESHs Rx", int),
+            ("bundle_tx", "Bundle Messages Tx", int),
+            ("bundle_rx", "Bundle Messages Rx", int),
+            ("path_reevaluation_request_tx", "Path Re-evaluation Request Tx", int), # noqa
+            ("path_reoptimizations", "Number of Path Re-Optimizations", int),
+        ],
     }
 
     _PROTO_NAME_MAP_ = {
@@ -230,6 +264,16 @@ class ProtocolMetrics(object):
             "supported_stats": [s[0] for s in _RESULT_COLUMNS["isis"]],
             "ixn_name": "isisL3",
         },
+        "rsvp": {
+            "per_port": "RSVPTE-IF Per Port",
+            "drill_down": "RSVPTE-IF Drill Down",
+            "drill_down_options": [
+                "RSVPTE-IF:Per Device Group",
+                "RSVPTE-IF:Per Session",
+            ],
+            "supported_stats": [s[0] for s in _RESULT_COLUMNS["rsvp"]],
+            "ixn_name": "rsvpteIf",
+        },
     }
 
     _PEER_NAMES = {
@@ -239,7 +283,8 @@ class ProtocolMetrics(object):
         "mka": "peer_names",
         "rocev2_ipv4": "peer_names",
         "rocev2_ipv6": "peer_names",
-        "isis": "router_names"
+        "isis": "router_names",
+        "rsvp": "router_names",
     }
 
     def __init__(self, ixnetworkapi):

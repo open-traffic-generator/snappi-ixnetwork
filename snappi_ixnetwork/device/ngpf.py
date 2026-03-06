@@ -12,6 +12,7 @@ from snappi_ixnetwork.device.compactor import Compactor
 from snappi_ixnetwork.device.createixnconfig import CreateIxnConfig
 from snappi_ixnetwork.device.rocev2 import RoCEv2
 from snappi_ixnetwork.device.isis import Isis
+from snappi_ixnetwork.device.rsvp import Rsvp
 
 
 class Ngpf(Base):
@@ -37,6 +38,11 @@ class Ngpf(Base):
         "IsisInterface": "ethernetVlan",
         "IsisV4RouteRange": "ipv4",
         "IsisV6RouteRange": "ipv6",
+        "Rsvp": "ipv4",
+        "RsvpIpv4Interface": "ipv4",
+        "RsvpLspIpv4Interface": "ipv4",
+        "RsvpLspIpv4InterfaceP2PEgressIpv4Lsp": "ipv4",
+        "RsvpLspIpv4InterfaceP2PIngressIpv4Lsp": "ipv4",
     }
 
     _ROUTE_STATE = {"advertise": True, "withdraw": False}
@@ -57,6 +63,7 @@ class Ngpf(Base):
         self._vxlan = VXLAN(self)
         self._rocev2 = RoCEv2(self)
         self._isis = Isis(self)
+        self._rsvp = Rsvp(self)
         self._loop_back = LoopbackInt(self)
         self.compactor = Compactor(self.api)
         self._createixnconfig = CreateIxnConfig(self)
@@ -134,6 +141,10 @@ class Ngpf(Base):
         # Configure all Isis interface before configure protocols
         for device in self.api.snappi_config.devices:
             self._isis.config(device)
+
+        # Configure all Rsvp interface before configure protocols
+        for device in self.api.snappi_config.devices:
+            self._rsvp.config(device)
 
         # Compaction will take place in this order
         # Step-1: Compact chain DGs
