@@ -1530,8 +1530,8 @@ class Api(snappi.Api):
             )
 
             return {
-                "api_spec_version": "open-api-models-"
-                + snappi.Api.get_local_version(self).api_spec_version,
+                "api_spec_version": "open-api-models-" +
+                snappi.Api.get_local_version(self).api_spec_version,
                 "sdk_version": sdk_version,
                 "app_version": app_version,
             }
