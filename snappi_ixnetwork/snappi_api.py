@@ -1044,32 +1044,28 @@ class Api(snappi.Api):
                     self._license_servers
                 )
             try:
-                import pkg_resources
+                from importlib.metadata import version, PackageNotFoundError
 
                 snappi_ver = (
                     "snappi-"
-                    + pkg_resources.get_distribution("snappi").version
+                    + version("snappi")
                 )
                 self.info(snappi_ver)
                 snappi_ixn = (
                     "snappi_ixnetwork-"
-                    + pkg_resources.get_distribution(
-                        "snappi_ixnetwork"
-                    ).version
+                    + version("snappi_ixnetwork")
                 )
                 self.info(snappi_ixn)
                 restpy = (
                     "ixnetwork_restpy-"
-                    + pkg_resources.get_distribution(
-                        "ixnetwork_restpy"
-                    ).version
+                    + version("ixnetwork_restpy")
                 )
                 self.info(restpy)
-            except pkg_resources.DistributionNotFound as e:
-                version = "Could not determine version for pkg {}".format(
-                    e.req.project_name
+            except PackageNotFoundError as e:
+                version_msg = "Could not determine version for pkg {}".format(
+                    e.name
                 )
-                self.info(version)
+                self.info(version_msg)
             except Exception as e:
                 self.warning("{}".format(e))
         self._backup_errors()
@@ -1523,19 +1519,19 @@ class Api(snappi.Api):
 
     def get_version(self):
         try:
-            import pkg_resources
+            from importlib.metadata import version
 
             sdk_version = (
-                "snappi-" + pkg_resources.get_distribution("snappi").version
+                "snappi-" + version("snappi")
             )
             app_version = (
                 "snappi_ixnetwork-"
-                + pkg_resources.get_distribution("snappi_ixnetwork").version
+                + version("snappi_ixnetwork")
             )
 
             return {
-                "api_spec_version": "open-api-models-"
-                + snappi.Api.get_local_version(self).api_spec_version,
+                "api_spec_version": "open-api-models-" +
+                snappi.Api.get_local_version(self).api_spec_version,
                 "sdk_version": sdk_version,
                 "app_version": app_version,
             }
