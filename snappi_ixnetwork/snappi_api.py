@@ -123,6 +123,7 @@ class Api(snappi.Api):
         self._rocev2 = RoCEv2(self)
         self._rocev2_ip_to_peer_map = {}
         self._port_compaction = False
+        self.rocev2GlobalSettingsPopulated = False
 
         self._ixn_route_info = namedtuple(
             "IxnRouteInfo", ["ixn_obj", "index", "multiplier"]
@@ -436,11 +437,12 @@ class Api(snappi.Api):
                                 rest_rocev2.DestinationPeerNames = [destination_peer_name]
                             else:
                                 rest_rocev2.DestinationPeerNames.append(destination_peer_name)
-                            
-        if hasattr(self.snappi_config, "options"):
+                       
+        if hasattr(self.snappi_config, "options") and self.rocev2GlobalSettingsPopulated is False:
             options = self.snappi_config.options
             if options is not None:
                 self._rocev2._populateGLobalPortSettings(options)
+            self.rocev2GlobalSettingsPopulated = True
 
     def _protocols_exists(self):
         total_dev = len(self._ixnetwork.GetTopologyStatus())

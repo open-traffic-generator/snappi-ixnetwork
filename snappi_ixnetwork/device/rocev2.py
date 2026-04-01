@@ -1,5 +1,6 @@
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.logger import get_ixnet_logger
+from collections import Counter
 
 
 class RoCEv2(Base):
@@ -324,6 +325,13 @@ class RoCEv2(Base):
     def _populateGLobalPortSettings(self, options):
         perportoptions = []
         protocols = []
+        cnp_dscp_map = {}
+        cnp_ecn_map = {}
+        cnp_delay_timer_map = {}
+        ack_dscp_map = {}
+        ack_ecn_map = {}
+        nak_dscp_map = {} 
+        nak_ecn_map = {}
         index = 0
         ixnRocev2GlobalPortSettings = (
             self._ngpf._ixnetwork.Globals.Topology.find().Rocev2.find()
@@ -340,56 +348,64 @@ class RoCEv2(Base):
                             ixnRocev2GlobalPortSettings.CnpPriorityType.Single(
                                 "handshakeprioritytypeipdscp"
                             )
-                        if (ixnRocev2GlobalPortSettings.CnpPriorityValue != protocol.cnp.ip_dscp.get("value")):
-                            ixnRocev2GlobalPortSettings.CnpPriorityValue.Overlay(index, protocol.cnp.ip_dscp.get("value"))
+                        cnp_dscp_map[index] = protocol.cnp.ip_dscp.get("value")
                         ecn_key = protocol.cnp.get("ecn_value")
                         ecn_numeric = self.ecn_mapping.get(ecn_key, None)
-                        if ecn_numeric is not None and (int(str(ixnRocev2GlobalPortSettings.CnpEcnVal)) != ecn_numeric):
-                            ixnRocev2GlobalPortSettings.CnpEcnVal.Overlay(index, ecn_numeric)
-                        if (int(str(ixnRocev2GlobalPortSettings.CnpDelayTimer)) != protocol.cnp.get("cnp_delay_timer")):
-                            ixnRocev2GlobalPortSettings.CnpDelayTimer.Overlay(index, protocol.cnp.get("cnp_delay_timer"))
-                    
-                    if  hasattr(protocol, "cnp"):
-                    # # ACK
-                        if protocol.connection_type.reliable_connection.ack:
-                            if (
-                                protocol.connection_type.reliable_connection.ack.get(
-                                    "choice"
-                                )
-                                == "ip_dscp"
-                            ):
-                                ixnRocev2GlobalPortSettings.AckPriorityType.Single(
-                                    "handshakeprioritytypeipdscp"
-                                )
-                            if (int(str(ixnRocev2GlobalPortSettings.AckPriorityValue)) != protocol.connection_type.reliable_connection.ack.ip_dscp.get("value")):
-                                ixnRocev2GlobalPortSettings.AckPriorityValue.Overlay(index, protocol.connection_type.reliable_connection.ack.ip_dscp.get("value"))
-                            ecn_key = protocol.connection_type.reliable_connection.ack.get(
-                                "ecn_value"
-                            )
-                            ecn_numeric = self.ecn_mapping.get(ecn_key, None)
-                            if ecn_numeric is not None and (int(str(ixnRocev2GlobalPortSettings.AckEcnVal)) != ecn_numeric):
-                                ixnRocev2GlobalPortSettings.AckEcnVal.Overlay(index, ecn_numeric)
-                    if  hasattr(protocol, "nak"):
-                        #NAK
-                        if protocol.connection_type.reliable_connection.nak:
-                            if (
-                                protocol.connection_type.reliable_connection.nak.get(
-                                    "choice"
-                                )
-                                == "ip_dscp"
-                            ):
-                                ixnRocev2GlobalPortSettings.NakPriorityType.Single(
-                                    "handshakeprioritytypeipdscp"
-                                )
-                            if (int(str(ixnRocev2GlobalPortSettings.NakPriorityValue)) != protocol.connection_type.reliable_connection.nak.ip_dscp.get("value")):
-                                ixnRocev2GlobalPortSettings.NakPriorityValue.Overlay(index, protocol.connection_type.reliable_connection.nak.ip_dscp.get("value"))
-                            ecn_key = protocol.connection_type.reliable_connection.nak.get(
-                                "ecn_value"
-                            )
-                            ecn_numeric = self.ecn_mapping.get(ecn_key, None)
-                            if ecn_numeric is not None and (int(str(ixnRocev2GlobalPortSettings.NakEcnVal)) != ecn_numeric):
-                                ixnRocev2GlobalPortSettings.NakEcnVal.Overlay(index, ecn_numeric)
+                        if ecn_numeric is not None:
+                            cnp_ecn_map[index] = ecn_numeric
+                        cnp_delay_timer_map[index] = protocol.cnp.get("cnp_delay_timer")
+                        
+                        if hasattr(protocol, "connection_type") and \
+                            hasattr(protocol.connection_type, "reliable_connection") and \
+                            hasattr(protocol.connection_type.reliable_connection, "ack"):
+                                # # ACK
+                                if protocol.connection_type.reliable_connection.ack:
+                                    if (
+                                        protocol.connection_type.reliable_connection.ack.get(
+                                            "choice"
+                                        )
+                                        == "ip_dscp"
+                                    ):
+                                        ixnRocev2GlobalPortSettings.AckPriorityType.Single(
+                                            "handshakeprioritytypeipdscp"
+                                        )
+                                    ack_dscp_map[index] = protocol.connection_type.reliable_connection.ack.ip_dscp.get("value")
+                                    ecn_key = protocol.connection_type.reliable_connection.ack.get(
+                                        "ecn_value"
+                                    )
+                                    ecn_numeric = self.ecn_mapping.get(ecn_key, None)
+                                    if ecn_numeric is not None:
+                                        ack_ecn_map[index] = ecn_numeric
 
+                        if hasattr(protocol, "connection_type") and \
+                            hasattr(protocol.connection_type, "reliable_connection") and \
+                            hasattr(protocol.connection_type.reliable_connection, "nak"):
+                            #NAK
+                            if protocol.connection_type.reliable_connection.nak:
+                                if (
+                                    protocol.connection_type.reliable_connection.nak.get(
+                                        "choice"
+                                    )
+                                    == "ip_dscp"
+                                ):
+                                    ixnRocev2GlobalPortSettings.NakPriorityType.Single(
+                                        "handshakeprioritytypeipdscp"
+                                    )
+                                nak_dscp_map[index] = protocol.connection_type.reliable_connection.nak.ip_dscp.get("value")
+                                ecn_key = protocol.connection_type.reliable_connection.nak.get(
+                                    "ecn_value"
+                                )
+                                ecn_numeric = self.ecn_mapping.get(ecn_key, None)
+                                if ecn_numeric is not None :
+                                    nak_ecn_map[index] = ecn_numeric
+
+        self.apply_multivalue(ixnRocev2GlobalPortSettings.CnpPriorityValue, cnp_dscp_map)
+        self.apply_multivalue(ixnRocev2GlobalPortSettings.CnpEcnVal, cnp_ecn_map)
+        self.apply_multivalue(ixnRocev2GlobalPortSettings.CnpDelayTimer, cnp_delay_timer_map)
+        self.apply_multivalue(ixnRocev2GlobalPortSettings.AckPriorityValue, ack_dscp_map)
+        self.apply_multivalue(ixnRocev2GlobalPortSettings.AckEcnVal, ack_ecn_map)
+        self.apply_multivalue(ixnRocev2GlobalPortSettings.NakPriorityValue, nak_dscp_map)
+        self.apply_multivalue(ixnRocev2GlobalPortSettings.NakEcnVal, nak_ecn_map)
                     # Retransmission
                     # ixnRocev2GlobalPortSettings.EnableACKTimeout.Single(protocol.connection_type.reliable_connection.get("enable_retransmission_timeout"))
                     # ixnRocev2GlobalPortSettings.AckTimeout.Single(protocol.connection_type.reliable_connection.get("retransmission_timeout_value"))
@@ -464,4 +480,36 @@ class RoCEv2(Base):
             "hyper_increment_rate"
         )
 
+    def apply_multivalue(self, multivalue_obj, index_value_map):
+        if not index_value_map:
+            return
 
+        values = list(index_value_map.values())
+
+        # Try to get current Single value
+        try:
+            current_value = int(str(multivalue_obj))
+            has_existing_single = True
+        except:
+            current_value = None
+            has_existing_single = False
+
+        #Decide base value
+        if has_existing_single and current_value in values:
+            base_value = current_value  # reuse existing base
+        else:
+            base_value = Counter(values).most_common(1)[0][0]
+
+        #If already perfect (same single + no variation) → skip everything
+        if has_existing_single and current_value == base_value and len(set(values)) == 1:
+            return
+
+        # Only reset if base is changing OR not in single mode
+        if not has_existing_single or current_value != base_value:
+            multivalue_obj.ClearOverlays()
+            multivalue_obj.Single(base_value)
+
+        # Apply overlays only where needed
+        for index, value in index_value_map.items():
+            if value != base_value:
+                multivalue_obj.Overlay(index, value)
