@@ -23,6 +23,7 @@ from snappi_ixnetwork.vport import Vport
 from snappi_ixnetwork.ixnetworkconfig import IxNetworkConfig
 from snappi_ixnetwork.device.mka import Mka
 from snappi_ixnetwork.device.macsec import Macsec
+from snappi_ixnetwork.device.rocev2 import RoCEv2
 
 
 class Api(snappi.Api):
@@ -119,6 +120,8 @@ class Api(snappi.Api):
         self._ixnet_specific_config = None
         self._mka = Mka(self)
         self._macsec = Macsec(self)
+        self._rocev2 = RoCEv2(self)
+        self._rocev2_ip_to_peer_map = {}
         self._port_compaction = False
 
         self._ixn_route_info = namedtuple(
@@ -393,6 +396,9 @@ class Api(snappi.Api):
                         if self._macsec._is_dynamic_key(macsec):
                             # it is MKA
                             self._mka._clear_overlays_in_globals(macsec)
+                    rocev2 = device.get("rocev2")
+                    if rocev2:
+                        self._populate_rocev2_destination_peers_and_global_port_settings(rocev2)
                 self._start_interface()
             else:
                 if len(self._ixnetwork.Topology.find()) > 0:
@@ -406,6 +412,35 @@ class Api(snappi.Api):
                         )
                     )
                     self._ixnetwork.Lag.find(Name=lag.name).Stop()
+
+    def _populate_rocev2_destination_peers_and_global_port_settings(self, rocev2):
+        print ("Populating RoCEv2 destination peers for RoCEv2 config")
+        ipv4_interfaces = rocev2.get("ipv4_interfaces")
+        if ipv4_interfaces is None:
+            return
+        for ipv4_interface in ipv4_interfaces:
+            rocev2_peers = ipv4_interface.get("peers")
+            if rocev2_peers is None:
+                return
+            self.logger.debug("Configuring RoCEv2 Peer")
+            for rocev2_peer in rocev2_peers:
+                ip_address = rocev2_peer.get("destination_ip_address")
+                destination_peer_name = self._rocev2_ip_to_peer_map[ip_address]
+                
+                rest_rocev2s = self._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv4.find().Rocev2.find()
+                for rest_rocev2 in rest_rocev2s:
+                    index = 0
+                    if rest_rocev2.Name == rocev2_peer.get("name"):
+                        if destination_peer_name not in rest_rocev2.DestinationPeerNames:
+                            if not rest_rocev2.DestinationPeerNames:
+                                rest_rocev2.DestinationPeerNames = [destination_peer_name]
+                            else:
+                                rest_rocev2.DestinationPeerNames.append(destination_peer_name)
+                            
+        if hasattr(self.snappi_config, "options"):
+            options = self.snappi_config.options
+            if options is not None:
+                self._rocev2._populateGLobalPortSettings(options)
 
     def _protocols_exists(self):
         total_dev = len(self._ixnetwork.GetTopologyStatus())
