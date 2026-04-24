@@ -141,7 +141,101 @@ class Isis(Base):
         "count": "numberOfAddressesAsy",
         "step": "prefixAddrStep",
     }
-    
+
+    _SRGB_RANGE = {
+        "starting_sid": "startSIDLabel",
+        "range": "sIDCount",
+    }
+
+    _SRLB_RANGE = {
+        "starting_sid": "startSIDLabel",
+        "range": "sIDCount",
+    }
+
+    _SRV6_NODE_MSD = {
+        "include_max_sl": "includeMaximumSLTLV",
+        "max_sl": "maxSL",
+        "include_max_end_pop_srh": "includeMaximumEndPopSrhTLV",
+        "max_end_pop_srh": "maxEndPopSrh",
+        "include_max_t_insert": "includeMaximumTInsertSrhTLV",
+        "max_t_insert": "maxTInsert",
+        "include_max_h_encaps": "includeMaximumHEncapMsd",
+        "max_h_encaps": "maxHEncapMsd",
+        "include_max_end_d_srh": "includeMaximumEndDSrhTLV",
+        "max_end_d_srh": "maxEndD",
+    }
+
+    _SRV6_LOCATOR = {
+        "algorithm": "algorithm",
+        "metric": "metric",
+        "d_flag": "dBit",
+        "mt_id": "mtId",
+    }
+
+    _SRV6_LOCATOR_REDISTRIBUTION = {
+        "redistribution_type": {
+            "ixn_attr": "redistribution",
+            "default_value": "up",
+            "enum_map": {"up": "up", "down": "down"},
+        }
+    }
+
+    _SRV6_LOCATOR_ADVERTISE_AS_PREFIX = {
+        "route_metric": "routeMetric",
+    }
+
+    _SRV6_LOCATOR_ROUTE_ORIGIN = {
+        "route_origin": {
+            "ixn_attr": "routeOrigin",
+            "default_value": "internal",
+            "enum_map": {"internal": "internal", "external": "external"},
+        }
+    }
+
+    # snappi endpoint_behavior → IxNetwork endPointFunction integer code (RFC 8986)
+    _SRV6_ENDPOINT_FUNCTION = {
+        "end": 1,
+        "end_with_psp": 1,
+        "end_with_usp": 1,
+        "end_with_psp_usp": 1,
+        "end_with_usd": 1,
+        "end_with_psp_usd": 1,
+        "end_with_usp_usd": 1,
+        "end_with_psp_usp_usd": 1,
+        "end_dt4": 14,
+        "end_dt6": 12,
+        "end_dt46": 13,
+    }
+
+    # snappi endpoint_behavior → IxNetwork Flags byte (PSP=0x80, USP=0x40, USD=0x20)
+    _SRV6_ENDPOINT_FLAGS = {
+        "end": 0,
+        "end_with_psp": 0x80,
+        "end_with_usp": 0x40,
+        "end_with_psp_usp": 0xC0,
+        "end_with_usd": 0x20,
+        "end_with_psp_usd": 0xA0,
+        "end_with_usp_usd": 0x60,
+        "end_with_psp_usp_usd": 0xE0,
+        "end_dt4": 0,
+        "end_dt6": 0,
+        "end_dt46": 0,
+    }
+
+    _PREFIX_ATTR_FLAGS = {
+        "x_flag": "enableXFlag",
+        "r_flag": "enableRFlag",
+        "n_flag": "enableNFlag",
+    }
+
+    _PREFIX_SID_FLAGS = {
+        "r_flag": "rFlag",
+        "n_flag": "nFlag",
+        "p_flag": "pFlag",
+        "e_flag": "eFlag",
+        "l_flag": "lFlag",
+    }
+
     def __init__(self, ngpf):
         super(Isis, self).__init__()
         self._ngpf = ngpf
@@ -281,6 +375,12 @@ class Isis(Base):
         isis_router_auth = otg_isis_router.get("router_auth")
         if isis_router_auth is not None:
             self._configure_isis_router_auth(isis_router_auth, ixn_isis_router) # noqa
+        segment_routing = otg_isis_router.get("segment_routing")
+        if segment_routing is not None:
+            self._configure_sr_capability(segment_routing, ixn_isis_router)
+            srv6_locators = segment_routing.get("srv6_locators")
+            if srv6_locators is not None and len(srv6_locators) > 0:
+                self._configure_srv6_locators(srv6_locators, ixn_isis_router)
         
     def _configure_isis_router_basic(self, otg_router_basic, ixn_isis_router):
         "Configuring ISIS router basic"
@@ -318,6 +418,164 @@ class Isis(Base):
     def _configure_isis_router_auth(self, otg_router_auth, ixn_isis_router): # noqa
         "Configuring ISIS router authentication"
         self.configure_multivalues(otg_router_auth, ixn_isis_router, Isis._ROUTER_AUTH) # noqa
+
+    def _configure_sr_capability(self, sr, ixn_isis_router):
+        "Configuring ISIS Segment Routing capability on the router"
+        self.logger.debug("Configuring ISIS SR capability")
+        ixn_isis_router["enableSR"] = self.multivalue(True)
+        rc = sr.get("router_capability")
+        if rc is None:
+            return
+        # Router Capability ID (rtrcapId)
+        choice = rc.get("choice")
+        if choice == "custom_router_cap_id":
+            custom_id = rc.get("custom_router_cap_id")
+            if custom_id is not None:
+                ixn_isis_router["rtrcapId"] = self.multivalue(custom_id)
+        # S-bit and D-bit
+        s_bit = rc.get("s_bit")
+        if s_bit is not None:
+            ixn_isis_router["sBit"] = self.multivalue(s_bit == "flood")
+        d_bit = rc.get("d_bit")
+        if d_bit is not None:
+            ixn_isis_router["dBit"] = self.multivalue(d_bit == "down")
+        # SR capability (SRGB + I/V flags)
+        sr_cap = rc.get("sr_capability")
+        if sr_cap is not None:
+            self._configure_srgb_ranges(sr_cap, ixn_isis_router)
+        # SR algorithms
+        algorithms = rc.get("algorithms")
+        if algorithms is not None and len(algorithms) > 0:
+            self._configure_sr_algorithms(algorithms, ixn_isis_router)
+        # SRLB ranges
+        srlb_ranges = rc.get("srlb_ranges")
+        if srlb_ranges is not None and len(srlb_ranges) > 0:
+            self._configure_srlb_ranges(srlb_ranges, ixn_isis_router)
+        # SRv6 node capability
+        srv6_cap = rc.get("srv6_capability")
+        if srv6_cap is not None:
+            self._configure_srv6_node_capability(srv6_cap, ixn_isis_router)
+
+    def _configure_srgb_ranges(self, sr_cap, ixn_isis_router):
+        "Configuring SRGB ranges"
+        srgb_ranges = sr_cap.get("srgb_ranges")
+        if srgb_ranges is None or len(srgb_ranges) == 0:
+            return
+        self.logger.debug("Configuring %d SRGB range(s)" % len(srgb_ranges))
+        ixn_isis_router["sRGBRangeCount"] = len(srgb_ranges)
+        for srgb in srgb_ranges:
+            ixn_srgb = self.create_node_elemet(
+                ixn_isis_router, "isisSRGBRangeSubObjectsList"
+            )
+            self.configure_multivalues(srgb, ixn_srgb, Isis._SRGB_RANGE)
+        # I-flag (IPv4 MPLS) and V-flag (IPv6 MPLS) from SR capability flags
+        flags = sr_cap.get("flags")
+        if flags is not None:
+            ipv4_mpls = flags.get("ipv4_mpls")
+            if ipv4_mpls is not None:
+                ixn_isis_router["ipv4Flag"] = self.multivalue(ipv4_mpls)
+            ipv6_mpls = flags.get("ipv6_mpls")
+            if ipv6_mpls is not None:
+                ixn_isis_router["ipv6Flag"] = self.multivalue(ipv6_mpls)
+
+    def _configure_srlb_ranges(self, srlb_ranges, ixn_isis_router):
+        "Configuring SRLB ranges"
+        self.logger.debug("Configuring %d SRLB range(s)" % len(srlb_ranges))
+        ixn_isis_router["advertiseSRLB"] = self.multivalue(True)
+        ixn_isis_router["srlbDescriptorCount"] = len(srlb_ranges)
+        for srlb in srlb_ranges:
+            ixn_srlb = self.create_node_elemet(
+                ixn_isis_router, "isisSRLBDescriptorList"
+            )
+            self.configure_multivalues(srlb, ixn_srlb, Isis._SRLB_RANGE)
+
+    def _configure_sr_algorithms(self, algorithms, ixn_isis_router):
+        "Configuring SR algorithms"
+        self.logger.debug("Configuring %d SR algorithm(s)" % len(algorithms))
+        ixn_isis_router["sRAlgorithmCount"] = len(algorithms)
+        for algo_value in algorithms:
+            ixn_algo = self.create_node_elemet(
+                ixn_isis_router, "isisSRAlgorithmList"
+            )
+            ixn_algo["isisSrAlgorithm"] = self.multivalue(algo_value)
+
+    def _configure_srv6_node_capability(self, srv6_cap, ixn_isis_router):
+        "Configuring SRv6 node capability"
+        self.logger.debug("Configuring SRv6 node capability")
+        o_flag = srv6_cap.get("o_flag")
+        if o_flag is not None:
+            ixn_isis_router["oFlagOfSRv6Cap"] = self.multivalue(o_flag)
+        c_flag = srv6_cap.get("c_flag")
+        if c_flag is not None:
+            ixn_isis_router["cFlagOfSRv6Cap"] = self.multivalue(c_flag)
+        node_msds = srv6_cap.get("node_msds")
+        if node_msds is not None:
+            ixn_isis_router["advertiseNodeMsd"] = self.multivalue(True)
+            self.configure_multivalues(
+                node_msds, ixn_isis_router, Isis._SRV6_NODE_MSD
+            )
+
+    def _configure_srv6_locators(self, srv6_locators, ixn_isis_router):
+        "Configuring SRv6 locators"
+        self.logger.debug("Configuring %d SRv6 locator(s)" % len(srv6_locators))
+        ixn_isis_router["locatorCount"] = len(srv6_locators)
+        for locator in srv6_locators:
+            ixn_locator = self.create_node_elemet(
+                ixn_isis_router, "isisSRv6LocatorEntryList", locator.get("name")
+            )
+            ixn_locator["locator"] = self.multivalue(locator.get("locator"))
+            ixn_locator["prefixLength"] = self.multivalue(
+                locator.get("prefix_length")
+            )
+            self.configure_multivalues(locator, ixn_locator, Isis._SRV6_LOCATOR)
+            self.configure_multivalues(
+                locator, ixn_locator, Isis._SRV6_LOCATOR_REDISTRIBUTION
+            )
+            # Advertise locator as prefix
+            advertise = locator.get("advertise_locator_as_prefix")
+            if advertise is not None:
+                ixn_locator["advertiseLocatorAsPrefix"] = self.multivalue(True)
+                self.configure_multivalues(
+                    advertise, ixn_locator, Isis._SRV6_LOCATOR_ADVERTISE_AS_PREFIX
+                )
+                self.configure_multivalues(
+                    advertise, ixn_locator, Isis._SRV6_LOCATOR_ROUTE_ORIGIN
+                )
+            # End SIDs
+            end_sids = locator.get("end_sids")
+            if end_sids is not None and len(end_sids) > 0:
+                ixn_locator["sidCount"] = len(end_sids)
+                for end_sid in end_sids:
+                    self._configure_srv6_end_sid(end_sid, ixn_locator)
+
+    def _configure_srv6_end_sid(self, end_sid, ixn_locator):
+        "Configuring SRv6 End SID"
+        ixn_end_sid = self.create_node_elemet(ixn_locator, "isisSRv6EndSIDList")
+        ixn_end_sid["sid"] = self.multivalue(end_sid.get("sid"))
+        behavior = end_sid.get("endpoint_behavior")
+        if behavior is not None:
+            func_code = Isis._SRV6_ENDPOINT_FUNCTION.get(behavior, 1)
+            flags_val = Isis._SRV6_ENDPOINT_FLAGS.get(behavior, 0)
+            ixn_end_sid["endPointFunction"] = self.multivalue(func_code)
+            ixn_end_sid["flags"] = self.multivalue(flags_val)
+        c_flag = end_sid.get("c_flag")
+        if c_flag is not None:
+            ixn_end_sid["cFlag"] = self.multivalue(c_flag)
+        sid_structure = end_sid.get("sid_structure")
+        if sid_structure is not None:
+            ixn_end_sid["includeSRv6SIDStructureSubSubTlv"] = self.multivalue(True)
+            ixn_end_sid["locatorBlockLength"] = self.multivalue(
+                sid_structure.get("lb_length")
+            )
+            ixn_end_sid["locatorNodeLength"] = self.multivalue(
+                sid_structure.get("ln_length")
+            )
+            ixn_end_sid["functionLength"] = self.multivalue(
+                sid_structure.get("function_length")
+            )
+            ixn_end_sid["argumentLength"] = self.multivalue(
+                sid_structure.get("argument_length")
+            )
 
     def _add_isis_route_range(self, otg_isis_router, ixn_isis_router, ixn_isis):
         "Configuring ISIS route range"
@@ -395,3 +653,31 @@ class Isis(Base):
         redistribution_type = otg_route.get("redistribution_type")
         mapped_type = Isis._REDISTRIBUTION_TYPE["redistribution_type"]["enum_map"][redistribution_type]   # noqa
         ixn_route["redistribution"] = self.multivalue(mapped_type)
+        # Prefix attribute flags
+        prefix_attr_enabled = otg_route.get("prefix_attr_enabled")
+        if prefix_attr_enabled:
+            ixn_route["includePrefixAttrFlags"] = self.multivalue(True)
+            self.configure_multivalues(otg_route, ixn_route, Isis._PREFIX_ATTR_FLAGS)
+        # Prefix SIDs (only first SID mapped per IxNetwork route property)
+        prefix_sids = otg_route.get("prefix_sids")
+        if prefix_sids is not None and len(prefix_sids) > 0:
+            self._configure_prefix_sid(prefix_sids[0], ixn_route)
+
+    def _configure_prefix_sid(self, prefix_sid, ixn_route):
+        "Configuring ISIS Prefix SID on a route range"
+        self.logger.debug("Configuring Prefix SID")
+        ixn_route["configureSIDIndexLabel"] = self.multivalue(True)
+        choice = prefix_sid.get("choice")
+        if choice == "sid_values":
+            sid_values = prefix_sid.get("sid_values")
+            if sid_values is not None and len(sid_values) > 0:
+                ixn_route["sIDIndexLabel"] = self.multivalue(sid_values[0])
+        else:
+            # sid_indices (default)
+            sid_indices = prefix_sid.get("sid_indices")
+            if sid_indices is not None and len(sid_indices) > 0:
+                ixn_route["sIDIndexLabel"] = self.multivalue(sid_indices[0])
+        self.configure_multivalues(prefix_sid, ixn_route, Isis._PREFIX_SID_FLAGS)
+        algorithm = prefix_sid.get("algorithm")
+        if algorithm is not None:
+            ixn_route["algorithm"] = self.multivalue(algorithm)
