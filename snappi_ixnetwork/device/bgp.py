@@ -343,7 +343,7 @@ class Bgp(Base):
                     ixn_route, "bgpAsPathSegmentList"
                 )
                 ixn_segment["segmentType"] = self.multivalue(
-                    segment.get(type), Bgp._BGP_SEG_TYPE
+                    segment.get("type"), Bgp._BGP_SEG_TYPE
                 )
                 as_numbers = segment.get("as_numbers")
                 ixn_segment["numberOfAsNumberInSegment"] = len(as_numbers)
