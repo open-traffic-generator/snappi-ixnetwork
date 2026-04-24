@@ -183,7 +183,7 @@ def validate_community_config(api, community, aspaths, med, origin):
     assert last_two_octets == community.split(":")[1]
 
     as_paths = bgpv4.AsPathASString
-    as_paths = as_paths[0].replace("}", "").replace("{", "")
+    as_paths = as_paths[0].replace(">", "").replace("<", "")
     as_paths = as_paths.split(",")
     as_paths = [int(ele) for ele in as_paths]
     assert as_paths == aspaths
@@ -198,7 +198,7 @@ def validate_community_config(api, community, aspaths, med, origin):
     assert last_two_octets == community.split(":")[1]
 
     as_paths = bgpv6.AsPathASString
-    as_paths = as_paths[0].replace("}", "").replace("{", "")
+    as_paths = as_paths[0].replace(">", "").replace("<", "")
     as_paths = as_paths.split(",")
     as_paths = [int(ele) for ele in as_paths]
     assert as_paths == aspaths
