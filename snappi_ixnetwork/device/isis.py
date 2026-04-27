@@ -347,22 +347,81 @@ class Isis(Base):
                 ixn_isis["enableSRLG"] = True
                 ixn_isis["srlgCount"] = srlg_count
                 for index, value in enumerate(srlg_vals):
-                    ixn_isis["srlgValueList"][index] = self.multivalue(value)
-        #TBD 
+                    ixn_isis["srlgValueList"][index] = self.multivalue(value) 
         # Adjacency Sids
         self._configure_adjacency_sids(interface, ixn_isis)     
 
-    # TBD 
+    # IB-TESTING
     def _configure_multi_topo_id(self, interface, ixn_isis):
         "Configuring multiple topology IDs"
-    
-    # TBD 
+        mt_ids = interface.get("multi_topology_ids")
+        if mt_ids is None or len(mt_ids) == 0:
+            return
+        self.logger.debug("Configuring %d multi-topology ID(s)" % len(mt_ids))
+        ixn_isis["enableMT"] = self.multivalue(True)
+        ixn_isis["noOfMtIds"] = len(mt_ids)
+        for mt in mt_ids:
+            ixn_mt = self.create_node_elemet(ixn_isis, "isisMTIDList")
+            ixn_mt["mtId"] = self.multivalue(mt.get("mt_id"))
+            ixn_mt["linkMetric"] = self.multivalue(mt.get("link_metric"))
+
+    # IB-TESTING
     def _configure_traffic_engineering(self, interface, ixn_isis):
         "Configuring Traffic Engineering"
+        te_items = interface.get("traffic_engineering")
+        if te_items is None or len(te_items) == 0:
+            return
+        self.logger.debug("Configuring %d traffic engineering profile(s)" % len(te_items))
+        ixn_isis["noOfTeProfile"] = len(te_items)
+        for te in te_items:
+            ixn_te = self.create_node_elemet(
+                ixn_isis, "isisTrafficEngineeringProfileList"
+            )
+            self.configure_multivalues(te, ixn_te, Isis._TRAFFIC_ENGINEERING)
+            pb = te.get("priority_bandwidths")
+            if pb is not None:
+                self.configure_multivalues(pb, ixn_te, Isis._PRIORITY_BANDWIDTHS)
 
-    # TBD 
+    # IB-TESTING            
     def _configure_adjacency_sids(self, interface, ixn_isis):
-        "Configuring Adjacency sids"  
+        "Configuring Adjacency sids"
+        adj_sids = interface.get("adjacency_sids")
+        if adj_sids is None or len(adj_sids) == 0:
+            return
+        self.logger.debug("Configuring %d adjacency SID(s)" % len(adj_sids))
+        ixn_isis["enableAdjSID"] = self.multivalue(True)
+        ixn_isis["adjSidCount"] = len(adj_sids)
+        # IxNetwork exposes adj SID attributes as multivalues on the isisL3
+        # node; configure from the first adjacency SID entry.
+        adj_sid = adj_sids[0]
+        choice = adj_sid.get("choice")
+        if choice == "sid_values":
+            sid_values = adj_sid.get("sid_values")
+            if sid_values is not None and len(sid_values) > 0:
+                ixn_isis["adjSID"] = self.multivalue(sid_values[0])
+        else:
+            # sid_indices (default)
+            sid_indices = adj_sid.get("sid_indices")
+            if sid_indices is not None and len(sid_indices) > 0:
+                ixn_isis["adjSID"] = self.multivalue(sid_indices[0])
+        b_flag = adj_sid.get("b_flag")
+        if b_flag is not None:
+            ixn_isis["bFlag"] = self.multivalue(b_flag)
+        f_flag = adj_sid.get("f_flag")
+        if f_flag is not None:
+            ixn_isis["fFlag"] = self.multivalue(f_flag)
+        l_flag = adj_sid.get("l_flag")
+        if l_flag is not None:
+            ixn_isis["lFlag"] = self.multivalue(l_flag)
+        s_flag = adj_sid.get("s_flag")
+        if s_flag is not None:
+            ixn_isis["sFlag"] = self.multivalue(s_flag)
+        p_flag = adj_sid.get("p_flag")
+        if p_flag is not None:
+            ixn_isis["pFlag"] = self.multivalue(p_flag)
+        weight = adj_sid.get("weight")
+        if weight is not None:
+            ixn_isis["weight"] = self.multivalue(weight)
 
     def _config_isis_router(self, otg_isis_router, ixn_isis_router):
         "Configuring Isis router"
