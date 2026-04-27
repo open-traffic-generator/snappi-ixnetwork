@@ -1,7 +1,6 @@
 import pytest
 import time
 
-# @pytest.mark.skip(reason="Not implemented")
 def test_isis(api, b2b_raw_config, utils):
     """Test only isis with v4 route range
     - set_config
@@ -165,7 +164,6 @@ def test_isis(api, b2b_raw_config, utils):
     req.isis.column_names = enums[:3]
     results = api.get_metrics(req)
     
-    
     assert len(results.isis_metrics) == 2
     for isis_res in results.isis_metrics:
         for i, enum in enumerate(enums[:3]):
@@ -180,7 +178,7 @@ def test_isis(api, b2b_raw_config, utils):
         "stats to be as expected",
         timeout_seconds=20,
     )
-
+    print(results)
     utils.stop_traffic(api, b2b_raw_config)
 
 def results_ok(api, flow_names, expected):

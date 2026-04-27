@@ -1,7 +1,6 @@
 import pytest
 import time
 
-# @pytest.mark.skip(reason="Not implemented")
 def test_isis_v6_rr(api, b2b_raw_config, utils):
     """Test only isis with v6 route range
     - set_config
