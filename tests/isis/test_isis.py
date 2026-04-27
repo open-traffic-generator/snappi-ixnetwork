@@ -1,5 +1,4 @@
 import pytest
-import time
 
 def test_isis(api, b2b_raw_config, utils):
     """Test only isis with v4 route range
