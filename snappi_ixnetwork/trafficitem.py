@@ -1175,10 +1175,8 @@ class TrafficItem(CustomField):
                 snappi_packet[ind]
                 self._append_header(xpath, stacks, snappi_packet[ind])
             else:
-                # Stack auto-inserted by IxNetwork (e.g. MPLS for SR-MPLS,
-                # inner label stacks). Do not configure fields — let IxNetwork
-                # keep its computed defaults for these stacks.
-                self._append_header(xpath, stacks)
+                header = getattr(snappi.FlowHeader(), stack)
+                self._append_header(xpath, stacks, header)
         return stacks
 
     def _append_header(
