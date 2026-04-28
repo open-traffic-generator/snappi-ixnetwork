@@ -105,6 +105,7 @@ class TrafficItem(CustomField):
         "payloadProtocolType": "payloadProtocolType",
         "icmpv2": "icmp",
         "icmpv6": "icmpv6",
+        "mpls": "mpls",
     }
 
     _HEADER_TO_TYPE = {
@@ -126,6 +127,7 @@ class TrafficItem(CustomField):
         "payloadProtocolType": "payloadProtocolType",
         "icmp": "icmpv2",
         "icmpv6": "icmpv6",
+        "mpls": "mpls",
     }
 
     _ETHERNETPAUSEUHD = {
@@ -203,6 +205,8 @@ class TrafficItem(CustomField):
     }
 
     _MACSEC = {}
+
+    _MPLS = {}
 
     _ETHERNETPAUSE = {
         "dst": "ethernet.header.destinationAddress",

@@ -2,7 +2,6 @@ import pytest
 import time
 
 
-@pytest.mark.skip(reason="Not implemented")
 def test_isis_sr(api, b2b_raw_config, utils):
     """Test ISIS SR-MPLS (Segment Routing with MPLS data plane, RFC 8667)
 
@@ -109,8 +108,7 @@ def test_isis_sr(api, b2b_raw_config, utils):
 
     # Prefix-SID index 1 → MPLS label = SRGB_base(16000) + 1 = 16001
     p1_prefix_sid = p1d1_v4routes.prefix_sids.add()
-    p1_prefix_sid.choice = p1_prefix_sid.SID_INDICES
-    p1_prefix_sid.sid_indices.append(1)
+    p1_prefix_sid.sid_indices = [1]
     p1_prefix_sid.n_flag = True
 
     # --------------------------------------------------- ISIS router – port 2
@@ -163,8 +161,7 @@ def test_isis_sr(api, b2b_raw_config, utils):
 
     # Prefix-SID index 2 → MPLS label = SRGB_base(16000) + 2 = 16002
     p2_prefix_sid = p2d1_v4routes.prefix_sids.add()
-    p2_prefix_sid.choice = p2_prefix_sid.SID_INDICES
-    p2_prefix_sid.sid_indices.append(2)
+    p2_prefix_sid.sid_indices = [2]
     p2_prefix_sid.n_flag = True
 
     # ----------------------------------------------------------------- flows

@@ -268,6 +268,14 @@ class Isis(Base):
         "x_flag": "enableXFlag",
         "r_flag": "enableRFlag",
         "n_flag": "enableNFlag",
+        "a_flag": "enableAFlag",
+    }
+
+    _SRV6_LOCATOR_PREFIX_ATTRS = {
+        "x_flag": "enableXFlag",
+        "r_flag": "enableRFlag",
+        "n_flag": "enableNFlag",
+        "a_flag": "enableAFlag",
     }
 
     _PREFIX_SID_FLAGS = {
@@ -593,7 +601,7 @@ class Isis(Base):
     def _configure_sr_capability(self, sr, ixn_isis_router):
         "Configuring ISIS Segment Routing capability on the router"
         self.logger.debug("Configuring ISIS SR capability")
-        ixn_isis_router["enableSR"] = self.multivalue(True)
+        ixn_isis_router["enableSR"] = True
         rc = sr.get("router_capability")
         if rc is None:
             return
@@ -712,6 +720,13 @@ class Isis(Base):
                 self.configure_multivalues(
                     advertise, ixn_locator, Isis._SRV6_LOCATOR_ROUTE_ORIGIN
                 )
+                prefix_attrs = advertise.get("prefix_attributes")
+                if prefix_attrs is not None:
+                    ixn_locator["includePrefixAttrFlags"] = self.multivalue(True)
+                    self.configure_multivalues(
+                        prefix_attrs, ixn_locator,
+                        Isis._SRV6_LOCATOR_PREFIX_ATTRS
+                    )
             # End SIDs
             end_sids = locator.get("end_sids")
             if end_sids is not None and len(end_sids) > 0:
@@ -736,10 +751,10 @@ class Isis(Base):
         if sid_structure is not None:
             ixn_end_sid["includeSRv6SIDStructureSubSubTlv"] = self.multivalue(True)
             ixn_end_sid["locatorBlockLength"] = self.multivalue(
-                sid_structure.get("lb_length")
+                sid_structure.get("locator_block_length")
             )
             ixn_end_sid["locatorNodeLength"] = self.multivalue(
-                sid_structure.get("ln_length")
+                sid_structure.get("locator_node_length")
             )
             ixn_end_sid["functionLength"] = self.multivalue(
                 sid_structure.get("function_length")

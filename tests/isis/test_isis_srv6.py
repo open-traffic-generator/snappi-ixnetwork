@@ -2,7 +2,6 @@ import pytest
 import time
 
 
-@pytest.mark.skip(reason="Not implemented")
 def test_isis_srv6(api, b2b_raw_config, utils):
     """Test ISIS SRv6 (Segment Routing over IPv6, RFC 9352)
 
@@ -165,7 +164,7 @@ def test_isis_srv6(api, b2b_raw_config, utils):
     f1.rate.pps = 100
     f1.duration.fixed_packets.packets = packets
     f1.tx_rx.port.tx_name = p1.name
-    f1.tx_rx.port.rx_name = p2.name
+    f1.tx_rx.port.rx_names = [p2.name]
 
     f1_eth, f1_ipv6 = f1.packet.ethernet().ipv6()
     f1_eth.src.value = p1d1_eth.mac
@@ -179,7 +178,7 @@ def test_isis_srv6(api, b2b_raw_config, utils):
     f2.rate.pps = 100
     f2.duration.fixed_packets.packets = packets
     f2.tx_rx.port.tx_name = p2.name
-    f2.tx_rx.port.rx_name = p1.name
+    f2.tx_rx.port.rx_names = [p1.name]
 
     f2_eth, f2_ipv6 = f2.packet.ethernet().ipv6()
     f2_eth.src.value = p2d1_eth.mac

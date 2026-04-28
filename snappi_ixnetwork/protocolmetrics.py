@@ -553,6 +553,7 @@ class ProtocolMetrics(object):
         if self.columns is None or self.columns == []:
             self.columns = self._PROTO_NAME_MAP_[protocol]["supported_stats"]
         if len(self.columns) > 0:
+            self.columns = list(self.columns)  # copy before mutating
             self.columns.append("name") if "name" not in self.columns else None
             self.columns = list(set(self.columns))
         # with Timer(self._api, "Fetching {} Metrics".format(protocol)):

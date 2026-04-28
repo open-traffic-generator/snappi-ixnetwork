@@ -262,10 +262,14 @@ class Api(snappi.Api):
 
         # Need to add this hack as dumping json config throws this exception
         # Traffic regeneration will be part of set_transmit_state
+        _deferred_traffic_errors = [
+            "before trying to generate BGP EVPN traffic",
+            "before trying to generate Labelled traffic",
+        ]
         errors = [
             error
             for error in errors
-            if "before trying to generate BGP EVPN traffic" not in error
+            if not any(msg in error for msg in _deferred_traffic_errors)
         ]
 
         if len(errors) > 0:
