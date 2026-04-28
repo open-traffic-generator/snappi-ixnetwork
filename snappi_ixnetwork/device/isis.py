@@ -165,6 +165,20 @@ class Isis(Base):
         "max_end_d_srh": "maxEndD",
     }
 
+    # IxNetwork isisL3 link-level MSD attribute map (RFC 8491)
+    _SRV6_LINK_MSD = {
+        "include_max_sl": "includeMaxSlMsd",
+        "max_sl": "maxSlMsd",
+        "include_max_end_pop_srh": "includeMaximumEndPopMsd",
+        "max_end_pop_srh": "maxEndPopMsd",
+        "include_max_t_insert": "includeMaximumTInsertMsd",
+        "max_t_insert": "maxTInsertMsd",
+        "include_max_h_encaps": "includeMaximumHEncapMsd",
+        "max_h_encaps": "maxHEncap",
+        "include_max_end_d_srh": "includeMaximumEndDMsd",
+        "max_end_d_srh": "maxEndDMsd",
+    }
+
     _SRV6_LOCATOR = {
         "algorithm": "algorithm",
         "metric": "metric",
@@ -220,6 +234,34 @@ class Isis(Base):
         "end_dt4": 0,
         "end_dt6": 0,
         "end_dt46": 0,
+    }
+
+    # SRv6 adj SID endpoint_behavior → IxNetwork endPointFunction (RFC 8986)
+    _SRV6_ADJ_ENDPOINT_FUNCTION = {
+        "end_x": 5,
+        "end_x_with_psp": 5,
+        "end_x_with_usp": 5,
+        "end_x_with_psp_usp": 5,
+        "end_x_with_usd": 5,
+        "end_x_with_psp_usd": 5,
+        "end_x_with_usp_usd": 5,
+        "end_x_with_psp_usp_usd": 5,
+        "end_dx4": 20,
+        "end_dx6": 18,
+    }
+
+    # SRv6 adj SID endpoint_behavior → IxN Flags (PSP=0x80, USP=0x40, USD=0x20)
+    _SRV6_ADJ_ENDPOINT_FLAGS = {
+        "end_x": 0,
+        "end_x_with_psp": 0x80,
+        "end_x_with_usp": 0x40,
+        "end_x_with_psp_usp": 0xC0,
+        "end_x_with_usd": 0x20,
+        "end_x_with_psp_usd": 0xA0,
+        "end_x_with_usp_usd": 0x60,
+        "end_x_with_psp_usp_usd": 0xE0,
+        "end_dx4": 0,
+        "end_dx6": 0,
     }
 
     _PREFIX_ATTR_FLAGS = {
@@ -349,7 +391,11 @@ class Isis(Base):
                 for index, value in enumerate(srlg_vals):
                     ixn_isis["srlgValueList"][index] = self.multivalue(value) 
         # Adjacency Sids
-        self._configure_adjacency_sids(interface, ixn_isis)     
+        self._configure_adjacency_sids(interface, ixn_isis)
+        # SRv6 Link MSD
+        self._configure_srv6_link_msd(interface, ixn_isis)
+        # SRv6 Adjacency SIDs
+        self._configure_srv6_adjacency_sids(interface, ixn_isis)
 
     # IB-TESTING
     def _configure_multi_topo_id(self, interface, ixn_isis):
@@ -422,6 +468,72 @@ class Isis(Base):
         weight = adj_sid.get("weight")
         if weight is not None:
             ixn_isis["weight"] = self.multivalue(weight)
+
+    # IB-TESTING
+    def _configure_srv6_link_msd(self, interface, ixn_isis):
+        "Configuring SRv6 Link MSD (RFC 8491) on the ISIS interface"
+        link_msd = interface.get("srv6_link_msd")
+        if link_msd is None:
+            return
+        self.logger.debug("Configuring SRv6 link MSD")
+        ixn_isis["advertiseLinkMsd"] = self.multivalue(True)
+        self.configure_multivalues(link_msd, ixn_isis, Isis._SRV6_LINK_MSD)
+
+    # IB-TESTING
+    def _configure_srv6_adjacency_sids(self, interface, ixn_isis):
+        "Configuring SRv6 Adjacency SIDs on the ISIS interface"
+        srv6_adj_sids = interface.get("srv6_adjacency_sids")
+        if srv6_adj_sids is None or len(srv6_adj_sids) == 0:
+            return
+        self.logger.debug(
+            "Configuring %d SRv6 adjacency SID(s)" % len(srv6_adj_sids)
+        )
+        ixn_isis["enableIPv6SID"] = self.multivalue(True)
+        ixn_isis["adjSidCount"] = len(srv6_adj_sids)
+        for adj_sid in srv6_adj_sids:
+            ixn_adj = self.create_node_elemet(ixn_isis, "isisSRv6AdjSIDList")
+            ixn_adj["ipv6AdjSid"] = self.multivalue(adj_sid.get("sid"))
+            behavior = adj_sid.get("endpoint_behavior")
+            if behavior is not None:
+                func_code = Isis._SRV6_ADJ_ENDPOINT_FUNCTION.get(behavior, 5)
+                flags_val = Isis._SRV6_ADJ_ENDPOINT_FLAGS.get(behavior, 0)
+                ixn_adj["endPointFunction"] = self.multivalue(func_code)
+                ixn_adj["reserved"] = self.multivalue(flags_val)
+            b_flag = adj_sid.get("b_flag")
+            if b_flag is not None:
+                ixn_adj["bFlag"] = self.multivalue(b_flag)
+            s_flag = adj_sid.get("s_flag")
+            if s_flag is not None:
+                ixn_adj["sFlag"] = self.multivalue(s_flag)
+            p_flag = adj_sid.get("p_flag")
+            if p_flag is not None:
+                ixn_adj["pFlag"] = self.multivalue(p_flag)
+            c_flag = adj_sid.get("c_flag")
+            if c_flag is not None:
+                ixn_adj["cFlag"] = self.multivalue(c_flag)
+            weight = adj_sid.get("weight")
+            if weight is not None:
+                ixn_adj["weight"] = self.multivalue(weight)
+            algorithm = adj_sid.get("algorithm")
+            if algorithm is not None:
+                ixn_adj["algorithm"] = self.multivalue(algorithm)
+            sid_structure = adj_sid.get("sid_structure")
+            if sid_structure is not None:
+                ixn_adj["includeSRv6SIDStructureSubSubTlv"] = self.multivalue(
+                    True
+                )
+                ixn_adj["locatorBlockLength"] = self.multivalue(
+                    sid_structure.get("locator_block_length")
+                )
+                ixn_adj["locatorNodeLength"] = self.multivalue(
+                    sid_structure.get("locator_node_length")
+                )
+                ixn_adj["functionLength"] = self.multivalue(
+                    sid_structure.get("function_length")
+                )
+                ixn_adj["argumentLength"] = self.multivalue(
+                    sid_structure.get("argument_length")
+                )
 
     def _config_isis_router(self, otg_isis_router, ixn_isis_router):
         "Configuring Isis router"
