@@ -105,6 +105,7 @@ class TrafficItem(CustomField):
         "payloadProtocolType": "payloadProtocolType",
         "icmpv2": "icmp",
         "icmpv6": "icmpv6",
+        "mpls": "mpls",
     }
 
     _HEADER_TO_TYPE = {
@@ -126,6 +127,7 @@ class TrafficItem(CustomField):
         "payloadProtocolType": "payloadProtocolType",
         "icmp": "icmpv2",
         "icmpv6": "icmpv6",
+        "mpls": "mpls",
     }
 
     _ETHERNETPAUSEUHD = {
@@ -203,6 +205,14 @@ class TrafficItem(CustomField):
     }
 
     _MACSEC = {}
+
+    _MPLS = {
+        "label": "mpls.label.value",
+        "traffic_class": "mpls.label.experimental",
+        "bottom_of_stack": "mpls.label.bottomOfStack",
+        "time_to_live": "mpls.label.ttl",
+        "order": ["label", "traffic_class", "bottom_of_stack", "time_to_live"],
+    }
 
     _ETHERNETPAUSE = {
         "dst": "ethernet.header.destinationAddress",
@@ -1165,8 +1175,10 @@ class TrafficItem(CustomField):
                 snappi_packet[ind]
                 self._append_header(xpath, stacks, snappi_packet[ind])
             else:
-                header = getattr(snappi.FlowHeader(), stack)
-                self._append_header(xpath, stacks, header)
+                # Stack auto-inserted by IxNetwork (e.g. MPLS for SR-MPLS,
+                # inner label stacks). Do not configure fields — let IxNetwork
+                # keep its computed defaults for these stacks.
+                self._append_header(xpath, stacks)
         return stacks
 
     def _append_header(
