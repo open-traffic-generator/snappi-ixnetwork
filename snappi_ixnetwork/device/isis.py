@@ -1,3 +1,5 @@
+import ipaddress
+
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.logger import get_ixnet_logger
 
@@ -141,7 +143,41 @@ class Isis(Base):
         "count": "numberOfAddressesAsy",
         "step": "prefixAddrStep",
     }
-    
+
+    # endPointFunction uses IANA SRv6 Endpoint Behavior Code Points (RFC 8986 + IANA registry).
+    # IxNetwork NGPF expects integer values for this multivalue field.
+    _SRV6_END_POINT_FUNCTION = {
+        "end_point_function": {
+            "ixn_attr": "endPointFunction",
+            "default_value": 1,
+            "enum_map": {
+                # End SID behaviors (IANA codes)
+                "end":                    1,   # End (no PSP, no USP)
+                "end_with_psp":           2,   # End with PSP
+                "end_with_usp":           3,   # End with USP
+                "end_with_psp_usp":       4,   # End with PSP+USP
+                "end_with_usd":           27,  # End with USD
+                "end_with_psp_usd":       28,  # End with PSP+USD
+                "end_with_usp_usd":       29,  # End with USP+USD
+                "end_with_psp_usp_usd":   30,  # End with PSP+USP+USD
+                "end_dt4":                18,  # End.DT4
+                "end_dt6":                17,  # End.DT6
+                "end_dt46":               19,  # End.DT46
+                # Adj SID behaviors (IANA codes)
+                "end_x":                  5,   # End.X (no PSP, no USP)
+                "end_x_with_psp":         6,   # End.X with PSP
+                "end_x_with_usp":         7,   # End.X with USP
+                "end_x_with_psp_usp":     8,   # End.X with PSP+USP
+                "end_x_with_usd":         31,  # End.X with USD
+                "end_x_with_psp_usd":     32,  # End.X with PSP+USD
+                "end_x_with_usp_usd":     33,  # End.X with USP+USD
+                "end_x_with_psp_usp_usd": 34,  # End.X with PSP+USP+USD
+                "end_dx4":                16,  # End.DX4
+                "end_dx6":                15,  # End.DX6
+            },
+        }
+    }
+
     def __init__(self, ngpf):
         super(Isis, self).__init__()
         self._ngpf = ngpf
@@ -149,6 +185,7 @@ class Isis(Base):
         self._system_id = None
         self._isis_router_name = None
         self._isis_interface_name = None
+        self._srv6_locator_map = {}
 
     def config(self, device):
         self.logger.debug("Configuring ISIS")
@@ -266,9 +303,235 @@ class Isis(Base):
     def _configure_traffic_engineering(self, interface, ixn_isis):
         "Configuring Traffic Engineering"
 
-    # TBD 
     def _configure_adjacency_sids(self, interface, ixn_isis):
-        "Configuring Adjacency sids"  
+        "Configuring SRv6 Adjacency SIDs (isisSRv6AdjSIDList) on an ISIS interface"
+        srv6_adj_sids = interface.get("srv6_adjacency_sids")
+        if srv6_adj_sids is None or len(srv6_adj_sids) == 0:
+            return
+        self.logger.debug("Configuring SRv6 Adjacency SIDs")
+        ep_map = Isis._SRV6_END_POINT_FUNCTION["end_point_function"]["enum_map"]
+        ixn_isis["enableIPv6SID"] = self.multivalue(True)
+        ixn_adj_sid_list = self.create_node(ixn_isis, "isisSRv6AdjSIDList")
+        for adj_sid in srv6_adj_sids:
+            ixn_adj_sid = self.add_element(ixn_adj_sid_list)
+            # Construct full SID from locator reference + function
+            locator_choice = adj_sid.get("locator")
+            function_hex = adj_sid.get("function")
+            sid = self._resolve_adj_sid(
+                locator_choice,
+                adj_sid.get("custom_locator_reference"),
+                function_hex,
+            )
+            if sid is not None:
+                ixn_adj_sid["ipv6AdjSid"] = self.multivalue(sid)
+            # Endpoint behavior
+            ep = adj_sid.get("endpoint_behavior")
+            if ep is not None and ep in ep_map:
+                ixn_adj_sid["endPointFunction"] = self.multivalue(ep_map[ep])
+            # Scalar fields
+            for snappi_attr, ixn_attr in [
+                ("algorithm", "algorithm"),
+                ("weight", "weight"),
+                ("b_flag", "bFlag"),
+                ("s_flag", "sFlag"),
+                ("p_flag", "pFlag"),
+                ("c_flag", "cFlag"),
+            ]:
+                val = adj_sid.get(snappi_attr)
+                if val is not None:
+                    ixn_adj_sid[ixn_attr] = self.multivalue(val)
+            # SID structure lengths
+            sid_struct = adj_sid.get("sid_structure")
+            if sid_struct is not None:
+                for snappi_attr, ixn_attr in [
+                    ("locator_block_length", "locatorBlockLength"),
+                    ("locator_node_length", "locatorNodeLength"),
+                    ("function_length", "functionLength"),
+                    ("argument_length", "argumentLength"),
+                ]:
+                    val = sid_struct.get(snappi_attr)
+                    if val is not None:
+                        ixn_adj_sid[ixn_attr] = self.multivalue(val)
+
+    def _resolve_adj_sid(self, locator_choice, custom_locator_ref, function_hex):
+        "Resolve full IPv6 Adj SID from locator reference + function hex."
+        if not function_hex:
+            return None
+        locator_info = None
+        if locator_choice == "custom_locator_reference" and custom_locator_ref:
+            locator_info = self._srv6_locator_map.get(custom_locator_ref)
+        else:
+            # 'auto' or None: use the first available locator
+            if self._srv6_locator_map:
+                locator_info = next(iter(self._srv6_locator_map.values()))
+        if locator_info is None:
+            return None
+        return self._construct_srv6_sid(
+            locator_info["prefix"],
+            locator_info["block_len"],
+            locator_info["node_len"],
+            function_hex,
+            locator_info.get("func_len", 16),
+        )
+
+    def _construct_srv6_sid(
+        self, locator_prefix, block_len, node_len,
+        function_hex, func_len, argument_hex=None, arg_len=0
+    ):
+        "Construct full 128-bit SRv6 SID from locator prefix and function hex."
+        try:
+            locator_len = block_len + node_len
+            net = ipaddress.IPv6Network(
+                "{}/{}".format(locator_prefix, locator_len), strict=False
+            )
+            loc_int = int(net.network_address)
+            func_int = int(function_hex, 16)
+            shift = 128 - locator_len - func_len
+            sid_int = loc_int | (func_int << shift)
+            if argument_hex and arg_len > 0:
+                arg_int = int(argument_hex, 16)
+                arg_shift = 128 - locator_len - func_len - arg_len
+                sid_int |= (arg_int << arg_shift)
+            return str(ipaddress.IPv6Address(sid_int))
+        except Exception as e:
+            self.logger.warning("Failed to construct SRv6 SID: %s" % e)
+            return None
+
+    def _configure_srv6(self, isis, ixn_isis_router):
+        "Main SRv6 entry point reading isis.segment_routing"
+        sr = isis.get("segment_routing")
+        if sr is None:
+            return
+        # Router capability SRv6 flags
+        rc = sr.get("router_capability")
+        if rc is not None:
+            self._configure_srv6_router_capability(rc, ixn_isis_router)
+        # SRv6 locators
+        srv6_locators = sr.get("srv6_locators")
+        if srv6_locators is not None and len(srv6_locators) > 0:
+            ixn_isis_router["enableSR"] = True  # plain bool, not multivalue
+            ixn_isis_router["locatorCount"] = len(srv6_locators)
+            self._configure_srv6_locator_list(srv6_locators, ixn_isis_router)
+
+    def _configure_srv6_router_capability(self, rc, ixn_isis_router):
+        "Configure SRv6 capability flags in isisL3Router"
+        srv6_cap = rc.get("srv6_capability")
+        if srv6_cap is None:
+            return
+        self.logger.debug("Configuring SRv6 router capability")
+        c_flag = srv6_cap.get("c_flag")
+        if c_flag is not None:
+            ixn_isis_router["cFlagOfSRv6Cap"] = self.multivalue(c_flag)
+        o_flag = srv6_cap.get("o_flag")
+        if o_flag is not None:
+            ixn_isis_router["oFlagOfSRv6CapTlv"] = self.multivalue(o_flag)
+
+    def _configure_srv6_locator_list(self, srv6_locators, ixn_isis_router):
+        "Configure isisSRv6LocatorEntryList under isisL3Router"
+        self.logger.debug("Configuring SRv6 Locators")
+        self._srv6_locator_map = {}
+        ixn_locator_list = self.create_node(
+            ixn_isis_router, "isisSRv6LocatorEntryList"
+        )
+        for locator in srv6_locators:
+            locator_name = locator.get("locator_name")
+            locator_prefix = locator.get("locator")
+            ixn_locator = self.add_element(ixn_locator_list)
+            if locator_name is not None:
+                ixn_locator["locatorName"] = [locator_name]
+            if locator_prefix is not None:
+                ixn_locator["locator"] = self.multivalue(locator_prefix)
+            # Scalar locator fields
+            for snappi_attr, ixn_attr in [
+                ("prefix_length", "prefixLength"),
+                ("metric", "metric"),
+                ("algorithm", "algorithm"),
+                ("d_flag", "dBit"),
+            ]:
+                val = locator.get(snappi_attr)
+                if val is not None:
+                    ixn_locator[ixn_attr] = self.multivalue(val)
+            # MT IDs
+            mt_ids = locator.get("mt_id")
+            if mt_ids is not None and len(mt_ids) > 0:
+                ixn_locator["mtId"] = self.multivalue(mt_ids[0])
+            # SID structure: derive locatorSize and propagate lengths to end SIDs
+            block_len = 48
+            node_len = 16
+            func_len = 16
+            arg_len = 0
+            sid_struct = locator.get("sid_structure")
+            if sid_struct is not None:
+                block_len = sid_struct.get("locator_block_length") or 48
+                node_len = sid_struct.get("locator_node_length") or 16
+                func_len = sid_struct.get("function_length") or 16
+                arg_len = sid_struct.get("argument_length") or 0
+                ixn_locator["locatorSize"] = self.multivalue(block_len + node_len)
+            # Advertise locator as prefix
+            alp = locator.get("advertise_locator_as_prefix")
+            if alp is not None:
+                ixn_locator["advertiseLocatorAsPrefix"] = self.multivalue(True)
+                redist = alp.get("redistribution_type") or "up"
+                ixn_locator["redistribution"] = self.multivalue(redist)
+                route_origin = alp.get("route_origin") or "internal"
+                ixn_locator["routeOrigin"] = self.multivalue(route_origin)
+                route_metric = alp.get("route_metric")
+                if route_metric is not None:
+                    ixn_locator["routeMetric"] = self.multivalue(route_metric)
+                # Note: enableNFlag/enableRFlag/enableXFlag are not supported
+                # on isisSRv6LocatorEntryList in all IxNetwork server versions.
+                # Those flags are omitted to avoid JSON import errors.
+            # Cache for adj SID resolution
+            if locator_name is not None and locator_prefix is not None:
+                self._srv6_locator_map[locator_name] = {
+                    "prefix": locator_prefix,
+                    "block_len": block_len,
+                    "node_len": node_len,
+                    "func_len": func_len,
+                    "arg_len": arg_len,
+                }
+            # End SIDs
+            end_sids = locator.get("end_sids")
+            if end_sids is not None and len(end_sids) > 0:
+                ixn_locator["sidCount"] = len(end_sids)
+                self._configure_srv6_end_sid_list(
+                    end_sids, ixn_locator, locator_prefix,
+                    block_len, node_len, func_len, arg_len,
+                )
+
+    def _configure_srv6_end_sid_list(
+        self, end_sids, ixn_locator, locator_prefix,
+        block_len, node_len, func_len, arg_len
+    ):
+        "Configure isisSRv6EndSIDList under a locator entry"
+        self.logger.debug("Configuring SRv6 End SIDs")
+        ep_map = Isis._SRV6_END_POINT_FUNCTION["end_point_function"]["enum_map"]
+        ixn_end_sid_list = self.create_node(ixn_locator, "isisSRv6EndSIDList")
+        for end_sid in end_sids:
+            ixn_end_sid = self.add_element(ixn_end_sid_list)
+            # Construct full SID from locator prefix + function hex
+            function_hex = end_sid.get("function")
+            argument_hex = end_sid.get("argument")
+            if locator_prefix and function_hex:
+                sid = self._construct_srv6_sid(
+                    locator_prefix, block_len, node_len,
+                    function_hex, func_len, argument_hex, arg_len,
+                )
+                if sid is not None:
+                    ixn_end_sid["sid"] = self.multivalue(sid)
+            # Endpoint behavior
+            ep = end_sid.get("endpoint_behavior")
+            if ep is not None and ep in ep_map:
+                ixn_end_sid["endPointFunction"] = self.multivalue(ep_map[ep])
+            # C-Flag
+            c_flag = end_sid.get("c_flag")
+            if c_flag is not None:
+                ixn_end_sid["cFlag"] = self.multivalue(c_flag)
+            # SID structure lengths (from parent locator)
+            ixn_end_sid["locatorBlockLength"] = self.multivalue(block_len)
+            ixn_end_sid["locatorNodeLength"] = self.multivalue(node_len)
+            ixn_end_sid["functionLength"] = self.multivalue(func_len)
+            ixn_end_sid["argumentLength"] = self.multivalue(arg_len)
 
     def _config_isis_router(self, otg_isis_router, ixn_isis_router):
         "Configuring Isis router"
@@ -281,6 +544,7 @@ class Isis(Base):
         isis_router_auth = otg_isis_router.get("router_auth")
         if isis_router_auth is not None:
             self._configure_isis_router_auth(isis_router_auth, ixn_isis_router) # noqa
+        self._configure_srv6(otg_isis_router, ixn_isis_router)
         
     def _configure_isis_router_basic(self, otg_router_basic, ixn_isis_router):
         "Configuring ISIS router basic"

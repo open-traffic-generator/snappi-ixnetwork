@@ -37,6 +37,10 @@ class Ngpf(Base):
         "IsisInterface": "ethernetVlan",
         "IsisV4RouteRange": "ipv4",
         "IsisV6RouteRange": "ipv6",
+        "IsisRouterSRv6Capability": "ethernetVlan",
+        "IsisRouterSRv6Locator": "ethernetVlan",
+        "IsisRouterSRv6EndSid": "ethernetVlan",
+        "IsisInterfaceSRv6AdjSid": "ethernetVlan",
     }
 
     _ROUTE_STATE = {"advertise": True, "withdraw": False}
