@@ -81,6 +81,46 @@ def test_mpls_header(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
     ip3.dst.value = "10.0.0.2"
 
     # ------------------------------------------------------------------
+    # Flow 4 – multiple stacked MPLS labels (outer / middle / inner)
+    # ------------------------------------------------------------------
+    # Stack: ethernet + mpls_outer + mpls_mid + mpls_inner + ipv4
+    # Indices:    0          1           2           3         4
+    outer_label, mid_label, inner_label = 100, 200, 300
+    outer_tc, mid_tc, inner_tc = 3, 5, 7
+    outer_ttl, mid_ttl, inner_ttl = 60, 55, 50
+
+    flow4 = b2b_raw_config_vports.flows.flow(name="f4")[-1]
+    flow4.tx_rx.port.tx_name = tx_vport.name
+    flow4.tx_rx.port.rx_names = [rx_vport.name]
+    flow4.size.fixed = 128
+    flow4.duration.fixed_packets.packets = 100
+    flow4.rate.percentage = 10
+
+    eth4, mpls4a, mpls4b, mpls4c, ip4 = (
+        flow4.packet.ethernet().mpls().mpls().mpls().ipv4()
+    )
+    eth4.src.value = "00:11:22:33:44:01"
+    eth4.dst.value = "00:11:22:33:44:02"
+
+    mpls4a.label.value = outer_label
+    mpls4a.traffic_class.value = outer_tc
+    mpls4a.bottom_of_stack.value = 0
+    mpls4a.time_to_live.value = outer_ttl
+
+    mpls4b.label.value = mid_label
+    mpls4b.traffic_class.value = mid_tc
+    mpls4b.bottom_of_stack.value = 0
+    mpls4b.time_to_live.value = mid_ttl
+
+    mpls4c.label.value = inner_label
+    mpls4c.traffic_class.value = inner_tc
+    mpls4c.bottom_of_stack.value = 1
+    mpls4c.time_to_live.value = inner_ttl
+
+    ip4.src.value = "10.0.0.1"
+    ip4.dst.value = "10.0.0.2"
+
+    # ------------------------------------------------------------------
     # Push config
     # ------------------------------------------------------------------
     api.set_config(b2b_raw_config_vports)
@@ -113,3 +153,31 @@ def test_mpls_header(api, b2b_raw_config_vports, utils, tx_vport, rx_vport):
         "Time To Live": tuple(map(str, ttl_cnt)),
     }
     utils.validate_config(api, "f3", "mpls", **f3_attrs)
+
+    # ------------------------------------------------------------------
+    # Validate – multiple stacked MPLS labels (by stack index)
+    # Stack layout: ethernet(0) + mpls_outer(1) + mpls_mid(2) + mpls_inner(3) + ipv4(4)
+    # ------------------------------------------------------------------
+    outer_attrs = {
+        "Label Value": str(outer_label),
+        "MPLS Exp": str(outer_tc),
+        "Bottom of Stack Bit": "0",
+        "Time To Live": str(outer_ttl),
+    }
+    utils.validate_config(api, "f4", 1, **outer_attrs)
+
+    mid_attrs = {
+        "Label Value": str(mid_label),
+        "MPLS Exp": str(mid_tc),
+        "Bottom of Stack Bit": "0",
+        "Time To Live": str(mid_ttl),
+    }
+    utils.validate_config(api, "f4", 2, **mid_attrs)
+
+    inner_attrs = {
+        "Label Value": str(inner_label),
+        "MPLS Exp": str(inner_tc),
+        "Bottom of Stack Bit": "1",
+        "Time To Live": str(inner_ttl),
+    }
+    utils.validate_config(api, "f4", 3, **inner_attrs)
