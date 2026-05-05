@@ -8,6 +8,7 @@
 4. [IxNetwork RestPy to Snappi API Mapping](#ixnetwork-restpy-to-snappi-api-mapping)
 5. [Implementation](#implementation)
 6. [Back-to-Back SRv6 Test Case](#back-to-back-srv6-test-case)
+7. [My Local SID Lifecycle Actions](#my-local-sid-lifecycle-actions)
 
 ---
 
@@ -19,6 +20,7 @@ Segment Routing over IPv6 (SRv6) using IS-IS as the control plane is defined in:
 
 - **RFC 8986** — SRv6 Network Programming
 - **RFC 9252** — BGP Overlay Services Based on Segment Routing over IPv6 (SRv6)
+- **RFC 9800** — SRv6 Micro-SID (uSID) Compressed Encoding
 - **draft-ietf-lsr-isis-srv6-extensions** — IS-IS Extensions to Support Segment Routing over IPv6
 
 In ISIS-SRv6, the router advertises:
@@ -27,6 +29,7 @@ In ISIS-SRv6, the router advertises:
 - **SRv6 Locator** — an IPv6 prefix that acts as a routing locator for the node (advertised in TLV 27)
 - **SRv6 End SIDs** — SRv6 Segment Identifiers tied to a locator with specific endpoint behaviors
 - **SRv6 Adjacency SIDs** — SRv6 SIDs bound to a specific adjacency (advertised in IS Reachability TLV 22 sub-TLVs)
+- **My Local SID Table** — runtime table of locally instantiated SIDs (RFC 8986 Section 3.3)
 
 ### 1.2 SRv6 SID Structure
 
@@ -138,11 +141,10 @@ Device
                     │           ├── r_flag         # → enableRFlag
                     │           └── x_flag         # → enableXFlag
                     └── end_sids (list)
-                          ├── locator              # choice: "auto"
                           ├── function             # hex string → computed sid
                           ├── endpoint_behavior    # → endPointFunction (enum)
                           ├── argument             # hex string (optional)
-                          └── c_flag               # → cFlag
+                          └── c_flag               # → cFlag (uSID flag)
 
 IsisInterface
   └── srv6_adjacency_sids (list)
@@ -209,11 +211,14 @@ IsisInterface
 
 | Field | Type | Description |
 |---|---|---|
-| `locator` | str | `"auto"` (use parent locator) |
-| `function` | str | Hex function value (e.g. `"1"`) |
+| `function` | str | Hex function value (e.g. `"0001"`) |
 | `endpoint_behavior` | str | Endpoint behavior (see Section 1.3) |
-| `argument` | str | Hex argument value (optional) |
-| `c_flag` | bool | C-Flag (compression) |
+| `argument` | str | Hex argument value (optional, default `"0000"`) |
+| `c_flag` | bool | Compression (uSID) flag (RFC 9800) |
+
+> **Note**: The `locator` field was removed from `IsisSRv6.EndSid` in the P0 model
+> update. End SIDs always inherit the locator prefix from their parent
+> `IsisSRv6.Locator` object.
 
 ### 3.4 `interface.srv6_adjacency_sids` item
 
@@ -307,7 +312,9 @@ IsisInterface
 | File | Change |
 |---|---|
 | `snappi_ixnetwork/device/isis.py` | Added `_configure_srv6`, `_configure_srv6_router_capability`, `_configure_srv6_locator_list`, `_configure_srv6_end_sid_list`, `_configure_adjacency_sids`, `_resolve_adj_sid`, `_construct_srv6_sid`. Added `import ipaddress`. Fixed three IxNetwork compatibility issues (see Section 5.4). |
+| `snappi_ixnetwork/device/isis_srv6_actions.py` | New file: `IsisSRv6Actions` class implementing My Local SID lifecycle (add/modify/delete) via IxNetwork on-the-fly updates. |
 | `snappi_ixnetwork/device/ngpf.py` | Added four SRv6 class names to `_DEVICE_ENCAP_MAP`. |
+| `snappi_ixnetwork/snappi_api.py` | Added ISIS SRv6 control action handling in `set_control_action`. |
 
 ### 5.2 Key Methods in `Isis` class
 
@@ -439,7 +446,6 @@ p1d1_loc.advertise_locator_as_prefix.prefix_attributes.n_flag = True
 
 # End SID: function=0x0001 → fc00:0:1:0:1::
 p1d1_end_sid = p1d1_loc.end_sids.add()
-p1d1_end_sid.locator = "auto"
 p1d1_end_sid.function = "1"
 p1d1_end_sid.endpoint_behavior = "end"
 p1d1_end_sid.c_flag = False
@@ -464,3 +470,144 @@ for metric in results.isis_metrics:
 ### 6.5 Test Result
 
 `1 passed in 66.25s` — ISIS L2 sessions come up on both routers confirming SRv6 capability, locator, End SID, and Adj SID configuration is correctly translated to IxNetwork.
+
+---
+
+## 7. My Local SID Lifecycle Actions
+
+### 7.1 Overview
+
+The My Local SID lifecycle allows runtime add/modify/delete of SRv6 End SID entries
+without a full config push. This maps to RFC 8986 Section 3.3 (MY_LOCAL_SID table)
+and Section 4 (Instantiation, Re-instantiation, Un-instantiation).
+
+The snappi API exposes this via `ControlAction → protocol → isis → srv6 → my_local_sid`.
+
+### 7.2 Snappi API Model
+
+```
+ControlAction
+  └── protocol (ActionProtocol)
+        └── isis (ActionProtocolIsis)
+              └── srv6 (ActionProtocolIsisSrv6)
+                    └── my_local_sid (ActionProtocolIsisSrv6MyLocalSid)
+                          ├── router_names         # target ISIS routers
+                          ├── choice: "add" | "modify" | "delete"
+                          ├── add
+                          │     └── entries (list of Entry)
+                          ├── modify
+                          │     └── entries (list of Entry)
+                          └── delete
+                                └── sid_refs (list of SidRef)
+```
+
+#### Entry fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `sid_prefix` | str (IPv6) | Yes | Full SID IPv6 address |
+| `prefix_length` | int | No (default 48) | Prefix length in bits |
+| `behavior` | enum | No (default `u_n`) | SRv6 endpoint behavior |
+| `vrf_name` | str | No | VRF for decap behaviors |
+| `next_hop` | str | No | Next-hop for cross-connect behaviors |
+
+#### Behavior enum
+
+| Value | IANA Code | Description |
+|---|---|---|
+| `u_n` | 1 | Micro-SID node (uN) |
+| `u_dt4` | 18 | uDT4 (decap IPv4 table lookup) |
+| `u_dt6` | 17 | uDT6 (decap IPv6 table lookup) |
+| `u_dt46` | 19 | uDT46 (decap dual-stack) |
+| `u_dx4` | 16 | uDX4 (cross-connect IPv4) |
+| `u_dx6` | 15 | uDX6 (cross-connect IPv6) |
+| `end` | 1 | End (full-SID) |
+| `end_dt4` | 18 | End.DT4 |
+| `end_dt6` | 17 | End.DT6 |
+| `end_dt46` | 19 | End.DT46 |
+
+#### SidRef fields (for delete)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `sid_prefix` | str (IPv6) | Yes | SID to delete |
+| `prefix_length` | int | Yes | Prefix length |
+
+### 7.3 IxNetwork Mapping
+
+| Operation | IxNetwork Action |
+|---|---|
+| Add | Increase `SidCount` on `isisSRv6LocatorEntryList`, populate new entries in `isisSRv6EndSIDList` with `Sid`, `EndPointFunction`, `CFlag` multivalues |
+| Modify | Update `EndPointFunction` multivalue on matching `Sid` entry in `isisSRv6EndSIDList` |
+| Delete | Decrease `SidCount`, filter out matching entries from `Sid`/`EndPointFunction`/`CFlag` value lists |
+| All | Call `Globals.Topology.ApplyOnTheFly()` to trigger ISIS LSP re-advertisement |
+
+### 7.4 Implementation
+
+| File | Change |
+|---|---|
+| `snappi_ixnetwork/device/isis_srv6_actions.py` | New file: `IsisSRv6Actions` class with `handle_my_local_sid`, `_add_my_local_sids`, `_modify_my_local_sids`, `_delete_my_local_sids` |
+| `snappi_ixnetwork/snappi_api.py` | Added `isis` handling in `set_control_action` with SRv6 My Local SID dispatch |
+
+### 7.5 Test Code
+
+```python
+# ADD - Program a new uN SID on the router
+action = api.control_action()
+action.protocol.isis.choice = "srv6"
+my_local_sid = action.protocol.isis.srv6.my_local_sid
+my_local_sid.router_names = ["p1d1_isis"]
+my_local_sid.choice = "add"
+my_local_sid.add.entries.add(
+    sid_prefix="fc00:0:1:0:2::",
+    prefix_length=64,
+    behavior="u_n",
+)
+api.set_control_action(action)
+
+# MODIFY - Change behavior of existing SID
+action2 = api.control_action()
+action2.protocol.isis.choice = "srv6"
+my_local_sid2 = action2.protocol.isis.srv6.my_local_sid
+my_local_sid2.router_names = ["p1d1_isis"]
+my_local_sid2.choice = "modify"
+my_local_sid2.modify.entries.add(
+    sid_prefix="fc00:0:1:0:2::",
+    prefix_length=64,
+    behavior="end_dt6",
+)
+api.set_control_action(action2)
+
+# DELETE - Remove the SID
+action3 = api.control_action()
+action3.protocol.isis.choice = "srv6"
+my_local_sid3 = action3.protocol.isis.srv6.my_local_sid
+my_local_sid3.router_names = ["p1d1_isis"]
+my_local_sid3.choice = "delete"
+my_local_sid3.delete.sid_refs.add(
+    sid_prefix="fc00:0:1:0:2::",
+    prefix_length=64,
+)
+api.set_control_action(action3)
+```
+
+### 7.6 Model Changes (P0 Update)
+
+The following changes from commit `f6d8994` are reflected in this implementation:
+
+1. **EndSid `locator` field removed** — End SIDs now always inherit the parent
+   `IsisSRv6.Locator` prefix. No `locator`/`custom_locator_reference` choice exists.
+   The implementation already used the parent locator directly.
+
+2. **`c_flag` on EndSid updated** — Now signals uSID (Micro-SID) per RFC 9800.
+   When set, the End SID can be packed into a 128-bit uSID container by the headend.
+
+3. **`c_flag` on Node Capability** — Prerequisite flag for advertising uSID support.
+   Must be set before individual End/Adj SIDs are marked as uSIDs.
+
+4. **My Local SID lifecycle** — New `Action.Protocol.Isis.Srv6.MyLocalSid` with
+   add/modify/delete operations for runtime SID table management (RFC 8986 Section 4).
+
+5. **Flow extensions (informational)** — `routing_type`, `srv6_encap_mode`, and
+   `usid_container` added to `Flow.Ipv6SegmentRouting` for traffic generation with
+   uSID containers (RFC 9800 Section 4). These are handled by the traffic item layer.

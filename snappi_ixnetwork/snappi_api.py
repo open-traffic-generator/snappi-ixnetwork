@@ -23,6 +23,7 @@ from snappi_ixnetwork.vport import Vport
 from snappi_ixnetwork.ixnetworkconfig import IxNetworkConfig
 from snappi_ixnetwork.device.mka import Mka
 from snappi_ixnetwork.device.macsec import Macsec
+from snappi_ixnetwork.device.isis_srv6_actions import IsisSRv6Actions
 
 
 class Api(snappi.Api):
@@ -511,10 +512,21 @@ class Api(snappi.Api):
                     res.response.protocol.ipv6.ping.responses.deserialize(
                         self.ping.results(request_payload, control_choice)
                     )
+            elif control_choice == "isis":
+                res = self.control_action_response()
+                isis_choice = choice_obj.get("choice")
+                if isis_choice == "srv6":
+                    srv6_obj = choice_obj.srv6
+                    srv6_choice = srv6_obj.get("choice")
+                    if srv6_choice == "my_local_sid":
+                        isis_srv6_actions = IsisSRv6Actions(self)
+                        isis_srv6_actions.handle_my_local_sid(
+                            srv6_obj.my_local_sid
+                        )
             elif control_option is not None:
                 msg = "{} is not a supported choice for metrics; \
                 the supported choices are \
-                ['ipv4', 'ipv6']".format(
+                ['ipv4', 'ipv6', 'isis']".format(
                     control_option
                 )
                 raise SnappiIxnException(400, msg)
