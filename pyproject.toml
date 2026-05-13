@@ -42,7 +42,7 @@ dependencies = { file = "requirements.txt" }
 
 [project.optional-dependencies]
 testing   = [
-    "snappi==1.53.0",
+    "snappi==1.53.1",
     "pytest",
     "mock",
     "dpkt==1.9.4",
