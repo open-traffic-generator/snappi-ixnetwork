@@ -1,4 +1,5 @@
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.device.isis_srv6 import IsisSrv6
 from snappi_ixnetwork.logger import get_ixnet_logger
 
 
@@ -149,6 +150,8 @@ class Isis(Base):
         self._system_id = None
         self._isis_router_name = None
         self._isis_interface_name = None
+        self._srv6 = IsisSrv6(ngpf)
+        self._current_isis = None
 
     def config(self, device):
         self.logger.debug("Configuring ISIS")
@@ -161,6 +164,7 @@ class Isis(Base):
 
     def _add_isis_router(self, isis):
         self.logger.debug("Configuring Isis Router")
+        self._current_isis = isis
         interfaces = isis.get("interfaces")
         if interfaces is None:
             return
@@ -184,10 +188,12 @@ class Isis(Base):
                 self._ngpf.working_dg, "isisL3Router", isis.get("name")
             )
             ixn_bridged_data = self.create_node_elemet(
-                self._ngpf.working_dg, "bridgeData" 
+                self._ngpf.working_dg, "bridgeData"
             )
             self._config_system_id(isis, ixn_bridged_data)
             self._config_isis_router(isis, ixn_isis_router)
+            self._config_isis_srv6_router(isis, ixn_isis_router)
+            self._ngpf.api.ixn_objects.set(isis.get("name"), ixn_isis_router)
             self._add_isis_route_range(isis, ixn_isis_router, ixn_isis)
             
     def _is_valid(self, ethernet_name):
@@ -266,9 +272,56 @@ class Isis(Base):
     def _configure_traffic_engineering(self, interface, ixn_isis):
         "Configuring Traffic Engineering"
 
-    # TBD 
     def _configure_adjacency_sids(self, interface, ixn_isis):
-        "Configuring Adjacency sids"  
+        # srv6_adjacency_sids is IsisSRv6AdjSidContainer with .sids (iter)
+        # and .srv6_link_msd nested within it.
+        adj_container = interface.get("srv6_adjacency_sids")
+        if adj_container is not None:
+            otg_adj_sids = adj_container.get("sids")
+            if otg_adj_sids:
+                isis = self._current_isis
+                srv6_locators = []
+                if isis is not None:
+                    sr = isis.get("segment_routing")
+                    if sr is not None:
+                        srv6_locators = sr.get("srv6_locators") or []
+                srv6_cap = Isis._get_srv6_capability(isis)
+                c_flag_hint = srv6_cap.get("c_flag") if srv6_cap is not None else False
+                self._srv6.config_adj_sids(
+                    otg_adj_sids, ixn_isis, srv6_locators,
+                    c_flag_hint=c_flag_hint or False,
+                )
+
+            link_msd = adj_container.get("srv6_link_msd")
+            if link_msd is not None:
+                self._srv6.config_link_msd(link_msd, ixn_isis)
+
+    def _config_isis_srv6_router(self, isis, ixn_isis_router):
+        sr = isis.get("segment_routing")
+        if sr is None:
+            return
+        srv6_cap = self._get_srv6_capability_from_sr(sr)
+        if srv6_cap is not None:
+            self._srv6.config_node_capability(srv6_cap, ixn_isis_router)
+        locators = sr.get("srv6_locators")
+        if locators:
+            self._srv6.config_locators(locators, ixn_isis_router)
+
+    @staticmethod
+    def _get_srv6_capability(isis):
+        if isis is None:
+            return None
+        sr = isis.get("segment_routing")
+        return Isis._get_srv6_capability_from_sr(sr)
+
+    @staticmethod
+    def _get_srv6_capability_from_sr(sr):
+        if sr is None:
+            return None
+        rc = sr.get("router_capability")
+        if rc is None:
+            return None
+        return rc.get("srv6_capability")
 
     def _config_isis_router(self, otg_isis_router, ixn_isis_router):
         "Configuring Isis router"

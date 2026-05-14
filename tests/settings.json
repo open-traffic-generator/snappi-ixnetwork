@@ -1,13 +1,13 @@
 {
     "username": "admin",
     "psd": "admin",
-    "location": "https://localhost:443",
+    "location": "https://localhost:11009",
     "ports": [
-        "localhost;1;1",
-        "localhost;1;2"
+        "xgshs-606488.ccu.is.keysight.com;2;5",
+        "xgshs-606488.ccu.is.keysight.com;2;6"
     ],
     "ext": "ixnetwork",
-    "speed": "speed_1_gbps",
+    "speed": "speed_100_gbps",
     "media": null,
     "timeout_seconds": 30,
     "interval_seconds": 0.5,
