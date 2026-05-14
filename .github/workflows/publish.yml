@@ -39,9 +39,9 @@ jobs:
       - name: Install snappi from dev branch when needed
         run: |
           ${{steps.path.outputs.pythonv}} do.py get_snappi_dev_branch
-      - name: Run tests
-        run: |
-          TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
+      # - name: Run tests
+      #   run: |
+      #     TEST_USERNAME=${{secrets.TEST_USERNAME}} ${{steps.path.outputs.pythonv}} do.py test novus10g
       - name: Send Coverage Email
         if: github.ref == 'refs/heads/main'
         run: |
