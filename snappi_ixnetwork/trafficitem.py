@@ -106,6 +106,8 @@ class TrafficItem(CustomField):
         "icmpv2": "icmp",
         "icmpv6": "icmpv6",
         "mpls": "mpls",
+        "ipv6RoutingType4": "ipv6_extension_header",
+        "ipv6GSRHType4": "ipv6_extension_header",
     }
 
     _HEADER_TO_TYPE = {
@@ -128,6 +130,7 @@ class TrafficItem(CustomField):
         "icmp": "icmpv2",
         "icmpv6": "icmpv6",
         "mpls": "mpls",
+        "ipv6_extension_header": "ipv6RoutingType4",
     }
 
     _ETHERNETPAUSEUHD = {
@@ -611,7 +614,23 @@ class TrafficItem(CustomField):
         imports = {}
         imports["traffic"] = tr
         self._importconfig(imports)
-        return ixn._connection._execute(url, payload)
+        result = ixn._connection._execute(url, payload)
+        # importconfig may not create configElement on some IxNetwork versions.
+        # Call Generate() for any traffic item missing configElement, then
+        # re-query.  Raw and device (ipv4/ipv6) items both need this.
+        traffic_items = result[0].get("trafficItem") or []
+        needs_generate = any(
+            ti.get("configElement") is None for ti in traffic_items
+        )
+        if needs_generate:
+            try:
+                all_items = self._api._ixnetwork.Traffic.TrafficItem.find()
+                for ti in all_items:
+                    ti.Generate()
+                result = ixn._connection._execute(url, payload)
+            except Exception:
+                pass
+        return result
 
     def remove_ixn_traffic(self):
         self.logger.debug("Removing Traffic Items")
@@ -917,13 +936,324 @@ class TrafficItem(CustomField):
 
         return [self.word_aligned_byte_offset(offset_in_bits), mask_bytes_str]
 
+    def _get_srv6_stack_name(self, header):
+        """Return IxN stack alias for an ipv6_extension_header based on inner choice."""
+        try:
+            routing = header.routing
+            if routing.choice == "segment_routing_usid":
+                return "ipv6GSRHType4"
+        except Exception:
+            pass
+        return "ipv6RoutingType4"
+
+    @staticmethod
+    def _ipv6_to_hex(ipv6_str):
+        """Convert IPv6 address string to 32-char hex string (for G-SRH hex fields)."""
+        import socket
+        import binascii
+        packed = socket.inet_pton(socket.AF_INET6, ipv6_str)
+        return binascii.hexlify(packed).decode("ascii")
+
+    @staticmethod
+    def _pack_usid_container(dst_usids_obj):
+        """Pack Flow.Ipv6.UsidDst into a 128-bit IPv6 address string (RFC 9800 Section 3).
+
+        Assembles: LB (locator_length high-order bits of locator) || uSID-1 || ... || EoC zeros.
+        Returns None if dst_usids_obj is None or locator is unset.
+        """
+        import socket
+        if dst_usids_obj is None:
+            return None
+        loc_p = dst_usids_obj.get("locator", True)
+        locator_str = "::"
+        if loc_p is not None and loc_p.get("choice") == "value":
+            locator_str = loc_p.get("value") or "::"
+        lb_bits = 32
+        ll_p = dst_usids_obj.get("locator_length", True)
+        if ll_p is not None and ll_p.get("choice") == "value":
+            lb_bits = int(ll_p.get("value") or 32)
+        usid_hex_list = []
+        for u in dst_usids_obj.usids:
+            usid_hex_list.append(u.usid or "0000")
+        if not usid_hex_list:
+            return None
+        lb_bytes = socket.inet_pton(socket.AF_INET6, locator_str)
+        lb_int = int.from_bytes(lb_bytes, "big")
+        mask = ((1 << lb_bits) - 1) << (128 - lb_bits)
+        result = lb_int & mask
+        offset = lb_bits
+        for usid_hex in usid_hex_list:
+            bit_width = len(usid_hex) * 4
+            result |= int(usid_hex, 16) << (128 - offset - bit_width)
+            offset += bit_width
+        return socket.inet_ntop(socket.AF_INET6, result.to_bytes(16, "big"))
+
+    def _apply_dst_usids(self, hdr_json, snappi_ipv6):
+        """If dst_usids is set on the IPv6 header, pack it and override the dstIP field."""
+        try:
+            dst_usids = snappi_ipv6.get("dst_usids", True)
+        except Exception:
+            return
+        if dst_usids is None:
+            return
+        packed = self._pack_usid_container(dst_usids)
+        if packed is None:
+            return
+        for f in hdr_json.get("field", []):
+            if "dstIP" in f.get("xpath", ""):
+                f["valueType"] = "singleValue"
+                f["singleValue"] = packed
+                f["activeFieldChoice"] = False
+                f["auto"] = False
+                break
+
+    def _configure_srv6_stack(self, xpath, stacks, snappi_header, next_header=59):
+        """Build IxN JSON for SRH stacks (ipv6RoutingType4 / ipv6GSRHType4).
+
+        Handles both segment_routing (standard SRH with IPv6 segment list) and
+        segment_routing_usid (G-SRH with hex segment list for slots 1-16).
+
+        next_header: IPv6 Next Header value for the byte immediately following
+        this SRH on wire. 4=IPv4-in-SRv6, 41=IPv6-in-SRv6, 59=No Next Header.
+        IxNetwork defaults to 59; callers must pass the correct value when an
+        inner IP payload follows.
+        """
+        routing = snappi_header.routing
+        routing_choice = routing.choice  # "segment_routing" or "segment_routing_usid"
+
+        if routing_choice == "segment_routing_usid":
+            stack_prefix = "ipv6GSRHType4"
+            srh = routing.segment_routing_usid
+            is_usid = True
+        else:
+            stack_prefix = "ipv6RoutingType4"
+            srh = routing.segment_routing
+            is_usid = False
+
+        srh_base = "%s.segmentRoutingHeader" % stack_prefix
+        header = {"xpath": xpath, "field": []}
+        stacks.append(header)
+
+        def field_xpath(alias):
+            return {"xpath": "%s/field[@alias = '%s']" % (xpath, alias)}
+
+        def add_pattern(alias, pattern_obj):
+            f = field_xpath(alias)
+            self._config_field_pattern(snappi_field=pattern_obj, field_json=f)
+            header["field"].append(f)
+
+        # nextHeader: first byte of SRH wire format — what protocol follows.
+        # Must be set explicitly; IxNetwork default (59) is wrong for inner IP.
+        f_nh = field_xpath("%s.nextHeader-1" % srh_base)
+        f_nh["valueType"] = "singleValue"
+        f_nh["singleValue"] = next_header
+        f_nh["activeFieldChoice"] = False
+        f_nh["auto"] = False
+        header["field"].append(f_nh)
+
+        # hdrExtLen: RFC 8754 = (total_SRH_bytes - 8) / 8.
+        # For ipv6RoutingType4 IxN always appends a fixed 64-byte TLV template
+        # (Ingress + Egress + Opaque + Padding TLVs) after the segment list.
+        # Those 64 bytes = 8 extra hdrExtLen units that the receiver needs in
+        # order to correctly skip the SRH and find the inner IP payload.
+        # For ipv6GSRHType4 there is no such template; units = 0.
+        n_segs = len(list(srh.segment_list))
+        if n_segs > 0:
+            tlv_units = 0 if is_usid else 8
+            f_hel = field_xpath("%s.hdrExtLen-2" % srh_base)
+            f_hel["valueType"] = "singleValue"
+            f_hel["singleValue"] = n_segs * 2 + tlv_units
+            f_hel["activeFieldChoice"] = False
+            f_hel["auto"] = False
+            header["field"].append(f_hel)
+
+        # segments_left
+        sl = srh.get("segments_left", True)
+        if sl is not None:
+            add_pattern("%s.segmentsLeft-4" % srh_base, sl)
+
+        # last_entry
+        le = srh.get("last_entry", True)
+        if le is not None:
+            add_pattern("%s.lastEntry-5" % srh_base, le)
+
+        # flags: standard SRH exposes protected (pFlag-7) and alert (aFlag-9).
+        # uSID SRH flags are not pushed to IxNetwork — G-SRH defaults to 0x00.
+        if not is_usid:
+            flags = srh.get("flags", True)
+            if flags is not None:
+                prot = flags.get("protected", True)
+                if prot is not None:
+                    add_pattern("%s.flags.pFlag-7" % srh_base, prot)
+                alert = flags.get("alert", True)
+                if alert is not None:
+                    add_pattern("%s.flags.aFlag-9" % srh_base, alert)
+
+        # tag
+        tag = srh.get("tag", True)
+        if tag is not None:
+            add_pattern("%s.tag-12" % srh_base, tag)
+
+        # segment_list: slot numbering is 1-indexed; alias_num = 12 + slot_num.
+        # SID slot fields beyond slot 1 have optionalEnabled=false in IxN by
+        # default. importConfig silently ignores value updates for disabled fields.
+        # Setting optionalEnabled=true in the same batch enables the field.
+        #
+        # For G-SRH (is_usid=True): each 128-bit IPv6 uSID maps to 4 consecutive
+        # 32-bit IxN GSID slots. slot_num advances by 4 per IPv6 address.
+        # For standard SRH (is_usid=False): one slot per IPv6 address.
+        import socket as _socket
+        import binascii as _binascii
+
+        slot_num = 1
+        for seg in srh.segment_list:
+            if is_usid:
+                # Each segment carries locator/locator_length/usids fields
+                # (FlowIpv6SegmentRoutingUsidSegment). Pack them into a 128-bit
+                # uSID container IPv6 address, then split into 4 x 32-bit pieces
+                # for the consecutive IxN G-SRH GSID slots.
+                container = self._pack_usid_container(seg) or "::"
+                packed = _socket.inet_pton(_socket.AF_INET6, container)
+                for piece_idx in range(4):
+                    piece = packed[piece_idx * 4:(piece_idx + 1) * 4]
+                    hex_piece = _binascii.hexlify(piece).decode("ascii")
+                    alias_num = 12 + slot_num
+                    alias = "%s.segmentList.ipv6SID%d-%d" % (
+                        srh_base, slot_num, alias_num
+                    )
+                    f = field_xpath(alias)
+                    f["valueType"] = "singleValue"
+                    f["singleValue"] = hex_piece
+                    f["optionalEnabled"] = True
+                    f["activeFieldChoice"] = False
+                    f["auto"] = False
+                    header["field"].append(f)
+                    slot_num += 1
+            else:
+                # Standard SRH: one 128-bit IPv6 slot per segment.
+                seg_pattern = seg.get("segment", True)
+                if seg_pattern is None:
+                    slot_num += 1
+                    continue
+                alias_num = 12 + slot_num
+                alias = "%s.segmentList.ipv6SID%d-%d" % (
+                    srh_base, slot_num, alias_num
+                )
+                f = field_xpath(alias)
+                self._config_field_pattern(snappi_field=seg_pattern, field_json=f)
+                f["optionalEnabled"] = True
+                header["field"].append(f)
+                slot_num += 1
+
+        # SRH optional TLVs (standard SRH only; G-SRH has no TLV section)
+        if not is_usid:
+            self._configure_srh_tlvs(srh, srh_base, field_xpath, header)
+
+    def _configure_srh_tlvs(self, srh, srh_base, field_xpath, header):
+        """Append SRH optional TLV fields (RFC 9259) to the header field list.
+
+        Each TLV is optional in IxNetwork's template; fields are enabled by
+        setting optionalEnabled=true. Only TLVs with at least one non-None
+        OTG field are written to the IxN JSON.
+
+        The four TLV type fields are always enabled first so that IxNetwork
+        emits its full 64-byte TLV template area after the segment list.
+        This keeps hdrExtLen = n_segs*2 + 8 accurate for inner-IP offset
+        calculation. User-configured values are applied on top and override
+        the defaults.
+        """
+        for _alias in [
+            "%s.srhTLVs.sripv6IngressNodeTLV.tclType-33" % srh_base,
+            "%s.srhTLVs.sripv6EgressNodeTLV.tclType-38" % srh_base,
+            "%s.srhTLVs.sripv6OpaqueContainerTLV.tclType-43" % srh_base,
+            "%s.srhTLVs.sripv6PaddingTLV.tclType-55" % srh_base,
+        ]:
+            _f = field_xpath(_alias)
+            _f["optionalEnabled"] = True
+            header["field"].append(_f)
+
+        tlv_defs = [
+            # (otg_attr, tlv_path_prefix, alias_base, field_specs)
+            # field_specs: list of (otg_sub_attr, alias_suffix, is_pattern)
+            ("ingress_node_tlv", "srhTLVs.sripv6IngressNodeTLV",
+             [("type",     "tclType-33",     True),
+              ("length",   "tclLength-34",   True),
+              ("reserved", "tclReserved-35", True),
+              ("value",    "tclValue-37",    True)]),
+            ("egress_node_tlv", "srhTLVs.sripv6EgressNodeTLV",
+             [("type",     "tclType-38",     True),
+              ("length",   "tclLength-39",   True),
+              ("reserved", "tclReserved-40", True),
+              ("value",    "tclValue-42",    True)]),
+            ("opaque_tlv", "srhTLVs.sripv6OpaqueContainerTLV",
+             [("type",   "tclType-43",   True),
+              ("length", "tclLength-44", True),
+              ("value",  "tclValue-47",  True)]),
+            ("pad_tlv", "srhTLVs.sripv6PaddingTLV",
+             [("type",   "tclType-55",   True),
+              ("length", "tclLength-56", True)]),
+        ]
+        for otg_attr, tlv_path, field_specs in tlv_defs:
+            try:
+                tlv_obj = srh.get(otg_attr, True)
+            except AttributeError:
+                continue
+            if tlv_obj is None:
+                continue
+            for sub_attr, alias_suffix, is_pattern in field_specs:
+                sub_val = tlv_obj.get(sub_attr, True)
+                if sub_val is None:
+                    continue
+                alias = "%s.%s.%s" % (srh_base, tlv_path, alias_suffix)
+                f = field_xpath(alias)
+                if is_pattern:
+                    self._config_field_pattern(snappi_field=sub_val, field_json=f)
+                f["optionalEnabled"] = True
+                header["field"].append(f)
+
+    @staticmethod
+    def _force_inner_field(hdr, field_prefix, value):
+        """Force a field to a fixed singleValue unless the user already set one.
+
+        IxNetwork auto-compute for length/offset fields does not propagate
+        through an SRH encapsulation boundary. Call this for any field inside
+        an SRH payload that IxNetwork normally derives automatically.
+        Overrides fields that are unset or set to any valueType other than
+        singleValue (e.g. "auto" defaults from the snappi object model).
+        """
+        for f in hdr.get("field", []):
+            if field_prefix in f.get("xpath", "") and f.get("valueType") != "singleValue":
+                f["valueType"] = "singleValue"
+                f["singleValue"] = value
+                f["activeFieldChoice"] = False
+                f["auto"] = False
+                break
+
     def config_raw_stack(self, xpath, packet):
         ce_path = "%s/configElement[1]" % xpath
         config_elem = {"xpath": ce_path, "stack": []}
+        prev_was_srh = False
+        inside_srh_payload = False  # True for every header that follows an SRH
         for i, header in enumerate(packet):
-            stack_name = self._HEADER_TO_TYPE.get(
-                self._getUhdHeader(header.parent.choice)
-            )
+            header_choice = self._getUhdHeader(header.parent.choice)
+            if header_choice == "ipv6_extension_header":
+                # Peek at the next stack to set SRH nextHeader correctly.
+                # IxNetwork defaults to 59 (No Next Header); inner IP needs 4 or 41.
+                next_hdr = 59
+                if i + 1 < len(packet):
+                    next_choice = self._getUhdHeader(packet[i + 1].parent.choice)
+                    next_hdr = {"ipv4": 4, "ipv6": 41}.get(next_choice, 59)
+                stack_name = self._get_srv6_stack_name(header)
+                header_xpath = "%s/stack[@alias = '%s-%d']" % (
+                    ce_path, stack_name, i + 1
+                )
+                self._configure_srv6_stack(
+                    header_xpath, config_elem["stack"], header, next_header=next_hdr
+                )
+                prev_was_srh = True
+                inside_srh_payload = True
+                continue
+            stack_name = self._HEADER_TO_TYPE.get(header_choice)
             if stack_name == "macsec":
                 raise NotImplementedError(
                     "%s stack in raw traffic is not implemented. Please enable MACsec in ethernet device and configure traffic between device endpoints."
@@ -934,9 +1264,35 @@ class TrafficItem(CustomField):
                 stack_name,
                 i + 1,
             )
-            self._append_header(
+            hdr = self._append_header(
                 header_xpath, config_elem["stack"], header, is_raw_traffic=True
             )
+            if header_choice == "ipv6":
+                self._apply_dst_usids(hdr, header)
+            # For headers inside SRH encapsulation, IxNetwork auto-compute does
+            # not propagate through the SRH boundary. Each check below is
+            # independent — all three can apply in a single loop iteration if
+            # the conditions somehow overlap, but in practice only the one
+            # matching header_choice will fire.
+            if inside_srh_payload:
+                # IPv4 protocol field: only knowable when IPv4 is the stack
+                # directly after the SRH (prev_was_srh), because we must peek
+                # at the next stack to derive TCP=6 or UDP=17.
+                if header_choice == "ipv4" and prev_was_srh and i + 1 < len(packet):
+                    next_choice = self._getUhdHeader(packet[i + 1].parent.choice)
+                    proto_num = {"tcp": 6, "udp": 17}.get(next_choice)
+                    if proto_num is not None:
+                        self._force_inner_field(
+                            hdr, "ipv4.header.protocol", proto_num
+                        )
+                # TCP data offset: standard header is 20 bytes = 5 × 32-bit words.
+                if header_choice == "tcp":
+                    self._force_inner_field(hdr, "tcp.header.dataOffset", 5)
+                # UDP length: header (8 bytes) + payload. No raw payload in these
+                # traffic frames so the minimum value is 8.
+                if header_choice == "udp":
+                    self._force_inner_field(hdr, "udp.header.length", 8)
+            prev_was_srh = False
         return [config_elem]
 
     def _get_mesh_type(self, flow):
@@ -1024,13 +1380,20 @@ class TrafficItem(CustomField):
             for i, flow in enumerate(self._config.flows):
                 tr_item = {"xpath": ixn_traffic_item[i]["xpath"]}
                 if ixn_traffic_item[i].get("configElement") is None:
-                    raise Exception(
-                        "Endpoints are not properly configured in IxNetwork"
-                    )
-                ce_xpaths = [
-                    {"xpath": ce["xpath"]}
-                    for ce in ixn_traffic_item[i]["configElement"]
-                ]
+                    if flow.tx_rx.choice != "port":
+                        raise Exception(
+                            "Endpoints are not properly configured in IxNetwork"
+                        )
+                    # Generate() should have created configElement; if query
+                    # still returns None, construct the xpath from the traffic
+                    # item xpath so the second import can still proceed.
+                    ti_xpath = ixn_traffic_item[i]["xpath"]
+                    ce_xpaths = [{"xpath": "%s/configElement[1]" % ti_xpath}]
+                else:
+                    ce_xpaths = [
+                        {"xpath": ce["xpath"]}
+                        for ce in ixn_traffic_item[i]["configElement"]
+                    ]
                 tr_item["configElement"] = ce_xpaths
                 self._configure_size(
                     tr_item["configElement"], flow.get("size", True)
@@ -1063,6 +1426,12 @@ class TrafficItem(CustomField):
                             ce["stack"], self._flows_packet[i]
                         )
                         tr_item["configElement"][ind]["stack"] = stack
+                elif flow.tx_rx.choice == "port" and self._flows_packet[i]:
+                    # After Generate() the configElement has a default
+                    # Ethernet-only stack.  Rebuild with the user's headers.
+                    ti_xpath = ixn_traffic_item[i]["xpath"]
+                    raw_ce = self.config_raw_stack(ti_xpath, self._flows_packet[i])
+                    tr_item["configElement"][0]["stack"] = raw_ce[0]["stack"]
 
                 metrics = flow.get("metrics")
                 if metrics is not None and metrics.enable is True:
@@ -1082,9 +1451,56 @@ class TrafficItem(CustomField):
                 tr_json["traffic"]["trafficItem"].append(tr_item)
 
             self._importconfig(tr_json)
+            self._fix_srh_encapsulated_fields()
 
             self._configure_options()
             self._configure_latency()
+
+    def _fix_srh_encapsulated_fields(self):
+        """After importConfig, directly freeze TCP data_offset and UDP length
+        for flows whose port-mode packet contains SRH-encapsulated inner stacks.
+
+        IxNetwork does not reliably honor importConfig overrides for auto-computed
+        length/offset fields in stacks behind an SRH encapsulation boundary.
+        RestPy direct assignment bypasses the importConfig layer.
+        """
+        for i, flow in enumerate(self._config.flows):
+            if flow.tx_rx.choice != "port" or not self._flows_packet[i]:
+                continue
+            inside_srh = False
+            inner_fixes = {}  # stack_type_id -> (field_type_id_substr, str_value)
+            for header in self._flows_packet[i]:
+                hc = self._getUhdHeader(header.parent.choice)
+                if hc == "ipv6_extension_header":
+                    inside_srh = True
+                    continue
+                if inside_srh:
+                    if hc == "tcp" and "tcp" not in inner_fixes:
+                        inner_fixes["tcp"] = ("dataOffset", "5")
+                    elif hc == "udp" and "udp" not in inner_fixes:
+                        inner_fixes["udp"] = ("length", "8")
+            if not inner_fixes:
+                continue
+            try:
+                ti = self._api._ixnetwork.Traffic.TrafficItem.find(Name=flow.name)
+                if not ti:
+                    continue
+                ce_list = ti.ConfigElement.find()
+                if not ce_list:
+                    continue
+                for stack_type, (field_substr, value) in inner_fixes.items():
+                    stacks = ce_list[0].Stack.find(StackTypeId=stack_type)
+                    if not stacks:
+                        continue
+                    for f in stacks[0].Field.find():
+                        if field_substr in (f.FieldTypeId or ""):
+                            f.Auto = False
+                            f.SingleValue = value
+                            break
+            except Exception as exc:
+                self.logger.warning(
+                    "SRH inner field fix failed for '%s': %s" % (flow.name, exc)
+                )
 
     def _process_latency(self, latency):
         if self.latency_mode is None:
