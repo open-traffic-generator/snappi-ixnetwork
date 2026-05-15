@@ -1517,10 +1517,10 @@ def test_srh_inner_ipv4_tcp(api, b2b_raw_config, utils):
     _add_capture(b2b_raw_config, p2.name)
     api.set_config(b2b_raw_config)
     _log_all_ixn_stacks(api, "srh_ipv4_tcp")
-    _log_ixn_stack_fields(api, "srh_ipv4_tcp", "ipv6RoutingType4")
-    _log_ixn_stack_fields(api, "srh_ipv4_tcp", "ipv4",
-                          highlight=["srcIp", "dstIp", "protocol"])
-    _log_ixn_stack_fields(api, "srh_ipv4_tcp", "tcp",
+    #_log_ixn_stack_fields(api, "srh_ipv4_tcp", "ipv6RoutingType4")
+    #_log_ixn_stack_fields(api, "srh_ipv4_tcp", "ipv4",
+    #                     highlight=["srcIp", "dstIp", "protocol"])
+    #_log_ixn_stack_fields(api, "srh_ipv4_tcp", "tcp",
                           highlight=["tcp.header.dataOffset"])
     _start_capture(api)
     _start_traffic(api)
@@ -2063,7 +2063,7 @@ def test_usid_no_srh(api, b2b_raw_config, utils):
     assert pkt.get("dst_port") == dst_port, \
         "[%s] udp.dst_port: want %d got %s" % (tc, dst_port, pkt.get("dst_port"))
 
-    #_delete_capture(tc)
+    _delete_capture(tc)
     print("\n  [%s] PASSED — uSID container in IPv6 dst, no SRH on wire." % tc)
 
 
