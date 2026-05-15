@@ -511,10 +511,20 @@ class Api(snappi.Api):
                     res.response.protocol.ipv6.ping.responses.deserialize(
                         self.ping.results(request_payload, control_choice)
                     )
+            elif control_choice == "isis":
+                isis_inner_choice = choice_obj.get("choice")
+                if isis_inner_choice == "initiate_graceful_restart":
+                    res = self.control_action_response()
+                    self.logger.warning(
+                        "set_control_action: isis.initiate_graceful_restart "
+                        "not yet implemented"
+                    )
+                else:
+                    res = self.control_action_response()
             elif control_option is not None:
                 msg = "{} is not a supported choice for metrics; \
                 the supported choices are \
-                ['ipv4', 'ipv6']".format(
+                ['ipv4', 'ipv6', 'isis']".format(
                     control_option
                 )
                 raise SnappiIxnException(400, msg)
