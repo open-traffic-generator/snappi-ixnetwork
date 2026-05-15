@@ -1521,7 +1521,7 @@ def test_srh_inner_ipv4_tcp(api, b2b_raw_config, utils):
     #_log_ixn_stack_fields(api, "srh_ipv4_tcp", "ipv4",
     #                     highlight=["srcIp", "dstIp", "protocol"])
     #_log_ixn_stack_fields(api, "srh_ipv4_tcp", "tcp",
-                          highlight=["tcp.header.dataOffset"])
+    #                     highlight=["tcp.header.dataOffset"])
     _start_capture(api)
     _start_traffic(api)
     time.sleep(4)
