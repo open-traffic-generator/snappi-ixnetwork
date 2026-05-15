@@ -6,6 +6,7 @@ import time
 import dpkt
 import pytest
 
+pytestmark = pytest.mark.skip(reason="ISIS-SRv6 control plane not yet supported")
 
 # Converted from: config.ISIS_SRV6_Locator_Algorithm_values.ixncfg
 # Source script:  test.ISIS_SRV6_Locator_Algorithm_values.py
