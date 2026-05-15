@@ -51,11 +51,20 @@ class Capture(object):
         self._resource_manager = self._api._ixnetwork.ResourceManager
         imports = []
         vports = self._api.select_vports()
-        for vport in vports.values():
+        # Collect ports that will be re-enabled by the captures loop so we
+        # can skip the disable step for those ports. Sending disable + enable
+        # for the same port in one ImportConfig batch can leave the port
+        # disabled when IxNetwork processes the operations out of order.
+        ports_to_enable = set()
+        for capture_item in self._api.snappi_config.captures:
+            if capture_item.port_names:
+                for port_name in capture_item.port_names:
+                    ports_to_enable.add(port_name)
+        for port_name, vport in vports.items():
             if (
                 vport["capture"]["hardwareEnabled"] is True
                 or vport["capture"]["softwareEnabled"] is True
-            ):
+            ) and port_name not in ports_to_enable:
                 capture = {
                     "xpath": vport["capture"]["xpath"],
                     "captureMode": "captureTriggerMode",
@@ -508,6 +517,19 @@ class Capture(object):
                 for name, vport in ixn_vports.items()
                 if vport["capture"]["hardwareEnabled"] is True
             ]
+            # If no ports have capture enabled but the config expects captures,
+            # re-apply the capture configuration. This guards against a race
+            # between vport creation and the capture ImportConfig settling.
+            if len(ixn_cap_ports) == 0 and len(
+                list(self._api.snappi_config.captures)
+            ) > 0:
+                self.config()
+                ixn_vports = self._api.select_vports()
+                ixn_cap_ports = [
+                    name
+                    for name, vport in ixn_vports.items()
+                    if vport["capture"]["hardwareEnabled"] is True
+                ]
             port_names = self._capture_request.port_names
             if (
                 port_names is None
