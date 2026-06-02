@@ -1528,10 +1528,14 @@ class TrafficItem(CustomField):
                 ce["transmissionControl"]["startDelay"] = value
                 ce["transmissionControl"]["startDelayUnits"] = unit
             elif duration.choice == "fixed_seconds":
+                seconds_value = duration.fixed_seconds.get("seconds", True)
+                if not isinstance(seconds_value, int):
+                    raise SnappiIxnException(
+                        400,
+                        "Application only accept integer value for fixed_seconds duration"
+                    )
                 ce["transmissionControl"]["type"] = "fixedDuration"
-                ce["transmissionControl"]["duration"] = (
-                    duration.fixed_seconds.get("seconds", True)
-                )
+                ce["transmissionControl"]["duration"] = seconds_value
                 ce["transmissionControl"]["minGapBytes"] = (
                     duration.fixed_seconds.get("gap", True)
                 )
