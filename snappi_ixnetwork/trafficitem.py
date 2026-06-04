@@ -1486,6 +1486,14 @@ class TrafficItem(CustomField):
                 )
         return
 
+    def _validate_integer_field(self, value, field_name):
+        """Raise SnappiIxnException if value is a float (non-integer)."""
+        if isinstance(value, float) and not value.is_integer():
+            raise SnappiIxnException(
+                400,
+                "Application only accepts integer value for %s" % field_name,
+            )
+
     def _configure_duration(self, ce_dict, hl_stream_count, duration):
         """Transform duration flows.duration to
         /traffic/trafficItem[*]/configElement[*]/TransmissionControl"""
@@ -1504,6 +1512,7 @@ class TrafficItem(CustomField):
                 )
                 delay = duration.continuous.get("delay", True)
                 value = delay.get(delay.choice, True)
+                self._validate_integer_field(value, "continuous delay")
                 unit = delay.choice
                 if delay.choice == "microseconds":
                     value = value * 1000
@@ -1521,6 +1530,7 @@ class TrafficItem(CustomField):
                 )
                 delay = duration.fixed_packets.get("delay", True)
                 value = delay.get(delay.choice, True)
+                self._validate_integer_field(value, "fixed_packets delay")
                 unit = delay.choice
                 if delay.choice == "microseconds":
                     value = value * 1000
@@ -1529,11 +1539,7 @@ class TrafficItem(CustomField):
                 ce["transmissionControl"]["startDelayUnits"] = unit
             elif duration.choice == "fixed_seconds":
                 seconds_value = duration.fixed_seconds.get("seconds", True)
-                if not isinstance(seconds_value, int):
-                    raise SnappiIxnException(
-                        400,
-                        "Application only accept integer value for fixed_seconds duration"
-                    )
+                self._validate_integer_field(seconds_value, "fixed_seconds duration")
                 ce["transmissionControl"]["type"] = "fixedDuration"
                 ce["transmissionControl"]["duration"] = seconds_value
                 ce["transmissionControl"]["minGapBytes"] = (
@@ -1541,6 +1547,7 @@ class TrafficItem(CustomField):
                 )
                 delay = duration.fixed_seconds.get("delay", True)
                 value = delay.get(delay.choice, True)
+                self._validate_integer_field(value, "fixed_seconds delay")
                 unit = delay.choice
                 if delay.choice == "microseconds":
                     value = value * 1000
@@ -1559,6 +1566,7 @@ class TrafficItem(CustomField):
                 )
                 inter_burst_gap = duration.burst.get("inter_burst_gap", True)
                 value = inter_burst_gap.get(inter_burst_gap.choice, True)
+                self._validate_integer_field(value, "burst inter_burst_gap")
                 unit = inter_burst_gap.choice
                 if inter_burst_gap.choice == "microseconds":
                     value = value * 1000
