@@ -1566,7 +1566,6 @@ class TrafficItem(CustomField):
                 )
                 inter_burst_gap = duration.burst.get("inter_burst_gap", True)
                 value = inter_burst_gap.get(inter_burst_gap.choice, True)
-                self._validate_integer_field(value, "burst inter_burst_gap")
                 unit = inter_burst_gap.choice
                 if inter_burst_gap.choice == "microseconds":
                     value = value * 1000
