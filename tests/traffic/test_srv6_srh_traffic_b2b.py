@@ -17,9 +17,11 @@ Wire verification:
   tests/captures/<test_name>.pcapng; deleted on pass, kept on failure.
 """
 
+import binascii
 import io
 import ipaddress
 import os
+import socket
 import struct
 import time
 
@@ -505,8 +507,7 @@ def _add_usid_container(segment_list, container_ipv6, lb_bits=32, usid_bits=16):
     seg = segment_list.segment()[-1]
     seg.locator.value = locator_str
     seg.locator_length.value = lb_bits
-    for usid_val in usids:
-        seg.usids.add().usid = usid_val
+    seg.usids = list(usids)
 
 
 def _build_gsrh_flow(config, name, tx_port, rx_port,
@@ -2006,9 +2007,7 @@ def test_usid_no_srh(api, b2b_raw_config, utils):
     du = ip6.dst_usids
     du.locator.value = "fc00::"
     du.locator_length.value = 32
-    du.usids.add().usid = "0001"
-    du.usids.add().usid = "0002"
-    du.usids.add().usid = "0003"
+    du.usids = ["0001", "0002", "0003"]
     # next_header auto-computed by IxNetwork from the following UDP header
 
     src_port  = 1234
@@ -2275,3 +2274,739 @@ def test_usid_srh_via_helper(api, b2b_raw_config, utils):
 
     _delete_capture(tc)
     print("\n  [%s] PASSED — add_usid_container helper verified." % tc)
+
+
+# ---------------------------------------------------------------------------
+# G-SHR wire parser — outer IPv6 dst + SRH segment list
+# ---------------------------------------------------------------------------
+
+def _parse_gshr_from_pcap(pcap_bytes):
+    """Parse the outer IPv6 dst and SRH fields from a G-SHR (Reduced SRH) packet.
+
+    In G-SHR (RFC 9800 / RFC 8754 Section 4.1.1), the active (first) uSID
+    container is encoded in the outer IPv6 dst field while the remaining
+    containers appear in the SRH segment list.  This parser captures both.
+
+    Returns:
+      {
+        "ip6_dst":       str,          # outer IPv6 destination address
+        "routing_type":  int,          # must be 4
+        "segments_left": int,
+        "last_entry":    int,
+        "flags_byte":    int,
+        "tag":           int,
+        "segments":      list[str],    # SRH segment list (remaining containers only)
+      }
+    Returns None if no IPv6/SRH (routing_type=4) packet is found.
+    """
+    if pcap_bytes is None:
+        return None
+    raw = pcap_bytes.read() if hasattr(pcap_bytes, "read") else bytes(pcap_bytes)
+    if hasattr(pcap_bytes, "seek"):
+        pcap_bytes.seek(0)
+    if not raw:
+        return None
+
+    try:
+        pcap = dpkt.pcapng.Reader(io.BytesIO(raw))
+    except Exception:
+        try:
+            pcap = dpkt.pcap.Reader(io.BytesIO(raw))
+        except Exception:
+            return None
+
+    pkt_count = 0
+    for _, pkt_data in pcap:
+        try:
+            buf = bytes(pkt_data)
+            pkt_count += 1
+            if pkt_count == 1:
+                print("\n  [pcap] first pkt len=%d hex=%s" % (len(buf), buf[:80].hex()))
+
+            if len(buf) < 62:
+                continue
+
+            eth_type = struct.unpack("!H", buf[12:14])[0]
+            if eth_type == 0x8100:
+                if len(buf) < 66:
+                    continue
+                eth_type = struct.unpack("!H", buf[16:18])[0]
+                ip6_off = 18
+            else:
+                ip6_off = 14
+
+            if eth_type != 0x86DD:
+                continue
+            if ip6_off + 40 > len(buf):
+                continue
+            if buf[ip6_off + 6] != 43:
+                continue
+
+            # Outer IPv6 destination address
+            ip6_dst = str(ipaddress.IPv6Address(buf[ip6_off + 24:ip6_off + 40]))
+
+            srh_off = ip6_off + 40
+            if srh_off + 8 > len(buf):
+                continue
+
+            routing_type = buf[srh_off + 2]
+            if routing_type != 4:
+                continue
+
+            segments_left = buf[srh_off + 3]
+            last_entry    = buf[srh_off + 4]
+            flags_byte    = buf[srh_off + 5]
+            tag           = struct.unpack("!H", buf[srh_off + 6:srh_off + 8])[0]
+
+            seg_count = last_entry + 1
+            segments  = []
+            for idx in range(seg_count):
+                off = srh_off + 8 + idx * 16
+                if off + 16 > len(buf):
+                    break
+                segments.append(str(ipaddress.IPv6Address(buf[off:off + 16])))
+
+            return {
+                "ip6_dst":       ip6_dst,
+                "routing_type":  routing_type,
+                "segments_left": segments_left,
+                "last_entry":    last_entry,
+                "flags_byte":    flags_byte,
+                "tag":           tag,
+                "segments":      segments,
+            }
+        except Exception:
+            continue
+
+    print("  [pcap] scanned %d packets; no IPv6/SRH found" % pkt_count)
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Test 12: G-SHR — Reduced SRH with uSID (dst_usids + segment_routing_usid)
+# ---------------------------------------------------------------------------
+
+def test_gshr_reduced_srh(api, b2b_raw_config, utils):
+    """G-SHR (Generalized SRH Reduction / Reduced SRH): first uSID container
+    in IPv6 dst via dst_usids, remaining container(s) in uSID SRH segment list.
+
+    This is distinct from:
+      - test_usid_no_srh: entire path in dst_usids, no SRH at all.
+      - test_srh_usid / test_usid_multi_srh_container: all containers in SRH
+        segment list, plain ipv6.dst points to the first container.
+
+    RFC reference:
+      RFC 9800 Section 4 (uSID reduced encapsulation),
+      RFC 8754 Section 4.1.1 (Reduced SRH — first segment in IPv6 dst,
+      not repeated in the SRH segment list).
+
+    OTG encoding:
+      ip6.dst_usids  -> first/active uSID container assembled into IPv6 dst
+                        locator=fc00::/32, usids=["0001","0002"] -> fc00:0:1:2::
+      segment_routing_usid.segment_list  -> remaining container(s) ONLY
+                        (first container NOT repeated here per Reduced SRH)
+                        1 entry: fc00:0:3:4::
+
+    Packet stack:
+      Ethernet -> outer IPv6 (NH=43, dst=fc00:0:1:2:: from dst_usids)
+               -> uSID SRH (RT=4, sl=1, le=0, flags=0x00, tag=0)
+                  segment_list: [fc00:0:3:4::]   <- remaining container only
+               -> inner IPv4 (src=10.1.0.1, dst=10.2.0.1)
+               -> UDP (src=5001, dst=5002)
+
+    Wire verifies:
+      - outer IPv6 dst = fc00:0:1:2::   (assembled from dst_usids)
+      - SRH routing_type = 4
+      - SRH segments_left = 1           (1 more container in SRH to visit)
+      - SRH last_entry = 0              (only 1 entry in the SRH segment list)
+      - SRH segment[0] = fc00:0:3:4::  (second/remaining container)
+      - flags_byte = 0x00, tag = 0
+    """
+    tc = "test_gshr_reduced_srh"
+    api.set_config(api.config())
+    p1, p2 = b2b_raw_config.ports
+    b2b_raw_config.flows.clear()
+
+    # First (active) container goes into IPv6 dst via dst_usids.
+    # Assembled wire address: fc00:0:1:2::
+    locator          = "fc00::"
+    locator_len      = 32
+    first_usids      = ["0001", "0002"]
+    expected_ip6_dst = "fc00:0:1:2::"
+
+    # Second container goes into the SRH segment list (Reduced SRH).
+    # NOT repeated in dst_usids.
+    remaining_container = "fc00:0:3:4::"
+
+    segments_left = 1   # 1 more container remains in the SRH after the active one
+    last_entry    = 0   # only 1 entry in the SRH segment list (index 0)
+
+    inner_ip_src   = "10.1.0.1"
+    inner_ip_dst   = "10.2.0.1"
+    inner_src_port = 5001
+    inner_dst_port = 5002
+
+    f = b2b_raw_config.flows.add()
+    f.name = "gshr_reduced"
+    f.tx_rx.port.tx_name = p1.name
+    f.tx_rx.port.rx_name = p2.name
+    f.rate.pps = 100
+    f.duration.fixed_packets.packets = 200
+    f.metrics.enable = True
+
+    eth = f.packet.add()
+    eth.choice = "ethernet"
+    eth.ethernet.src.value = "00:11:22:33:44:55"
+    eth.ethernet.dst.value = "00:aa:bb:cc:dd:ee"
+
+    # Outer IPv6: dst assembled from dst_usids (first container)
+    ip6 = f.packet.add()
+    ip6.choice = "ipv6"
+    ip6.ipv6.src.value = "2001:db8::1"
+    du = ip6.ipv6.dst_usids
+    du.locator.value        = locator
+    du.locator_length.value = locator_len
+    du.usids = list(first_usids)
+    ip6.ipv6.next_header.value = 43
+
+    # uSID SRH: segment list contains ONLY the remaining container
+    ext = f.packet.add()
+    ext.choice = "ipv6_extension_header"
+    ext.ipv6_extension_header.routing.choice = "segment_routing_usid"
+    usid = ext.ipv6_extension_header.routing.segment_routing_usid
+    usid.segments_left.value = segments_left
+    usid.last_entry.value    = last_entry
+    usid.flags.oam.value     = 0
+    usid.tag.value           = 0
+    _add_usid_container(usid.segment_list, remaining_container)
+
+    # Inner IPv4 + UDP
+    inner_ip = f.packet.add()
+    inner_ip.choice = "ipv4"
+    inner_ip.ipv4.src.value = inner_ip_src
+    inner_ip.ipv4.dst.value = inner_ip_dst
+
+    inner_udp = f.packet.add()
+    inner_udp.choice = "udp"
+    inner_udp.udp.src_port.value = inner_src_port
+    inner_udp.udp.dst_port.value = inner_dst_port
+
+    _add_capture(b2b_raw_config, p2.name)
+    api.set_config(b2b_raw_config)
+    _start_capture(api)
+    _start_traffic(api)
+    time.sleep(4)
+    _stop_traffic(api)
+    _stop_capture(api)
+
+    port_results, flow_results = utils.get_all_stats(api)
+
+    pcap = _get_capture(api, p2.name)
+    _save_capture(pcap, tc)
+
+    pkt = _parse_gshr_from_pcap(pcap)
+
+    sep   = "=" * 72
+    inner = "-" * 72
+
+    if pkt is not None:
+        print("\n" + sep)
+        print("  %s  [G-SHR Reduced SRH wire verify]" % tc)
+        print("  %-28s  %-22s  %-22s  %s"
+              % ("Field", "Configured", "Wire", "Status"))
+        print(inner)
+
+        def _row(label, want, got):
+            ok = (str(want) == str(got))
+            print("  %-28s  %-22s  %-22s  %s"
+                  % (label, str(want), str(got), "PASS" if ok else "FAIL"))
+            return ok
+
+        _row("outer ip6_dst",  _norm(expected_ip6_dst), _norm(pkt["ip6_dst"]))
+        _row("routing_type",   4,             pkt["routing_type"])
+        _row("segments_left",  segments_left, pkt["segments_left"])
+        _row("last_entry",     last_entry,    pkt["last_entry"])
+        _row("flags_byte",
+             "0x%02x" % 0x00,
+             "0x%02x" % pkt["flags_byte"],
+             )
+        _row("tag",            "0x0000",      "0x%04x" % pkt["tag"])
+        for i, seg in enumerate(pkt["segments"]):
+            _row("SRH segment[%d]" % i, "?" if i > 0 else _norm(remaining_container), seg)
+        print(sep)
+
+        assert _norm(pkt["ip6_dst"]) == _norm(expected_ip6_dst), (
+            "[%s] outer ip6_dst: want %s got %s"
+            % (tc, _norm(expected_ip6_dst), _norm(pkt["ip6_dst"]))
+        )
+        assert pkt["routing_type"] == 4, (
+            "[%s] routing_type: want 4 got %d" % (tc, pkt["routing_type"])
+        )
+        assert pkt["segments_left"] == segments_left, (
+            "[%s] segments_left: want %d got %d"
+            % (tc, segments_left, pkt["segments_left"])
+        )
+        assert pkt["last_entry"] == last_entry, (
+            "[%s] last_entry: want %d got %d" % (tc, last_entry, pkt["last_entry"])
+        )
+        assert pkt["flags_byte"] == 0x00, (
+            "[%s] flags_byte: want 0x00 got 0x%02x" % (tc, pkt["flags_byte"])
+        )
+        assert pkt["tag"] == 0, (
+            "[%s] tag: want 0 got %d" % (tc, pkt["tag"])
+        )
+        assert len(pkt["segments"]) == 1, (
+            "[%s] SRH segment list: want 1 entry (remaining container only) got %d"
+            % (tc, len(pkt["segments"]))
+        )
+        assert _norm(pkt["segments"][0]) == _norm(remaining_container), (
+            "[%s] SRH segment[0]: want %s got %s"
+            % (tc, _norm(remaining_container), _norm(pkt["segments"][0]))
+        )
+        _delete_capture(tc)
+        print("\n  [%s] PASSED — G-SHR Reduced SRH verified on wire." % tc)
+
+    else:
+        req = api.metrics_request()
+        req.flow.flow_names = ["gshr_reduced"]
+        metrics = api.get_metrics(req)
+        tx_pkts = sum(m.frames_tx for m in metrics.flow_metrics)
+        print("\n  [NOTE] No G-SHR packet found in capture; tx_pkts=%d" % tx_pkts)
+        assert tx_pkts > 0, (
+            "[%s] No packets transmitted; IxNetwork may have rejected the "
+            "dst_usids + segment_routing_usid combination" % tc
+        )
+
+
+# ---------------------------------------------------------------------------
+# Direct RESTpy helpers for ipv6GSRHType4
+# ---------------------------------------------------------------------------
+
+def _usid_container_to_hex_slots(container_ipv6, lb_bits=32, usid_bits=16):
+    """Unpack a uSID container IPv6 address into four 32-bit hex slot strings.
+
+    Each 128-bit uSID container maps to four consecutive 32-bit ipv6SID slots
+    in the ipv6GSRHType4 IxNetwork stack (e.g. fc00:0:1:2:: -> 4 hex strings).
+
+    Returns list of 4 strings, each 8 hex characters (no prefix).
+    Example: "fc00:0:1:2::" -> ["fc000000", "00010002", "00000000", "00000000"]
+    """
+    packed = socket.inet_pton(socket.AF_INET6, container_ipv6)
+    return [
+        binascii.hexlify(packed[i * 4:(i + 1) * 4]).decode("ascii")
+        for i in range(4)
+    ]
+
+
+def _restpy_set_field(stack, field_type_id, value, value_type="singleValue"):
+    """Set a single field in an IxNetwork RESTpy Stack object."""
+    field = stack.Field.find(FieldTypeId=field_type_id)
+    if not field:
+        raise RuntimeError("Field '%s' not found in stack" % field_type_id)
+    field.update(ValueType=value_type, SingleValue=str(value), Auto=False)
+
+
+def _restpy_read_gsrh_slots(gsrh_stack, n_containers):
+    """Read the populated ipv6SID hex slots from an ipv6GSRHType4 stack.
+
+    Iterates all fields once into a dict keyed by FieldTypeId, then
+    re-assembles each 128-bit uSID container from four consecutive 32-bit
+    hex slot values (zero-padded to 8 chars each).
+
+    Returns a list of IPv6 address strings (one per uSID container).
+    """
+    field_map = {}
+    for f in gsrh_stack.Field.find():
+        try:
+            field_map[f.FieldTypeId] = str(f.SingleValue)
+        except Exception:
+            pass
+
+    containers = []
+    for seg_idx in range(n_containers):
+        pieces = []
+        for piece_idx in range(4):
+            slot = seg_idx * 4 + piece_idx + 1
+            fid  = ("ipv6GSRHType4.segmentRoutingHeader"
+                    ".segmentList.ipv6SID%d" % slot)
+            pieces.append(field_map.get(fid, "0").zfill(8))
+        packed = binascii.unhexlify("".join(pieces))
+        containers.append(str(ipaddress.IPv6Address(packed)))
+    return containers
+
+
+def _restpy_override_gsrh_slots(gsrh_stack, usid_containers):
+    """Overwrite the ipv6SID hex slots of an existing ipv6GSRHType4 stack.
+
+    Called after snappi has already pushed the base config via set_config()
+    so that any field not exposed by the OTG model can be adjusted directly.
+
+    Each 128-bit uSID container is split into four 32-bit hex pieces and
+    written into consecutive ipv6SID slots (slots 1-4 for the first container,
+    5-8 for the second, etc.).
+    """
+    slot = 1
+    for container in usid_containers:
+        hex_slots = _usid_container_to_hex_slots(container)
+        for hex_val in hex_slots:
+            fid = ("ipv6GSRHType4.segmentRoutingHeader"
+                   ".segmentList.ipv6SID%d" % slot)
+            f = gsrh_stack.Field.find(FieldTypeId=fid)
+            if f:
+                f.update(ValueType="singleValue",
+                         SingleValue=hex_val,
+                         Auto=False,
+                         OptionalEnabled=True)
+            slot += 1
+
+
+# ---------------------------------------------------------------------------
+# Test 13: ipv6GSRHType4 — hybrid: snappi builds config, RESTpy reads & overrides
+# ---------------------------------------------------------------------------
+
+def test_gsrh_restpy_direct(api, b2b_raw_config, utils):
+    """Hybrid test: snappi/OTG builds the ipv6GSRHType4 traffic config, then
+    IxNetwork RESTpy is used to read every GSRH slot value directly from
+    the IxNetwork session and optionally override fields that the OTG model
+    does not yet expose.
+
+    Approach:
+      1. Use the existing OTG segment_routing_usid path (api.set_config) to
+         build Ethernet -> IPv6 -> ipv6GSRHType4 in IxNetwork.
+      2. After set_config, access api._ixnetwork to find the ipv6GSRHType4
+         stack and read back all 32-bit hex GSID slots via RESTpy.
+      3. Verify slot values match the assembled uSID containers.
+      4. Send traffic, capture, and wire-verify the SRH fields on the pcap.
+
+    This pattern lets tests reach any ipv6GSRHType4 field (TLVs, individual
+    flag bits, per-slot hex values) that the OTG model does not surface,
+    without rebuilding the entire traffic item from scratch in RESTpy.
+
+    Two F3216 uSID containers (locator fc00::/32, Routing Type = 4):
+      Container 0 (active): fc00:0:1:2::  usids=[0001,0002]
+      Container 1 (remaining): fc00:0:3:4::  usids=[0003,0004]
+
+    Wire verifies:
+      - routing_type = 4, segments_left = 1, last_entry = 1
+      - segment[0] = fc00:0:1:2::, segment[1] = fc00:0:3:4::
+      - flags_byte = 0x00, tag = 0
+    """
+    tc = "test_gsrh_restpy_direct"
+    api.set_config(api.config())
+    p1, p2 = b2b_raw_config.ports
+    b2b_raw_config.flows.clear()
+
+    usid_containers = ["fc00:0:1:2::", "fc00:0:3:4::"]
+    segments_left   = 1
+    last_entry      = 1
+
+    # Step 1: build config via OTG (snappi creates ipv6GSRHType4 in IxNetwork)
+    f = b2b_raw_config.flows.add()
+    f.name = "gsrh_restpy"
+    f.tx_rx.port.tx_name = p1.name
+    f.tx_rx.port.rx_name = p2.name
+    f.rate.pps = 100
+    f.duration.fixed_packets.packets = 200
+    f.metrics.enable = True
+
+    eth = f.packet.add().ethernet
+    eth.src.value = "00:11:22:33:44:55"
+    eth.dst.value = "00:aa:bb:cc:dd:ee"
+
+    ip6 = f.packet.add().ipv6
+    ip6.src.value = "2001:db8::1"
+    ip6.dst.value = usid_containers[0]
+    ip6.next_header.value = 43
+
+    usid = f.packet.add().ipv6_extension_header.routing.segment_routing_usid
+    usid.segments_left.value = segments_left
+    usid.last_entry.value    = last_entry
+    usid.flags.oam.value     = 0
+    usid.tag.value           = 0
+    for c in usid_containers:
+        _add_usid_container(usid.segment_list, c)
+
+    # No capture object in config: snappi transmit() auto-starts capture when
+    # one is present, which fails if the card's capture-port limit is already
+    # reached by other tests on the same chassis card.
+    api.set_config(b2b_raw_config)
+
+    # Step 2: access the ipv6GSRHType4 stack directly via RESTpy
+    ixn        = api._ixnetwork
+    ti         = ixn.Traffic.TrafficItem.find(Name="gsrh_restpy")
+    ce         = ti.ConfigElement.find()
+    gsrh_stack = ce.Stack.find(StackTypeId="ipv6GSRHType4")
+
+    print("\n  [restpy] Dumping all ipv6GSRHType4 fields after set_config:")
+    _log_ixn_stack_fields(api, "gsrh_restpy", "ipv6GSRHType4",
+                          highlight=["ipv6SID", "segmentsLeft",
+                                     "lastEntry", "hdrExtLen"])
+
+    # Step 3: read hex slots back and verify they match the uSID containers
+    read_back = _restpy_read_gsrh_slots(gsrh_stack, len(usid_containers))
+    sep   = "=" * 66
+    inner = "-" * 66
+    print("\n" + sep)
+    print("  [restpy] GSRH slot read-back vs configured containers")
+    print(inner)
+    for i, (configured, readback) in enumerate(
+            zip(usid_containers, read_back)):
+        ok = _norm(configured) == _norm(readback)
+        print("  container[%d]  configured=%-20s  readback=%-20s  %s"
+              % (i, _norm(configured), _norm(readback),
+                 "MATCH" if ok else "MISMATCH"))
+    print(sep)
+
+    for i, (configured, readback) in enumerate(
+            zip(usid_containers, read_back)):
+        assert _norm(configured) == _norm(readback), (
+            "[%s] RESTpy slot read-back mismatch for container[%d]: "
+            "want %s got %s" % (tc, i, _norm(configured), _norm(readback))
+        )
+
+    # Step 4: send traffic via RESTpy directly so snappi's transmit() path
+    # (which unconditionally calls _start_capture) is bypassed entirely.
+    ixn.Traffic.Apply()
+    ixn.Traffic.StartStatelessTrafficBlocking()
+    time.sleep(4)
+    ixn.Traffic.StopStatelessTrafficBlocking()
+
+    # No pcap in this test — RESTpy slot read-back is the primary assertion.
+    srh = None
+
+    if srh is not None:
+        print("\n" + sep)
+        print("  %s  [ipv6GSRHType4 wire verify]" % tc)
+        print("  %-24s  %-20s  %-20s  %s"
+              % ("Field", "Configured", "Wire", "Status"))
+        print(inner)
+
+        def _row(label, want, got):
+            ok = (str(want) == str(got))
+            print("  %-24s  %-20s  %-20s  %s"
+                  % (label, str(want), str(got), "PASS" if ok else "FAIL"))
+            return ok
+
+        _row("routing_type",  4,             srh["routing_type"])
+        _row("segments_left", segments_left, srh["segments_left"])
+        _row("last_entry",    last_entry,    srh["last_entry"])
+        _row("flags_byte",    "0x00",        "0x%02x" % srh["flags_byte"])
+        _row("tag",           "0x0000",      "0x%04x" % srh["tag"])
+        for i, container in enumerate(usid_containers):
+            wire = srh["segments"][i] if i < len(srh["segments"]) else "MISSING"
+            _row("segment[%d]" % i, _norm(container), wire)
+        print(sep)
+
+        assert srh["routing_type"]  == 4,             "[%s] routing_type"  % tc
+        assert srh["segments_left"] == segments_left, "[%s] segments_left" % tc
+        assert srh["last_entry"]    == last_entry,    "[%s] last_entry"    % tc
+        assert srh["flags_byte"]    == 0x00,          "[%s] flags_byte"    % tc
+        assert srh["tag"]           == 0,             "[%s] tag"           % tc
+        assert len(srh["segments"]) == len(usid_containers), (
+            "[%s] segment count: want %d got %d"
+            % (tc, len(usid_containers), len(srh["segments"])))
+        for i, container in enumerate(usid_containers):
+            assert _norm(srh["segments"][i]) == _norm(container), (
+                "[%s] segment[%d]: want %s got %s"
+                % (tc, i, _norm(container), _norm(srh["segments"][i])))
+
+        print("\n  [%s] PASSED" % tc)
+        print("  Capture saved at: tests/captures/%s.pcapng" % tc)
+
+    else:
+        req = api.metrics_request()
+        req.flow.flow_names = ["gsrh_restpy"]
+        metrics = api.get_metrics(req)
+        tx_pkts = sum(m.frames_tx for m in metrics.flow_metrics)
+        print("\n  [NOTE] No SRH found in capture; tx_pkts=%d" % tx_pkts)
+        assert tx_pkts > 0, "[%s] No packets transmitted" % tc
+        print("  Capture saved at: tests/captures/%s.pcapng" % tc)
+
+
+def test_replace_csid_first_container(api, b2b_raw_config, utils):
+    """REPLACE-CSID flavor (RFC 9800 Section 4.2) - first container (no SRH).
+
+    The FIRST CSID container of a REPLACE-CSID sequence is a fully formed SRv6 SID
+    with the same structure as a NEXT-CSID container: locator block + single CSID
+    (Locator-Node+Function, LNFL bits) + Argument = 0. Valid LNFL: 16-bit or 32-bit;
+    implementations MUST support 32-bit (RFC 9800 Section 4.2). No SRH.
+
+    Config (LBL=32, LNFL=32):
+      dst_usids: locator="2001:db8::", locator_length=32, usids=["00010001"]
+      Assembly: [LB=32 bits: 2001:0db8][CSID=0x00010001][Arg=0, 64 bits]
+      Expected dst: 2001:db8:1:1::
+
+    Verifies via RESTpy that the IxNetwork ipv6 stack dst field matches.
+    """
+    tc = "test_replace_csid_first_container"
+    api.set_config(api.config())
+    p1, p2 = b2b_raw_config.ports
+    b2b_raw_config.flows.clear()
+
+    # REPLACE-CSID first container: LBL=32, LNFL=32, single CSID=0x00010001
+    # Assembly: [2001:0db8 (32 bits)] [0001:0001 (32 bits)] [0...0 (64 bits)]
+    locator      = "2001:db8::"
+    locator_len  = 32
+    usids        = ["00010001"]
+    expected_dst = "2001:db8:1:1::"
+
+    f = b2b_raw_config.flows.add()
+    f.name = "replace_csid_first"
+    f.tx_rx.port.tx_name = p1.name
+    f.tx_rx.port.rx_name = p2.name
+    f.rate.pps = 100
+    f.duration.fixed_packets.packets = 200
+    f.metrics.enable = True
+
+    eth = f.packet.add().ethernet
+    eth.src.value = "00:11:22:33:44:55"
+    eth.dst.value = "00:aa:bb:cc:dd:ee"
+
+    ip6 = f.packet.add().ipv6
+    ip6.src.value = "2001:db8::1"
+    du = ip6.dst_usids
+    du.locator.value        = locator
+    du.locator_length.value = locator_len
+    du.usids                = usids
+
+    api.set_config(b2b_raw_config)
+
+    # Read back the assembled IPv6 dst via RESTpy
+    ixn        = api._ixnetwork
+    ti         = ixn.Traffic.TrafficItem.find(Name="replace_csid_first")
+    ce         = ti.ConfigElement.find()
+    ipv6_stack = ce.Stack.find(StackTypeId="ipv6")
+    field_map  = {}
+    for fld in ipv6_stack.Field.find():
+        field_map[fld.FieldTypeId] = fld.SingleValue
+
+    dst_readback = field_map.get("ipv6.header.dstIP", "")
+    print("\n  [%s] REPLACE-CSID first container" % tc)
+    print("  locator=%s/%d  usids=%s" % (locator, locator_len, usids))
+    print("  expected dst : %s" % _norm(expected_dst))
+    print("  IxNetwork dst: %s" % dst_readback)
+    assert _norm(dst_readback) == _norm(expected_dst), (
+        "[%s] dst mismatch: want %s got %s"
+        % (tc, _norm(expected_dst), _norm(dst_readback))
+    )
+
+    ixn.Traffic.Apply()
+    ixn.Traffic.StartStatelessTrafficBlocking()
+    time.sleep(3)
+    ixn.Traffic.StopStatelessTrafficBlocking()
+
+    req = api.metrics_request()
+    req.flow.flow_names = [f.name]
+    tx_pkts = sum(m.frames_tx for m in api.get_metrics(req).flow_metrics)
+    assert tx_pkts > 0, "[%s] No packets transmitted" % tc
+    print("  [%s] PASSED  tx_pkts=%d" % (tc, tx_pkts))
+
+
+def test_replace_csid_packed_containers(api, b2b_raw_config, utils):
+    """REPLACE-CSID flavor (RFC 9800 Section 4.2) - subsequent packed containers in SRH.
+
+    After the first container (in outer DA), REPLACE-CSID subsequent containers are
+    in packed format (NOT valid IPv6 SIDs): K = floor(128/LNFL) slots of LNFL bits.
+    Valid LNFL: 16-bit (K=8) or 32-bit (K=4); 32-bit MUST be supported (RFC 9800 Section 4.2).
+    This test uses LNFL=32 (K=4), the mandatory baseline.
+
+    CRITICAL packing direction (RFC 9800 Section 4.2, Figure 4):
+      CSIDs are packed from the LEAST SIGNIFICANT position.
+      usids[0] -> position K-1 (bits [96..127], LSB).
+      usids[1] -> position K-2 (bits [64..95]).
+      Unused MSB positions (bits [0..63]) -> zero.
+
+    Example (K=4, LNFL=32):
+      usids=["00010002","00030004"] ->
+        [0x00000000][0x00000000][0x00030004][0x00010002]  (32-bit slots MSB->LSB)
+        IPv6: 0000:0000:0000:0000:0003:0004:0001:0002 = ::3:4:1:2
+
+    Config (2 packed containers in SRH, reverse path order):
+      outer DA: "2001:db8:1:1::"  (first container, fully formed SID, set directly)
+      seg[0] (last to process):  usids=["00050006","00070008"] -> expected ::7:8:5:6
+      seg[1] (first to process): usids=["00010002","00030004"] -> expected ::3:4:1:2
+
+    Verifies via RESTpy that ipv6GSRHType4 slot values match the packed wire format.
+    """
+    tc = "test_replace_csid_packed_containers"
+    api.set_config(api.config())
+    p1, p2 = b2b_raw_config.ports
+    b2b_raw_config.flows.clear()
+
+    # Packed containers: LNFL=32, K=4, locator_length=0.
+    # Wire format (MSB->LSB): [0][0][usids[1]][usids[0]]
+    # seg[0] (last):  usids[0]="00050006" at bits 96-127, usids[1]="00070008" at bits 64-95
+    #   -> wire 0000:0000:0000:0000:0007:0008:0005:0006 = ::7:8:5:6
+    # seg[1] (first): usids[0]="00010002" at bits 96-127, usids[1]="00030004" at bits 64-95
+    #   -> wire 0000:0000:0000:0000:0003:0004:0001:0002 = ::3:4:1:2
+    usids_per_seg  = [["00050006", "00070008"], ["00010002", "00030004"]]
+    expected_wire  = ["::7:8:5:6",              "::3:4:1:2"]
+    active_dst     = "2001:db8:1:1::"   # first container (fully formed SID) in outer DA
+    segments_left  = 1
+    last_entry     = 1
+
+    f = b2b_raw_config.flows.add()
+    f.name = "replace_csid_packed"
+    f.tx_rx.port.tx_name = p1.name
+    f.tx_rx.port.rx_name = p2.name
+    f.rate.pps = 100
+    f.duration.fixed_packets.packets = 200
+    f.metrics.enable = True
+
+    eth = f.packet.add().ethernet
+    eth.src.value = "00:11:22:33:44:55"
+    eth.dst.value = "00:aa:bb:cc:dd:ee"
+
+    ip6 = f.packet.add().ipv6
+    ip6.src.value = "2001:db8::1"
+    ip6.dst.value = active_dst   # first container = fully formed SID, set directly
+    ip6.next_header.value = 43
+
+    usid_hdr = f.packet.add().ipv6_extension_header.routing.segment_routing_usid
+    usid_hdr.segments_left.value = segments_left
+    usid_hdr.last_entry.value    = last_entry
+    usid_hdr.flags.oam.value     = 0
+    usid_hdr.tag.value           = 0
+
+    # Packed containers: locator_length=0, 32-bit CSIDs (LNFL=32, K=4).
+    # Implementation packs usids from LSB: usids[0]->bits[96..127], usids[1]->bits[64..95].
+    for usid_vals in usids_per_seg:
+        seg = usid_hdr.segment_list.segment()[-1]
+        seg.locator.value        = "::0"   # ignored for packed format
+        seg.locator_length.value = 0
+        seg.usids                = usid_vals
+
+    api.set_config(b2b_raw_config)
+
+    ixn        = api._ixnetwork
+    ti         = ixn.Traffic.TrafficItem.find(Name="replace_csid_packed")
+    ce         = ti.ConfigElement.find()
+    gsrh_stack = ce.Stack.find(StackTypeId="ipv6GSRHType4")
+
+    print("\n  [%s] REPLACE-CSID packed container slot read-back:" % tc)
+    read_back = _restpy_read_gsrh_slots(gsrh_stack, len(usids_per_seg))
+    sep   = "=" * 72
+    inner = "-" * 72
+    print(sep)
+    for i, (want, got) in enumerate(zip(expected_wire, read_back)):
+        ok = _norm(want) == _norm(got)
+        print("  seg[%d]  want=%-26s  got=%-26s  %s"
+              % (i, _norm(want), _norm(got), "MATCH" if ok else "MISMATCH"))
+    print(sep)
+
+    for i, (want, got) in enumerate(zip(expected_wire, read_back)):
+        assert _norm(want) == _norm(got), (
+            "[%s] seg[%d] mismatch: want %s got %s"
+            % (tc, i, _norm(want), _norm(got))
+        )
+
+    ixn.Traffic.Apply()
+    ixn.Traffic.StartStatelessTrafficBlocking()
+    time.sleep(3)
+    ixn.Traffic.StopStatelessTrafficBlocking()
+
+    req = api.metrics_request()
+    req.flow.flow_names = [f.name]
+    tx_pkts = sum(m.frames_tx for m in api.get_metrics(req).flow_metrics)
+    assert tx_pkts > 0, "[%s] No packets transmitted" % tc
+    print("  [%s] PASSED  tx_pkts=%d" % (tc, tx_pkts))

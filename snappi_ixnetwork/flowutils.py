@@ -34,8 +34,7 @@ def set_usid_dst(dst_usids, locator, locator_length, usids):
     """
     dst_usids.locator.value = locator
     dst_usids.locator_length.value = locator_length
-    for usid_val in usids:
-        dst_usids.usids.add().usid = usid_val
+    dst_usids.usids = list(usids)
 
 
 def add_usid_container(segment_list, locator, locator_length, usids):
@@ -67,5 +66,4 @@ def add_usid_container(segment_list, locator, locator_length, usids):
     seg = segment_list.segment()[-1]
     seg.locator.value = locator
     seg.locator_length.value = locator_length
-    for usid_val in usids:
-        seg.usids.add().usid = usid_val
+    seg.usids = list(usids)

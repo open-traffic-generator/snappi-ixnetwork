@@ -797,8 +797,7 @@ def _add_usid_container(segment_list, container_ipv6, lb_bits=32, usid_bits=16):
     seg = segment_list.segment()[-1]
     seg.locator.value = locator_str
     seg.locator_length.value = lb_bits
-    for usid_val in usids:
-        seg.usids.add().usid = usid_val
+    seg.usids = list(usids)
 
 
 def _build_gsrh_flow(cfg, name, tx_name, rx_name,

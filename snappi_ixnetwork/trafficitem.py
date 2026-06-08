@@ -956,10 +956,19 @@ class TrafficItem(CustomField):
 
     @staticmethod
     def _pack_usid_container(dst_usids_obj):
-        """Pack Flow.Ipv6.UsidDst into a 128-bit IPv6 address string (RFC 9800 Section 3).
+        """Pack a uSID container object into a 128-bit IPv6 address string.
 
-        Assembles: LB (locator_length high-order bits of locator) || uSID-1 || ... || EoC zeros.
-        Returns None if dst_usids_obj is None or locator is unset.
+        NEXT-CSID / REPLACE-CSID first container (locator_length > 0):
+          LB (locator_length high-order bits of locator) || CSID-1 || ... || EoC zeros.
+          RFC 9800 Sections 4.1 and 4.2 (first container).
+
+        REPLACE-CSID packed containers (locator_length = 0, RFC 9800 Section 4.2 Figure 4):
+          K = floor(128 / LNFL) slots packed from the LSB (reverse order):
+          usids[0] -> slot K-1 (bits [128-LNFL..127], LSB), usids[1] -> slot K-2, etc.
+          Unused MSB slots are zero.  LNFL is inferred from hex string width
+          (8 chars = 32-bit CSID, K=4; 4 chars = 16-bit CSID, K=8).
+
+        Returns None if dst_usids_obj is None or usids list is empty.
         """
         import socket
         if dst_usids_obj is None:
@@ -971,21 +980,34 @@ class TrafficItem(CustomField):
         lb_bits = 32
         ll_p = dst_usids_obj.get("locator_length", True)
         if ll_p is not None and ll_p.get("choice") == "value":
-            lb_bits = int(ll_p.get("value") or 32)
-        usid_hex_list = []
-        for u in dst_usids_obj.usids:
-            usid_hex_list.append(u.usid or "0000")
+            _val = ll_p.get("value")
+            lb_bits = int(_val) if _val is not None else 32
+        # usids is a plain string array (API simplified from wrapper objects)
+        if dst_usids_obj.usids is None:
+            return None
+        usid_hex_list = list(dst_usids_obj.usids)
         if not usid_hex_list:
             return None
-        lb_bytes = socket.inet_pton(socket.AF_INET6, locator_str)
-        lb_int = int.from_bytes(lb_bytes, "big")
-        mask = ((1 << lb_bits) - 1) << (128 - lb_bits)
-        result = lb_int & mask
-        offset = lb_bits
-        for usid_hex in usid_hex_list:
-            bit_width = len(usid_hex) * 4
-            result |= int(usid_hex, 16) << (128 - offset - bit_width)
-            offset += bit_width
+
+        if lb_bits == 0:
+            # REPLACE-CSID packed containers: pack from LSB.
+            # usids[i] placed at bit-offset i*LNFL from bit 0 (LSB of 128-bit value).
+            result = 0
+            for i, usid_hex in enumerate(usid_hex_list):
+                bit_width = len(usid_hex) * 4
+                result |= int(usid_hex, 16) << (i * bit_width)
+        else:
+            # NEXT-CSID or REPLACE-CSID first container: LB || CSID-1 || ... || zeros.
+            lb_bytes = socket.inet_pton(socket.AF_INET6, locator_str)
+            lb_int = int.from_bytes(lb_bytes, "big")
+            mask = ((1 << lb_bits) - 1) << (128 - lb_bits)
+            result = lb_int & mask
+            offset = lb_bits
+            for usid_hex in usid_hex_list:
+                bit_width = len(usid_hex) * 4
+                result |= int(usid_hex, 16) << (128 - offset - bit_width)
+                offset += bit_width
+
         return socket.inet_ntop(socket.AF_INET6, result.to_bytes(16, "big"))
 
     def _apply_dst_usids(self, hdr_json, snappi_ipv6):
