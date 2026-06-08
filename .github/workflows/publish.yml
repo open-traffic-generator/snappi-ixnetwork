@@ -49,6 +49,10 @@ jobs:
           source ~/.profile
           ${{steps.path.outputs.pythonv}} do.py generate_allure_report
 
+      - name: Ensure allure-report dir exists
+        if: always()
+        run: mkdir -p allure-report
+
       - name: Deploy report to Github Pages
         if: always()
         uses: peaceiris/actions-gh-pages@v4
