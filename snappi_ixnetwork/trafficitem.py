@@ -963,10 +963,11 @@ class TrafficItem(CustomField):
           RFC 9800 Sections 4.1 and 4.2 (first container).
 
         REPLACE-CSID packed containers (locator_length = 0, RFC 9800 Section 4.2 Figure 4):
-          K = floor(128 / LNFL) slots packed from the LSB (reverse order):
-          usids[0] -> slot K-1 (bits [128-LNFL..127], LSB), usids[1] -> slot K-2, etc.
-          Unused MSB slots are zero.  LNFL is inferred from hex string width
-          (8 chars = 32-bit CSID, K=4; 4 chars = 16-bit CSID, K=8).
+          K = floor(128 / LNFL) slots. User provides non-zero CSIDs in wire order (MSB
+          first among the provided values). The implementation right-aligns them to the
+          LSB end; unused MSB slots are zero-padded automatically.
+          usids[0] -> slot K-n (leftmost occupied), usids[-1] -> slot K-1 (LSB).
+          LNFL is inferred from hex string width (8 chars=32-bit, K=4; 4 chars=16-bit, K=8).
 
         Returns None if dst_usids_obj is None or usids list is empty.
         """
@@ -990,12 +991,17 @@ class TrafficItem(CustomField):
             return None
 
         if lb_bits == 0:
-            # REPLACE-CSID packed containers: pack from LSB.
-            # usids[i] placed at bit-offset i*LNFL from bit 0 (LSB of 128-bit value).
+            # REPLACE-CSID packed containers: right-align to LSB in wire order.
+            # usids[0] is the leftmost (MSB) occupied slot; usids[-1] is at LSB.
+            bit_width = len(usid_hex_list[0]) * 4
+            K = 128 // bit_width
+            n = len(usid_hex_list)
+            start_slot = K - n  # first occupied slot index (0=MSB end, K-1=LSB)
             result = 0
             for i, usid_hex in enumerate(usid_hex_list):
-                bit_width = len(usid_hex) * 4
-                result |= int(usid_hex, 16) << (i * bit_width)
+                slot = start_slot + i
+                shift = 128 - (slot + 1) * bit_width
+                result |= int(usid_hex, 16) << shift
         else:
             # NEXT-CSID or REPLACE-CSID first container: LB || CSID-1 || ... || zeros.
             lb_bytes = socket.inet_pton(socket.AF_INET6, locator_str)

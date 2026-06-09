@@ -669,42 +669,53 @@ def test_srh_full_sid(api, b2b_raw_config, utils):
 # ---------------------------------------------------------------------------
 
 def test_srh_usid(api, b2b_raw_config, utils):
-    """Multiple uSIDs with 1 uSID SRH container: 3-hop path packed in one F3216 uSID
-    container, carried inside a uSID SRH extension header with a single segment entry.
+    """3-hop NEXT-CSID path packed in one F3216 uSID container inside a uSID SRH.
+
+    RFC 9800 NEXT-CSID flavor, LBL=32 bits, LNFL=16 bits, K=6 CSIDs per container.
 
     OTG model used:
       Flow.Ipv6  (NH=43, dst = uSID container)
-      Flow.Ipv6ExtHeader.routing.segment_routing_usid  (Flow.Ipv6SegmentRoutingUsid)
-        segment_list: 1 entry  (last_entry=0, segments_left=0)
+      Flow.Ipv6ExtHeader.routing.segment_routing_usid
+        segment_list: 1 entry (last_entry=0, segments_left=0)
+        segment[0]:
+          locator.value        = "fc00::"   (LBL, 32 bits)
+          locator_length.value = 32
+          usids                = ["0001", "0002", "0003"]
 
-    F3216 uSID container layout (128 bits):
-      fc00:0:1:2:3::
-        Locator-Block = fc00:0000  (32 bits, shared domain prefix)
-        uSID-1        = 0001       (16 bits, hop 1)
-        uSID-2        = 0002       (16 bits, hop 2)
-        uSID-3        = 0003       (16 bits, hop 3)
-        Remaining     = 0::        (48 bits, zeros = end of uSID list)
+    Container wire layout (128 bits):
+      [LBL=fc00:0000 (32b)][CSID1=0001 (16b)][CSID2=0002 (16b)][CSID3=0003 (16b)]
+      [EoC zeros (48b)]
+      = fc00:0:1:2:3::
 
-    The uSID SRH segment list holds exactly 1 entry (last_entry=0, segments_left=0).
-    This is the minimal uSID SRH case - the routing header is present but the entire
-    path is contained in the single active container.  Compare with test_usid_no_srh
-    (same container but with no routing header at all) and test_usid_multi_srh_container
-    (path spans 2 containers requiring 2 segment list entries).
+    NEXT-CSID processing per RFC 9800 Section 4.1:
+      - Hop 1 (CSID=0001): DA.Argument = 0002:0003:0000:... (non-zero), shift left.
+                           New DA = fc00:0:2:3::
+      - Hop 2 (CSID=0002): DA.Argument = 0003:0000:... (non-zero), shift left.
+                           New DA = fc00:0:3::
+      - Hop 3 (CSID=0003): DA.Argument = 0 (EoC). Final destination reached.
+
+    1 segment entry in SRH (last_entry=0, segments_left=0): entire path fits in the
+    single active container; no SRH advancement needed.
+
+    Compare:
+      test_usid_no_srh            — same container, no routing header (NH=17)
+      test_usid_multi_srh_container — path spans 2 containers, 2 SRH entries
 
     Packet stack:
-      Ethernet -> IPv6 (NH=43, dst=fc00:0:1:2:3::) -> uSID SRH (1 segment) -> ...
+      Ethernet -> IPv6 (NH=43, dst=fc00:0:1:2:3::) -> uSID SRH (1 segment)
 
     Wire verifies:
-      - routing_type = 4  (uSID SRH, RFC 9800)
-      - segments_left = 0, last_entry = 0
-      - segment[0] = fc00:0:1:2:3::
+      routing_type=4, segments_left=0, last_entry=0, segment[0]=fc00:0:1:2:3::
     """
     tc = "test_srh_usid"
     api.set_config(api.config())  # reset IxN state
     p1, p2 = b2b_raw_config.ports
     b2b_raw_config.flows.clear()
 
-    usid_container = "fc00:0:1:2:3::"   # F3216: block=fc00:0:, hops=0001,0002,0003
+    usid_container = "fc00:0:1:2:3::"
+    locator        = "fc00::"
+    locator_length = 32
+    usids          = ["0001", "0002", "0003"]
     segments_left  = 0
     last_entry     = 0
 
@@ -729,7 +740,11 @@ def test_srh_usid(api, b2b_raw_config, utils):
     usid.segments_left.value = segments_left
     usid.last_entry.value    = last_entry
     usid.tag.value           = 0
-    _add_usid_container(usid.segment_list, usid_container)
+
+    seg = usid.segment_list.segment()[-1]
+    seg.locator.value        = locator
+    seg.locator_length.value = locator_length
+    seg.usids                = list(usids)
 
     _add_capture(b2b_raw_config, p2.name)
     api.set_config(b2b_raw_config)
@@ -790,57 +805,61 @@ def test_srh_usid(api, b2b_raw_config, utils):
 # ---------------------------------------------------------------------------
 
 def test_usid_multi_srh_container(api, b2b_raw_config, utils):
-    """Multiple uSIDs with more than 1 uSID SRH container: 4-hop path spread across
-    2 F3216 uSID containers, carried in a uSID SRH with 2 segment list entries.
+    """4-hop NEXT-CSID path spread across 2 F3216 uSID containers in a uSID SRH.
+
+    RFC 9800 NEXT-CSID flavor, LBL=32 bits, LNFL=16 bits, K=6 CSIDs per container.
 
     OTG model used:
       Flow.Ipv6  (NH=43, dst = first/active uSID container)
-      Flow.Ipv6ExtHeader.routing.segment_routing_usid  (Flow.Ipv6SegmentRoutingUsid)
+      Flow.Ipv6ExtHeader.routing.segment_routing_usid
         segment_list: 2 entries  (last_entry=1, segments_left=1)
+        segment[0]:
+          locator.value        = "fc00::"
+          locator_length.value = 32
+          usids                = ["0001", "0002"]
+        segment[1]:
+          locator.value        = "fc00::"
+          locator_length.value = 32
+          usids                = ["0003", "0004"]
 
-    F3216 uSID containers (128 bits each):
-      container-1: fc00:0:1:2::
-        Locator-Block = fc00:0000  (32 bits)
-        uSID-1        = 0001       (16 bits, hop 1)
-        uSID-2        = 0002       (16 bits, hop 2)
-        Remaining     = 0::        (64 bits, zeros)
+    Container wire layout (128 bits each):
+      container-1: [LBL=fc00:0000 (32b)][0001 (16b)][0002 (16b)][EoC zeros (64b)]
+                   = fc00:0:1:2::
+      container-2: [LBL=fc00:0000 (32b)][0003 (16b)][0004 (16b)][EoC zeros (64b)]
+                   = fc00:0:3:4::
 
-      container-2: fc00:0:3:4::
-        Locator-Block = fc00:0000  (32 bits)
-        uSID-3        = 0003       (16 bits, hop 3)
-        uSID-4        = 0004       (16 bits, hop 4)
-        Remaining     = 0::        (64 bits, zeros)
+    NEXT-CSID processing per RFC 9800 Section 4.1:
+      Container 1 active (IPv6 dst = fc00:0:1:2::):
+        Hop 1 (CSID=0001): Argument=0002:0000:... non-zero -> shift -> DA=fc00:0:2::
+        Hop 2 (CSID=0002): Argument=0 (EoC) -> segments_left-- -> load Segment List[0]
+      Container 2 active (IPv6 dst = fc00:0:3:4::):
+        Hop 3 (CSID=0003): Argument=0004:0000:... non-zero -> shift -> DA=fc00:0:4::
+        Hop 4 (CSID=0004): Argument=0 (EoC) -> final destination reached
 
-    uSID SRH layout (RFC 9800 / RFC 8754 Section 2):
-      IPv6 dst     = fc00:0:1:2::  (active container, currently being processed)
-      segment_list = [fc00:0:1:2::, fc00:0:3:4::]  (all containers, RFC 8754 style)
-      segments_left = 1  (1 more container to visit after the active one)
-      last_entry    = 1  (highest index in segment list)
-
-    When all uSIDs in the active container fc00:0:1:2:: are exhausted, the
-    forwarding node decrements segments_left to 0, copies segment_list[0] =
-    fc00:0:3:4:: into IPv6 dst, and continues processing the next container.
-
-    Compare with test_srh_usid (single container, segments_left=0) and
-    test_usid_no_srh (no uSID SRH at all).
+    Compare:
+      test_srh_usid   — single container, entire path fits in 1 entry (segments_left=0)
+      test_usid_no_srh — same container concept but no routing header at all
 
     Packet stack:
-      Ethernet -> IPv6 (NH=43, dst=fc00:0:1:2::) -> uSID SRH (2 segments) -> ...
+      Ethernet -> IPv6 (NH=43, dst=fc00:0:1:2::) -> uSID SRH (2 segments)
 
     Wire verifies:
-      - routing_type = 4  (uSID SRH, RFC 9800)
-      - segments_left = 1, last_entry = 1
-      - segment[0] = fc00:0:1:2::
-      - segment[1] = fc00:0:3:4::
+      routing_type=4, segments_left=1, last_entry=1,
+      segment[0]=fc00:0:1:2::, segment[1]=fc00:0:3:4::
     """
     tc = "test_usid_multi_srh_container"
     api.set_config(api.config())
     p1, p2 = b2b_raw_config.ports
     b2b_raw_config.flows.clear()
 
-    usid_containers = ["fc00:0:1:2::", "fc00:0:3:4::"]   # 2 hops each
-    segments_left = 1
-    last_entry = 1
+    locator        = "fc00::"
+    locator_length = 32
+    container1     = "fc00:0:1:2::"
+    usids_c1       = ["0001", "0002"]
+    container2     = "fc00:0:3:4::"
+    usids_c2       = ["0003", "0004"]
+    segments_left  = 1
+    last_entry     = 1
 
     f = b2b_raw_config.flows.add()
     f.name = "gsrh_two_containers"
@@ -856,15 +875,23 @@ def test_usid_multi_srh_container(api, b2b_raw_config, utils):
 
     ip6 = f.packet.add().ipv6
     ip6.src.value = "2001:db8::1"
-    ip6.dst.value = usid_containers[0]
+    ip6.dst.value = container1
     ip6.next_header.value = 43
 
     usid = f.packet.add().ipv6_extension_header.routing.segment_routing_usid
     usid.segments_left.value = segments_left
-    usid.last_entry.value = last_entry
-    usid.tag.value = 0
-    for usid_container in usid_containers:
-        _add_usid_container(usid.segment_list, usid_container)
+    usid.last_entry.value    = last_entry
+    usid.tag.value           = 0
+
+    seg0 = usid.segment_list.segment()[-1]
+    seg0.locator.value        = locator
+    seg0.locator_length.value = locator_length
+    seg0.usids                = list(usids_c1)
+
+    seg1 = usid.segment_list.segment()[-1]
+    seg1.locator.value        = locator
+    seg1.locator_length.value = locator_length
+    seg1.usids                = list(usids_c2)
 
     _add_capture(b2b_raw_config, p2.name)
     api.set_config(b2b_raw_config)
@@ -887,9 +914,8 @@ def test_usid_multi_srh_container(api, b2b_raw_config, utils):
         print("  routing_type  : %d  (expect 4)" % srh["routing_type"])
         print("  segments_left : %d  (expect %d)" % (srh["segments_left"], segments_left))
         print("  last_entry    : %d  (expect %d)" % (srh["last_entry"], last_entry))
-        for i, s in enumerate(srh["segments"]):
-            print("  segment[%d]    : %-36s  (expect %s)"
-                  % (i, s, _norm(usid_containers[i]) if i < len(usid_containers) else "?"))
+        for i, (s, exp) in enumerate(zip(srh["segments"], [container1, container2])):
+            print("  segment[%d]    : %-36s  (expect %s)" % (i, s, _norm(exp)))
         print(sep)
 
         assert srh["routing_type"] == 4, (
@@ -904,11 +930,11 @@ def test_usid_multi_srh_container(api, b2b_raw_config, utils):
         assert len(srh["segments"]) == 2, (
             "Expected 2 segment entries, got %d" % len(srh["segments"])
         )
-        norm_conf = [_norm(a) for a in usid_containers]
-        norm_wire = [_norm(s) for s in srh["segments"]]
-        assert norm_conf == norm_wire, (
-            "uSID container mismatch.\n  configured: %s\n  on wire:    %s"
-            % (norm_conf, norm_wire)
+        assert _norm(srh["segments"][0]) == _norm(container1), (
+            "segment[0]: want %s got %s" % (_norm(container1), _norm(srh["segments"][0]))
+        )
+        assert _norm(srh["segments"][1]) == _norm(container2), (
+            "segment[1]: want %s got %s" % (_norm(container2), _norm(srh["segments"][1]))
         )
         _delete_capture(tc)
     else:
@@ -2910,21 +2936,20 @@ def test_replace_csid_packed_containers(api, b2b_raw_config, utils):
     Valid LNFL: 16-bit (K=8) or 32-bit (K=4); 32-bit MUST be supported (RFC 9800 Section 4.2).
     This test uses LNFL=32 (K=4), the mandatory baseline.
 
-    CRITICAL packing direction (RFC 9800 Section 4.2, Figure 4):
-      CSIDs are packed from the LEAST SIGNIFICANT position.
-      usids[0] -> position K-1 (bits [96..127], LSB).
-      usids[1] -> position K-2 (bits [64..95]).
-      Unused MSB positions (bits [0..63]) -> zero.
+    Wire order convention (RFC 9800 Section 4.2, Figure 4):
+      Provide CSIDs in wire order (MSB first among provided values). The implementation
+      right-aligns them to the LSB end; unused MSB slots are zero-padded automatically.
+      usids[0] -> leftmost occupied slot, usids[-1] -> LSB slot (processed first by router).
 
-    Example (K=4, LNFL=32):
-      usids=["00010002","00030004"] ->
+    Example (K=4, LNFL=32, 2 CSIDs):
+      usids=["00030004","00010002"] ->
         [0x00000000][0x00000000][0x00030004][0x00010002]  (32-bit slots MSB->LSB)
-        IPv6: 0000:0000:0000:0000:0003:0004:0001:0002 = ::3:4:1:2
+        IPv6: ::3:4:1:2
 
     Config (2 packed containers in SRH, reverse path order):
       outer DA: "2001:db8:1:1::"  (first container, fully formed SID, set directly)
-      seg[0] (last to process):  usids=["00050006","00070008"] -> expected ::7:8:5:6
-      seg[1] (first to process): usids=["00010002","00030004"] -> expected ::3:4:1:2
+      seg[0] (last to process):  usids=["00070008","00050006"] -> expected ::7:8:5:6
+      seg[1] (first to process): usids=["00030004","00010002"] -> expected ::3:4:1:2
 
     Verifies via RESTpy that ipv6GSRHType4 slot values match the packed wire format.
     """
@@ -2934,12 +2959,13 @@ def test_replace_csid_packed_containers(api, b2b_raw_config, utils):
     b2b_raw_config.flows.clear()
 
     # Packed containers: LNFL=32, K=4, locator_length=0.
-    # Wire format (MSB->LSB): [0][0][usids[1]][usids[0]]
-    # seg[0] (last):  usids[0]="00050006" at bits 96-127, usids[1]="00070008" at bits 64-95
+    # CSIDs in wire order (MSB first). Right-aligned to LSB; MSB slots zero-padded.
+    # Wire format (MSB->LSB): [0][0][usids[0]][usids[1]]
+    # seg[0] (last):  usids[0]="00070008" at slot 2, usids[1]="00050006" at slot 3 (LSB)
     #   -> wire 0000:0000:0000:0000:0007:0008:0005:0006 = ::7:8:5:6
-    # seg[1] (first): usids[0]="00010002" at bits 96-127, usids[1]="00030004" at bits 64-95
+    # seg[1] (first): usids[0]="00030004" at slot 2, usids[1]="00010002" at slot 3 (LSB)
     #   -> wire 0000:0000:0000:0000:0003:0004:0001:0002 = ::3:4:1:2
-    usids_per_seg  = [["00050006", "00070008"], ["00010002", "00030004"]]
+    usids_per_seg  = [["00070008", "00050006"], ["00030004", "00010002"]]
     expected_wire  = ["::7:8:5:6",              "::3:4:1:2"]
     active_dst     = "2001:db8:1:1::"   # first container (fully formed SID) in outer DA
     segments_left  = 1
@@ -2969,7 +2995,7 @@ def test_replace_csid_packed_containers(api, b2b_raw_config, utils):
     usid_hdr.tag.value           = 0
 
     # Packed containers: locator_length=0, 32-bit CSIDs (LNFL=32, K=4).
-    # Implementation packs usids from LSB: usids[0]->bits[96..127], usids[1]->bits[64..95].
+    # Wire order: usids[0] is leftmost occupied slot, usids[-1] is LSB (processed first).
     for usid_vals in usids_per_seg:
         seg = usid_hdr.segment_list.segment()[-1]
         seg.locator.value        = "::0"   # ignored for packed format
@@ -3070,15 +3096,15 @@ def test_replace_csid_fig5_7sids(api, b2b_raw_config, utils):
     last_entry    = 1
 
     # Container 3 — seg[0] (last entry in SRH; processes CSIDs 6-7, 2 slots used).
-    # usids[0] -> position 3 (LSB), usids[1] -> position 2; MSB positions zero.
+    # Wire order: usids[0]=MSB-occupied -> slot 2, usids[1]=LSB -> slot 3 (processed first).
     # Wire: [00000000][00000000][00070007][00060006] = ::7:7:6:6
-    csids_seg0    = ["00060006", "00070007"]
+    csids_seg0    = ["00070007", "00060006"]
     expected_seg0 = "::7:7:6:6"
 
     # Container 2 — seg[1] (second entry; processes CSIDs 2-5, all K=4 slots used).
-    # usids[0] -> position 3 (LSB) ... usids[3] -> position 0 (MSB).
+    # Wire order: usids[0]=MSB -> slot 0, usids[3]=LSB -> slot 3 (processed first).
     # Wire: [00050005][00040004][00030003][00020002] = 5:5:4:4:3:3:2:2
-    csids_seg1    = ["00020002", "00030003", "00040004", "00050005"]
+    csids_seg1    = ["00050005", "00040004", "00030003", "00020002"]
     expected_seg1 = "5:5:4:4:3:3:2:2"
 
     f = b2b_raw_config.flows.add()
