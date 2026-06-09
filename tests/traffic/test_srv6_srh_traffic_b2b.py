@@ -3010,3 +3010,392 @@ def test_replace_csid_packed_containers(api, b2b_raw_config, utils):
     tx_pkts = sum(m.frames_tx for m in api.get_metrics(req).flow_metrics)
     assert tx_pkts > 0, "[%s] No packets transmitted" % tc
     print("  [%s] PASSED  tx_pkts=%d" % (tc, tx_pkts))
+
+
+# ---------------------------------------------------------------------------
+# Test 15: RFC 9800 Figure 5 — REPLACE-CSID Compressed SID List (7 SIDs)
+# ---------------------------------------------------------------------------
+
+def test_replace_csid_fig5_7sids(api, b2b_raw_config, utils):
+    """RFC 9800 Figure 5: REPLACE-CSID Compressed SID List — 7 SIDs, 3 containers.
+
+    Models the exact packet structure from Figure 5 in RFC 9800 Section 4.2
+    (REPLACE-CSID flavor).  Parameters: LBL=48 bits, LNFL=32 bits, K=4 slots.
+
+    Container 1 — outer IPv6 DA (full SRv6 SID, not in SRH):
+      [Locator-Block (48b) = 2001:db8::] [1st CSID (32b) = 0x00010001] [Arg=0 (48b)]
+      Assembled DA: 2001:db8:0:1:1::
+
+    Container 2 — SRH seg[1] (packed, fully filled, processes CSIDs 2-5):
+      Packing (usids[i] -> position K-1-i, i.e. usids[0] at LSB bits 96-127):
+        position 3 (LSB bits 96-127): 2nd CSID = 0x00020002
+        position 2 (bits 64-95):      3rd CSID = 0x00030003
+        position 1 (bits 32-63):      4th CSID = 0x00040004
+        position 0 (MSB bits 0-31):   5th CSID = 0x00050005
+      Wire (MSB->LSB): [00050005][00040004][00030003][00020002]
+      IPv6: 5:5:4:4:3:3:2:2
+
+    Container 3 — SRH seg[0] (packed, partially filled, processes CSIDs 6-7):
+      Packing:
+        position 3 (LSB bits 96-127): 6th CSID = 0x00060006
+        position 2 (bits 64-95):      7th CSID = 0x00070007
+        positions 1, 0 (MSB end):     zeros (end-of-CSID-list padding)
+      Wire (MSB->LSB): [00000000][00000000][00070007][00060006]
+      IPv6: ::7:7:6:6
+
+    SRH: last_entry=1 (2 entries: seg[0] and seg[1]), segments_left=1.
+
+    Packet stack:
+      Ethernet -> IPv6 (NH=43, dst=2001:db8:0:1:1::)
+               -> REPLACE-CSID SRH (RT=4, sl=1, le=1, flags=0x00, tag=0)
+                  seg[0] = ::7:7:6:6        <- CSIDs 6-7 (last to process)
+                  seg[1] = 5:5:4:4:3:3:2:2 <- CSIDs 2-5 (first in SRH to process)
+
+    Wire verifies via capture (capture intentionally kept for Wireshark inspection):
+      - outer IPv6 dst    = 2001:db8:0:1:1::
+      - SRH routing_type  = 4
+      - SRH segments_left = 1, last_entry = 1
+      - SRH seg[0]        = ::7:7:6:6
+      - SRH seg[1]        = 5:5:4:4:3:3:2:2
+    """
+    tc = "test_replace_csid_fig5_7sids"
+    api.set_config(api.config())
+    p1, p2 = b2b_raw_config.ports
+    b2b_raw_config.flows.clear()
+
+    # Container 1: full SRv6 SID pre-assembled as the outer IPv6 DA.
+    # LBL=48 (2001:0db8:0000), CSID1=0x00010001, Arg=0 -> 2001:db8:0:1:1::
+    active_dst    = "2001:db8:0:1:1::"
+    segments_left = 1
+    last_entry    = 1
+
+    # Container 3 — seg[0] (last entry in SRH; processes CSIDs 6-7, 2 slots used).
+    # usids[0] -> position 3 (LSB), usids[1] -> position 2; MSB positions zero.
+    # Wire: [00000000][00000000][00070007][00060006] = ::7:7:6:6
+    csids_seg0    = ["00060006", "00070007"]
+    expected_seg0 = "::7:7:6:6"
+
+    # Container 2 — seg[1] (second entry; processes CSIDs 2-5, all K=4 slots used).
+    # usids[0] -> position 3 (LSB) ... usids[3] -> position 0 (MSB).
+    # Wire: [00050005][00040004][00030003][00020002] = 5:5:4:4:3:3:2:2
+    csids_seg1    = ["00020002", "00030003", "00040004", "00050005"]
+    expected_seg1 = "5:5:4:4:3:3:2:2"
+
+    f = b2b_raw_config.flows.add()
+    f.name = "replace_csid_fig5"
+    f.tx_rx.port.tx_name = p1.name
+    f.tx_rx.port.rx_name = p2.name
+    f.rate.pps = 100
+    f.duration.fixed_packets.packets = 200
+    f.metrics.enable = True
+
+    eth = f.packet.add().ethernet
+    eth.src.value = "00:11:22:33:44:55"
+    eth.dst.value = "00:aa:bb:cc:dd:ee"
+
+    # Outer IPv6: DA = container 1 (pre-assembled full SRv6 SID).
+    ip6 = f.packet.add().ipv6
+    ip6.src.value = "2001:db8::1"
+    ip6.dst.value = active_dst
+    ip6.next_header.value = 43
+
+    # REPLACE-CSID SRH: 2 packed containers (locator_length=0 = packed format).
+    usid_hdr = f.packet.add().ipv6_extension_header.routing.segment_routing_usid
+    usid_hdr.segments_left.value = segments_left
+    usid_hdr.last_entry.value    = last_entry
+    usid_hdr.flags.oam.value     = 0
+    usid_hdr.tag.value           = 0
+
+    # seg[0] added first => index 0 in segment_list = last SRH entry (CSIDs 6-7).
+    seg0 = usid_hdr.segment_list.segment()[-1]
+    seg0.locator.value        = "::0"
+    seg0.locator_length.value = 0
+    seg0.usids                = list(csids_seg0)
+
+    # seg[1] added second => index 1 in segment_list (CSIDs 2-5, fully packed).
+    seg1 = usid_hdr.segment_list.segment()[-1]
+    seg1.locator.value        = "::0"
+    seg1.locator_length.value = 0
+    seg1.usids                = list(csids_seg1)
+
+    _add_capture(b2b_raw_config, p2.name)
+    api.set_config(b2b_raw_config)
+
+    # RESTpy slot read-back for diagnostics: print packed container values.
+    try:
+        ixn        = api._ixnetwork
+        ti         = ixn.Traffic.TrafficItem.find(Name="replace_csid_fig5")
+        ce         = ti.ConfigElement.find()
+        gsrh_stack = ce.Stack.find(StackTypeId="ipv6GSRHType4")
+        if gsrh_stack:
+            read_back = _restpy_read_gsrh_slots(gsrh_stack, 2)
+            sep_r = "-" * 72
+            print("\n  [restpy] RFC 9800 Figure 5 -- GSRH slot read-back after set_config")
+            print("  " + sep_r)
+            for i, (want, got) in enumerate(
+                    zip([expected_seg0, expected_seg1], read_back)):
+                ok = _norm(want) == _norm(got)
+                print("  seg[%d]  want=%-28s  got=%-28s  %s"
+                      % (i, _norm(want), _norm(got), "MATCH" if ok else "MISMATCH"))
+            print("  " + sep_r)
+    except Exception as exc:
+        print("  [restpy] readback skipped: %s" % exc)
+
+    _start_capture(api)
+    _start_traffic(api)
+    time.sleep(4)
+    _stop_traffic(api)
+    _stop_capture(api)
+
+    pcap = _get_capture(api, p2.name)
+    # Capture intentionally kept (not deleted) for Wireshark inspection.
+    path = _save_capture(pcap, tc)
+    print("\n  [%s] Capture preserved: %s" % (tc, path))
+
+    pkt = _parse_gshr_from_pcap(pcap)
+
+    sep   = "=" * 74
+    inner = "-" * 74
+    print("\n" + sep)
+    print("  %s" % tc)
+    print("  RFC 9800 Figure 5 -- REPLACE-CSID 7-SID wire verify")
+    print("  %-30s  %-22s  %-22s  %s"
+          % ("Field", "Configured", "Wire", "Status"))
+    print(inner)
+
+    assert pkt is not None, "[%s] No SRH packet found in capture" % tc
+
+    def _row(label, want, got):
+        ok = (str(want) == str(got))
+        print("  %-30s  %-22s  %-22s  %s"
+              % (label, str(want), str(got), "PASS" if ok else "FAIL"))
+        return ok
+
+    _row("outer ip6_dst",         _norm(active_dst),    _norm(pkt["ip6_dst"]))
+    _row("routing_type",          4,                    pkt["routing_type"])
+    _row("segments_left",         segments_left,        pkt["segments_left"])
+    _row("last_entry",            last_entry,           pkt["last_entry"])
+    _row("flags_byte",            "0x00",               "0x%02x" % pkt["flags_byte"])
+    _row("tag",                   "0x0000",             "0x%04x" % pkt["tag"])
+    _row("seg[0] CSIDs 6-7",
+         _norm(expected_seg0),
+         _norm(pkt["segments"][0]) if len(pkt["segments"]) > 0 else "MISSING")
+    _row("seg[1] CSIDs 2-5",
+         _norm(expected_seg1),
+         _norm(pkt["segments"][1]) if len(pkt["segments"]) > 1 else "MISSING")
+    print(sep)
+
+    assert _norm(pkt["ip6_dst"]) == _norm(active_dst), (
+        "[%s] outer ip6_dst: want %s got %s"
+        % (tc, _norm(active_dst), _norm(pkt["ip6_dst"]))
+    )
+    assert pkt["routing_type"] == 4, (
+        "[%s] routing_type: want 4 got %d" % (tc, pkt["routing_type"])
+    )
+    assert pkt["segments_left"] == segments_left, (
+        "[%s] segments_left: want %d got %d"
+        % (tc, segments_left, pkt["segments_left"])
+    )
+    assert pkt["last_entry"] == last_entry, (
+        "[%s] last_entry: want %d got %d" % (tc, last_entry, pkt["last_entry"])
+    )
+    assert pkt["flags_byte"] == 0x00, (
+        "[%s] flags_byte: want 0x00 got 0x%02x" % (tc, pkt["flags_byte"])
+    )
+    assert pkt["tag"] == 0, (
+        "[%s] tag: want 0 got %d" % (tc, pkt["tag"])
+    )
+    assert len(pkt["segments"]) == 2, (
+        "[%s] SRH segment count: want 2 got %d" % (tc, len(pkt["segments"]))
+    )
+    assert _norm(pkt["segments"][0]) == _norm(expected_seg0), (
+        "[%s] seg[0] (CSIDs 6-7): want %s got %s"
+        % (tc, _norm(expected_seg0), _norm(pkt["segments"][0]))
+    )
+    assert _norm(pkt["segments"][1]) == _norm(expected_seg1), (
+        "[%s] seg[1] (CSIDs 2-5): want %s got %s"
+        % (tc, _norm(expected_seg1), _norm(pkt["segments"][1]))
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 16: RFC 9800 Figure 2 — NEXT-CSID 8 SIDs, LBL=48, LNFL=16, K=5
+# ---------------------------------------------------------------------------
+
+def test_next_csid_fig2_8sids(api, b2b_raw_config, utils):
+    """RFC 9800 Figure 2: NEXT-CSID Compressed SID List — 8 SIDs, 2 containers.
+    LBL=48 bits, LNFL=16 bits, AL=64 bits, K=5 CSIDs per container.
+
+    Container 1 (CSIDs 1-5): [LBL=48b][C1][C2][C3][C4][C5]
+      locator = 2001:db8:1:: (48 bits = 20:01:0d:b8:00:01)
+      usids   = ["0001","0002","0003","0004","0005"]
+      wire    = 2001:db8:1:1:2:3:4:5
+
+    Container 2 (CSIDs 6-8 + 32-bit zero pad): [LBL=48b][C6][C7][C8][0][0]
+      usids   = ["0006","0007","0008"]
+      wire    = 2001:db8:1:6:7:8::
+
+    SRH layout (non-reduced SRH, RFC 8754 order):
+      IPv6 dst       = Container 1 (active)
+      Segment List[0] = Container 2 (ultimate / last to visit)
+      Segment List[1] = Container 1 (penultimate / active copy)
+      segments_left  = 1, last_entry = 1
+
+    Capture kept for Wireshark inspection.
+    """
+    tc = "test_next_csid_fig2_8sids"
+    api.set_config(api.config())
+    p1, p2 = b2b_raw_config.ports
+    b2b_raw_config.flows.clear()
+
+    locator       = "2001:db8:1::"
+    lb_bits       = 48
+
+    # Container 1 — CSIDs 1-5, wire = 2001:db8:1:1:2:3:4:5
+    container1 = "2001:db8:1:1:2:3:4:5"
+    csids_c1   = ["0001", "0002", "0003", "0004", "0005"]
+
+    # Container 2 — CSIDs 6-8 + zero pad, wire = 2001:db8:1:6:7:8::
+    container2 = "2001:db8:1:6:7:8::"
+    csids_c2   = ["0006", "0007", "0008"]
+
+    active_dst    = container1
+    segments_left = 1
+    last_entry    = 1
+
+    f = b2b_raw_config.flows.add()
+    f.name = "next_csid_fig2"
+    f.tx_rx.port.tx_name = p1.name
+    f.tx_rx.port.rx_name = p2.name
+    f.rate.pps = 100
+    f.duration.fixed_packets.packets = 200
+    f.metrics.enable = True
+
+    eth = f.packet.add().ethernet
+    eth.src.value = "00:11:22:33:44:55"
+    eth.dst.value = "00:aa:bb:cc:dd:ee"
+
+    ip6 = f.packet.add().ipv6
+    ip6.src.value = "2001:db8::1"
+    ip6.dst.value = active_dst
+    ip6.next_header.value = 43
+
+    usid_hdr = f.packet.add().ipv6_extension_header.routing.segment_routing_usid
+    usid_hdr.segments_left.value = segments_left
+    usid_hdr.last_entry.value    = last_entry
+    usid_hdr.flags.oam.value     = 0
+    usid_hdr.tag.value           = 0
+
+    # Segment List[0] (ultimate/last hop) — Container 2, added first
+    seg_c2 = usid_hdr.segment_list.segment()[-1]
+    seg_c2.locator.value        = locator
+    seg_c2.locator_length.value = lb_bits
+    seg_c2.usids                = list(csids_c2)
+
+    # Segment List[1] (penultimate/active copy) — Container 1, added second
+    seg_c1 = usid_hdr.segment_list.segment()[-1]
+    seg_c1.locator.value        = locator
+    seg_c1.locator_length.value = lb_bits
+    seg_c1.usids                = list(csids_c1)
+
+    _add_capture(b2b_raw_config, p2.name)
+    api.set_config(b2b_raw_config)
+
+    # RESTpy slot read-back for diagnostics (segment order matches add order)
+    try:
+        ixn        = api._ixnetwork
+        ti         = ixn.Traffic.TrafficItem.find(Name="next_csid_fig2")
+        ce         = ti.ConfigElement.find()
+        gsrh_stack = ce.Stack.find(StackTypeId="ipv6GSRHType4")
+        if gsrh_stack:
+            read_back  = _restpy_read_gsrh_slots(gsrh_stack, 2)
+            sep_r      = "-" * 60
+            expected_rb = [container2, container1]
+            print("\n  [restpy] GSRH slot read-back:")
+            print("  " + sep_r)
+            for i, (want, got) in enumerate(zip(expected_rb, read_back)):
+                match = "MATCH" if _norm(str(want)) == _norm(str(got)) else "MISMATCH"
+                print("  container[%d]: want %-38s got %-38s %s"
+                      % (i, _norm(want), _norm(got), match))
+            print("  " + sep_r)
+    except Exception as exc:
+        print("  [restpy] readback skipped: %s" % exc)
+
+    _start_capture(api)
+    _start_traffic(api)
+    time.sleep(4)
+    _stop_traffic(api)
+    _stop_capture(api)
+
+    pcap = _get_capture(api, p2.name)
+    # Capture intentionally kept (not deleted) for Wireshark inspection.
+    path = _save_capture(pcap, tc)
+    print("\n  [%s] Capture preserved: %s" % (tc, path))
+
+    pkt = _parse_gshr_from_pcap(pcap)
+
+    sep   = "=" * 74
+    inner = "-" * 74
+    print("\n" + sep)
+    print("  %s" % tc)
+    print("  RFC 9800 Figure 2 -- NEXT-CSID 8-SID wire verify")
+    print("  %-30s  %-22s  %-22s  %s"
+          % ("Field", "Configured", "Wire", "Status"))
+    print(inner)
+
+    assert pkt is not None, "[%s] No SRH packet found in capture" % tc
+
+    def _row(label, want, got):
+        ok = (str(want) == str(got))
+        print("  %-30s  %-22s  %-22s  %s"
+              % (label, str(want), str(got), "PASS" if ok else "FAIL"))
+        return ok
+
+    _row("outer ip6_dst",          _norm(active_dst),    _norm(pkt["ip6_dst"]))
+    _row("routing_type",           4,                    pkt["routing_type"])
+    _row("segments_left",          segments_left,        pkt["segments_left"])
+    _row("last_entry",             last_entry,           pkt["last_entry"])
+    _row("flags_byte",             "0x00",               "0x%02x" % pkt["flags_byte"])
+    _row("tag",                    "0x0000",             "0x%04x" % pkt["tag"])
+    _row("seg[0] (container-2)",
+         _norm(container2),
+         _norm(pkt["segments"][0]) if len(pkt["segments"]) > 0 else "MISSING")
+    _row("seg[1] (container-1)",
+         _norm(container1),
+         _norm(pkt["segments"][1]) if len(pkt["segments"]) > 1 else "MISSING")
+    print(sep)
+
+    assert _norm(pkt["ip6_dst"]) == _norm(active_dst), (
+        "[%s] outer ip6_dst: want %s got %s"
+        % (tc, _norm(active_dst), _norm(pkt["ip6_dst"]))
+    )
+    assert pkt["routing_type"] == 4, (
+        "[%s] routing_type: want 4 got %d" % (tc, pkt["routing_type"])
+    )
+    assert pkt["segments_left"] == segments_left, (
+        "[%s] segments_left: want %d got %d"
+        % (tc, segments_left, pkt["segments_left"])
+    )
+    assert pkt["last_entry"] == last_entry, (
+        "[%s] last_entry: want %d got %d" % (tc, last_entry, pkt["last_entry"])
+    )
+    assert pkt["flags_byte"] == 0x00, (
+        "[%s] flags_byte: want 0x00 got 0x%02x" % (tc, pkt["flags_byte"])
+    )
+    assert pkt["tag"] == 0, (
+        "[%s] tag: want 0 got %d" % (tc, pkt["tag"])
+    )
+    assert len(pkt["segments"]) == 2, (
+        "[%s] SRH segment count: want 2 got %d" % (tc, len(pkt["segments"]))
+    )
+    assert _norm(pkt["segments"][0]) == _norm(container2), (
+        "[%s] seg[0] (container-2, ultimate): want %s got %s"
+        % (tc, _norm(container2), _norm(pkt["segments"][0]))
+    )
+    assert _norm(pkt["segments"][1]) == _norm(container1), (
+        "[%s] seg[1] (container-1, active): want %s got %s"
+        % (tc, _norm(container1), _norm(pkt["segments"][1]))
+    )
+
+    print("\n  [%s] PASSED -- RFC 9800 Figure 5 REPLACE-CSID 7-SID verified on wire." % tc)
+    print("  Capture preserved at: tests/captures/%s.pcapng" % tc)
