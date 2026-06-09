@@ -4,9 +4,6 @@ on:
   push:
   pull_request:
 
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-
 jobs:
   test_novus_10g:
     runs-on: [snappi-ixn-ci-novus10g]
@@ -15,13 +12,13 @@ jobs:
         id: timestamp
         run: echo "TIMESTAMP=$(TZ='Asia/Kolkata' date +"%D %T")" >> $GITHUB_ENV
       - name: Checkout source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.BASE_BRANCH }}
           submodules: recursive
       - name: Set python path
         id: path
-        run: echo "::set-output name=pythonv::/home/github-runner/pyenv/.env/bin/python"
+        run: echo "pythonv=/home/github-runner/pyenv/.env/bin/python" >> $GITHUB_OUTPUT
       - name: Install dependencies
         run: |
           rm -rf .env
@@ -52,13 +49,17 @@ jobs:
           source ~/.profile
           ${{steps.path.outputs.pythonv}} do.py generate_allure_report
 
+      - name: Ensure allure-report dir exists
+        if: always()
+        run: mkdir -p allure-report
+
       - name: Deploy report to Github Pages
         if: always()
-        uses: peaceiris/actions-gh-pages@v2
-        env:
-          PERSONAL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PUBLISH_BRANCH: gh-pages
-          PUBLISH_DIR: allure-report
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-report
   
 
   publish_artifacts:
@@ -66,13 +67,13 @@ jobs:
     needs: [test_novus_10g]
     steps:
       - name: Checkout source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.BASE_BRANCH }}
           submodules: recursive
       - name: Set python path
         id: path
-        run: echo "::set-output name=pythonv::/home/github-runner/pyenv/.env/bin/python"
+        run: echo "pythonv=/home/github-runner/pyenv/.env/bin/python" >> $GITHUB_OUTPUT
       - name: Install dependencies
         run: |
           rm -rf .env
@@ -84,7 +85,7 @@ jobs:
       - name: Get package version
         id: get_version
         run: |
-          echo "::set-output name=version::v$(${{steps.path.outputs.pythonv}} do.py version)"
+          echo "version=v$(${{steps.path.outputs.pythonv}} do.py version)" >> $GITHUB_OUTPUT
       - name: Check tag for current version
         uses: mukunku/tag-exists-action@v1.0.0
         id: check_tag
@@ -97,7 +98,7 @@ jobs:
         if: github.ref == 'refs/heads/main' && steps.check_tag.outputs.exists == 'false'
         run: |
           export RELEASE_FLAG=1
-          echo "::set-output name=release_flag::${RELEASE_FLAG}"
+          echo "release_flag=${RELEASE_FLAG}" >> $GITHUB_OUTPUT
           PYPI_USERNAME=__token__ PYPI_PASSWORD=${{ secrets.PYPI_API_TOKEN }} ${{steps.path.outputs.pythonv}} do.py release
       - name: Create release and publish artifacts
         if: github.ref == 'refs/heads/main' && steps.check_tag.outputs.exists == 'false'
