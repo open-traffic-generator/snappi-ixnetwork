@@ -674,7 +674,7 @@ def test_srh_usid(api, b2b_raw_config, utils):
     RFC 9800 NEXT-CSID flavor, LBL=32 bits, LNFL=16 bits, K=6 CSIDs per container.
 
     OTG model used:
-      Flow.Ipv6  (NH=43, dst = uSID container)
+      Flow.Ipv6  (NH=43, dst assembled from dst_usids)
       Flow.Ipv6ExtHeader.routing.segment_routing_usid
         segment_list: 1 entry (last_entry=0, segments_left=0)
         segment[0]:
@@ -733,7 +733,10 @@ def test_srh_usid(api, b2b_raw_config, utils):
 
     ip6 = f.packet.add().ipv6
     ip6.src.value = "2001:db8::1"
-    ip6.dst.value = usid_container
+    du = ip6.dst_usids
+    du.locator.value        = locator
+    du.locator_length.value = locator_length
+    du.usids                = list(usids)
     ip6.next_header.value = 43
 
     usid = f.packet.add().ipv6_extension_header.routing.segment_routing_usid
@@ -810,7 +813,7 @@ def test_usid_multi_srh_container(api, b2b_raw_config, utils):
     RFC 9800 NEXT-CSID flavor, LBL=32 bits, LNFL=16 bits, K=6 CSIDs per container.
 
     OTG model used:
-      Flow.Ipv6  (NH=43, dst = first/active uSID container)
+      Flow.Ipv6  (NH=43, dst assembled from dst_usids)
       Flow.Ipv6ExtHeader.routing.segment_routing_usid
         segment_list: 2 entries  (last_entry=1, segments_left=1)
         segment[0]:
@@ -875,7 +878,10 @@ def test_usid_multi_srh_container(api, b2b_raw_config, utils):
 
     ip6 = f.packet.add().ipv6
     ip6.src.value = "2001:db8::1"
-    ip6.dst.value = container1
+    du = ip6.dst_usids
+    du.locator.value        = locator
+    du.locator_length.value = locator_length
+    du.usids                = list(usids_c1)
     ip6.next_header.value = 43
 
     usid = f.packet.add().ipv6_extension_header.routing.segment_routing_usid
@@ -2937,19 +2943,18 @@ def test_replace_csid_packed_containers(api, b2b_raw_config, utils):
     This test uses LNFL=32 (K=4), the mandatory baseline.
 
     Wire order convention (RFC 9800 Section 4.2, Figure 4):
-      Provide CSIDs in wire order (MSB first among provided values). The implementation
-      right-aligns them to the LSB end; unused MSB slots are zero-padded automatically.
-      usids[0] -> leftmost occupied slot, usids[-1] -> LSB slot (processed first by router).
+      Provide exactly K CSIDs in wire order (MSB first). Use "00000000" for unused slots.
+      usids[0] -> slot 0 (MSB), usids[K-1] -> slot K-1 (LSB, processed first by router).
 
-    Example (K=4, LNFL=32, 2 CSIDs):
-      usids=["00030004","00010002"] ->
+    Example (K=4, LNFL=32, 2 CSIDs used, 2 slots zeroed):
+      usids=["00000000","00000000","00030004","00010002"] ->
         [0x00000000][0x00000000][0x00030004][0x00010002]  (32-bit slots MSB->LSB)
         IPv6: ::3:4:1:2
 
     Config (2 packed containers in SRH, reverse path order):
       outer DA: "2001:db8:1:1::"  (first container, fully formed SID, set directly)
-      seg[0] (last to process):  usids=["00070008","00050006"] -> expected ::7:8:5:6
-      seg[1] (first to process): usids=["00030004","00010002"] -> expected ::3:4:1:2
+      seg[0] (last to process):  usids=["00000000","00000000","00070008","00050006"] -> expected ::7:8:5:6
+      seg[1] (first to process): usids=["00000000","00000000","00030004","00010002"] -> expected ::3:4:1:2
 
     Verifies via RESTpy that ipv6GSRHType4 slot values match the packed wire format.
     """
@@ -2958,16 +2963,21 @@ def test_replace_csid_packed_containers(api, b2b_raw_config, utils):
     p1, p2 = b2b_raw_config.ports
     b2b_raw_config.flows.clear()
 
-    # Packed containers: LNFL=32, K=4, locator_length=0.
-    # CSIDs in wire order (MSB first). Right-aligned to LSB; MSB slots zero-padded.
-    # Wire format (MSB->LSB): [0][0][usids[0]][usids[1]]
-    # seg[0] (last):  usids[0]="00070008" at slot 2, usids[1]="00050006" at slot 3 (LSB)
+    # Packed containers: LNFL=32, K=4, locator_length=0. Exactly K=4 CSIDs per segment.
+    # Wire format (MSB->LSB): [usids[0]][usids[1]][usids[2]][usids[3]]
+    # seg[0] (last):  slots 0-1 zero, usids[2]="00070008", usids[3]="00050006" (LSB)
     #   -> wire 0000:0000:0000:0000:0007:0008:0005:0006 = ::7:8:5:6
-    # seg[1] (first): usids[0]="00030004" at slot 2, usids[1]="00010002" at slot 3 (LSB)
+    # seg[1] (first): slots 0-1 zero, usids[2]="00030004", usids[3]="00010002" (LSB)
     #   -> wire 0000:0000:0000:0000:0003:0004:0001:0002 = ::3:4:1:2
-    usids_per_seg  = [["00070008", "00050006"], ["00030004", "00010002"]]
-    expected_wire  = ["::7:8:5:6",              "::3:4:1:2"]
-    active_dst     = "2001:db8:1:1::"   # first container (fully formed SID) in outer DA
+    usids_per_seg  = [["00000000","00000000","00070008","00050006"],
+                      ["00000000","00000000","00030004","00010002"]]
+    expected_wire  = ["::7:8:5:6", "::3:4:1:2"]
+    # First container (REPLACE-CSID first SID) in outer IPv6 DA via dst_usids:
+    # LBL=32 bits, LNFL=32 bits -> locator "2001:db8::" + CSID "00010001" -> "2001:db8:1:1::"
+    active_dst        = "2001:db8:1:1::"
+    da_locator        = "2001:db8::"
+    da_locator_length = 32
+    da_usids          = ["00010001"]
     segments_left  = 1
     last_entry     = 1
 
@@ -2985,7 +2995,10 @@ def test_replace_csid_packed_containers(api, b2b_raw_config, utils):
 
     ip6 = f.packet.add().ipv6
     ip6.src.value = "2001:db8::1"
-    ip6.dst.value = active_dst   # first container = fully formed SID, set directly
+    du = ip6.dst_usids
+    du.locator.value        = da_locator
+    du.locator_length.value = da_locator_length
+    du.usids                = list(da_usids)
     ip6.next_header.value = 43
 
     usid_hdr = f.packet.add().ipv6_extension_header.routing.segment_routing_usid
@@ -3077,7 +3090,7 @@ def test_replace_csid_fig5_7sids(api, b2b_raw_config, utils):
                   seg[0] = ::7:7:6:6        <- CSIDs 6-7 (last to process)
                   seg[1] = 5:5:4:4:3:3:2:2 <- CSIDs 2-5 (first in SRH to process)
 
-    Wire verifies via capture (capture intentionally kept for Wireshark inspection):
+    Wire verifies via capture:
       - outer IPv6 dst    = 2001:db8:0:1:1::
       - SRH routing_type  = 4
       - SRH segments_left = 1, last_entry = 1
@@ -3089,20 +3102,23 @@ def test_replace_csid_fig5_7sids(api, b2b_raw_config, utils):
     p1, p2 = b2b_raw_config.ports
     b2b_raw_config.flows.clear()
 
-    # Container 1: full SRv6 SID pre-assembled as the outer IPv6 DA.
-    # LBL=48 (2001:0db8:0000), CSID1=0x00010001, Arg=0 -> 2001:db8:0:1:1::
-    active_dst    = "2001:db8:0:1:1::"
+    # Container 1: REPLACE-CSID first SID in outer IPv6 DA via dst_usids.
+    # LBL=48 (2001:0db8:0000), LNFL=32, CSID1=0x00010001, Arg=0 -> 2001:db8:0:1:1::
+    active_dst        = "2001:db8:0:1:1::"
+    da_locator        = "2001:db8::"
+    da_locator_length = 48
+    da_usids          = ["00010001"]
     segments_left = 1
     last_entry    = 1
 
-    # Container 3 — seg[0] (last entry in SRH; processes CSIDs 6-7, 2 slots used).
-    # Wire order: usids[0]=MSB-occupied -> slot 2, usids[1]=LSB -> slot 3 (processed first).
+    # Container 3 — seg[0] (last entry in SRH; CSIDs 6-7, 2 of K=4 slots used).
+    # Exactly K=4 CSIDs: slots 0-1 zero, usids[2]=CSID-7, usids[3]=CSID-6 (LSB, first processed).
     # Wire: [00000000][00000000][00070007][00060006] = ::7:7:6:6
-    csids_seg0    = ["00070007", "00060006"]
+    csids_seg0    = ["00000000", "00000000", "00070007", "00060006"]
     expected_seg0 = "::7:7:6:6"
 
-    # Container 2 — seg[1] (second entry; processes CSIDs 2-5, all K=4 slots used).
-    # Wire order: usids[0]=MSB -> slot 0, usids[3]=LSB -> slot 3 (processed first).
+    # Container 2 — seg[1] (second entry; CSIDs 2-5, all K=4 slots used).
+    # Exactly K=4 CSIDs: usids[0]=CSID-5 (MSB), usids[3]=CSID-2 (LSB, first processed).
     # Wire: [00050005][00040004][00030003][00020002] = 5:5:4:4:3:3:2:2
     csids_seg1    = ["00050005", "00040004", "00030003", "00020002"]
     expected_seg1 = "5:5:4:4:3:3:2:2"
@@ -3119,10 +3135,13 @@ def test_replace_csid_fig5_7sids(api, b2b_raw_config, utils):
     eth.src.value = "00:11:22:33:44:55"
     eth.dst.value = "00:aa:bb:cc:dd:ee"
 
-    # Outer IPv6: DA = container 1 (pre-assembled full SRv6 SID).
+    # Outer IPv6: DA = container 1 assembled from dst_usids.
     ip6 = f.packet.add().ipv6
     ip6.src.value = "2001:db8::1"
-    ip6.dst.value = active_dst
+    du = ip6.dst_usids
+    du.locator.value        = da_locator
+    du.locator_length.value = da_locator_length
+    du.usids                = list(da_usids)
     ip6.next_header.value = 43
 
     # REPLACE-CSID SRH: 2 packed containers (locator_length=0 = packed format).
@@ -3174,9 +3193,7 @@ def test_replace_csid_fig5_7sids(api, b2b_raw_config, utils):
     _stop_capture(api)
 
     pcap = _get_capture(api, p2.name)
-    # Capture intentionally kept (not deleted) for Wireshark inspection.
-    path = _save_capture(pcap, tc)
-    print("\n  [%s] Capture preserved: %s" % (tc, path))
+    _save_capture(pcap, tc)
 
     pkt = _parse_gshr_from_pcap(pcap)
 
@@ -3242,6 +3259,7 @@ def test_replace_csid_fig5_7sids(api, b2b_raw_config, utils):
         "[%s] seg[1] (CSIDs 2-5): want %s got %s"
         % (tc, _norm(expected_seg1), _norm(pkt["segments"][1]))
     )
+    _delete_capture(tc)
 
 
 # ---------------------------------------------------------------------------
@@ -3267,7 +3285,6 @@ def test_next_csid_fig2_8sids(api, b2b_raw_config, utils):
       Segment List[1] = Container 1 (penultimate / active copy)
       segments_left  = 1, last_entry = 1
 
-    Capture kept for Wireshark inspection.
     """
     tc = "test_next_csid_fig2_8sids"
     api.set_config(api.config())
@@ -3303,7 +3320,10 @@ def test_next_csid_fig2_8sids(api, b2b_raw_config, utils):
 
     ip6 = f.packet.add().ipv6
     ip6.src.value = "2001:db8::1"
-    ip6.dst.value = active_dst
+    du = ip6.dst_usids
+    du.locator.value        = locator
+    du.locator_length.value = lb_bits
+    du.usids                = list(csids_c1)
     ip6.next_header.value = 43
 
     usid_hdr = f.packet.add().ipv6_extension_header.routing.segment_routing_usid
@@ -3354,9 +3374,7 @@ def test_next_csid_fig2_8sids(api, b2b_raw_config, utils):
     _stop_capture(api)
 
     pcap = _get_capture(api, p2.name)
-    # Capture intentionally kept (not deleted) for Wireshark inspection.
-    path = _save_capture(pcap, tc)
-    print("\n  [%s] Capture preserved: %s" % (tc, path))
+    _save_capture(pcap, tc)
 
     pkt = _parse_gshr_from_pcap(pcap)
 
@@ -3422,6 +3440,5 @@ def test_next_csid_fig2_8sids(api, b2b_raw_config, utils):
         "[%s] seg[1] (container-1, active): want %s got %s"
         % (tc, _norm(container1), _norm(pkt["segments"][1]))
     )
-
-    print("\n  [%s] PASSED -- RFC 9800 Figure 5 REPLACE-CSID 7-SID verified on wire." % tc)
-    print("  Capture preserved at: tests/captures/%s.pcapng" % tc)
+    _delete_capture(tc)
+    print("\n  [%s] PASSED -- RFC 9800 Figure 2 NEXT-CSID 8-SID verified on wire." % tc)
