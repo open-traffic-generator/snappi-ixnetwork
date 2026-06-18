@@ -51,11 +51,20 @@ class Capture(object):
         self._resource_manager = self._api._ixnetwork.ResourceManager
         imports = []
         vports = self._api.select_vports()
-        for vport in vports.values():
+        # Collect ports that will be re-enabled by the captures loop so we
+        # can skip the disable step for those ports. Sending disable + enable
+        # for the same port in one ImportConfig batch can leave the port
+        # disabled when IxNetwork processes the operations out of order.
+        ports_to_enable = set()
+        for capture_item in self._api.snappi_config.captures:
+            if capture_item.port_names:
+                for port_name in capture_item.port_names:
+                    ports_to_enable.add(port_name)
+        for port_name, vport in vports.items():
             if (
                 vport["capture"]["hardwareEnabled"] is True
                 or vport["capture"]["softwareEnabled"] is True
-            ):
+            ) and port_name not in ports_to_enable:
                 capture = {
                     "xpath": vport["capture"]["xpath"],
                     "captureMode": "captureTriggerMode",
@@ -508,6 +517,19 @@ class Capture(object):
                 for name, vport in ixn_vports.items()
                 if vport["capture"]["hardwareEnabled"] is True
             ]
+            # If no ports have capture enabled but the config expects captures,
+            # re-apply the capture configuration. This guards against a race
+            # between vport creation and the capture ImportConfig settling.
+            if len(ixn_cap_ports) == 0 and len(
+                list(self._api.snappi_config.captures)
+            ) > 0:
+                self.config()
+                ixn_vports = self._api.select_vports()
+                ixn_cap_ports = [
+                    name
+                    for name, vport in ixn_vports.items()
+                    if vport["capture"]["hardwareEnabled"] is True
+                ]
             port_names = self._capture_request.port_names
             if (
                 port_names is None
@@ -601,28 +623,21 @@ class Capture(object):
             self._api._ixnetwork.Globals.PersistencePath + "/capture"
         )
 
-        dc = (
-            self._api._ixnetwork.Globals.PersistencePath
-            + "/capture/"
-            + self._api._vport.Name
-            + "_HW.cap"
-        )
-        cc = (
-            self._api._ixnetwork.Globals.PersistencePath
-            + "/capture/"
-            + self._api._vport.Name
-            + "_SW.cap"
-        )
-        merged_capture = (
-            self._api._ixnetwork.Globals.PersistencePath
-            + "/capture/"
-            + self._api._vport.Name
-            + ".cap"
-        )
+        vport_name = self._api._vport.Name
+        persist = self._api._ixnetwork.Globals.PersistencePath
+        dc = persist + "/capture/" + vport_name + "_HW.cap"
+        cc = persist + "/capture/" + vport_name + "_SW.cap"
+        merged_capture = persist + "/capture/" + vport_name + ".cap"
 
-        self._api._ixnetwork.MergeCapture(
-            Arg1=cc, Arg2=dc, Arg3=merged_capture
-        )
+        try:
+            self._api._ixnetwork.MergeCapture(
+                Arg1=cc, Arg2=dc, Arg3=merged_capture
+            )
+        except Exception:
+            # MergeCapture fails when one of the source files is absent
+            # (e.g. port has only SW or only HW capture).  Continue and
+            # download whichever individual file is available.
+            pass
 
         url = "{}/vport/operations/releaseCapturePorts".format(
             self._api._ixnetwork.href
@@ -630,15 +645,25 @@ class Capture(object):
         payload = {"arg1": [self._api._vport.href]}
         self._api._request("POST", url, payload)
 
-        path = "%s/capture" % self._api._ixnetwork.Globals.PersistencePath
-        # Todo: Revert dc to merged capture after fix is available in 9.20
-        url = "%s/files?absolute=%s&filename=%s" % (
-            self._api._ixnetwork.href,
-            path,
-            dc,
-        )
-        pcap_file_bytes = self._api._request("GET", url)
-        return io.BytesIO(pcap_file_bytes)
+        path = "%s/capture" % persist
+        # Try merged capture first (preferred); fall back to HW then SW.
+        # The original code used dc (_HW.cap) directly as a workaround for
+        # an IxNetwork 9.20 bug where merged-capture download was broken.
+        # That bug is fixed in later versions, so prefer merged now.
+        last_exc = None
+        for cap_path in [merged_capture, dc, cc]:
+            url = "%s/files?absolute=%s&filename=%s" % (
+                self._api._ixnetwork.href,
+                path,
+                cap_path,
+            )
+            try:
+                pcap_file_bytes = self._api._request("GET", url)
+                return io.BytesIO(pcap_file_bytes)
+            except Exception as exc:
+                last_exc = exc
+                continue
+        raise last_exc
 
 
 class GetPattern(object):
