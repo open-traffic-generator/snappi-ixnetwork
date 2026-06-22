@@ -1478,6 +1478,7 @@ class TrafficItem(CustomField):
 
             self._configure_options()
             self._configure_latency()
+            self._configure_frame_ordering()
 
     def _fix_srh_encapsulated_fields(self):
         """After importConfig, directly freeze TCP data_offset and UDP length
@@ -1557,6 +1558,47 @@ class TrafficItem(CustomField):
         tracking = [{"xpath": "%s/tracking" % xpath, "trackBy": trackBy}]
         self.logger.debug("tracking : %s" % tracking)
         return {"tracking": tracking}
+
+    # OTG Port.Options.frame_ordering_mode -> Traffic.FrameOrderingMode
+    _FRAME_ORDERING_MODE = {
+        "no_ordering": "none",
+        "rfc2889": "RFC2889",
+    }
+
+    def _configure_frame_ordering(self):
+        """Apply ``config.options.port_options`` transmit ordering / integrity
+        knobs onto the global traffic options.
+
+        OTG/snappi expresses these through ``Port.Options``:
+          - ``data_integrity``      -> Traffic.Statistics.DataIntegrity
+            (per-frame data integrity signature checking)
+          - ``frame_ordering_mode`` -> Traffic.FrameOrderingMode and
+            Traffic.EnableStreamOrdering (``rfc2889`` enables RFC 2889 stream
+            ordering, ``no_ordering`` transmits frames unordered)
+        """
+        if self.isUhd is True:
+            return
+        options = self._config.get("options")
+        if options is None:
+            return
+        port_options = options.get("port_options")
+        if port_options is None:
+            return
+        traffic = self._api._traffic
+        data_integrity = port_options.get("data_integrity")
+        if data_integrity is not None:
+            ixn_data_integrity = traffic.Statistics.DataIntegrity
+            if ixn_data_integrity.Enabled != data_integrity:
+                ixn_data_integrity.Enabled = data_integrity
+        frame_ordering_mode = port_options.get("frame_ordering_mode")
+        if frame_ordering_mode is not None:
+            choice = frame_ordering_mode.choice
+            ixn_mode = TrafficItem._FRAME_ORDERING_MODE[choice]
+            enable_ordering = choice == "rfc2889"
+            if traffic.EnableStreamOrdering != enable_ordering:
+                traffic.EnableStreamOrdering = enable_ordering
+            if traffic.FrameOrderingMode != ixn_mode:
+                traffic.FrameOrderingMode = ixn_mode
 
     def _configure_options(self):
         if self.isUhd is True:
