@@ -722,6 +722,7 @@ class TrafficItem(CustomField):
                     "xpath": tr_xpath,
                     "name": "%s" % flow.name,
                     "srcDestMesh": self._get_mesh_type(flow),
+                    "biDirectional": self._get_bidirectional(flow),
                 }
             )
 
@@ -1336,6 +1337,17 @@ class TrafficItem(CustomField):
                     )
         self.logger.debug("mesh type : %s" % mesh_type)
         return mesh_type
+
+    def _get_bidirectional(self, flow):
+        """Return whether the flow's device endpoints request bidirectional
+        traffic. When enabled, IxNetwork creates traffic sub-flows on both the
+        forward (tx_names -> rx_names) and reverse (rx_names -> tx_names)
+        directions. Only device endpoints support this; port endpoints are
+        always unidirectional.
+        """
+        if flow.tx_rx.choice == "device":
+            return bool(flow.tx_rx.device.bidirectional)
+        return False
 
     def _endpoint_validation(self, flow):
         if flow.tx_rx.choice is None:
@@ -2982,6 +2994,7 @@ class TrafficItem(CustomField):
                     "xpath": tr_xpath,
                     "name": "%s" % flow.name,
                     "srcDestMesh": self._get_mesh_type(flow),
+                    "biDirectional": self._get_bidirectional(flow),
                 }
             )
 
