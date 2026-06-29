@@ -1346,7 +1346,10 @@ class TrafficItem(CustomField):
         always unidirectional.
         """
         if flow.tx_rx.choice == "device":
-            return bool(flow.tx_rx.device.bidirectional)
+            bidirectional = flow.tx_rx.device.bidirectional
+            if bidirectional is None:
+                return False
+            return bool(bidirectional)
         return False
 
     def _endpoint_validation(self, flow):
