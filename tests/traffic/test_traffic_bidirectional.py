@@ -1,6 +1,5 @@
 import pytest
 
-
 def test_traffic_bidirectional(api, b2b_raw_config, utils):
     """
     Configure IPv4 devices on the Tx and Rx ports and create a flow with
@@ -25,6 +24,12 @@ def test_traffic_bidirectional(api, b2b_raw_config, utils):
 
     b2b_raw_config.flows.clear()
     config = b2b_raw_config
+
+    config.options.port_options.frame_ordering_mode.choice = (
+        config.options.port_options.frame_ordering_mode.RFC2889
+    )
+    # config.options.port_options.data_integrity = True
+
     d1, d2 = config.devices.device(name="d1").device(name="d2")
 
     eth1 = d1.ethernets.add()
@@ -114,6 +119,7 @@ def test_traffic_bidirectional_disabled(api, b2b_raw_config):
     f1.tx_rx.device.tx_names = [ip1.name]
     f1.tx_rx.device.rx_names = [ip2.name]
     f1.packet.ethernet().ipv4().tcp()
+    f1.metrics.enable = True
 
     api.set_config(config)
 
