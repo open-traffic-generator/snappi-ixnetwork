@@ -6,7 +6,6 @@ import time
 import dpkt
 import pytest
 
-pytestmark = pytest.mark.skip(reason="ISIS-SRv6 control plane not yet supported")
 
 # Converted from: config.ISIS_SRV6_Locator_Algorithm_values.ixncfg
 # Source script:  test.ISIS_SRV6_Locator_Algorithm_values.py
@@ -117,7 +116,8 @@ def _configure_device(
         pfx.x_flag = loc_cfg.get("x_flag", False)
 
         end_sid = loc.end_sids.add()
-        end_sid.function = "1"
+        end_sid.function = "0001"
+        end_sid.argument = "0000"
         end_sid.endpoint_behavior = "end"
         end_sid.c_flag = False
 
@@ -134,8 +134,8 @@ def _configure_device(
     adj_sid = intf.srv6_adjacency_sids.sids.add()
     adj_sid.locator = "custom_locator_reference"
     adj_sid.custom_locator_reference = f"{device.name}_loc1"
-    # function 0x40 = 64 decimal, placed in bits 64-79 of the SID
-    adj_sid.function = "40"
+    # function 0x0040 = 64 decimal, placed in bits 64-79 of the SID
+    adj_sid.function = "0040"
     adj_sid.endpoint_behavior = "end_x"
     adj_sid.b_flag = False
     adj_sid.s_flag = False

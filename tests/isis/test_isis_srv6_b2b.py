@@ -41,7 +41,6 @@ import time
 import dpkt
 import pytest
 
-pytestmark = pytest.mark.skip(reason="ISIS-SRv6 control plane not yet supported")
 
 # ---------------------------------------------------------------------------
 # Constants
