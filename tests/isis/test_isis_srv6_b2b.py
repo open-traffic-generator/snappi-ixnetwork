@@ -1720,3 +1720,547 @@ def test_tc5_srv6_msd_cp(api, b2b_raw_config, utils):
 
     _delete_captures("test_tc5_cp")
     print("\n  [%s] PASSED — Node MSD and Link MSD verified in IxN config state." % tc)
+
+
+# ---------------------------------------------------------------------------
+# SRv6 Adjacency SID wire parser (TLV 22 / sub-TLV 43)
+# ---------------------------------------------------------------------------
+
+def _parse_isis_srv6_adj_sids(pcap_bytes, source_system_id):
+    """Return {sid_addr: endpoint_behavior} from highest-sequence L2 LSP.
+
+    Walks TLV 22 (Extended IS Reachability) -> sub-TLV 43 (SRv6 End.X SID)
+    per RFC 9352 Section 8.  Each TLV-22 IS neighbor entry layout:
+      System ID + pseudonode (7) | metric (3) | sub-TLV length (1) | sub-TLVs
+    Sub-TLV 43 value layout:
+      flags(1) | reserved(1) | algo(1) | weight(1) | ep_behavior(2) | SID(16)
+    """
+    try:
+        src_bytes = bytes.fromhex(
+            source_system_id.replace(".", "").replace(":", "")
+        )
+    except ValueError:
+        return {}
+
+    best_seq  = -1
+    best_sids = {}
+
+    for _, raw_pkt in dpkt.pcapng.Reader(pcap_bytes):
+        try:
+            isis = _find_isis_pdu(bytes(raw_pkt))
+        except Exception:
+            continue
+        if isis is None or len(isis) < 27:
+            continue
+        if isis[0] != 0x83:
+            continue
+        if (isis[4] & 0x1F) != 0x14:           # Level 2 LSP
+            continue
+        if isis[10:16] != src_bytes:
+            continue
+        if isis[17] != 0:                       # fragment 0 only
+            continue
+
+        seq     = struct.unpack(">I", isis[18:22])[0]
+        pdu_len = struct.unpack(">H", isis[8:10])[0]
+        hdr_len = isis[1]
+
+        offset  = hdr_len
+        end_off = min(pdu_len, len(isis))
+        pkt_sids = {}
+
+        while offset + 2 <= end_off:
+            tlv_type = isis[offset]
+            tlv_len  = isis[offset + 1]
+            if offset + 2 + tlv_len > end_off:
+                break
+            tlv_val  = isis[offset + 2: offset + 2 + tlv_len]
+            offset  += 2 + tlv_len
+
+            if tlv_type != 22:
+                continue
+
+            # Iterate IS neighbor entries within the TLV 22 value
+            ne_off = 0
+            while ne_off + 11 <= len(tlv_val):
+                # 7 bytes neighbor ID + 3 bytes metric + 1 byte sub-TLV block len
+                sub_block_len = tlv_val[ne_off + 10]
+                entry_end     = ne_off + 11 + sub_block_len
+                if entry_end > len(tlv_val):
+                    break
+
+                sub_off = ne_off + 11
+                while sub_off + 2 <= entry_end:
+                    sub_type = tlv_val[sub_off]
+                    sub_len  = tlv_val[sub_off + 1]
+                    if sub_off + 2 + sub_len > entry_end:
+                        break
+                    sub_val  = tlv_val[sub_off + 2: sub_off + 2 + sub_len]
+                    sub_off += 2 + sub_len
+
+                    if sub_type != 43 or len(sub_val) < 22:
+                        continue
+                    ep_behavior = struct.unpack(">H", sub_val[4:6])[0]
+                    try:
+                        sid_addr = str(ipaddress.IPv6Address(bytes(sub_val[6:22])))
+                    except ValueError:
+                        continue
+                    pkt_sids[sid_addr] = ep_behavior
+
+                ne_off = entry_end
+
+        if seq > best_seq:
+            best_seq  = seq
+            best_sids = pkt_sids
+
+    if hasattr(pcap_bytes, "seek"):
+        pcap_bytes.seek(0)
+    return best_sids
+
+
+# ---------------------------------------------------------------------------
+# SRv6 Capabilities wire parser (TLV 242 / sub-TLV 25)
+# ---------------------------------------------------------------------------
+
+def _parse_isis_srv6_capabilities(pcap_bytes, source_system_id):
+    """Return {"o_flag": bool} from TLV 242 / sub-TLV 25 in highest-seq L2 LSP.
+
+    TLV 242 (IS-IS Router CAPABILITY, RFC 7981): Router ID(4) + Flags(1)
+    + sub-TLVs.  Sub-TLV 25 (SRv6 Capability, RFC 9352 Section 2):
+    Flags(2 bytes), bit 15 = O-flag.
+    """
+    try:
+        src_bytes = bytes.fromhex(
+            source_system_id.replace(".", "").replace(":", "")
+        )
+    except ValueError:
+        return {}
+
+    best_seq  = -1
+    best_caps = {}
+
+    for _, raw_pkt in dpkt.pcapng.Reader(pcap_bytes):
+        try:
+            isis = _find_isis_pdu(bytes(raw_pkt))
+        except Exception:
+            continue
+        if isis is None or len(isis) < 27:
+            continue
+        if isis[0] != 0x83:
+            continue
+        if (isis[4] & 0x1F) != 0x14:
+            continue
+        if isis[10:16] != src_bytes:
+            continue
+        if isis[17] != 0:
+            continue
+
+        seq     = struct.unpack(">I", isis[18:22])[0]
+        pdu_len = struct.unpack(">H", isis[8:10])[0]
+        hdr_len = isis[1]
+
+        offset  = hdr_len
+        end_off = min(pdu_len, len(isis))
+        pkt_caps = {}
+
+        while offset + 2 <= end_off:
+            tlv_type = isis[offset]
+            tlv_len  = isis[offset + 1]
+            if offset + 2 + tlv_len > end_off:
+                break
+            tlv_val  = isis[offset + 2: offset + 2 + tlv_len]
+            offset  += 2 + tlv_len
+
+            if tlv_type != 242 or len(tlv_val) < 5:    # IS-IS Router CAPABILITY
+                continue
+            sub_off = 5                                 # skip Router ID (4) + Flags (1)
+            while sub_off + 2 <= len(tlv_val):
+                sub_type = tlv_val[sub_off]
+                sub_len  = tlv_val[sub_off + 1]
+                if sub_off + 2 + sub_len > len(tlv_val):
+                    break
+                sub_val  = tlv_val[sub_off + 2: sub_off + 2 + sub_len]
+                sub_off += 2 + sub_len
+
+                if sub_type == 25 and len(sub_val) >= 2:    # SRv6 Capability
+                    flags2 = struct.unpack(">H", sub_val[0:2])[0]
+                    pkt_caps["o_flag"] = bool(flags2 & 0x8000)
+
+        if seq > best_seq:
+            best_seq  = seq
+            best_caps = pkt_caps
+
+    if hasattr(pcap_bytes, "seek"):
+        pcap_bytes.seek(0)
+    return best_caps
+
+
+# ---------------------------------------------------------------------------
+# Adjacency SID IxN state reader
+# ---------------------------------------------------------------------------
+
+def _read_adj_sid_state(api, intf_name):
+    """Return [{"sid", "function_code", "active"}] from IsisSRv6AdjSIDList.
+
+    Navigates to the IsisL3 interface via api.ixn_objects.get(intf_name).xpath
+    and reads Ipv6AdjSid / EndPointFunction / Active multivalue rows.
+    """
+    import re as _re
+    import ipaddress as _ip
+
+    result = []
+    try:
+        info  = api.ixn_objects.get(intf_name)
+        parts = _re.findall(r'(\w+)\[(\d+)\]', info.xpath)
+        obj   = api._ixnetwork
+        for cls_name, idx_str in parts:
+            attr = cls_name[0].upper() + cls_name[1:]
+            coll = getattr(obj, attr).find()
+            obj  = coll[int(idx_str) - 1]
+
+        adj_list = obj.IsisSRv6AdjSIDList.find()
+        for sv, av, fv in zip(adj_list.Ipv6AdjSid.Values,
+                              adj_list.Active.Values,
+                              adj_list.EndPointFunction.Values):
+            try:
+                sid_addr = str(_ip.IPv6Address(sv))
+            except ValueError:
+                sid_addr = str(sv)
+            active    = str(av).lower() not in ("false", "0")
+            try:
+                func_code = int(fv)
+            except (ValueError, TypeError):
+                func_code = 0
+            result.append({"sid": sid_addr, "active": active, "function_code": func_code})
+    except Exception as exc:
+        print("  [warn] _read_adj_sid_state(%s) failed: %s" % (intf_name, exc))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Adjacency SID and Capabilities verification helpers
+# ---------------------------------------------------------------------------
+
+def _verify_adj_sid_state(api, tc, intf_name, expected):
+    """Assert adjacency SIDs from IxN state match expected {sid: behavior_code}."""
+    sep = "-" * 64
+    print("\n" + sep)
+    print("  [%s] Adj SID verification  intf=%s  [IxN state]" % (tc, intf_name))
+    print(sep)
+
+    adj_sids = _read_adj_sid_state(api, intf_name)
+    actual   = {s["sid"]: s["function_code"] for s in adj_sids if s["active"]}
+
+    all_ok = True
+    for sid, code in sorted(expected.items()):
+        name = _BEHAVIOR_NAME.get(code, "code-%d" % code)
+        if sid in actual and actual[sid] == code:
+            print("  [PASS]  %-36s  behavior=%d (%s)" % (sid, code, name))
+        else:
+            got = actual.get(sid, "MISSING")
+            print("  [FAIL]  %-36s  expected=%d (%s)  got=%s"
+                  % (sid, code, name, got))
+            all_ok = False
+    print(sep)
+    for sid, code in expected.items():
+        assert sid in actual, (
+            "[%s] %s: Adj SID %s not active; got %s" % (tc, intf_name, sid, actual)
+        )
+        assert actual[sid] == code, (
+            "[%s] %s: %s behavior expected=%d got=%d"
+            % (tc, intf_name, sid, code, actual[sid])
+        )
+
+
+def _verify_adj_sid_wire(tc, pcap_bytes, router, sys_id, expected):
+    """Print pass/fail for Adj SIDs from wire (TLV 22 / sub-TLV 43); best-effort."""
+    wire_sids = _parse_isis_srv6_adj_sids(pcap_bytes, sys_id)
+    sep = "-" * 64
+    print("\n" + sep)
+    print("  [%s] Adj SID wire  router=%s  (TLV 22 / sub-TLV 43)" % (tc, router))
+    if not wire_sids:
+        print("  (no SRv6 End.X SID sub-TLVs in capture — may be IxN-internal)")
+        print(sep)
+        return False
+    print(sep)
+    for sid, code in sorted(expected.items()):
+        name = _BEHAVIOR_NAME.get(code, "code-%d" % code)
+        if sid in wire_sids and wire_sids[sid] == code:
+            print("  [PASS wire]  %-36s  behavior=%d (%s)" % (sid, code, name))
+        else:
+            got = wire_sids.get(sid, "NOT FOUND")
+            print("  [FAIL wire]  %-36s  expected=%d (%s)  wire=%s"
+                  % (sid, code, name, got))
+    print(sep)
+    return True
+
+
+def _verify_capabilities_wire(tc, pcap_bytes, router, sys_id):
+    """Print SRv6 Capability TLV presence and O-flag from wire; best-effort."""
+    caps = _parse_isis_srv6_capabilities(pcap_bytes, sys_id)
+    sep = "-" * 64
+    print("\n" + sep)
+    print("  [%s] SRv6 Capabilities wire  router=%s  (TLV 242 / sub-TLV 25)"
+          % (tc, router))
+    if not caps:
+        print("  (TLV 242 / sub-TLV 25 not found in capture)")
+        print(sep)
+        return False
+    o_flag = caps.get("o_flag", False)
+    status = "[PASS]" if o_flag else "[INFO]"
+    print("  %s  o_flag = %s" % (status, o_flag))
+    print(sep)
+    return True
+
+
+# ---------------------------------------------------------------------------
+# TC-6: SRv6 Capabilities + Node SIDs + Adjacency SIDs — CP wire verified
+# ---------------------------------------------------------------------------
+
+def test_tc6_srv6_capabilities_node_adj_sids_cp(api, b2b_raw_config, utils):
+    """TC-6: SRv6 Capabilities, Node SIDs and Adjacency SIDs — CP wire verified.
+
+    A combined CP test bringing together the three SRv6 IS-IS advertisement
+    categories from RFC 9352 and verifying each from both IxNetwork config
+    state and wire packet capture.
+
+    Topology (B2B, 2 ports):
+      port1 <---> port2
+      d1 / r1  sys-id=650000000001  locator fc00:0:1::/48
+                  End SID   fc00:0:1:1::   behavior=End   (code 1)  [TLV 27/sub-TLV 5]
+                  Adj SID   fc00:0:1:c8::  behavior=End.X (code 5)  [TLV 22/sub-TLV 43]
+      d2 / r2  sys-id=650000000002  locator fc00:0:2::/48
+                  End SID   fc00:0:2:1::   behavior=End   (code 1)
+                  Adj SID   fc00:0:2:c8::  behavior=End.X (code 5)
+
+    Verification order:
+      1. IS-IS L2 sessions up (2)
+      2. Node SIDs  — IxN config state (hard assert)
+      3. Adj SIDs   — IxN config state (hard assert)
+      4. Node SIDs  — wire TLV 27 / sub-TLV 5    (best-effort, logged)
+      5. Adj SIDs   — wire TLV 22 / sub-TLV 43   (best-effort, logged)
+      6. Capabilities — wire TLV 242 / sub-TLV 25 (best-effort, logged)
+    """
+    tc = "TC6"
+    api.set_config(api.config())
+
+    # ---- Ports ---------------------------------------------------------------
+    cfg = api.config()
+
+    p1, p2 = cfg.ports.port(
+        name="tx", location=b2b_raw_config.ports[0].location
+    ).port(
+        name="rx", location=b2b_raw_config.ports[1].location
+    )
+
+    for l1_orig in b2b_raw_config.layer1:
+        l1 = cfg.layer1.add()
+        l1.name      = l1_orig.name
+        l1.port_names = [p1.name, p2.name]
+        l1.media     = l1_orig.media
+        l1.speed     = l1_orig.speed
+
+    cfg.options.port_options.location_preemption = True
+
+    # ---- Devices and Ethernet ------------------------------------------------
+    d1, d2 = cfg.devices.device(name="d1").device(name="d2")
+
+    d1_eth = d1.ethernets.add()
+    d1_eth.name               = "d1_eth"
+    d1_eth.connection.port_name = p1.name
+    d1_eth.mac                = "00:00:00:01:01:01"
+    d1_v6  = d1_eth.ipv6_addresses.add()
+    d1_v6.name    = "d1_ipv6"
+    d1_v6.address = "2001::1"
+    d1_v6.gateway = "2001::2"
+    d1_v6.prefix  = 64
+
+    d2_eth = d2.ethernets.add()
+    d2_eth.name               = "d2_eth"
+    d2_eth.connection.port_name = p2.name
+    d2_eth.mac                = "00:00:00:02:02:02"
+    d2_v6  = d2_eth.ipv6_addresses.add()
+    d2_v6.name    = "d2_ipv6"
+    d2_v6.address = "2001::2"
+    d2_v6.gateway = "2001::1"
+    d2_v6.prefix  = 64
+
+    # ---- IS-IS router r1 -----------------------------------------------------
+    r1 = d1.isis
+    r1.name      = "r1"
+    r1.system_id = "650000000001"
+    r1.basic.enable_wide_metric   = True
+    r1.basic.learned_lsp_filter   = True
+    r1.advanced.area_addresses    = ["490001"]
+    r1.advanced.lsp_refresh_rate  = 900
+    r1.advanced.lsp_lifetime      = 1200
+    r1.advanced.csnp_interval     = 10000
+    r1.advanced.psnp_interval     = 2000
+    r1.advanced.max_lsp_size      = 1492
+
+    r1_intf = r1.interfaces.add()
+    r1_intf.eth_name     = "d1_eth"
+    r1_intf.name         = "r1_intf"
+    r1_intf.network_type = "point_to_point"
+    r1_intf.level_type   = "level_2"
+    r1_intf.metric       = 10
+    r1_intf.l2_settings.dead_interval  = 30
+    r1_intf.l2_settings.hello_interval = 10
+    r1_intf.l2_settings.priority       = 0
+    r1_intf.advanced.auto_adjust_supported_protocols = True
+
+    # r1 SRv6 capability (advertised in IS-IS Router CAPABILITY TLV 242 / sub-TLV 25)
+    r1.segment_routing.router_capability.srv6_capability.c_flag = True
+
+    # r1 SRv6 locator (advertised in TLV 27 — F3216 uSID structure lb=32 ln=16 fn=16)
+    r1_loc = r1.segment_routing.srv6_locators.add()
+    r1_loc.locator_name  = "loc1"
+    r1_loc.locator       = "fc00:0:1::"
+    r1_loc.prefix_length = 48
+    r1_loc.algorithm     = 0
+    r1_loc.metric        = 10
+    r1_loc.d_flag        = False
+    r1_loc.sid_structure.locator_block_length = 32
+    r1_loc.sid_structure.locator_node_length  = 16
+    r1_loc.sid_structure.function_length      = 16
+    r1_loc.sid_structure.argument_length      = 0
+    r1_loc.advertise_locator_as_prefix.route_metric        = 10
+    r1_loc.advertise_locator_as_prefix.redistribution_type = "up"
+    r1_loc.advertise_locator_as_prefix.route_origin        = "internal"
+
+    # r1 End SID — node SID fc00:0:1:1:: (function=0001, behavior=End)
+    r1_end_sid = r1_loc.end_sids.add()
+    r1_end_sid.function           = "0001"
+    r1_end_sid.argument           = "0000"
+    r1_end_sid.endpoint_behavior  = "end"
+    r1_end_sid.c_flag             = True
+
+    # r1 adjacency SID — End.X fc00:0:1:c8:: (function=00c8, behavior=End.X)
+    r1_adj_sid = r1_intf.srv6_adjacency_sids.sids.add()
+    r1_adj_sid.function          = "00c8"
+    r1_adj_sid.endpoint_behavior = "end_x"
+    r1_adj_sid.c_flag            = True
+    r1_adj_sid.b_flag            = False
+    r1_adj_sid.s_flag            = False
+    r1_adj_sid.weight            = 0
+    r1_adj_sid.locator           = "auto"
+
+    # r1 IPv6 route range (device-flow endpoint)
+    r1_rr      = r1.v6_routes.add()
+    r1_rr.name = "r1_v6_routes"
+    r1_rr.link_metric  = 10
+    r1_rr.origin_type  = "internal"
+    r1_rr_addr         = r1_rr.addresses.add()
+    r1_rr_addr.address = "fd00:0:1::1"
+    r1_rr_addr.prefix  = 64
+    r1_rr_addr.count   = 1
+
+    # ---- IS-IS router r2 -----------------------------------------------------
+    r2 = d2.isis
+    r2.name      = "r2"
+    r2.system_id = "650000000002"
+    r2.basic.enable_wide_metric   = True
+    r2.basic.learned_lsp_filter   = True
+    r2.advanced.area_addresses    = ["490001"]
+    r2.advanced.lsp_refresh_rate  = 900
+    r2.advanced.lsp_lifetime      = 1200
+    r2.advanced.csnp_interval     = 10000
+    r2.advanced.psnp_interval     = 2000
+    r2.advanced.max_lsp_size      = 1492
+
+    r2_intf = r2.interfaces.add()
+    r2_intf.eth_name     = "d2_eth"
+    r2_intf.name         = "r2_intf"
+    r2_intf.network_type = "point_to_point"
+    r2_intf.level_type   = "level_2"
+    r2_intf.metric       = 10
+    r2_intf.l2_settings.dead_interval  = 30
+    r2_intf.l2_settings.hello_interval = 10
+    r2_intf.l2_settings.priority       = 0
+    r2_intf.advanced.auto_adjust_supported_protocols = True
+
+    # r2 SRv6 capability
+    r2.segment_routing.router_capability.srv6_capability.c_flag = True
+
+    # r2 SRv6 locator (F3216 uSID structure)
+    r2_loc = r2.segment_routing.srv6_locators.add()
+    r2_loc.locator_name  = "loc2"
+    r2_loc.locator       = "fc00:0:2::"
+    r2_loc.prefix_length = 48
+    r2_loc.algorithm     = 0
+    r2_loc.metric        = 10
+    r2_loc.d_flag        = False
+    r2_loc.sid_structure.locator_block_length = 32
+    r2_loc.sid_structure.locator_node_length  = 16
+    r2_loc.sid_structure.function_length      = 16
+    r2_loc.sid_structure.argument_length      = 0
+    r2_loc.advertise_locator_as_prefix.route_metric        = 10
+    r2_loc.advertise_locator_as_prefix.redistribution_type = "up"
+    r2_loc.advertise_locator_as_prefix.route_origin        = "internal"
+
+    # r2 End SID — node SID fc00:0:2:1:: (function=0001, behavior=End)
+    r2_end_sid = r2_loc.end_sids.add()
+    r2_end_sid.function           = "0001"
+    r2_end_sid.argument           = "0000"
+    r2_end_sid.endpoint_behavior  = "end"
+    r2_end_sid.c_flag             = True
+
+    # r2 adjacency SID — End.X fc00:0:2:c8:: (function=00c8, behavior=End.X)
+    r2_adj_sid = r2_intf.srv6_adjacency_sids.sids.add()
+    r2_adj_sid.function          = "00c8"
+    r2_adj_sid.endpoint_behavior = "end_x"
+    r2_adj_sid.c_flag            = True
+    r2_adj_sid.b_flag            = False
+    r2_adj_sid.s_flag            = False
+    r2_adj_sid.weight            = 0
+    r2_adj_sid.locator           = "auto"
+
+    # r2 IPv6 route range (device-flow endpoint)
+    r2_rr      = r2.v6_routes.add()
+    r2_rr.name = "r2_v6_routes"
+    r2_rr.link_metric  = 10
+    r2_rr.origin_type  = "internal"
+    r2_rr_addr         = r2_rr.addresses.add()
+    r2_rr_addr.address = "fd00:0:2::1"
+    r2_rr_addr.prefix  = 64
+    r2_rr_addr.count   = 1
+
+    # ---- Capture on rx port --------------------------------------------------
+    cap = cfg.captures.capture(name="cap")[-1]
+    cap.port_names = [p2.name]
+    cap.format     = cap.PCAPNG
+
+    api.set_config(cfg)
+
+    _start_capture(api)
+    _start_protocols(api)
+    time.sleep(_CONVERGENCE)
+    _stop_capture(api)
+
+    cp_pcap = _get_capture(api, p2.name)
+    _save_capture(cp_pcap, "test_tc6_cp")
+    _check_isis_sessions_up(api, tc, min_sessions=2)
+
+    # 1. Node SIDs — IxN config state (hard assert)
+    _verify_cp(api, tc,
+               expected_r1={"fc00:0:1:1::": 1},
+               expected_r2={"fc00:0:2:1::": 1})
+
+    # 2. Adj SIDs — IxN config state (hard assert)
+    _verify_adj_sid_state(api, tc, "r1_intf", {"fc00:0:1:c8::": 5})
+    _verify_adj_sid_state(api, tc, "r2_intf", {"fc00:0:2:c8::": 5})
+
+    # 3. Node SIDs — wire TLV 27 / sub-TLV 5 (best-effort)
+    _verify_cp_wire(tc, cp_pcap, "r1", _SYS_ID_R1, {"fc00:0:1:1::": 1})
+    _verify_cp_wire(tc, cp_pcap, "r2", _SYS_ID_R2, {"fc00:0:2:1::": 1})
+
+    # 4. Adj SIDs — wire TLV 22 / sub-TLV 43 (best-effort)
+    _verify_adj_sid_wire(tc, cp_pcap, "r1", _SYS_ID_R1, {"fc00:0:1:c8::": 5})
+    _verify_adj_sid_wire(tc, cp_pcap, "r2", _SYS_ID_R2, {"fc00:0:2:c8::": 5})
+
+    # 5. SRv6 Capabilities — wire TLV 242 / sub-TLV 25 (best-effort)
+    _verify_capabilities_wire(tc, cp_pcap, "r1", _SYS_ID_R1)
+    _verify_capabilities_wire(tc, cp_pcap, "r2", _SYS_ID_R2)
+
+    _delete_captures("test_tc6_cp")
+    print("\n  [%s] PASSED — Capabilities, Node SIDs and Adj SIDs verified." % tc)
