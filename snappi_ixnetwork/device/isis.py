@@ -333,11 +333,30 @@ class Isis(Base):
                     if first_locator is None:
                         first_locator = loc
 
-        # --- End.X Adjacency SIDs — adjSidCount tells IxN how many entries to create ---
+        # --- End.X Adjacency SIDs — ONE dict entry with valueList multivalues ---
+        # IxN count-controlled lists share a single multivalue source regardless of
+        # XPath index: creating N separate dict entries causes each write to overwrite
+        # the previous, leaving all rows with the last value.  The fix (same as
+        # _configure_srv6_locators) is ONE entry with N-element valueList multivalues.
         sids = srv6_adj.get("sids")
         if sids:
             ixn_isis["adjSidCount"] = len(sids)
-            for i, sid in enumerate(sids):
+
+            adj_sid_strs = []
+            behaviors    = []
+            b_flags      = []
+            s_flags      = []
+            p_flags      = []
+            c_flags      = []
+            algorithms   = []
+            weights      = []
+            lb_lens      = []
+            ln_lens      = []
+            fn_lens      = []
+            arg_lens     = []
+            has_ss       = False
+
+            for sid in sids:
                 locator_choice = sid.get("locator") or "auto"
                 if locator_choice == "auto":
                     chosen_loc = first_locator
@@ -345,54 +364,64 @@ class Isis(Base):
                     ref = sid.get("custom_locator_reference") or ""
                     chosen_loc = locator_map.get(ref) or first_locator
 
-                # Compute full adjacency SID from locator + function + argument
                 adj_sid_str = "::"
                 if chosen_loc is not None:
                     ss = chosen_loc.get("sid_structure")
-                    fn_len  = ss.get("function_length")  if ss else 0
-                    arg_len = ss.get("argument_length") if ss else 0
+                    fn_len  = (ss.get("function_length")  if ss else None) or 16
+                    arg_len = (ss.get("argument_length") if ss else None) or 0
                     adj_sid_str = self._assemble_ipv6_sid(
                         chosen_loc.get("locator") or "::",
                         chosen_loc.get("prefix_length") or 64,
                         sid.get("function") or "0000",
-                        fn_len or 0,
+                        fn_len,
                         sid.get("argument") or "0000",
-                        arg_len or 0,
+                        arg_len,
                     )
 
-                adj_name = "adjsid_%s_%d" % (interface.get("name") or "intf", i)
-                ixn_adj = self.create_node_elemet(
-                    ixn_isis, "isisSRv6AdjSIDList", adj_name
-                )
-                ixn_adj["ipv6AdjSid"] = self.multivalue(adj_sid_str)
                 behavior = sid.get("endpoint_behavior") or "end_x"
-                ixn_adj["endPointFunction"] = self.multivalue(
-                    Isis._ENDPOINT_BEHAVIOR.get(behavior, 5)
-                )
-                ixn_adj["bFlag"] = self.multivalue(sid.get("b_flag") or False)
-                ixn_adj["sFlag"] = self.multivalue(sid.get("s_flag") or False)
-                ixn_adj["pFlag"] = self.multivalue(sid.get("p_flag") or False)
-                ixn_adj["cFlag"] = self.multivalue(sid.get("c_flag") or False)
-                ixn_adj["algorithm"] = self.multivalue(sid.get("algorithm") or 0)
-                ixn_adj["weight"] = self.multivalue(sid.get("weight") or 0)
+                adj_sid_strs.append(adj_sid_str)
+                behaviors.append(Isis._ENDPOINT_BEHAVIOR.get(behavior, 5))
+                b_flags.append(sid.get("b_flag") or False)
+                s_flags.append(sid.get("s_flag") or False)
+                p_flags.append(sid.get("p_flag") or False)
+                c_flags.append(sid.get("c_flag") or False)
+                algorithms.append(sid.get("algorithm") or 0)
+                weights.append(sid.get("weight") or 0)
 
-                # SID structure from the selected locator
                 if chosen_loc is not None:
                     ss = chosen_loc.get("sid_structure")
                     if ss is not None:
-                        ixn_adj["includeSRv6SIDStructureSubSubTlv"] = self.multivalue(True)
-                        ixn_adj["locatorBlockLength"] = self.multivalue(
-                            ss.get("locator_block_length") or 32
-                        )
-                        ixn_adj["locatorNodeLength"] = self.multivalue(
-                            ss.get("locator_node_length") or 16
-                        )
-                        ixn_adj["functionLength"] = self.multivalue(
-                            ss.get("function_length") or 16
-                        )
-                        ixn_adj["argumentLength"] = self.multivalue(
-                            ss.get("argument_length") or 0
-                        )
+                        has_ss = True
+                        lb_lens.append(ss.get("locator_block_length") or 32)
+                        ln_lens.append(ss.get("locator_node_length") or 16)
+                        fn_lens.append(ss.get("function_length") or 16)
+                        arg_lens.append(ss.get("argument_length") or 0)
+                    else:
+                        lb_lens.append(32); ln_lens.append(16)
+                        fn_lens.append(16); arg_lens.append(0)
+                else:
+                    lb_lens.append(32); ln_lens.append(16)
+                    fn_lens.append(16); arg_lens.append(0)
+
+            n = len(sids)
+            adj_name = "adjsid_%s" % (interface.get("name") or "intf")
+            ixn_adj = self.create_node_elemet(ixn_isis, "isisSRv6AdjSIDList", adj_name)
+            ixn_adj["active"]           = self.multivalue([True] * n)
+            ixn_adj["ipv6AdjSid"]       = self.multivalue(adj_sid_strs)
+            ixn_adj["endPointFunction"] = self.multivalue(behaviors)
+            ixn_adj["bFlag"]            = self.multivalue(b_flags)
+            ixn_adj["sFlag"]            = self.multivalue(s_flags)
+            ixn_adj["pFlag"]            = self.multivalue(p_flags)
+            ixn_adj["cFlag"]            = self.multivalue(c_flags)
+            ixn_adj["algorithm"]        = self.multivalue(algorithms)
+            ixn_adj["weight"]           = self.multivalue(weights)
+
+            if has_ss:
+                ixn_adj["includeSRv6SIDStructureSubSubTlv"] = self.multivalue([True] * n)
+                ixn_adj["locatorBlockLength"] = self.multivalue(lb_lens)
+                ixn_adj["locatorNodeLength"]  = self.multivalue(ln_lens)
+                ixn_adj["functionLength"]     = self.multivalue(fn_lens)
+                ixn_adj["argumentLength"]     = self.multivalue(arg_lens)
 
         # --- Link MSD ---
         srv6_link_msd = srv6_adj.get("srv6_link_msd")
