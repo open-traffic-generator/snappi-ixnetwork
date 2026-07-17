@@ -1474,6 +1474,7 @@ class TrafficItem(CustomField):
                 tr_json["traffic"]["trafficItem"].append(tr_item)
 
             self._importconfig(tr_json)
+            self._apply_device_srh_stacks()
             self._fix_srh_encapsulated_fields()
 
             self._configure_options()
@@ -1488,7 +1489,7 @@ class TrafficItem(CustomField):
         RestPy direct assignment bypasses the importConfig layer.
         """
         for i, flow in enumerate(self._config.flows):
-            if flow.tx_rx.choice != "port" or not self._flows_packet[i]:
+            if not self._flows_packet[i]:
                 continue
             inside_srh = False
             inner_fixes = {}  # stack_type_id -> (field_type_id_substr, str_value)
@@ -1524,6 +1525,223 @@ class TrafficItem(CustomField):
                 self.logger.warning(
                     "SRH inner field fix failed for '%s': %s" % (flow.name, exc)
                 )
+
+    def _apply_device_srh_stacks(self):
+        """Append SRH and inner payload stacks to device-based traffic items.
+
+        Device-based traffic items in IxN have a fixed template structure
+        (ethernet→ipv6→payloadProtocolType).  importConfig can update existing
+        stack fields but silently ignores new stack-type aliases not in the
+        template.  This method uses RestPy Stack.AppendProtocol() to insert
+        SRH, inner IPv6, and inner TCP/UDP stacks after the outer IPv6, then
+        sets each field directly via RestPy assignment.
+
+        Must be called AFTER _importconfig() so the traffic items exist in IxN.
+        The outer IPv6 fields (src, dst, next_header=43) are already set by
+        importConfig; this method only adds the stacks that importConfig skipped.
+        """
+        ixn = self._api._ixnetwork
+        _tmpl_cache = {}
+
+        def get_tmpl_href(stack_type_id):
+            if stack_type_id not in _tmpl_cache:
+                pts = ixn.Traffic.ProtocolTemplate.find(
+                    StackTypeId=stack_type_id
+                )
+                if not pts:
+                    raise Exception(
+                        "Protocol template not found: %s" % stack_type_id
+                    )
+                _tmpl_cache[stack_type_id] = pts[0].href
+            return _tmpl_cache[stack_type_id]
+
+        def find_and_set(stack, fid_substr, value):
+            for f in stack.Field.find():
+                if fid_substr in (f.FieldTypeId or ""):
+                    f.Auto = False
+                    f.SingleValue = str(value)
+                    return True
+            return False
+
+        def set_inner_fields(stack, header, hc):
+            _INNER_FIELDS = {
+                "ipv6": [
+                    ("src",         "srcIP"),
+                    ("dst",         "dstIP"),
+                    ("next_header", "nextHeader"),
+                ],
+                "tcp": [
+                    ("src_port", "srcPort"),
+                    ("dst_port", "dstPort"),
+                ],
+                "udp": [
+                    ("src_port", "srcPort"),
+                    ("dst_port", "dstPort"),
+                ],
+            }
+            for attr_name, fid_suffix in _INNER_FIELDS.get(hc, []):
+                try:
+                    pat = getattr(header, attr_name, None)
+                    if pat is None:
+                        continue
+                    choice = pat.get("choice") if hasattr(pat, "get") else None
+                    if choice not in ("value", None):
+                        continue
+                    v = getattr(pat, "value", None)
+                    if v is not None:
+                        find_and_set(stack, fid_suffix, v)
+                except Exception:
+                    pass
+
+        for i, flow in enumerate(self._config.flows):
+            if flow.tx_rx.choice != "device":
+                continue
+            pkt = self._flows_packet[i]
+            if not pkt:
+                continue
+            if not any(
+                self._getUhdHeader(h.parent.choice) == "ipv6_extension_header"
+                for h in pkt
+            ):
+                continue
+            try:
+                ti = ixn.Traffic.TrafficItem.find(Name=flow.name)
+                if not ti:
+                    continue
+                ce = ti.ConfigElement.find()[0]
+
+                outer_v6_found = False
+                prev_stack = None
+
+                for j, header in enumerate(pkt):
+                    hc = self._getUhdHeader(header.parent.choice)
+
+                    if hc == "ipv6" and not outer_v6_found:
+                        outer_stacks = ce.Stack.find(StackTypeId="ipv6")
+                        if outer_stacks:
+                            prev_stack = outer_stacks[0]
+                            # Re-apply outer IPv6 fields via RestPy so they
+                            # survive any IxN endpoint auto-population on Apply.
+                            set_inner_fields(prev_stack, header, "ipv6")
+                        outer_v6_found = True
+                        continue
+
+                    if prev_stack is None:
+                        continue
+
+                    if hc == "ipv6_extension_header":
+                        routing = header.routing
+                        srh_type = (
+                            "ipv6GSRHType4"
+                            if routing.choice == "segment_routing_usid"
+                            else "ipv6RoutingType4"
+                        )
+                        next_hdr = 59
+                        if j + 1 < len(pkt):
+                            nc = self._getUhdHeader(pkt[j + 1].parent.choice)
+                            next_hdr = {"ipv4": 4, "ipv6": 41}.get(nc, 59)
+                        srh_href = prev_stack.AppendProtocol(
+                            Arg2=get_tmpl_href(srh_type)
+                        )
+                        if not srh_href:
+                            continue
+                        # Use the href returned by AppendProtocol to directly
+                        # access the new stack; avoids find() ambiguity when
+                        # importConfig may have already created an SRH stack.
+                        srh_stack = ce.Stack.read(srh_href)
+                        self._set_srh_restpy_fields(
+                            srh_stack, header, srh_type, next_hdr
+                        )
+                        prev_stack = srh_stack
+
+                    else:
+                        ixn_type = self._HEADER_TO_TYPE.get(hc)
+                        if ixn_type is None:
+                            continue
+                        inner_href = prev_stack.AppendProtocol(
+                            Arg2=get_tmpl_href(ixn_type)
+                        )
+                        if not inner_href:
+                            continue
+                        new_stack = ce.Stack.read(inner_href)
+                        set_inner_fields(new_stack, header, hc)
+                        prev_stack = new_stack
+
+            except Exception as exc:
+                self.logger.warning(
+                    "device SRH stack insert failed for '%s': %s"
+                    % (flow.name, exc)
+                )
+
+    def _set_srh_restpy_fields(self, srh_stack, header, srh_type, next_header):
+        """Set field values on a newly AppendProtocol-created SRH stack."""
+        routing = header.routing
+        is_usid = routing.choice == "segment_routing_usid"
+        srh = (
+            routing.segment_routing_usid if is_usid else routing.segment_routing
+        )
+
+        n_segs = len(list(srh.segment_list))
+        tlv_units = 0 if is_usid else 8
+        hdr_ext_len = n_segs * 2 + tlv_units
+
+        def find_set(fid_substr, value):
+            for f in srh_stack.Field.find():
+                if fid_substr in (f.FieldTypeId or ""):
+                    f.Auto = False
+                    f.SingleValue = str(value)
+                    return
+
+        def pat_val(pat_obj):
+            if pat_obj is None:
+                return None
+            choice = (
+                pat_obj.get("choice") if hasattr(pat_obj, "get") else None
+            )
+            if choice not in ("value", None):
+                return None
+            return getattr(pat_obj, "value", None)
+
+        # RestPy FieldTypeId omits the numeric index suffix used in importConfig
+        # aliases (e.g., FieldTypeId is "segmentsLeft", not "segmentsLeft-4").
+        find_set("nextHeader", next_header)
+        find_set("hdrExtLen", hdr_ext_len)
+
+        v = pat_val(srh.get("segments_left", True))
+        if v is not None:
+            find_set("segmentsLeft", v)
+
+        v = pat_val(srh.get("last_entry", True))
+        if v is not None:
+            find_set("lastEntry", v)
+
+        if not is_usid:
+            flags = srh.get("flags", True)
+            if flags is not None:
+                v = pat_val(flags.get("protected", True))
+                if v is not None:
+                    find_set("pFlag", v)
+                v = pat_val(flags.get("alert", True))
+                if v is not None:
+                    find_set("aFlag", v)
+
+        v = pat_val(srh.get("tag", True))
+        if v is not None:
+            find_set("tag", v)
+
+        if not is_usid:
+            seg_fields = [
+                f for f in srh_stack.Field.find()
+                if "segmentList.ipv6SID" in (f.FieldTypeId or "")
+            ]
+            for k, seg in enumerate(srh.segment_list):
+                if k >= len(seg_fields):
+                    break
+                v = pat_val(seg.get("segment", True))
+                if v is not None:
+                    seg_fields[k].OptionalEnabled = True
+                    seg_fields[k].Auto = False
+                    seg_fields[k].SingleValue = str(v)
 
     def _process_latency(self, latency):
         if self.latency_mode is None:
@@ -1591,13 +1809,32 @@ class TrafficItem(CustomField):
                 raise SnappiIxnException("400", msg)
             stack_names.append(name)
 
+        # Count how many of each choice appear in snappi_packet.  SRH flows can
+        # have duplicate header types (outer IPv6 + inner IPv6); we must not
+        # deduplicate them — each occurrence needs its own IxN stack entry.
+        snappi_choice_cnt = {}
+        for h in snappi_packet:
+            c = h.parent.choice
+            snappi_choice_cnt[c] = snappi_choice_cnt.get(c, 0) + 1
+        existing_choice_cnt = {}
+        for s in stack_names:
+            existing_choice_cnt[s] = existing_choice_cnt.get(s, 0) + 1
+
         for index, header in enumerate(snappi_packet):
             choice = header.parent.choice
-            if choice not in stack_names:
+            need = snappi_choice_cnt.get(choice, 0)
+            have = existing_choice_cnt.get(choice, 0)
+            if have < need:
                 if choice == "vlan":
                     stack_names.insert(index, choice)
                 else:
                     stack_names.append(choice)
+                existing_choice_cnt[choice] = have + 1
+
+        # Track which snappi_packet indices have been consumed so that duplicate
+        # header types (e.g. two IPv6 headers) are matched in order.
+        consumed = set()
+        inside_srh = False
         for index, stack in enumerate(stack_names):
             ixn_header_name = self._HEADER_TO_TYPE.get(
                 self._getUhdHeader(stack)
@@ -1610,12 +1847,40 @@ class TrafficItem(CustomField):
             if stack == "payloadProtocolType":
                 self._append_header(xpath, stacks)
             elif stack in snappi_stack_names:
-                ind = snappi_stack_names.index(stack)
-                snappi_packet[ind]
-                self._append_header(xpath, stacks, snappi_packet[ind])
+                # Find the first unconsumed snappi_packet entry with this choice
+                pkt_hdr = None
+                pkt_ind = None
+                for j, h in enumerate(snappi_packet):
+                    if h.parent.choice == stack and j not in consumed:
+                        pkt_hdr = snappi_packet[j]
+                        pkt_ind = j
+                        consumed.add(j)
+                        break
+                if pkt_hdr is None:
+                    self._append_header(xpath, stacks,
+                                        getattr(snappi.FlowHeader(), stack))
+                elif self._getUhdHeader(pkt_hdr.parent.choice) == "ipv6_extension_header":
+                    # SRH: delegate to the same handler used for raw (port) flows
+                    next_hdr = 59
+                    if pkt_ind + 1 < len(snappi_packet):
+                        nc = self._getUhdHeader(
+                            snappi_packet[pkt_ind + 1].parent.choice
+                        )
+                        next_hdr = {"ipv4": 4, "ipv6": 41}.get(nc, 59)
+                    self._configure_srv6_stack(
+                        xpath, stacks, pkt_hdr, next_header=next_hdr
+                    )
+                    inside_srh = True
+                else:
+                    # Inner stacks after an SRH need raw-traffic field treatment
+                    # so that auto-computed length/offset fields are forced.
+                    self._append_header(
+                        xpath, stacks, pkt_hdr,
+                        is_raw_traffic=inside_srh,
+                    )
             else:
-                header = getattr(snappi.FlowHeader(), stack)
-                self._append_header(xpath, stacks, header)
+                self._append_header(xpath, stacks,
+                                    getattr(snappi.FlowHeader(), stack))
         return stacks
 
     def _append_header(
