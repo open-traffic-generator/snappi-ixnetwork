@@ -57,10 +57,14 @@ class IxNetObjects(object):
                 continue
             if name not in self._ixnet_infos:
                 continue
-            # Same name may present within different object structure
-            old_keys = sorted(self._ixnet_infos[name].ixnobject)
+            existing = self._ixnet_infos[name]
+            # A previously-registered object with a *usable* xpath under a
+            # genuinely different structure must not be clobbered. But a member
+            # whose own node was compacted away (empty xpath) must inherit the
+            # representative node's xpath + instance index.
+            old_keys = sorted(existing.ixnobject)
             keys = sorted(ixnobject)
-            if old_keys != keys:
+            if old_keys != keys and existing.xpath:
                 continue
             set_names.append(name)
             self._ixnet_infos[name] = IxNetInfo(

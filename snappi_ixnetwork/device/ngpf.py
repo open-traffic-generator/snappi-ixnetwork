@@ -317,7 +317,9 @@ class Ngpf(Base):
                     )
                 )
             else:
-                ixn_obj_idx_list[route_info].extend(
+                # Index by the matched existing key (ixn_obj), not by the
+                # current route_info which is not yet a key in the dict.
+                ixn_obj_idx_list[ixn_obj].extend(
                     list(
                         range(
                             route_info.index,
