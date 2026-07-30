@@ -521,13 +521,16 @@ class TrafficItem(CustomField):
             "arg5": True,
         }
         try:
-            # TODO for larger config rest api is throwing error,
-            # with no url found, when the first response is 202 (in-progress)
-            # its keep checking the status of the url with 1 sec sleep, and
-            # after a while error is thrown. but could see the configuration
-            # applied at Ixnetwork. (Need to check with Eng team)
             response = self._api._request("POST", url=url, payload=payload)
-        except Exception:
+        except Exception as e:
+            # For large traffic configs the REST API can return a 202
+            # (in-progress) and then fail to resolve the polling URL.
+            # IxNetwork typically applies the configuration successfully
+            # despite this error, so we log a warning and continue.
+            self.logger.warning(
+                "Traffic config import request failed; the configuration "
+                "may still have been applied by IxNetwork. Error: %s" % e
+            )
             return
         self.logger.debug(str(response))
         if (
@@ -668,7 +671,11 @@ class TrafficItem(CustomField):
             cmp_names = set(dev_info.names)
             if len(cmp_names) > 0:
                 inter_names = cmp_names.intersection(set(names))
-                # todo: optimize within scalable
+                # Optimization opportunity: when only a subset of a compacted
+                # device group's names are requested (inter_names < cmp_names),
+                # the current path falls back to per-device scalable_endpoints
+                # entries. A future improvement could batch these into a single
+                # endpoint range entry to reduce payload size.
                 if len(inter_names) == len(cmp_names):
                     endpoints.append(xpath)
                     gen_name = inter_names
@@ -1411,8 +1418,11 @@ class TrafficItem(CustomField):
             self.flows_has_loss = []
             self.latency_mode = None
             if ixn_traffic_item.get("trafficItem") is None:
-                # TODO raise Exception
-                return
+                raise SnappiIxnException(
+                    500,
+                    "IxNetwork did not return a trafficItem after Generate(); "
+                    "verify that traffic endpoints are correctly configured.",
+                )
             ixn_traffic_item = ixn_traffic_item.get("trafficItem")
             tr_json = {"traffic": {"xpath": "/traffic", "trafficItem": []}}
             for i, flow in enumerate(self._config.flows):
@@ -1442,8 +1452,9 @@ class TrafficItem(CustomField):
                 self._configure_payload(
                     tr_item["configElement"], flow.get("payload", True)
                 )
-                # TODO: ixNetwork is not creating flow groups for vxlan, remove
-                # hard coding of setting to 1 once the issue is fixed in ixn
+                # IxNetwork does not generate highLevelStream entries for VXLAN
+                # traffic items. Until IxNetwork resolves this, default the
+                # stream count to 1 when the key is absent.
                 if "highLevelStream" not in ixn_traffic_item[i].keys():
                     hl_stream_count = 1
                 else:
@@ -1859,9 +1870,11 @@ class TrafficItem(CustomField):
             if value == "good":
                 choice = "auto"
             else:
-                # TODO currently added some dummy value for bad generated value
-                # Need to add some logic to generate bad value
-                field_json["value"] = "0001"
+                # For a bad checksum/CRC, disable auto-computation and inject
+                # a fixed incorrect value so IxNetwork transmits a corrupt
+                # field instead of computing the correct one.
+                field_json["valueType"] = "singleValue"
+                field_json["singleValue"] = "0001"
         if choice == "custom":
             value = snappi_field.get(choice)
             field_json[ixn_pattern[choice]] = value
@@ -2366,9 +2379,11 @@ class TrafficItem(CustomField):
                                 row[internal_name],
                                 external_type,
                             )
-                        except Exception:
-                            # TODO print a warning maybe ?
-                            pass
+                        except Exception as e:
+                            self.logger.warning(
+                                "Could not set result value for column "
+                                "'%s': %s" % (external_name, e)
+                            )
                     if name in self.flows_has_latency:
                         self._construct_latency(flow_row, row)
                     if name in self.flows_has_timestamp:
@@ -2407,9 +2422,11 @@ class TrafficItem(CustomField):
                                 row[internal_name],
                                 external_type,
                             )
-                        except Exception:
-                            # TODO print a warning maybe ?
-                            pass
+                        except Exception as e:
+                            self.logger.warning(
+                                "Could not set result value for column "
+                                "'%s': %s" % (external_name, e)
+                            )
                     if name in self.flows_has_latency:
                         self._construct_latency(flow_row, row)
                     if name in self.flows_has_timestamp:
@@ -2555,11 +2572,10 @@ class TrafficItem(CustomField):
                             external_type,
                         )
                     except Exception as exception_err:
-                        # TODO print a warning maybe ?
-                        self.logger.debug(
-                            "set result value: error: %s" % exception_err
+                        self.logger.warning(
+                            "Could not set result value for column "
+                            "'%s': %s" % (external_name, exception_err)
                         )
-                        pass
                 if len(result_flow_row) > 0:
                     per_port_mt_dict_result = self.port_egress_only_tracking[
                         port_rx
@@ -2815,9 +2831,11 @@ class TrafficItem(CustomField):
                             row[internal_name],
                             external_type,
                         )
-                    except Exception:
-                        # TODO print a warning maybe ?
-                        pass
+                    except Exception as e:
+                        self.logger.warning(
+                            "Could not set result value for column "
+                            "'%s': %s" % (external_name, e)
+                        )
         return list(flow_rows.values())
 
     def delete_configs(self, delete_flows_config):
@@ -2921,8 +2939,11 @@ class TrafficItem(CustomField):
             self.flows_has_loss = []
             self.latency_mode = None
             if ixn_traffic_item.get("trafficItem") is None:
-                # TODO raise Exception
-                return
+                raise SnappiIxnException(
+                    500,
+                    "IxNetwork did not return a trafficItem after Generate(); "
+                    "verify that traffic endpoints are correctly configured.",
+                )
             ixn_traffic_item = ixn_traffic_item.get("trafficItem")
             tr_json = {"traffic": {"xpath": "/traffic", "trafficItem": []}}
             len_app_cfg = len(appcgfs) + 1
@@ -2955,8 +2976,9 @@ class TrafficItem(CustomField):
                 self._configure_payload(
                     tr_item["configElement"], flow.get("payload", True)
                 )
-                # TODO: ixNetwork is not creating flow groups for vxlan, remove
-                # hard coding of setting to 1 once the issue is fixed in ixn
+                # IxNetwork does not generate highLevelStream entries for VXLAN
+                # traffic items. Until IxNetwork resolves this, default the
+                # stream count to 1 when the key is absent.
                 if (
                     "highLevelStream"
                     not in ixn_traffic_item[index - len_app_cfg + i].keys()
