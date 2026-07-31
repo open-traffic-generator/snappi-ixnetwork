@@ -1142,11 +1142,13 @@ class Api(snappi.Api):
                 % self._ixnetwork.href
             )
             payload = {"arg1": glob_topo.href}
-            # todo: Sometime it redirect to some unknown loaction
             try:
                 self._request("POST", url, payload)
-            except Exception:
-                pass
+            except Exception as e:
+                # IxNetwork occasionally redirects to an unknown location
+                # when applying on-the-fly changes; the change is typically
+                # applied successfully despite the redirect error.
+                self.warning("Apply on the fly request failed: %s" % e)
 
     def _start_interface(self):
         topos = self._ixnetwork.Topology.find()

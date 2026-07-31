@@ -589,9 +589,9 @@ class Capture(object):
             ).Capture
             capture.Stop("allTraffic")
 
-            # Internally setting max time_out to 90sec,
-            #  with 3sec polling interval.
-            # Todo: Need to discuss and incorporate time_out field within model
+            # Wait up to 90 seconds (30 retries × 3 s) for the port capture
+            # to reach a ready state. The OTG CaptureRequest model does not
+            # yet include a timeout field, so this polling window is fixed.
             retry_count = 30
             port_ready = True
             for x in range(retry_count):
