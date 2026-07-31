@@ -173,8 +173,8 @@ class ProtocolMetrics(object):
             "ixn_name": "bgpIpv4Peer",
         },
         "bgpv6": {
-            "per_port": "BGP\+ Peer Per Port",
-            "drill_down": "BGP\+ Peer Drill Down",
+            "per_port": "BGP\\+ Peer Per Port",
+            "drill_down": "BGP\\+ Peer Drill Down",
             "drill_down_options": [
                 "BGP+ Peer:Per Device Group",
                 "BGP+ Peer:Per Session",
