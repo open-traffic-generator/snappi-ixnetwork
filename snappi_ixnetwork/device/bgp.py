@@ -303,6 +303,30 @@ class Bgp(Base):
     # Learned-info helpers (used by ngpf.get_bgp_prefix_states)
     # ------------------------------------------------------------------
 
+    # IxNetwork single-char origin → OTG origin string
+    _IXN_ORIGIN_MAP = {
+        "i": "igp",
+        "e": "egp",
+        "?": "incomplete",
+        # accept long-form in case a future IxN version emits them
+        "igp": "igp",
+        "egp": "egp",
+        "incomplete": "incomplete",
+    }
+
+    # Column-name aliases tried in order (first hit wins).  IxNetwork has
+    # varied slightly across versions; this covers the known variants.
+    _V4_ADDR_COLS    = ("IP Address",  "Network Address", "Network")
+    _V6_ADDR_COLS    = ("IPv6 Address", "IP Address", "Network Address", "Network")
+    _NLRI_COLS       = ("NLRI", "Prefix Length", "Prefix")
+    _NH_COLS         = ("Next Hop",    "NextHop",   "Next-Hop")
+    _ORIGIN_COLS     = ("Origin",)
+    _LOCPREF_COLS    = ("Local Pref",  "LocalPref", "Local Preference")
+    _MED_COLS        = ("MED",         "Multi Exit Discriminator")
+    _ASPATH_COLS     = ("AS Path",     "AS-Path",   "AsPath")
+    _COMMUNITY_COLS  = ("Communities", "Community")
+    _PATHID_COLS     = ("Path ID",     "PathId",    "Add Path ID")
+
     def get_bgp_peer_objects(self, peer_names):
         """Return a list of ``(peer_name, restpy_peer_obj, session_index,
         family)`` for every BGP peer that matches *peer_names*.
@@ -439,6 +463,365 @@ class Bgp(Base):
                     }
                     rows.append(row)
         return rows
+
+    # --- static low-level helpers ------------------------------------
+
+    @staticmethod
+    def _get_cell(row, *col_names):
+        """Return the stripped value of the first matching column in *row*,
+        or ``None`` if none of the candidate column names are present."""
+        for name in col_names:
+            val = row.get(name)
+            if val is not None:
+                return val.strip()
+        return None
+
+    @staticmethod
+    def _safe_int(s, default=0):
+        """Convert *s* to ``int``; return *default* on failure."""
+        try:
+            return int(s)
+        except (TypeError, ValueError):
+            return default
+
+    # --- AS-path / community parsers ---------------------------------
+
+    def _parse_as_path(self, cell):
+        """Convert an IxNetwork AS-path string to an OTG ``as_path`` dict.
+
+        Supported input formats::
+
+            "100 200 300"      → single AS_SEQ segment
+            "{100 200} 300"    → AS_SET [100,200] then AS_SEQ [300]
+            "(100 200)"        → AS_CONFED_SEQ segment
+            "[100 200]"        → AS_CONFED_SET segment
+            ""  / "N/A" / "0"  → empty segments list
+        """
+        if not cell or cell.strip().lower() in ("", "n/a", "0"):
+            return {"segments": []}
+
+        segments = []
+        seq_buf = []   # accumulates plain ASNs for the current AS_SEQ
+
+        def _flush_seq():
+            if seq_buf:
+                segments.append({"type": "as_seq",
+                                  "as_numbers": list(seq_buf)})
+                seq_buf.clear()
+
+        i = 0
+        token = cell.strip()
+        while i < len(token):
+            ch = token[i]
+            if ch in ("{", "(", "["):
+                close = {"{"  : "}",
+                         "("  : ")",
+                         "["  : "]"}[ch]
+                seg_type = {"{"  : "as_set",
+                            "("  : "as_confed_seq",
+                            "["  : "as_confed_set"}[ch]
+                _flush_seq()
+                end = token.find(close, i + 1)
+                inner = token[i + 1 : end if end != -1 else len(token)]
+                asns = [int(x) for x in inner.split() if x.isdigit()]
+                segments.append({"type": seg_type, "as_numbers": asns})
+                i = (end + 1) if end != -1 else len(token)
+            else:
+                # Collect plain ASNs up to the next group delimiter
+                next_group = len(token)
+                for delim in ("{", "(", "["):
+                    pos = token.find(delim, i)
+                    if pos != -1 and pos < next_group:
+                        next_group = pos
+                for part in token[i:next_group].split():
+                    if part.isdigit():
+                        seq_buf.append(int(part))
+                i = next_group
+
+        _flush_seq()
+        return {"segments": segments}
+
+    def _parse_communities(self, cell):
+        """Convert an IxNetwork communities string to a list of OTG dicts.
+
+        Handled formats::
+
+            "1:2 3:4"      → two ``manual_as_number`` entries
+            "no-export"    → ``no_export`` well-known entry
+            "no-advertise" → ``no_advertised`` well-known entry
+            "" / "N/A"     → empty list
+        """
+        if not cell or cell.strip().lower() in ("", "n/a"):
+            return []
+
+        _WELL_KNOWN = {
+            "no-export"           : "no_export",
+            "noexport"            : "no_export",
+            "no-advertise"        : "no_advertised",
+            "noadvertise"         : "no_advertised",
+            "no-advertised"       : "no_advertised",
+            "no_export_subconfed" : "no_export_subconfed",
+            "no-export-subconfed" : "no_export_subconfed",
+            "llgr_stale"          : "llgr_stale",
+            "no_llgr"             : "no_llgr",
+        }
+
+        result = []
+        for token in cell.split():
+            lower = token.lower()
+            if lower in _WELL_KNOWN:
+                result.append({"type": _WELL_KNOWN[lower]})
+            elif ":" in token:
+                parts = token.split(":", 1)
+                try:
+                    result.append({
+                        "type"      : "manual_as_number",
+                        "as_number" : int(parts[0]),
+                        "as_custom" : int(parts[1]),
+                    })
+                except (ValueError, IndexError):
+                    self.logger.warning(
+                        "Skipping unrecognised community token: %s" % token
+                    )
+            else:
+                self.logger.warning(
+                    "Skipping unrecognised community token: %s" % token
+                )
+        return result
+
+    # --- row → OTG prefix dict ---------------------------------------
+
+    def _row_to_ipv4_prefix(self, row):
+        """Convert a raw IxNetwork row dict to an OTG IPv4 unicast prefix dict.
+
+        Returns ``None`` when the row lacks address information (e.g. it
+        belongs to a different table type such as IPv4 MPLS).
+        """
+        addr_cell = self._get_cell(row, *self._V4_ADDR_COLS)
+        nlri_cell = self._get_cell(row, *self._NLRI_COLS)
+
+        if not addr_cell:
+            return None
+
+        # Some IxN versions emit a full CIDR in the address column.
+        if "/" in addr_cell:
+            parts = addr_cell.split("/", 1)
+            ipv4_address  = parts[0]
+            prefix_length = self._safe_int(parts[1])
+        else:
+            ipv4_address  = addr_cell
+            prefix_length = self._safe_int(nlri_cell)
+
+        nh_cell = self._get_cell(row, *self._NH_COLS) or ""
+        # Route next-hops that contain ":" are IPv6-mapped next-hops.
+        ipv4_nh = nh_cell if ":" not in nh_cell else None
+        ipv6_nh = nh_cell if ":" in nh_cell else None
+
+        origin_raw = self._get_cell(row, *self._ORIGIN_COLS) or ""
+        origin = self._IXN_ORIGIN_MAP.get(origin_raw.lower())
+
+        prefix = {
+            "ipv4_address"            : ipv4_address,
+            "prefix_length"           : prefix_length,
+            "as_path"                 : self._parse_as_path(
+                self._get_cell(row, *self._ASPATH_COLS)
+            ),
+            "communities"             : self._parse_communities(
+                self._get_cell(row, *self._COMMUNITY_COLS)
+            ),
+        }
+        if origin:
+            prefix["origin"] = origin
+        if ipv4_nh:
+            prefix["ipv4_next_hop"] = ipv4_nh
+        if ipv6_nh:
+            prefix["ipv6_next_hop"] = ipv6_nh
+
+        locpref_val = self._get_cell(row, *self._LOCPREF_COLS)
+        if locpref_val not in (None, "", "N/A"):
+            prefix["local_preference"] = self._safe_int(locpref_val)
+
+        med_val = self._get_cell(row, *self._MED_COLS)
+        if med_val not in (None, "", "N/A"):
+            prefix["multi_exit_discriminator"] = self._safe_int(med_val)
+
+        pid_val = self._get_cell(row, *self._PATHID_COLS)
+        if pid_val not in (None, "", "N/A", "0"):
+            prefix["path_id"] = self._safe_int(pid_val)
+
+        return prefix
+
+    def _row_to_ipv6_prefix(self, row):
+        """Convert a raw IxNetwork row dict to an OTG IPv6 unicast prefix dict.
+
+        Returns ``None`` when the row lacks address information.
+        """
+        addr_cell = self._get_cell(row, *self._V6_ADDR_COLS)
+        nlri_cell = self._get_cell(row, *self._NLRI_COLS)
+
+        if not addr_cell:
+            return None
+
+        if "/" in addr_cell:
+            parts = addr_cell.split("/", 1)
+            ipv6_address  = parts[0]
+            prefix_length = self._safe_int(parts[1])
+        else:
+            ipv6_address  = addr_cell
+            prefix_length = self._safe_int(nlri_cell)
+
+        nh_cell = self._get_cell(row, *self._NH_COLS) or ""
+        ipv6_nh = nh_cell if ":" in nh_cell else None
+        ipv4_nh = nh_cell if ":" not in nh_cell and nh_cell else None
+
+        origin_raw = self._get_cell(row, *self._ORIGIN_COLS) or ""
+        origin = self._IXN_ORIGIN_MAP.get(origin_raw.lower())
+
+        prefix = {
+            "ipv6_address"  : ipv6_address,
+            "prefix_length" : prefix_length,
+            "as_path"       : self._parse_as_path(
+                self._get_cell(row, *self._ASPATH_COLS)
+            ),
+            "communities"   : self._parse_communities(
+                self._get_cell(row, *self._COMMUNITY_COLS)
+            ),
+        }
+        if origin:
+            prefix["origin"] = origin
+        if ipv6_nh:
+            prefix["ipv6_next_hop"] = ipv6_nh
+        if ipv4_nh:
+            prefix["ipv4_next_hop"] = ipv4_nh
+
+        locpref_val = self._get_cell(row, *self._LOCPREF_COLS)
+        if locpref_val not in (None, "", "N/A"):
+            prefix["local_preference"] = self._safe_int(locpref_val)
+
+        med_val = self._get_cell(row, *self._MED_COLS)
+        if med_val not in (None, "", "N/A"):
+            prefix["multi_exit_discriminator"] = self._safe_int(med_val)
+
+        pid_val = self._get_cell(row, *self._PATHID_COLS)
+        if pid_val not in (None, "", "N/A", "0"):
+            prefix["path_id"] = self._safe_int(pid_val)
+
+        return prefix
+
+    # --- filter application ------------------------------------------
+
+    @staticmethod
+    def _prefix_matches_filter(prefix, filt, addr_key):
+        """Return True if *prefix* satisfies all non-None fields of *filt*.
+
+        Missing / None filter fields are treated as wildcards (match all).
+        """
+        addresses = filt.addresses
+        if addresses:
+            if prefix.get(addr_key) not in addresses:
+                return False
+
+        prefix_length = filt.prefix_length
+        if prefix_length is not None:
+            if prefix.get("prefix_length") != prefix_length:
+                return False
+
+        origin = filt.origin
+        if origin is not None:
+            if prefix.get("origin") != origin:
+                return False
+
+        path_id = filt.path_id
+        if path_id is not None:
+            if prefix.get("path_id", 0) != path_id:
+                return False
+
+        return True
+
+    def _apply_v4_filters(self, prefixes, filters):
+        """Return prefixes that match at least one IPv4 unicast filter.
+
+        An empty *filters* list (or ``None``) means no restriction: all
+        prefixes are returned.  Multiple filters are OR-ed; within each
+        filter, fields are AND-ed.
+        """
+        if not filters:
+            return prefixes
+        return [
+            p for p in prefixes
+            if any(
+                self._prefix_matches_filter(p, f, "ipv4_address")
+                for f in filters
+            )
+        ]
+
+    def _apply_v6_filters(self, prefixes, filters):
+        """Return prefixes that match at least one IPv6 unicast filter.
+
+        Semantics identical to :meth:`_apply_v4_filters`.
+        """
+        if not filters:
+            return prefixes
+        return [
+            p for p in prefixes
+            if any(
+                self._prefix_matches_filter(p, f, "ipv6_address")
+                for f in filters
+            )
+        ]
+
+    # --- public orchestrator -----------------------------------------
+
+    def get_learned_prefixes(self, peer_obj, session_index, family,
+                             bgp_prefix_request):
+        """Fetch and translate learned prefixes for one peer session.
+
+        Calls :meth:`_get_learned_table` to retrieve raw IxNetwork rows,
+        converts each row to an OTG prefix dict, then applies any
+        unicast filters present in *bgp_prefix_request*.
+
+        Parameters
+        ----------
+        peer_obj :
+            Live RestPy ``bgpIpv4Peer`` or ``bgpIpv6Peer`` object.
+        session_index : int
+            1-based session index (from :meth:`get_bgp_peer_objects`).
+        family : str
+            ``"v4"`` or ``"v6"``.
+        bgp_prefix_request :
+            Snappi ``BgpPrefixStateRequest`` (``request.bgp_prefixes``).
+            May be ``None`` when called without filter context.
+
+        Returns
+        -------
+        list[dict]
+            OTG-shaped prefix dicts ready for serialisation into
+            ``BgpPrefixIpv4/6UnicastState``.
+        """
+        rows = self._get_learned_table(peer_obj, session_index, family)
+
+        if family == "v4":
+            prefixes = [
+                p for p in (self._row_to_ipv4_prefix(r) for r in rows)
+                if p is not None
+            ]
+            filters = (
+                bgp_prefix_request.ipv4_unicast_filters
+                if bgp_prefix_request is not None
+                else None
+            )
+            return self._apply_v4_filters(prefixes, filters)
+        else:
+            prefixes = [
+                p for p in (self._row_to_ipv6_prefix(r) for r in rows)
+                if p is not None
+            ]
+            filters = (
+                bgp_prefix_request.ipv6_unicast_filters
+                if bgp_prefix_request is not None
+                else None
+            )
+            return self._apply_v6_filters(prefixes, filters)
 
     def _configure_route(self, route, ixn_route):
         self._ngpf.set_ixn_routes(route, ixn_route)
