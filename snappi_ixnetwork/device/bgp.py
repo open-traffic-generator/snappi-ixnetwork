@@ -1,3 +1,5 @@
+import time
+
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.device.bgpevpn import BgpEvpn
@@ -98,6 +100,15 @@ class Bgp(Base):
         "as_set": "asset",
         "as_confed_seq": "asseqconfederation",
         "as_confed_set": "assetconfederation",
+    }
+
+    # OTG learned_information_filter → IxNetwork filterIpV*/filterIpV* Multivalue.
+    # Enabling a filter instructs IxNetwork to capture that route family in
+    # learnedInfo.  Without at least one filter set to True the server stores
+    # nothing and GetIPv4/6LearnedInfo returns empty results.
+    _LEARNED_INFO_FILTER = {
+        "unicast_ipv4_prefix": "filterIpV4Unicast",
+        "unicast_ipv6_prefix": "filterIpV6Unicast",
     }
 
     def __init__(self, ngpf):
@@ -214,6 +225,11 @@ class Bgp(Base):
                 )
             self._bgp_route_builder(bgp_peer, ixn_bgpv4)
             self._bgp_evpn.config(bgp_peer, ixn_bgpv4)
+            lif = bgp_peer.get("learned_information_filter")
+            if lif is not None:
+                self.configure_multivalues(
+                    lif, ixn_bgpv4, Bgp._LEARNED_INFO_FILTER
+                )
 
     def _config_bgpv6(self, bgp_peers, ixn_ipv6):
         self.logger.debug("Configuring BGPv6 Peer")
@@ -239,6 +255,11 @@ class Bgp(Base):
                 )
             self._bgp_route_builder(bgp_peer, ixn_bgpv6)
             self._bgp_evpn.config(bgp_peer, ixn_bgpv6)
+            lif = bgp_peer.get("learned_information_filter")
+            if lif is not None:
+                self.configure_multivalues(
+                    lif, ixn_bgpv6, Bgp._LEARNED_INFO_FILTER
+                )
 
     def _bgp_route_builder(self, bgp_peer, ixn_bgp):
         v4_routes = bgp_peer.get("v4_routes")
@@ -316,8 +337,8 @@ class Bgp(Base):
 
     # Column-name aliases tried in order (first hit wins).  IxNetwork has
     # varied slightly across versions; this covers the known variants.
-    _V4_ADDR_COLS    = ("IP Address",  "Network Address", "Network")
-    _V6_ADDR_COLS    = ("IPv6 Address", "IP Address", "Network Address", "Network")
+    _V4_ADDR_COLS    = ("IPv4 Prefix", "IP Address",  "Network Address", "Network", "Network Prefix")
+    _V6_ADDR_COLS    = ("IPv6 Address", "IPv6 Prefix", "IP Address", "Network Address", "Network")
     _NLRI_COLS       = ("NLRI", "Prefix Length", "Prefix")
     _NH_COLS         = ("Next Hop",    "NextHop",   "Next-Hop")
     _ORIGIN_COLS     = ("Origin",)
@@ -353,18 +374,20 @@ class Bgp(Base):
         results = []
 
         topologies = self._ngpf.api._ixnetwork.Topology.find()
-        bgpv4_peers = (
-            topologies.DeviceGroup.find()
-            .Ethernet.find()
-            .Ipv4.find()
-            .BgpIpv4Peer.find()
-        )
-        bgpv6_peers = (
-            topologies.DeviceGroup.find()
-            .Ethernet.find()
-            .Ipv6.find()
-            .BgpIpv6Peer.find()
-        )
+        dg_chain = topologies.DeviceGroup.find().Ethernet.find()
+
+        try:
+            bgpv4_peers = dg_chain.Ipv4.find().BgpIpv4Peer.find()
+        except Exception:
+            # No IPv4 interfaces in the current topology (e.g. IPv6-only test).
+            bgpv4_peers = []
+
+        try:
+            bgpv6_peers = dg_chain.Ipv6.find().BgpIpv6Peer.find()
+        except Exception:
+            # No IPv6 interfaces in the current topology (e.g. IPv4-only test).
+            bgpv6_peers = []
+
         for peer_obj in bgpv4_peers:
             self._collect_peer_entries(
                 peer_obj, "v4", requested, ixn_object_names, results
@@ -408,60 +431,75 @@ class Bgp(Base):
             results.append((name, peer_obj, idx + 1, family))
 
     def _get_learned_table(self, peer_obj, session_index, family):
-        """Refresh learned-info for *session_index* and return the rows.
+        """Trigger learned-info fetch and return rows as column-keyed dicts.
 
-        Calls ``GetIPv4LearnedInfo`` (or v6 equivalent) on the RestPy peer
-        object to request a data refresh from IxNetwork, then reads the
-        resulting ``LearnedInfo → Table`` hierarchy and converts each row
-        into a ``{column_name: value_str}`` dict.
+        Implements the RestPy pattern from the official IxNetwork sample
+        ``samples/protocols/bgp_learned_info.py``::
+
+            bgp.GetAllLearnedInfo()
+            learned_info_table = bgp.LearnedInfo.find().Table.find()
+
+        ``GetAllLearnedInfo`` (not ``GetIPv4/6LearnedInfo``) is the operation
+        that populates the ``Table`` child resource.  ``GetIPv4/6LearnedInfo``
+        only updates the deprecated inline ``Columns``/``Values`` fields which
+        are no longer written in IxNetwork 10.x.
 
         Parameters
         ----------
-        peer_obj : restpy bgpIpv4Peer or bgpIpv6Peer
-            Live RestPy peer object returned by
-            ``get_bgp_peer_objects``.
+        peer_obj :
+            Live RestPy ``bgpIpv4Peer`` or ``bgpIpv6Peer`` object.
         session_index : int
-            1-based session index within *peer_obj*.
+            Informational; the trigger covers all sessions on *peer_obj*.
         family : str
-            ``"v4"`` for IPv4 unicast; ``"v6"`` for IPv6 unicast.
+            ``"v4"`` or ``"v6"``.
 
         Returns
         -------
         list[dict[str, str]]
-            One dict per prefix row; keys are the IxNetwork column headers.
-            Returns an empty list when the peer is not yet started or on
-            any error.
+            One ``{column_name: value_str}`` dict per prefix row.
         """
+        # --- Step 1: trigger the learned-info fetch -----------------------
+        # Equivalent to right-click → "Get Learned Info" in the GUI.
         try:
-            if family == "v4":
-                peer_obj.GetIPv4LearnedInfo(
-                    SessionIndices=[session_index]
-                )
-            else:
-                peer_obj.GetIPv6LearnedInfo(
-                    SessionIndices=[session_index]
-                )
+            peer_obj.GetAllLearnedInfo()
         except Exception as e:
             self.logger.warning(
-                "GetIPv%sLearnedInfo failed for session %d: %s"
-                % ("4" if family == "v4" else "6", session_index, e)
+                "GetAllLearnedInfo failed for peer %r: %s"
+                % (peer_obj.Name, e)
             )
             return []
 
+        # --- Step 2: read LearnedInfo.find().Table.find() -----------------
         rows = []
-        for li in peer_obj.LearnedInfo.find():
-            for table in li.Table.find():
-                columns = table.Columns
-                if not columns:
-                    continue
-                col_idx = {col: i for i, col in enumerate(columns)}
-                for row_vals in (table.Values or []):
-                    row = {
-                        col: row_vals[i]
-                        for col, i in col_idx.items()
-                        if i < len(row_vals)
-                    }
-                    rows.append(row)
+        try:
+            for li in peer_obj.LearnedInfo.find():
+                for table in li.Table.find():
+                    columns = table.Columns
+                    if not columns:
+                        continue
+                    self.logger.warning(
+                        "_get_learned_table: peer=%r Type=%r "
+                        "Columns=%r RowCount=%d"
+                        % (peer_obj.Name, table.Type,
+                           columns, len(table.Values or []))
+                    )
+                    col_idx = {col: i for i, col in enumerate(columns)}
+                    for row_vals in (table.Values or []):
+                        rows.append({
+                            col: row_vals[i]
+                            for col, i in col_idx.items()
+                            if i < len(row_vals)
+                        })
+        except Exception as e:
+            self.logger.warning(
+                "_get_learned_table: Table.find() failed for peer %r: %s"
+                % (peer_obj.Name, e)
+            )
+
+        self.logger.warning(
+            "_get_learned_table: peer=%r family=%s total_rows=%d"
+            % (peer_obj.Name, family, len(rows))
+        )
         return rows
 
     # --- static low-level helpers ------------------------------------
@@ -810,6 +848,8 @@ class Bgp(Base):
                 if bgp_prefix_request is not None
                 else None
             )
+            print("Prefixes before filter: ", prefixes)
+            print("Filters: ", filters)
             return self._apply_v4_filters(prefixes, filters)
         else:
             prefixes = [
