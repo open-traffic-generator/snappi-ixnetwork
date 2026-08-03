@@ -403,12 +403,59 @@ class Ngpf(Base):
                 request.ipv6_neighbors,
                 "ipv6",
             )
+        elif request.choice == "bgp_prefixes":
+            return self.get_bgp_prefix_states(request)
         else:
             raise TypeError(
-                "get_states only accept ipv4_neighbors or ipv6_neighbors"
+                "get_states only accept ipv4_neighbors, ipv6_neighbors"
+                " or bgp_prefixes"
             )
 
         return {"choice": request.choice, request.choice: resolved_mac_list}
+
+    def get_bgp_prefix_states(self, request):
+        """Return learned BGP prefix state for all requested peers.
+
+        Implements the ``bgp_prefixes`` choice of
+        ``StatesRequest`` / ``StatesResponse`` on the IxNetwork backend.
+
+        Parameters
+        ----------
+        request : StatesRequest
+            The fully-deserialised snappi ``StatesRequest`` object whose
+            ``choice`` is ``"bgp_prefixes"``.
+
+        Returns
+        -------
+        dict
+            ``{"choice": "bgp_prefixes", "bgp_prefixes": [...]}``, where
+            each list entry is an OTG ``BgpPrefixesState`` dict.
+        """
+        bgp_prefix_req = request.bgp_prefixes
+        peer_names = bgp_prefix_req.bgp_peer_names or []
+        self.logger.debug(
+            "get_bgp_prefix_states peer_names=%s" % peer_names
+        )
+
+        peer_entries = self._bgp.get_bgp_peer_objects(peer_names)
+
+        results = []
+        for peer_name, peer_obj, session_index, family in peer_entries:
+            self.logger.debug(
+                "Fetching learned prefixes: peer=%s session=%d family=%s"
+                % (peer_name, session_index, family)
+            )
+            prefixes = self._bgp.get_learned_prefixes(
+                peer_obj, session_index, family, bgp_prefix_req
+            )
+            entry = {"bgp_peer_name": peer_name}
+            if family == "v4":
+                entry["ipv4_unicast_prefixes"] = prefixes
+            else:
+                entry["ipv6_unicast_prefixes"] = prefixes
+            results.append(entry)
+
+        return {"choice": "bgp_prefixes", "bgp_prefixes": results}
 
     def _get_ether_resolved_mac(
         self, ip_objs, ether_gateway_map, ip_neighbors, choice
