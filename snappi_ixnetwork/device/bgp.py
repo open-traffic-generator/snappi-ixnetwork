@@ -299,6 +299,147 @@ class Bgp(Base):
                 self._ngpf.set_device_info(route, ixn_ip_pool)
                 self._configure_route(route, ixn_route)
 
+    # ------------------------------------------------------------------
+    # Learned-info helpers (used by ngpf.get_bgp_prefix_states)
+    # ------------------------------------------------------------------
+
+    def get_bgp_peer_objects(self, peer_names):
+        """Return a list of ``(peer_name, restpy_peer_obj, session_index,
+        family)`` for every BGP peer that matches *peer_names*.
+
+        Parameters
+        ----------
+        peer_names : list[str]
+            Snappi peer names to query.  An empty list means *all* configured
+            BGP peers.
+
+        Returns
+        -------
+        list of (str, restpy_obj, int, str)
+            *session_index* is 1-based (as required by
+            ``GetIPv4/6LearnedInfo``).  *family* is ``"v4"`` or ``"v6"``.
+
+        Raises
+        ------
+        Exception
+            If any name in *peer_names* is not found in the live topology.
+        """
+        requested = set(peer_names) if peer_names else None
+        ixn_object_names = set(self._ngpf.api.ixn_objects.names)
+        results = []
+
+        topologies = self._ngpf.api._ixnetwork.Topology.find()
+        bgpv4_peers = (
+            topologies.DeviceGroup.find()
+            .Ethernet.find()
+            .Ipv4.find()
+            .BgpIpv4Peer.find()
+        )
+        bgpv6_peers = (
+            topologies.DeviceGroup.find()
+            .Ethernet.find()
+            .Ipv6.find()
+            .BgpIpv6Peer.find()
+        )
+        for peer_obj in bgpv4_peers:
+            self._collect_peer_entries(
+                peer_obj, "v4", requested, ixn_object_names, results
+            )
+        for peer_obj in bgpv6_peers:
+            self._collect_peer_entries(
+                peer_obj, "v6", requested, ixn_object_names, results
+            )
+
+        if requested:
+            found = {r[0] for r in results}
+            missing = sorted(requested - found)
+            if missing:
+                raise Exception(
+                    "BGP peer(s) not found in topology: %s" % missing
+                )
+        return results
+
+    def _collect_peer_entries(
+        self, peer_obj, family, requested, ixn_object_names, results
+    ):
+        """Append ``(name, peer_obj, session_idx, family)`` to *results*.
+
+        Handles both non-compacted (single-session) and compacted
+        (multi-session scalable) peers.  For compacted peers the
+        ``ixn_objects`` entry for the root name carries the full ``names``
+        list; each name's 0-based position in that list is its session
+        index.  *session_idx* is 1-based.
+        """
+        root_name = peer_obj.Name
+        if root_name not in ixn_object_names:
+            return
+        ixn_info = self._ngpf.api.ixn_objects.get(root_name)
+        # Non-compacted peers have names=[]; treat root_name as the sole entry.
+        names = ixn_info.names if ixn_info.names else [root_name]
+        for idx, name in enumerate(names):
+            if name is None or name not in ixn_object_names:
+                continue
+            if requested is not None and name not in requested:
+                continue
+            results.append((name, peer_obj, idx + 1, family))
+
+    def _get_learned_table(self, peer_obj, session_index, family):
+        """Refresh learned-info for *session_index* and return the rows.
+
+        Calls ``GetIPv4LearnedInfo`` (or v6 equivalent) on the RestPy peer
+        object to request a data refresh from IxNetwork, then reads the
+        resulting ``LearnedInfo → Table`` hierarchy and converts each row
+        into a ``{column_name: value_str}`` dict.
+
+        Parameters
+        ----------
+        peer_obj : restpy bgpIpv4Peer or bgpIpv6Peer
+            Live RestPy peer object returned by
+            ``get_bgp_peer_objects``.
+        session_index : int
+            1-based session index within *peer_obj*.
+        family : str
+            ``"v4"`` for IPv4 unicast; ``"v6"`` for IPv6 unicast.
+
+        Returns
+        -------
+        list[dict[str, str]]
+            One dict per prefix row; keys are the IxNetwork column headers.
+            Returns an empty list when the peer is not yet started or on
+            any error.
+        """
+        try:
+            if family == "v4":
+                peer_obj.GetIPv4LearnedInfo(
+                    SessionIndices=[session_index]
+                )
+            else:
+                peer_obj.GetIPv6LearnedInfo(
+                    SessionIndices=[session_index]
+                )
+        except Exception as e:
+            self.logger.warning(
+                "GetIPv%sLearnedInfo failed for session %d: %s"
+                % ("4" if family == "v4" else "6", session_index, e)
+            )
+            return []
+
+        rows = []
+        for li in peer_obj.LearnedInfo.find():
+            for table in li.Table.find():
+                columns = table.Columns
+                if not columns:
+                    continue
+                col_idx = {col: i for i, col in enumerate(columns)}
+                for row_vals in (table.Values or []):
+                    row = {
+                        col: row_vals[i]
+                        for col, i in col_idx.items()
+                        if i < len(row_vals)
+                    }
+                    rows.append(row)
+        return rows
+
     def _configure_route(self, route, ixn_route):
         self._ngpf.set_ixn_routes(route, ixn_route)
         self.configure_multivalues(route, ixn_route, Bgp._ROUTE)
