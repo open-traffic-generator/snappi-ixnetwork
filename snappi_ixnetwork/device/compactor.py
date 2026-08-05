@@ -85,7 +85,12 @@ class Compactor(object):
             if key == "name":
                 parent[key] = self._get_names(parent)
                 self._api.ixn_objects.set_scalable(parent)
-                self._api.ixn_routes.set_scalable(parent)
+                # ixn_routes entries must be updated even when the key sets
+                # of the pre-compaction member node and the representative
+                # differ (data-dependent IPv6 divergence).  The compactor
+                # walks top-down so the last write is always the route
+                # property node — the correct one.
+                self._api.ixn_routes.set_scalable(parent, strict_key_match=False)
                 continue
             if isinstance(value, list):
                 for val in value:
