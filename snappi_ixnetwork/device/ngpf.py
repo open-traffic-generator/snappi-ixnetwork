@@ -317,7 +317,7 @@ class Ngpf(Base):
                     )
                 )
             else:
-                ixn_obj_idx_list[route_info].extend(
+                ixn_obj_idx_list[ixn_obj].extend(
                     list(
                         range(
                             route_info.index,
