@@ -187,7 +187,6 @@ def _bgpv6_sessions_up(api, expected_count=2):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
-@pytest.mark.skip("Not Implemented: learned-prefix state for BGP peers")
 def test_bgp_prefix_states_ipv4_b2b(api, b2b_raw_config, utils):
     """
     Verify IPv4 unicast learned-prefix state is returned per BGP peer.
@@ -214,11 +213,9 @@ def test_bgp_prefix_states_ipv4_b2b(api, b2b_raw_config, utils):
     req.bgp_prefixes.bgp_peer_names = ["bgpv4_peer2"]
     states = api.get_states(req)
 
-    print("states: {}".format(states))
     assert len(states.bgp_prefixes) == 1
     peer_state = states.bgp_prefixes[0]
     assert peer_state.bgp_peer_name == "bgpv4_peer2"
-    print("peer_state: {}".format(peer_state))
 
     prefixes = peer_state.ipv4_unicast_prefixes
     assert len(prefixes) == 5
@@ -240,7 +237,6 @@ def test_bgp_prefix_states_ipv4_b2b(api, b2b_raw_config, utils):
     assert any(c.as_number == 1 for c in p.communities)
 
 
-@pytest.mark.skip("Not Implemented: learned-prefix state for BGP peers")
 def test_bgp_prefix_states_all_peers_b2b(api, b2b_raw_config, utils):
     """
     Empty bgp_peer_names must return learned-prefix state for every
@@ -260,6 +256,7 @@ def test_bgp_prefix_states_all_peers_b2b(api, b2b_raw_config, utils):
     )
 
     req = api.states_request()
+    req.choice = "bgp_prefixes"
     # Leave bgp_peer_names empty → should return both peers
     states = api.get_states(req)
 

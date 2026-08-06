@@ -337,15 +337,17 @@ class Bgp(Base):
 
     # Column-name aliases tried in order (first hit wins).  IxNetwork has
     # varied slightly across versions; this covers the known variants.
-    _V4_ADDR_COLS    = ("IPv4 Prefix", "IP Address",  "Network Address", "Network", "Network Prefix")
+    _V4_ADDR_COLS    = ("IPv4 Prefix",)
     _V6_ADDR_COLS    = ("IPv6 Address", "IPv6 Prefix", "IP Address", "Network Address", "Network")
-    _NLRI_COLS       = ("NLRI", "Prefix Length", "Prefix")
+    _NLRI_COLS       = ("Prefix Length",)
     _NH_COLS         = ("Next Hop",    "NextHop",   "Next-Hop")
+    _V4_NH_COLS      = ("IPv4 Next Hop",)
+    _V6_NH_COLS      = ("Ipv6 Next Hop",)
     _ORIGIN_COLS     = ("Origin",)
-    _LOCPREF_COLS    = ("Local Pref",  "LocalPref", "Local Preference")
+    _LOCPREF_COLS    = ("Local Preference", "Local Pref", "LocalPref")
     _MED_COLS        = ("MED",         "Multi Exit Discriminator")
     _ASPATH_COLS     = ("AS Path",     "AS-Path",   "AsPath")
-    _COMMUNITY_COLS  = ("Communities", "Community")
+    _COMMUNITY_COLS  = ("Community",   "Communities")
     _PATHID_COLS     = ("Path ID",     "PathId",    "Add Path ID")
 
     def get_bgp_peer_objects(self, peer_names):
@@ -477,13 +479,13 @@ class Bgp(Base):
                     columns = table.Columns
                     if not columns:
                         continue
-                    self.logger.warning(
-                        "_get_learned_table: peer=%r Type=%r "
-                        "Columns=%r RowCount=%d"
-                        % (peer_obj.Name, table.Type,
-                           columns, len(table.Values or []))
-                    )
-                    col_idx = {col: i for i, col in enumerate(columns)}
+                    # self.logger.warning(
+                    #     "_get_learned_table: peer=%r Type=%r "
+                    #     "Columns=%r RowCount=%d"
+                    #     % (peer_obj.Name, table.Type,
+                    #        columns, len(table.Values or []))
+                    # )
+                    col_idx = {col.strip(): i for i, col in enumerate(columns)}
                     for row_vals in (table.Values or []):
                         rows.append({
                             col: row_vals[i]
@@ -495,11 +497,6 @@ class Bgp(Base):
                 "_get_learned_table: Table.find() failed for peer %r: %s"
                 % (peer_obj.Name, e)
             )
-
-        self.logger.warning(
-            "_get_learned_table: peer=%r family=%s total_rows=%d"
-            % (peer_obj.Name, family, len(rows))
-        )
         return rows
 
     # --- static low-level helpers ------------------------------------
@@ -551,13 +548,15 @@ class Bgp(Base):
         token = cell.strip()
         while i < len(token):
             ch = token[i]
-            if ch in ("{", "(", "["):
-                close = {"{"  : "}",
-                         "("  : ")",
-                         "["  : "]"}[ch]
-                seg_type = {"{"  : "as_set",
-                            "("  : "as_confed_seq",
-                            "["  : "as_confed_set"}[ch]
+            if ch in ("{", "(", "[", "<"):
+                close = {"{": "}",
+                         "(": ")",
+                         "[": "]",
+                         "<": ">"}[ch]
+                seg_type = {"{": "as_set",
+                            "(": "as_confed_seq",
+                            "[": "as_confed_set",
+                            "<": "as_seq"}[ch]
                 _flush_seq()
                 end = token.find(close, i + 1)
                 inner = token[i + 1 : end if end != -1 else len(token)]
@@ -567,7 +566,7 @@ class Bgp(Base):
             else:
                 # Collect plain ASNs up to the next group delimiter
                 next_group = len(token)
-                for delim in ("{", "(", "["):
+                for delim in ("{", "(", "[", "<"):
                     pos = token.find(delim, i)
                     if pos != -1 and pos < next_group:
                         next_group = pos
@@ -592,16 +591,21 @@ class Bgp(Base):
         if not cell or cell.strip().lower() in ("", "n/a"):
             return []
 
+        # IxNetwork sometimes emits spaces around the colon, e.g. "1 : 2".
+        # Normalise to "1:2" before tokenising.
+        import re
+        cell = re.sub(r'\s*:\s*', ':', cell)
+
         _WELL_KNOWN = {
-            "no-export"           : "no_export",
-            "noexport"            : "no_export",
-            "no-advertise"        : "no_advertised",
-            "noadvertise"         : "no_advertised",
-            "no-advertised"       : "no_advertised",
-            "no_export_subconfed" : "no_export_subconfed",
-            "no-export-subconfed" : "no_export_subconfed",
-            "llgr_stale"          : "llgr_stale",
-            "no_llgr"             : "no_llgr",
+            "no-export": "no_export",
+            "noexport": "no_export",
+            "no-advertise": "no_advertised",
+            "noadvertise": "no_advertised",
+            "no-advertised": "no_advertised",
+            "no_export_subconfed": "no_export_subconfed",
+            "no-export-subconfed": "no_export_subconfed",
+            "llgr_stale": "llgr_stale",
+            "no_llgr": "no_llgr",
         }
 
         result = []
@@ -613,17 +617,17 @@ class Bgp(Base):
                 parts = token.split(":", 1)
                 try:
                     result.append({
-                        "type"      : "manual_as_number",
-                        "as_number" : int(parts[0]),
-                        "as_custom" : int(parts[1]),
+                        "type": "manual_as_number",
+                        "as_number": int(parts[0]),
+                        "as_custom": int(parts[1]),
                     })
                 except (ValueError, IndexError):
                     self.logger.warning(
-                        "Skipping unrecognised community token: %s" % token
+                        "1. Skipping unrecognised community token: %s" % token
                     )
             else:
                 self.logger.warning(
-                    "Skipping unrecognised community token: %s" % token
+                    "2. Skipping unrecognised community token: %s" % token
                 )
         return result
 
@@ -644,27 +648,30 @@ class Bgp(Base):
         # Some IxN versions emit a full CIDR in the address column.
         if "/" in addr_cell:
             parts = addr_cell.split("/", 1)
-            ipv4_address  = parts[0]
+            ipv4_address = parts[0]
             prefix_length = self._safe_int(parts[1])
         else:
-            ipv4_address  = addr_cell
+            ipv4_address = addr_cell
             prefix_length = self._safe_int(nlri_cell)
 
-        nh_cell = self._get_cell(row, *self._NH_COLS) or ""
-        # Route next-hops that contain ":" are IPv6-mapped next-hops.
-        ipv4_nh = nh_cell if ":" not in nh_cell else None
-        ipv6_nh = nh_cell if ":" in nh_cell else None
+        ipv4_nh = self._get_cell(row, *self._V4_NH_COLS) or None
+        ipv6_nh = self._get_cell(row, *self._V6_NH_COLS) or None
+        # Fall back to legacy single next-hop column, using ":" to distinguish.
+        if ipv4_nh is None and ipv6_nh is None:
+            nh_cell = self._get_cell(row, *self._NH_COLS) or ""
+            ipv4_nh = nh_cell if nh_cell and ":" not in nh_cell else None
+            ipv6_nh = nh_cell if ":" in nh_cell else None
 
         origin_raw = self._get_cell(row, *self._ORIGIN_COLS) or ""
         origin = self._IXN_ORIGIN_MAP.get(origin_raw.lower())
 
         prefix = {
-            "ipv4_address"            : ipv4_address,
-            "prefix_length"           : prefix_length,
-            "as_path"                 : self._parse_as_path(
+            "ipv4_address": ipv4_address,
+            "prefix_length": prefix_length,
+            "as_path": self._parse_as_path(
                 self._get_cell(row, *self._ASPATH_COLS)
             ),
-            "communities"             : self._parse_communities(
+            "communities": self._parse_communities(
                 self._get_cell(row, *self._COMMUNITY_COLS)
             ),
         }
@@ -848,8 +855,6 @@ class Bgp(Base):
                 if bgp_prefix_request is not None
                 else None
             )
-            print("Prefixes before filter: ", prefixes)
-            print("Filters: ", filters)
             return self._apply_v4_filters(prefixes, filters)
         else:
             prefixes = [
