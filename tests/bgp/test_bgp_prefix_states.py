@@ -266,7 +266,6 @@ def test_bgp_prefix_states_all_peers_b2b(api, b2b_raw_config, utils):
     assert len(states.bgp_prefixes) == 2
 
 
-@pytest.mark.skip("Not Implemented: learned-prefix state for BGP peers")
 def test_bgp_prefix_states_ipv6_b2b(api, b2b_raw_config, utils):
     """
     Verify IPv6 unicast learned-prefix state is returned for BGPv6 peers
@@ -305,7 +304,7 @@ def test_bgp_prefix_states_ipv6_b2b(api, b2b_raw_config, utils):
     assert segs[0].as_numbers == [500, 600]
 
 
-@pytest.mark.skip("Not Implemented: learned-prefix state for BGP peers")
+# @pytest.mark.skip("Not Implemented: learned-prefix state for BGP peers")
 def test_bgp_prefix_states_filter_b2b(api, b2b_raw_config, utils):
     """
     ipv4_unicast_filters must narrow the result to matching prefixes only.
