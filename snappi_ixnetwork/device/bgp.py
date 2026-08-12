@@ -435,12 +435,6 @@ class Bgp(Base):
     def _get_learned_table(self, peer_obj, session_index, family):
         """Trigger learned-info fetch and return rows as column-keyed dicts.
 
-        Implements the RestPy pattern from the official IxNetwork sample
-        ``samples/protocols/bgp_learned_info.py``::
-
-            bgp.GetAllLearnedInfo()
-            learned_info_table = bgp.LearnedInfo.find().Table.find()
-
         ``GetAllLearnedInfo`` (not ``GetIPv4/6LearnedInfo``) is the operation
         that populates the ``Table`` child resource.  ``GetIPv4/6LearnedInfo``
         only updates the deprecated inline ``Columns``/``Values`` fields which
