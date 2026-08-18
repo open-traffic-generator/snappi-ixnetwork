@@ -117,6 +117,8 @@ class Bgp(Base):
         self.logger = get_ixnet_logger(__name__)
         self._bgp_evpn = BgpEvpn(ngpf)
         self._router_id = None
+        # get_learned_prefixes call by _warn_missing_column's caller.
+        self._warned_columns = set()
 
     def config(self, device):
         self.logger.debug("Configuring BGP")
@@ -335,20 +337,55 @@ class Bgp(Base):
         "incomplete": "incomplete",
     }
 
-    # Column-name aliases tried in order (first hit wins).  IxNetwork has
-    # varied slightly across versions; this covers the known variants.
-    _V4_ADDR_COLS    = ("IPv4 Prefix",)
-    _V6_ADDR_COLS    = ("IPv6 Address", "IPv6 Prefix", "IP Address", "Network Address", "Network")
-    _NLRI_COLS       = ("Prefix Length",)
-    _NH_COLS         = ("Next Hop",    "NextHop",   "Next-Hop")
-    _V4_NH_COLS      = ("IPv4 Next Hop",)
-    _V6_NH_COLS      = ("Ipv6 Next Hop",)
-    _ORIGIN_COLS     = ("Origin",)
-    _LOCPREF_COLS    = ("Local Preference", "Local Pref", "LocalPref")
-    _MED_COLS        = ("MED",         "Multi Exit Discriminator")
-    _ASPATH_COLS     = ("AS Path",     "AS-Path",   "AsPath")
-    _COMMUNITY_COLS  = ("Community",   "Communities")
-    _PATHID_COLS     = ("Path ID",     "PathId",    "Add Path ID")
+    # ------------------------------------------------------------------
+    # Learned-info column names
+    # ------------------------------------------------------------------
+    # The keys below are IxNetwork column *display names*.  RestPy exposes
+    # no `name` attribute for learned-info columns: in ixnetwork_restpy
+    # 1.10.0 the `learnedInfo/table` resource's _SDM_ATT_MAP is only
+    # {Actions, Columns, RowCount, Type, Values}, `learnedInfo` itself adds
+    # only Id__/State, and the deprecated `col` child carries just `value`.
+    # `columns` holds the display names, so keying off the display name is
+    # the only option the API offers.
+    # Notes :
+    #   * 'IPv4 Prefix ' carries a trailing space.  _get_learned_table()
+    #     strips every column name, so the constants here are unpadded.
+    #   * an absent value arrives as 'NA' or 'removePacket[ ]' -- not
+    #     'N/A'.  Both are normalised to None by _get_cell (_NA_VALUES).
+    #   * 'AIGP', 'Color', 'Large Community', 'SRv6 SID' and the locator
+    #     columns have no OTG counterpart and are deliberately unmapped.
+    #   * 'IPv6 Next Hop 2' is a second next-hop, not an alias of
+    #     'IPv6 Next Hop'; OTG has no field for it.
+    #   * this table has no extended-community column.
+    #
+    # A tuple with more than one entry is an ordered candidate list
+    # (first hit wins).  Keep these tuples minimal: every extra entry is
+    # a guess that hides a schema change instead of surfacing it.
+    #
+    # The IPv6 unicast table has not been captured yet -- entries tagged
+    # UNCONFIRMED are inferred from the IPv4 naming pattern above.
+    _V4_ADDR_COLS = ("IPv4 Prefix",)
+    # UNCONFIRMED: 'IPv6 Prefix' by symmetry with 'IPv4 Prefix';
+    # 'IPv6 Address' retained as the previously assumed name.
+    _V6_ADDR_COLS = ("IPv6 Prefix", "IPv6 Address")
+    _NLRI_COLS = ("Prefix Length",)
+    _V4_NH_COLS = ("IPv4 Next Hop",)
+    _V6_NH_COLS = ("IPv6 Next Hop",)
+    # Legacy single next-hop column, used only as a fallback when neither
+    # explicit per-family column is present.  Not seen in 10.80.
+    _NH_COLS = ("Next Hop",)
+    _ORIGIN_COLS = ("Origin",)
+    _LOCPREF_COLS = ("Local Preference",)
+    _MED_COLS = ("MED",)
+    _ASPATH_COLS = ("AS Path",)
+    _COMMUNITY_COLS = ("Community",)
+    _PATHID_COLS = ("Path ID",)
+
+    # Cell values that mean "no value" rather than data.  Compared
+    # case-insensitively against the stripped cell; 'removePacket[...]'
+    # is matched by prefix because the bracketed part varies.
+    _NA_VALUES = frozenset(("", "na", "n/a", "null", "none"))
+    _NA_VALUE_PREFIXES = ("removepacket",)
 
     def get_bgp_peer_objects(self, peer_names):
         """Return a list of ``(peer_name, restpy_peer_obj, session_index,
@@ -452,7 +489,7 @@ class Bgp(Base):
         Returns
         -------
         list[dict[str, str]]
-            One ``{column_name: value_str}`` dict per prefix row.
+            One ``{column_display_name: value_str}`` dict per prefix row.
         """
         # --- Step 1: trigger the learned-info fetch -----------------------
         # Equivalent to right-click → "Get Learned Info" in the GUI.
@@ -473,12 +510,16 @@ class Bgp(Base):
                     columns = table.Columns
                     if not columns:
                         continue
-                    # self.logger.warning(
-                    #     "_get_learned_table: peer=%r Type=%r "
-                    #     "Columns=%r RowCount=%d"
-                    #     % (peer_obj.Name, table.Type,
-                    #        columns, len(table.Values or []))
-                    # )
+                    self.logger.debug(
+                        "_get_learned_table: peer=%r Type=%r Columns=%r "
+                        "RowCount=%d"
+                        % (
+                            peer_obj.Name,
+                            table.Type,
+                            columns,
+                            len(table.Values or []),
+                        )
+                    )
                     col_idx = {col.strip(): i for i, col in enumerate(columns)}
                     for row_vals in (table.Values or []):
                         rows.append({
@@ -495,15 +536,73 @@ class Bgp(Base):
 
     # --- static low-level helpers ------------------------------------
 
-    @staticmethod
-    def _get_cell(row, *col_names):
-        """Return the stripped value of the first matching column in *row*,
-        or ``None`` if none of the candidate column names are present."""
+    def _is_na(self, value):
+        """Return True if *value* is an IxNetwork "no value" placeholder.
+
+        IxNetwork does not leave absent cells empty; it emits ``NA`` or
+        ``removePacket[ ]`` (the bracketed part varies).  Treating those as
+        data yields nonsense such as ``path_id=0`` from ``'NA'`` or an
+        ``ipv6_next_hop`` of ``'removePacket[ ]'``.
+        """
+        lowered = value.lower()
+        if lowered in self._NA_VALUES:
+            return True
+        return lowered.startswith(self._NA_VALUE_PREFIXES)
+
+    def _get_cell(self, row, *col_names, **kwargs):
+        """Return the value of the first matching column in *row*.
+
+        Candidate names are IxNetwork column *display names* -- RestPy
+        exposes no ``name`` attribute for learned-info columns, so the
+        display name is the only key available (see the note above the
+        ``_*_COLS`` constants).  Names are matched against the already
+        stripped keys built by :meth:`_get_learned_table`.
+
+        Returns ``None`` when no candidate column is present, and also
+        when the matched cell holds a "no value" placeholder such as
+        ``NA`` or ``removePacket[ ]`` (see :meth:`_is_na`).
+
+        Keyword Arguments
+        -----------------
+        warn : bool, default True
+            Log a warning when none of *col_names* is present in *row*, so
+            that a renamed or removed column surfaces in the log instead of
+            silently producing an incomplete prefix.  Pass ``warn=False``
+            for probes that legitimately expect a miss -- the address
+            columns are used to decide whether a row belongs to this
+            address family at all.
+        """
+        warn = kwargs.pop("warn", True)
+        if kwargs:
+            raise TypeError(
+                "_get_cell got unexpected keyword arguments: %s"
+                % sorted(kwargs)
+            )
         for name in col_names:
             val = row.get(name)
             if val is not None:
-                return val.strip()
+                val = val.strip()
+                return None if self._is_na(val) else val
+        if warn:
+            self._warn_missing_column(col_names, row)
         return None
+
+    def _warn_missing_column(self, col_names, row):
+        """Warn once per candidate-column set that no candidate matched.
+
+        Deduplicated for the lifetime of one
+        :meth:`get_learned_prefixes` call so that a missing column costs
+        one log line rather than one per learned prefix.
+        """
+        if col_names in self._warned_columns:
+            return
+        self._warned_columns.add(col_names)
+        self.logger.warning(
+            "Learned-info column not found: tried %s. Available columns: "
+            "%s. The corresponding field will be omitted from the "
+            "returned prefixes -- the IxNetwork column display name may "
+            "have changed." % (list(col_names), sorted(row))
+        )
 
     @staticmethod
     def _safe_int(s, default=0):
@@ -627,17 +726,57 @@ class Bgp(Base):
 
     # --- row → OTG prefix dict ---------------------------------------
 
+    def _get_next_hops(self, row):
+        """Return ``(ipv4_next_hop, ipv6_next_hop)`` for *row*.
+        """
+        ipv4_nh = self._get_cell(row, *self._V4_NH_COLS, warn=False)
+        ipv6_nh = self._get_cell(row, *self._V6_NH_COLS, warn=False)
+        if ipv4_nh is not None or ipv6_nh is not None:
+            return ipv4_nh, ipv6_nh
+
+        # Distinguish "column absent" from "column present but holding a
+        # placeholder" -- only the former is a schema change worth a
+        # warning.  A row legitimately carries no next hop for the family
+        # that does not apply to it.
+        explicit_cols = self._V4_NH_COLS + self._V6_NH_COLS
+        if self._has_any_column(row, explicit_cols):
+            return None, None
+
+        nh_cell = self._get_cell(row, *self._NH_COLS, warn=False)
+        if nh_cell is not None:
+            if ":" in nh_cell:
+                return None, nh_cell
+            return nh_cell, None
+
+        if not self._has_any_column(row, self._NH_COLS):
+            # No next-hop column of any kind: report the whole candidate
+            # set in one warning rather than one per candidate.
+            self._warn_missing_column(explicit_cols + self._NH_COLS, row)
+        return None, None
+
+    @staticmethod
+    def _has_any_column(row, col_names):
+        """Return True if *row* has any of *col_names* as a key.
+
+        Presence is independent of the cell's value: a column holding a
+        placeholder such as ``NA`` is still present.
+        """
+        return any(name in row for name in col_names)
+
     def _row_to_ipv4_prefix(self, row):
         """Convert a raw IxNetwork row dict to an OTG IPv4 unicast prefix dict.
 
         Returns ``None`` when the row lacks address information (e.g. it
         belongs to a different table type such as IPv4 MPLS).
         """
-        addr_cell = self._get_cell(row, *self._V4_ADDR_COLS)
-        nlri_cell = self._get_cell(row, *self._NLRI_COLS)
+        # warn=False: a miss here means the row belongs to another address
+        # family, which is expected, not a schema change.
+        addr_cell = self._get_cell(row, *self._V4_ADDR_COLS, warn=False)
 
         if not addr_cell:
             return None
+
+        nlri_cell = self._get_cell(row, *self._NLRI_COLS)
 
         # Some IxN versions emit a full CIDR in the address column.
         if "/" in addr_cell:
@@ -648,13 +787,7 @@ class Bgp(Base):
             ipv4_address = addr_cell
             prefix_length = self._safe_int(nlri_cell)
 
-        ipv4_nh = self._get_cell(row, *self._V4_NH_COLS) or None
-        ipv6_nh = self._get_cell(row, *self._V6_NH_COLS) or None
-        # Fall back to legacy single next-hop column, using ":" to distinguish.
-        if ipv4_nh is None and ipv6_nh is None:
-            nh_cell = self._get_cell(row, *self._NH_COLS) or ""
-            ipv4_nh = nh_cell if nh_cell and ":" not in nh_cell else None
-            ipv6_nh = nh_cell if ":" in nh_cell else None
+        ipv4_nh, ipv6_nh = self._get_next_hops(row)
 
         origin_raw = self._get_cell(row, *self._ORIGIN_COLS) or ""
         origin = self._IXN_ORIGIN_MAP.get(origin_raw.lower())
@@ -695,34 +828,34 @@ class Bgp(Base):
 
         Returns ``None`` when the row lacks address information.
         """
-        addr_cell = self._get_cell(row, *self._V6_ADDR_COLS)
-        nlri_cell = self._get_cell(row, *self._NLRI_COLS)
+        # warn=False: see the matching probe in _row_to_ipv4_prefix.
+        addr_cell = self._get_cell(row, *self._V6_ADDR_COLS, warn=False)
 
         if not addr_cell:
             return None
 
+        nlri_cell = self._get_cell(row, *self._NLRI_COLS)
+
         if "/" in addr_cell:
             parts = addr_cell.split("/", 1)
-            ipv6_address  = parts[0]
+            ipv6_address = parts[0]
             prefix_length = self._safe_int(parts[1])
         else:
-            ipv6_address  = addr_cell
+            ipv6_address = addr_cell
             prefix_length = self._safe_int(nlri_cell)
 
-        nh_cell = self._get_cell(row, *self._NH_COLS) or ""
-        ipv6_nh = nh_cell if ":" in nh_cell else None
-        ipv4_nh = nh_cell if ":" not in nh_cell and nh_cell else None
+        ipv4_nh, ipv6_nh = self._get_next_hops(row)
 
         origin_raw = self._get_cell(row, *self._ORIGIN_COLS) or ""
         origin = self._IXN_ORIGIN_MAP.get(origin_raw.lower())
 
         prefix = {
-            "ipv6_address"  : ipv6_address,
-            "prefix_length" : prefix_length,
-            "as_path"       : self._parse_as_path(
+            "ipv6_address": ipv6_address,
+            "prefix_length": prefix_length,
+            "as_path": self._parse_as_path(
                 self._get_cell(row, *self._ASPATH_COLS)
             ),
-            "communities"   : self._parse_communities(
+            "communities": self._parse_communities(
                 self._get_cell(row, *self._COMMUNITY_COLS)
             ),
         }
@@ -837,6 +970,10 @@ class Bgp(Base):
             OTG-shaped prefix dicts ready for serialisation into
             ``BgpPrefixIpv4/6UnicastState``.
         """
+        # Fresh warning scope: a missing column is reported once per call,
+        # not once per prefix, and not suppressed forever after the first.
+        self._warned_columns = set()
+
         rows = self._get_learned_table(peer_obj, session_index, family)
 
         if family == "v4":
