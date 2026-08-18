@@ -1,3 +1,4 @@
+import re
 import time
 
 from snappi_ixnetwork.device.base import Base
@@ -350,14 +351,15 @@ class Bgp(Base):
     # Notes :
     #   * 'IPv4 Prefix ' carries a trailing space.  _get_learned_table()
     #     strips every column name, so the constants here are unpadded.
-    #   * an absent value arrives as 'NA' or 'removePacket[ ]' -- not
-    #     'N/A'.  Both are normalised to None by _get_cell (_NA_VALUES).
+    #   * an absent value arrives as 'NA', 'removePacket[ ]' or
+    #     'removePacket[N/A]' -- never a bare 'N/A'.  All are normalised to
+    #     None by _get_cell; 'removePacket' is matched by prefix because
+    #     the bracketed part varies (_NA_VALUE_PREFIXES).
     #   * 'AIGP', 'Color', 'Large Community', 'SRv6 SID' and the locator
     #     columns have no OTG counterpart and are deliberately unmapped.
     #   * 'IPv6 Next Hop 2' is a second next-hop, not an alias of
     #     'IPv6 Next Hop'; OTG has no field for it.
     #   * this table has no extended-community column.
-    #
     # A tuple with more than one entry is an ordered candidate list
     # (first hit wins).  Keep these tuples minimal: every extra entry is
     # a guess that hides a schema change instead of surfacing it.
@@ -365,9 +367,7 @@ class Bgp(Base):
     # The IPv6 unicast table has not been captured yet -- entries tagged
     # UNCONFIRMED are inferred from the IPv4 naming pattern above.
     _V4_ADDR_COLS = ("IPv4 Prefix",)
-    # UNCONFIRMED: 'IPv6 Prefix' by symmetry with 'IPv4 Prefix';
-    # 'IPv6 Address' retained as the previously assumed name.
-    _V6_ADDR_COLS = ("IPv6 Prefix", "IPv6 Address")
+    _V6_ADDR_COLS = ("IPv6 Prefix",)
     _NLRI_COLS = ("Prefix Length",)
     _V4_NH_COLS = ("IPv4 Next Hop",)
     _V6_NH_COLS = ("IPv6 Next Hop",)
@@ -614,6 +614,80 @@ class Bgp(Base):
 
     # --- AS-path / community parsers ---------------------------------
 
+    # AS numbers are uint32 in OTG (``as_numbers`` itemformat).  Community
+    # ``as_number``/``as_custom`` are each capped at 65535 by the OTG
+    # model, and snappi raises at serialisation time for anything larger,
+    # so an out-of-range parse would fail the whole get_states call.
+    _MAX_ASN = 2 ** 32 - 1
+    _MAX_COMMUNITY_FIELD = 65535
+
+    _ASDOT_RE = re.compile(r"^\d+\.\d+$")
+
+    # Members within an AS-path group are separated by whitespace, commas
+    # or both: 10.80 emits AS_SEQ as '<100 200>' but AS_SET as '{300,400}'.
+    # The same splitter is reused for the comma-separated community list.
+    _ASN_SEPARATOR_RE = re.compile(r"[,\s]+")
+
+    # Well-known community names → OTG type.  Keys are the *normalised*
+    # form: lower-cased with '-' folded to '_', because IxNetwork has been
+    # observed emitting both 'no-export' and the uppercase 'NO_EXPORT'.
+    _WELL_KNOWN_COMMUNITIES = {
+        "no_export": "no_export",
+        "noexport": "no_export",
+        "no_advertise": "no_advertised",
+        "noadvertise": "no_advertised",
+        "no_advertised": "no_advertised",
+        "no_export_subconfed": "no_export_subconfed",
+        "noexport_subconfed": "no_export_subconfed",
+        "llgr_stale": "llgr_stale",
+        "no_llgr": "no_llgr",
+    }
+
+    def _parse_asn_list(self, text):
+        """Parse comma- and/or whitespace-separated AS numbers from *text*.
+
+        Anything that is not a plain (asplain) uint32 is skipped **with a
+        warning** rather than dropped silently -- a silent drop turns a
+        format surprise into a wrong AS path, which is exactly the kind of
+        result these states are used to assert on.
+        """
+        asns = []
+        for token in self._ASN_SEPARATOR_RE.split(text.strip()):
+            if not token:
+                continue
+            if token.isdigit():
+                value = int(token)
+                if value <= self._MAX_ASN:
+                    asns.append(value)
+                    continue
+                self.logger.warning(
+                    "Skipping AS number %s in learned AS path: exceeds the "
+                    "uint32 maximum (%d)." % (token, self._MAX_ASN)
+                )
+                continue
+            self._warn_bad_asn(token)
+        return asns
+
+    def _warn_bad_asn(self, token):
+        """Warn about an AS-path token that is not an asplain AS number."""
+        hint = ""
+        if self._ASDOT_RE.match(token):
+            # Deliberate non-support: IxNetwork 10.80 emits asplain
+            # ('<100 200>') and neither bgpIpv4Peer nor anything else in
+            # ixnetwork_restpy 1.10.0 exposes an asdot notation setting.
+            # Guessing at a format we have never observed is what made the
+            # learned-info column aliases wrong; if this warning ever
+            # fires, implement the conversion (X.Y = X * 65536 + Y) here.
+            hint = (
+                " This looks like asdot notation; asdot is not parsed "
+                "because IxNetwork has only ever been observed emitting "
+                "asplain. Convert as X.Y = X * 65536 + Y if needed."
+            )
+        self.logger.warning(
+            "Skipping unparseable AS number %r in learned AS path.%s"
+            % (token, hint)
+        )
+
     def _parse_as_path(self, cell):
         """Convert an IxNetwork AS-path string to an OTG ``as_path`` dict.
 
@@ -653,7 +727,7 @@ class Bgp(Base):
                 _flush_seq()
                 end = token.find(close, i + 1)
                 inner = token[i + 1 : end if end != -1 else len(token)]
-                asns = [int(x) for x in inner.split() if x.isdigit()]
+                asns = self._parse_asn_list(inner)
                 segments.append({"type": seg_type, "as_numbers": asns})
                 i = (end + 1) if end != -1 else len(token)
             else:
@@ -663,9 +737,7 @@ class Bgp(Base):
                     pos = token.find(delim, i)
                     if pos != -1 and pos < next_group:
                         next_group = pos
-                for part in token[i:next_group].split():
-                    if part.isdigit():
-                        seq_buf.append(int(part))
+                seq_buf.extend(self._parse_asn_list(token[i:next_group]))
                 i = next_group
 
         _flush_seq()
@@ -674,8 +746,11 @@ class Bgp(Base):
     def _parse_communities(self, cell):
         """Convert an IxNetwork communities string to a list of OTG dicts.
 
-        Handled formats::
+        Handled formats (the first is what 10.80 actually emits)::
 
+            "1 : 2, NO_EXPORT, 65535 : 65535"
+                           → two ``manual_as_number`` entries plus
+                             ``no_export``
             "1:2 3:4"      → two ``manual_as_number`` entries
             "no-export"    → ``no_export`` well-known entry
             "no-advertise" → ``no_advertised`` well-known entry
@@ -684,43 +759,65 @@ class Bgp(Base):
         if not cell or cell.strip().lower() in ("", "n/a"):
             return []
 
-        # IxNetwork sometimes emits spaces around the colon, e.g. "1 : 2".
-        # Normalise to "1:2" before tokenising.
-        import re
-        cell = re.sub(r'\s*:\s*', ':', cell)
-
-        _WELL_KNOWN = {
-            "no-export": "no_export",
-            "noexport": "no_export",
-            "no-advertise": "no_advertised",
-            "noadvertise": "no_advertised",
-            "no-advertised": "no_advertised",
-            "no_export_subconfed": "no_export_subconfed",
-            "no-export-subconfed": "no_export_subconfed",
-            "llgr_stale": "llgr_stale",
-            "no_llgr": "no_llgr",
-        }
+        # IxNetwork emits spaces around the colon: the 10.80 capture shows
+        # '1 : 2'.  Normalise to '1:2' before tokenising, so that a spaced
+        # pair does not split into three tokens.
+        cell = re.sub(r"\s*:\s*", ":", cell)
 
         result = []
-        for token in cell.split():
-            lower = token.lower()
-            if lower in _WELL_KNOWN:
-                result.append({"type": _WELL_KNOWN[lower]})
+        # Entries are separated by commas, whitespace, or both -- 10.80
+        # emits '1 : 2, NO_EXPORT, 65535 : 65535'.
+        for token in self._ASN_SEPARATOR_RE.split(cell.strip()):
+            if not token:
+                continue
+            # Well-known names arrive in several spellings across versions
+            # and columns: 'no-export' and the uppercase 'NO_EXPORT' have
+            # both been observed, so normalise separators before lookup.
+            well_known = self._WELL_KNOWN_COMMUNITIES.get(
+                token.lower().replace("-", "_")
+            )
+            if well_known is not None:
+                result.append({"type": well_known})
             elif ":" in token:
                 parts = token.split(":", 1)
                 try:
-                    result.append({
-                        "type": "manual_as_number",
-                        "as_number": int(parts[0]),
-                        "as_custom": int(parts[1]),
-                    })
+                    as_number = int(parts[0])
+                    as_custom = int(parts[1])
                 except (ValueError, IndexError):
+                    # e.g. a large community 'X:Y:Z' -- int('Y:Z') raises.
                     self.logger.warning(
-                        "1. Skipping unrecognised community token: %s" % token
+                        "Skipping unrecognised community token %r: not an "
+                        "<as_number>:<as_custom> pair." % token
                     )
+                    continue
+                over = [
+                    name
+                    for name, value in (
+                        ("as_number", as_number),
+                        ("as_custom", as_custom),
+                    )
+                    if value > self._MAX_COMMUNITY_FIELD
+                ]
+                if over:
+                    # Emitting this would raise at snappi serialisation
+                    # time and fail the whole get_states call, so skip it.
+                    self.logger.warning(
+                        "Skipping community token %r: %s exceeds the OTG "
+                        "maximum of %d."
+                        % (token, " and ".join(over),
+                           self._MAX_COMMUNITY_FIELD)
+                    )
+                    continue
+                result.append({
+                    "type": "manual_as_number",
+                    "as_number": as_number,
+                    "as_custom": as_custom,
+                })
             else:
                 self.logger.warning(
-                    "2. Skipping unrecognised community token: %s" % token
+                    "Skipping unrecognised community token %r: not a "
+                    "well-known name or an <as_number>:<as_custom> pair."
+                    % token
                 )
         return result
 
