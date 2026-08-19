@@ -13,6 +13,7 @@ needed: the learned-info tables are faked at the RestPy boundary.
 """
 
 import logging
+import re
 
 import pytest
 import snappi
@@ -104,18 +105,56 @@ class _FindList(object):
         return self._items
 
 
+class _TableFindList(object):
+    """``learnedInfo.Table`` accessor that honours ``find(Type=<regex>)``.
+
+    RestPy evaluates ``find()``'s named parameters as regular expressions on
+    the API server; this reproduces that so the server-side narrowing is
+    actually exercised rather than silently bypassed.  ``patterns`` records
+    every Type regex requested, and ``raise_on_type`` simulates a server that
+    rejects the filtered query.
+    """
+
+    def __init__(self, tables, raise_on_type=False):
+        self._tables = tables
+        self.patterns = []
+        self.unfiltered_calls = 0
+        self.raise_on_type = raise_on_type
+
+    def find(self, **kwargs):
+        pattern = kwargs.get("Type")
+        if pattern is None:
+            self.unfiltered_calls += 1
+            return list(self._tables)
+        self.patterns.append(pattern)
+        if self.raise_on_type:
+            raise Exception("server rejected Type filter")
+        return [
+            t
+            for t in self._tables
+            if t.Type is not None and re.match(pattern, t.Type)
+        ]
+
+
 class FakeLearnedInfo(object):
-    def __init__(self, tables):
-        self.Table = _FindList(tables)
+    def __init__(self, tables, raise_on_type=False):
+        self.Table = _TableFindList(tables, raise_on_type=raise_on_type)
 
 
 class FakePeer(object):
     """A RestPy peer object exposing pre-baked learned-info tables."""
 
-    def __init__(self, name, tables):
+    def __init__(self, name, tables, raise_on_type=False):
         self.Name = name
-        self.LearnedInfo = _FindList([FakeLearnedInfo(tables)])
+        self._learned_info = FakeLearnedInfo(
+            tables, raise_on_type=raise_on_type
+        )
+        self.LearnedInfo = _FindList([self._learned_info])
         self.get_all_learned_info_calls = 0
+
+    @property
+    def table_finder(self):
+        return self._learned_info.Table
 
     def GetAllLearnedInfo(self):
         self.get_all_learned_info_calls += 1
@@ -271,6 +310,169 @@ def test_learned_table_survives_a_failed_trigger(bgp):
     peer = FakePeer("p", [v4_table()])
     peer.GetAllLearnedInfo = MagicMock(side_effect=Exception("boom"))
     assert bgp._get_learned_table(peer) == {}
+
+
+# ---------------------------------------------------------------------------
+# Server-side table selection  (R4-d)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "families, expected_families",
+    [
+        (["ipv4_unicast"], ["ipv4_unicast"]),
+        (["ipv6_unicast"], ["ipv6_unicast"]),
+        (["ipv4_unicast", "ipv6_unicast"], ["ipv4_unicast", "ipv6_unicast"]),
+    ],
+)
+def test_only_requested_families_are_fetched(bgp, families, expected_families):
+    """The requested families are selected on the server, not locally."""
+    peer = FakePeer("p", [v4_table(), v6_table()])
+
+    tables = bgp._get_learned_table(peer, families)
+
+    assert sorted(tables) == sorted(expected_families)
+    # The narrowing really happened server-side: a Type regex was sent, and
+    # no unfiltered read was needed.
+    assert peer.table_finder.patterns, "no server-side Type filter was sent"
+    assert peer.table_finder.unfiltered_calls == 0
+
+
+def test_type_pattern_is_anchored_alternated_and_case_insensitive(bgp):
+    assert bgp._table_type_pattern(["ipv4_unicast"]) == "(?i)^(IPv4 Prefixes)"
+    assert bgp._table_type_pattern(None) == (
+        "(?i)^(IPv4 Prefixes|IPv6 Prefixes)"
+    )
+    # A family with no table mapping cannot be narrowed server-side.
+    assert bgp._table_type_pattern(["ipv4_mpls_unicast"]) is None
+
+
+def test_type_pattern_matches_the_real_table_types(bgp):
+    """Guards the regex against the captured 10.80 Type strings."""
+    pattern = bgp._table_type_pattern(None)
+    for table_type in ("IPv4 Prefixes 1", "IPv6 Prefixes 17"):
+        assert re.match(pattern, table_type), table_type
+    for table_type in ("IPv4 MPLS Prefixes 1", "EVPN Learned Info"):
+        assert not re.match(pattern, table_type), table_type
+
+
+def test_unfilterable_families_read_every_table(bgp):
+    """With no server-side pattern available, fall back to reading all."""
+    peer = FakePeer("p", [v4_table()])
+    bgp._get_learned_table(peer, ["ipv4_mpls_unicast"])
+    assert peer.table_finder.patterns == []
+    assert peer.table_finder.unfiltered_calls == 1
+
+
+def test_falls_back_to_unfiltered_read_when_type_filter_raises(bgp):
+    """A server that rejects the filter must not cost us the data."""
+    peer = FakePeer("p", [v4_table(), v6_table()], raise_on_type=True)
+
+    tables = bgp._get_learned_table(peer, ["ipv4_unicast", "ipv6_unicast"])
+
+    assert sorted(tables) == ["ipv4_unicast", "ipv6_unicast"]
+    assert peer.table_finder.unfiltered_calls == 1
+
+
+def test_renamed_table_type_is_reported_not_silently_empty(bgp, caplog):
+    """Tables exist but none map to a family: the schema-drift signal.
+
+    The filtered read comes back empty, the unfiltered re-read finds the
+    table, and nothing can be made of it -- so the caller gets a warning
+    naming the type rather than an empty result and no explanation.
+    """
+    renamed = FakeTable(
+        "IPv4 Unicast Routes 1", list(V4_COLUMNS), [v4_values()]
+    )
+    peer = FakePeer("p", [renamed])
+
+    with caplog.at_level(logging.WARNING):
+        tables = bgp._get_learned_table(peer, ["ipv4_unicast"])
+
+    assert tables == {}
+    assert peer.table_finder.unfiltered_calls == 1
+    messages = " ".join(r.getMessage() for r in caplog.records)
+    assert "IPv4 Unicast Routes 1" in messages
+    assert "unhandled type" in messages
+
+
+def test_case_differing_table_type_is_still_matched(bgp, caplog):
+    """The server pattern is case-insensitive, matching _table_family.
+
+    The '(?i)' flag is verified to work on IxNetwork 10.80, so a type that
+    differs only in casing is selected server-side with no re-read.
+    """
+    peer = FakePeer("p", [v4_table(type_="ipv4 prefixes 1")])
+
+    with caplog.at_level(logging.WARNING):
+        tables = bgp._get_learned_table(peer, ["ipv4_unicast"])
+
+    assert list(tables) == ["ipv4_unicast"]
+    assert peer.table_finder.unfiltered_calls == 0
+    assert caplog.records == []
+
+
+def test_requesting_a_family_the_peer_lacks_is_quiet(bgp, caplog):
+    """The normal narrowed case: asking a v6 peer for IPv4.
+
+    The filter correctly matches nothing, so there is nothing to report.  An
+    earlier version warned here, which fired on every such request.
+    """
+    peer = FakePeer("p", [v6_table()])
+
+    with caplog.at_level(logging.WARNING):
+        tables = bgp._get_learned_table(peer, ["ipv4_unicast"])
+
+    assert tables == {}
+    assert caplog.records == [], "narrowing to an absent family must be quiet"
+
+
+def test_fallback_that_recovers_data_warns(bgp, caplog):
+    """If the server filter misbehaves, say so -- but keep the rows."""
+    peer = FakePeer("p", [v4_table()], raise_on_type=True)
+
+    with caplog.at_level(logging.WARNING):
+        tables = bgp._get_learned_table(peer, ["ipv4_unicast"])
+
+    assert list(tables) == ["ipv4_unicast"]
+    messages = " ".join(r.getMessage() for r in caplog.records)
+    assert "may not be behaving as expected" in messages
+
+
+def test_no_tables_at_all_does_not_warn(bgp, caplog):
+    """A peer that has simply learned nothing is not an anomaly."""
+    peer = FakePeer("p", [])
+    with caplog.at_level(logging.WARNING):
+        assert bgp._get_learned_table(peer, ["ipv4_unicast"]) == {}
+    assert caplog.records == []
+
+
+def test_only_unrecognised_tables_warns(bgp, caplog):
+    """Understood nothing we fetched -- the schema-drift signal."""
+    peer = FakePeer(
+        "p",
+        [FakeTable("EVPN Learned Info", list(V4_COLUMNS), [v4_values()])],
+    )
+    with caplog.at_level(logging.WARNING):
+        assert bgp._get_learned_table(peer, None) == {}
+    messages = " ".join(r.getMessage() for r in caplog.records)
+    assert "unhandled type" in messages
+    assert "EVPN Learned Info" in messages
+
+
+def test_recognised_plus_unrecognised_does_not_warn(bgp, caplog):
+    """A peer carrying other families as well is normal, not a problem."""
+    peer = FakePeer(
+        "p",
+        [
+            v4_table(),
+            FakeTable("EVPN Learned Info", list(V4_COLUMNS), [v4_values()]),
+        ],
+    )
+    with caplog.at_level(logging.WARNING):
+        tables = bgp._get_learned_table(peer, None)
+    assert list(tables) == ["ipv4_unicast"]
+    assert caplog.records == []
 
 
 # ---------------------------------------------------------------------------

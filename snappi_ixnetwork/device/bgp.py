@@ -126,6 +126,21 @@ class Bgp(Base):
 
     # The subset this backend can translate today.  An empty prefix_filters
     # means "all supported families", so this is also the default.
+    #
+    # TODO(mpls): to add the MPLS families, three things are needed and
+    # nothing else in this file should have to change:
+    #   1. add "ipv4_mpls_unicast"/"ipv6_mpls_unicast" here, which makes
+    #      resolve_prefix_filters accept them instead of raising;
+    #   2. add their learnedInfo table Type prefixes to
+    #      _LEARNED_TABLE_FAMILIES, so rows are routed by family, and add
+    #      _FAMILY_TRANSLATION entries pointing at the row converters and
+    #      the (currently non-existent) MPLS filter lists;
+    #   3. confirm whether GetAllLearnedInfo populates the MPLS tables or
+    #      whether GetIPv4MplsLearnedInfo / GetIPv6MplsLearnedInfo must be
+    #      triggered as well -- see _get_learned_table.
+    # The response fields ipv4_mpls_unicast_prefixes /
+    # ipv6_mpls_unicast_prefixes already exist in the OTG model, and
+    # _PREFIX_FILTER_FIELDS above already maps them.
     _SUPPORTED_PREFIX_FILTERS = ("ipv4_unicast", "ipv6_unicast")
 
     # How to turn a row of each family into an OTG prefix, and which
@@ -149,9 +164,13 @@ class Bgp(Base):
     # never be compared for equality.  An MPLS table is a distinct Type and
     # therefore does not match either entry -- which is what keeps MPLS rows
     # from being reported as plain unicast prefixes.
+    #
+    # These strings double as the server-side ``Table.find(Type=...)`` regex
+    # (see _table_type_pattern), so keep them free of regex metacharacters:
+    # they are matched literally, only anchored and alternated.
     _LEARNED_TABLE_FAMILIES = (
-        ("ipv4 prefixes", "ipv4_unicast"),
-        ("ipv6 prefixes", "ipv6_unicast"),
+        ("IPv4 Prefixes", "ipv4_unicast"),
+        ("IPv6 Prefixes", "ipv6_unicast"),
     )
 
     def __init__(self, ngpf):
@@ -556,11 +575,66 @@ class Bgp(Base):
         """
         lowered = (table_type or "").strip().lower()
         for prefix, family in self._LEARNED_TABLE_FAMILIES:
-            if lowered.startswith(prefix):
+            if lowered.startswith(prefix.lower()):
                 return family
         return None
 
-    def _get_learned_table(self, peer_obj):
+    def _table_type_pattern(self, families):
+        """Return a ``Table.find(Type=...)`` regex for *families*, or ``None``.
+
+        ``find()``'s named parameters are evaluated as regular expressions on
+        the API server, so the requested families can be selected there
+        rather than fetching every table and discarding most of them.
+
+        Verified against IxNetwork 10.80: anchoring, alternation and the
+        ``(?i)`` inline flag all work, and a pattern that matches nothing
+        returns an empty result rather than raising.  The flag matters --
+        without it the server match would be case-sensitive while
+        :meth:`_table_family` is not, so the two would disagree on a table
+        type that differed only in casing.
+        """
+        prefixes = [
+            prefix
+            for prefix, family in self._LEARNED_TABLE_FAMILIES
+            if families is None or family in families
+        ]
+        if not prefixes:
+            return None
+        return "(?i)^(%s)" % "|".join(prefixes)
+
+    def _find_learned_tables(self, learned_info, families):
+        """Return ``(tables, fell_back)`` for one learnedInfo object.
+
+        The read is narrowed server-side to *families*.  When that returns
+        nothing the tables are re-read unfiltered, because an empty filtered
+        result is indistinguishable from "this peer learned no routes" -- and
+        without the re-read a table whose Type we no longer recognise would
+        produce no prefixes *and* no diagnostic.
+
+        Whether falling back indicates a problem depends on what the rows
+        turn out to be, which only the caller can see: a peer that simply
+        does not carry a requested family is the normal case and must stay
+        quiet.  So this reports the fallback and leaves the judgement to
+        :meth:`_get_learned_table`.
+        """
+        pattern = self._table_type_pattern(families)
+        if pattern is None:
+            return learned_info.Table.find(), False
+
+        try:
+            found = learned_info.Table.find(Type=pattern)
+        except Exception as e:
+            self.logger.debug(
+                "Table.find(Type=%r) unavailable, reading every table: %s"
+                % (pattern, e)
+            )
+            return learned_info.Table.find(), True
+
+        if len(found):
+            return found, False
+        return learned_info.Table.find(), True
+
+    def _get_learned_table(self, peer_obj, families=None):
         """Trigger a learned-info fetch and return its rows **by family**.
 
         ``GetAllLearnedInfo`` (not ``GetIPv4/6LearnedInfo``) is the operation
@@ -579,6 +653,10 @@ class Bgp(Base):
         ----------
         peer_obj :
             Live RestPy ``bgpIpv4Peer`` or ``bgpIpv6Peer`` object.
+        families : list[str] or None
+            Families to fetch.  Used to narrow the read server-side; ``None``
+            reads every table.  Rows are still classified by table Type, so
+            passing this is an optimisation, not a correctness requirement.
 
         Returns
         -------
@@ -588,6 +666,10 @@ class Bgp(Base):
         """
         # --- Step 1: trigger the learned-info fetch -----------------------
         # Equivalent to right-click → "Get Learned Info" in the GUI.
+        # TODO(mpls): this triggers every family IxNetwork is configured to
+        # capture.  If the MPLS families are added and their tables turn out
+        # not to be populated by this call, GetIPv4MplsLearnedInfo /
+        # GetIPv6MplsLearnedInfo have to be triggered here as well.
         try:
             peer_obj.GetAllLearnedInfo()
         except Exception as e:
@@ -599,9 +681,21 @@ class Bgp(Base):
 
         # --- Step 2: read LearnedInfo.find().Table.find() -----------------
         tables = {}
+        skipped_types = []
+        fell_back = False
+        # The unfiltered fallback read can return families that were not
+        # asked for.  Those are dropped rather than returned, so the result
+        # only ever holds requested families, and so that a table of another
+        # family is not mistaken below for an unrecognised one.
+        wanted = set(
+            families if families is not None
+            else self._SUPPORTED_PREFIX_FILTERS
+        )
         try:
             for li in peer_obj.LearnedInfo.find():
-                for table in li.Table.find():
+                found, li_fell_back = self._find_learned_tables(li, families)
+                fell_back = fell_back or li_fell_back
+                for table in found:
                     columns = table.Columns
                     if not columns:
                         continue
@@ -618,6 +712,9 @@ class Bgp(Base):
                         )
                     )
                     if family is None:
+                        skipped_types.append(table.Type)
+                        continue
+                    if family not in wanted:
                         continue
                     col_idx = {col.strip(): i for i, col in enumerate(columns)}
                     rows = tables.setdefault(family, [])
@@ -631,6 +728,40 @@ class Bgp(Base):
             self.logger.warning(
                 "_get_learned_table: Table.find() failed for peer %r: %s"
                 % (peer_obj.Name, e)
+            )
+
+        known_prefixes = [p for p, _f in self._LEARNED_TABLE_FAMILIES]
+
+        if skipped_types and not tables:
+            # Learned info was fetched and none of it could be interpreted.
+            # A peer carrying only other families (EVPN, flow spec, ...) looks
+            # the same, hence a warning rather than an error -- but if a table
+            # type is ever renamed this is the line that says so, instead of
+            # the caller silently seeing no prefixes.
+            self.logger.warning(
+                "No recognised learned-info table for peer %r; skipped "
+                "%d table(s) of unhandled type: %s. Known types start with "
+                "%s."
+                % (
+                    peer_obj.Name,
+                    len(skipped_types),
+                    sorted(set(skipped_types)),
+                    known_prefixes,
+                )
+            )
+        elif fell_back and tables:
+            # The server-side Type filter missed a table that this code then
+            # understood perfectly well.  Not expected -- the filter is built
+            # from the same prefixes, case-insensitively -- so it means the
+            # server's regex handling differs from what was verified.  Harmless
+            # here (the rows were recovered) but worth knowing about, since it
+            # is the mechanism by which a future version could start losing
+            # prefixes silently.
+            self.logger.warning(
+                "Learned-info Type filter did not match the %s table(s) for "
+                "peer %r, which were read and parsed anyway. Server-side "
+                "table filtering may not be behaving as expected."
+                % (sorted(tables), peer_obj.Name)
             )
         return tables
 
@@ -1238,7 +1369,7 @@ class Bgp(Base):
         if families is None:
             families = self._SUPPORTED_PREFIX_FILTERS
 
-        tables = self._get_learned_table(peer_obj)
+        tables = self._get_learned_table(peer_obj, families)
 
         prefixes_by_field = {}
         for family in families:
