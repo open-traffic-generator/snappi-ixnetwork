@@ -583,3 +583,84 @@ def test_bgp_prefix_states_filter_b2b(api, b2b_raw_config, utils):
     assert len(filtered_prefixes) == 1
     assert filtered_prefixes[0].ipv4_address == "100.1.0.0"
     assert filtered_prefixes[0].prefix_length == 24
+
+
+def test_bgp_prefix_states_prefix_filters_b2b(api, b2b_raw_config, utils):
+    """
+    prefix_filters must select which address families are reported.
+
+    Distinct from ipv4/ipv6_unicast_filters, which narrow the prefixes
+    *within* a family.  Run on the dual-stack config so both families are
+    genuinely available to choose between.
+    """
+    config = _build_dual_stack_config(api, b2b_raw_config)
+    utils.start_traffic(api, config, start_capture=False)
+    utils.wait_for(
+        lambda: _bgpv4_sessions_up(api),
+        "BGPv4 sessions to come up",
+        timeout_seconds=30,
+    )
+    utils.wait_for(
+        lambda: _bgpv6_sessions_up(api),
+        "BGPv6 sessions to come up",
+        timeout_seconds=30,
+    )
+    utils.wait_for(
+        lambda: _bgpv4_routes_exchanged(api, expected_rx=5),
+        "BGPv4 routes to be received",
+        timeout_seconds=30,
+    )
+
+    # No prefix_filters: every supported family is reported.
+    req = api.states_request()
+    req.bgp_prefixes.bgp_peer_names = ["bgpv4_peer2", "bgpv6_peer2"]
+    states = api.get_states(req)
+
+    by_name = {s.bgp_peer_name: s for s in states.bgp_prefixes}
+    assert sorted(by_name) == ["bgpv4_peer2", "bgpv6_peer2"]
+    # One entry per peer, never one per family.
+    assert len(states.bgp_prefixes) == 2
+    assert len(by_name["bgpv4_peer2"].ipv4_unicast_prefixes) == 5
+    assert len(by_name["bgpv6_peer2"].ipv6_unicast_prefixes) == 5
+
+    # ipv4_unicast only: the IPv6 peer reports no prefixes at all.
+    req = api.states_request()
+    req.bgp_prefixes.bgp_peer_names = ["bgpv4_peer2", "bgpv6_peer2"]
+    req.bgp_prefixes.prefix_filters = ["ipv4_unicast"]
+    states = api.get_states(req)
+
+    by_name = {s.bgp_peer_name: s for s in states.bgp_prefixes}
+    assert len(by_name["bgpv4_peer2"].ipv4_unicast_prefixes) == 5
+    assert len(by_name["bgpv6_peer2"].ipv6_unicast_prefixes) == 0
+    assert len(by_name["bgpv6_peer2"].ipv4_unicast_prefixes) == 0
+
+    # ipv6_unicast only: the mirror image.
+    req = api.states_request()
+    req.bgp_prefixes.bgp_peer_names = ["bgpv4_peer2", "bgpv6_peer2"]
+    req.bgp_prefixes.prefix_filters = ["ipv6_unicast"]
+    states = api.get_states(req)
+
+    by_name = {s.bgp_peer_name: s for s in states.bgp_prefixes}
+    assert len(by_name["bgpv6_peer2"].ipv6_unicast_prefixes) == 5
+    assert len(by_name["bgpv4_peer2"].ipv4_unicast_prefixes) == 0
+
+    # prefix_filters composes with the per-family prefix filters.
+    req = api.states_request()
+    req.bgp_prefixes.bgp_peer_names = ["bgpv4_peer2"]
+    req.bgp_prefixes.prefix_filters = ["ipv4_unicast"]
+    filt = req.bgp_prefixes.ipv4_unicast_filters.add()
+    filt.addresses = ["100.1.2.0"]
+    states = api.get_states(req)
+
+    prefixes = states.bgp_prefixes[0].ipv4_unicast_prefixes
+    assert len(prefixes) == 1
+    assert prefixes[0].ipv4_address == "100.1.2.0"
+
+    # An address family the backend cannot retrieve must fail loudly rather
+    # than return an empty result that looks like "nothing was learned".
+    req = api.states_request()
+    req.bgp_prefixes.bgp_peer_names = ["bgpv4_peer2"]
+    req.bgp_prefixes.prefix_filters = ["ipv4_mpls_unicast"]
+    with pytest.raises(Exception) as excinfo:
+        api.get_states(req)
+    assert "not supported" in str(excinfo.value)

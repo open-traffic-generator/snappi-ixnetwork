@@ -1,5 +1,7 @@
 import json, re
 
+from collections import OrderedDict
+
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.device.bgp import Bgp
@@ -429,33 +431,52 @@ class Ngpf(Base):
         -------
         dict
             ``{"choice": "bgp_prefixes", "bgp_prefixes": [...]}``, where
-            each list entry is an OTG ``BgpPrefixesState`` dict.
+            each list entry is an OTG ``BgpPrefixesState`` dict.  There is
+            exactly one entry per peer, carrying every requested address
+            family that peer has learned.
+
+        Raises
+        ------
+        Exception
+            If ``prefix_filters`` names a family this backend cannot
+            retrieve (see :meth:`Bgp.resolve_prefix_filters`).
         """
         bgp_prefix_req = request.bgp_prefixes
         peer_names = bgp_prefix_req.bgp_peer_names or []
+        # prefix_filters selects the address families; the per-family
+        # ipv4/ipv6_unicast_filters are applied further down, in
+        # Bgp.get_learned_prefixes.
+        families = self._bgp.resolve_prefix_filters(
+            bgp_prefix_req.prefix_filters
+        )
         self.logger.debug(
-            "get_bgp_prefix_states peer_names=%s" % peer_names
+            "get_bgp_prefix_states peer_names=%s families=%s"
+            % (peer_names, families)
         )
 
         peer_entries = self._bgp.get_bgp_peer_objects(peer_names)
 
-        results = []
+        # Keyed by peer name so that a peer carrying more than one family
+        # yields a single BgpPrefixesState rather than one entry per family.
+        results = OrderedDict()
         for peer_name, peer_obj, session_index, family in peer_entries:
             self.logger.debug(
-                "Fetching learned prefixes: peer=%s session=%d family=%s"
+                "Fetching learned prefixes: peer=%s session=%d peer_family=%s"
                 % (peer_name, session_index, family)
             )
-            prefixes = self._bgp.get_learned_prefixes(
-                peer_obj, session_index, family, bgp_prefix_req
+            prefixes_by_field = self._bgp.get_learned_prefixes(
+                peer_obj, bgp_prefix_req, families
             )
-            entry = {"bgp_peer_name": peer_name}
-            if family == "v4":
-                entry["ipv4_unicast_prefixes"] = prefixes
-            else:
-                entry["ipv6_unicast_prefixes"] = prefixes
-            results.append(entry)
+            entry = results.setdefault(
+                peer_name, {"bgp_peer_name": peer_name}
+            )
+            for field, prefixes in prefixes_by_field.items():
+                entry.setdefault(field, []).extend(prefixes)
 
-        return {"choice": "bgp_prefixes", "bgp_prefixes": results}
+        return {
+            "choice": "bgp_prefixes",
+            "bgp_prefixes": list(results.values()),
+        }
 
     def _get_ether_resolved_mac(
         self, ip_objs, ether_gateway_map, ip_neighbors, choice

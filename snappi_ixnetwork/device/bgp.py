@@ -112,6 +112,48 @@ class Bgp(Base):
         "unicast_ipv6_prefix": "filterIpV6Unicast",
     }
 
+    # ------------------------------------------------------------------
+    # Address families for StatesRequest.bgp_prefixes
+    # ------------------------------------------------------------------
+    # Every value of the OTG ``prefix_filters`` enum, mapped to the
+    # ``BgpPrefixesState`` field it populates.
+    _PREFIX_FILTER_FIELDS = {
+        "ipv4_unicast": "ipv4_unicast_prefixes",
+        "ipv6_unicast": "ipv6_unicast_prefixes",
+        "ipv4_mpls_unicast": "ipv4_mpls_unicast_prefixes",
+        "ipv6_mpls_unicast": "ipv6_mpls_unicast_prefixes",
+    }
+
+    # The subset this backend can translate today.  An empty prefix_filters
+    # means "all supported families", so this is also the default.
+    _SUPPORTED_PREFIX_FILTERS = ("ipv4_unicast", "ipv6_unicast")
+
+    # How to turn a row of each family into an OTG prefix, and which
+    # per-family filter list applies to it.
+    _FAMILY_TRANSLATION = {
+        "ipv4_unicast": (
+            "_row_to_ipv4_prefix",
+            "_apply_v4_filters",
+            "ipv4_unicast_filters",
+        ),
+        "ipv6_unicast": (
+            "_row_to_ipv6_prefix",
+            "_apply_v6_filters",
+            "ipv6_unicast_filters",
+        ),
+    }
+
+    # learnedInfo table ``Type`` -> address family, matched case-insensitively
+    # **by prefix**: the Type carries a trailing ordinal ('IPv4 Prefixes 1')
+    # which is assigned per fetch and is not stable between reads, so it must
+    # never be compared for equality.  An MPLS table is a distinct Type and
+    # therefore does not match either entry -- which is what keeps MPLS rows
+    # from being reported as plain unicast prefixes.
+    _LEARNED_TABLE_FAMILIES = (
+        ("ipv4 prefixes", "ipv4_unicast"),
+        ("ipv6 prefixes", "ipv6_unicast"),
+    )
+
     def __init__(self, ngpf):
         super(Bgp, self).__init__()
         self._ngpf = ngpf
@@ -506,27 +548,43 @@ class Bgp(Base):
                 continue
             results.append((name, peer_obj, idx + 1, family))
 
-    def _get_learned_table(self, peer_obj, session_index, family):
-        """Trigger learned-info fetch and return rows as column-keyed dicts.
+    def _table_family(self, table_type):
+        """Map a learnedInfo table ``Type`` to an OTG family, or ``None``.
+
+        Matched by prefix -- see :attr:`_LEARNED_TABLE_FAMILIES` for why the
+        trailing ordinal in ``'IPv4 Prefixes 1'`` must not be compared.
+        """
+        lowered = (table_type or "").strip().lower()
+        for prefix, family in self._LEARNED_TABLE_FAMILIES:
+            if lowered.startswith(prefix):
+                return family
+        return None
+
+    def _get_learned_table(self, peer_obj):
+        """Trigger a learned-info fetch and return its rows **by family**.
 
         ``GetAllLearnedInfo`` (not ``GetIPv4/6LearnedInfo``) is the operation
         that populates the ``Table`` child resource.  ``GetIPv4/6LearnedInfo``
         only updates the deprecated inline ``Columns``/``Values`` fields which
         are no longer written in IxNetwork 10.x.
 
+        A peer can carry tables for more than one family -- an MP-BGP session
+        over IPv4 may learn IPv6 NLRI -- so rows are grouped by the family
+        named in ``table.Type`` rather than by the peer's own IP version.
+        Tables whose Type is not a recognised family (EVPN, flow spec, MPLS,
+        ...) are skipped rather than merged, which is what stops their rows
+        being reported as plain unicast prefixes.
+
         Parameters
         ----------
         peer_obj :
             Live RestPy ``bgpIpv4Peer`` or ``bgpIpv6Peer`` object.
-        session_index : int
-            Informational; the trigger covers all sessions on *peer_obj*.
-        family : str
-            ``"v4"`` or ``"v6"``.
 
         Returns
         -------
-        list[dict[str, str]]
-            One ``{column_display_name: value_str}`` dict per prefix row.
+        dict[str, list[dict[str, str]]]
+            ``{family: [{column_display_name: value_str}, ...]}``, keyed by
+            the OTG ``prefix_filters`` family name.
         """
         # --- Step 1: trigger the learned-info fetch -----------------------
         # Equivalent to right-click → "Get Learned Info" in the GUI.
@@ -537,27 +595,32 @@ class Bgp(Base):
                 "GetAllLearnedInfo failed for peer %r: %s"
                 % (peer_obj.Name, e)
             )
-            return []
+            return {}
 
         # --- Step 2: read LearnedInfo.find().Table.find() -----------------
-        rows = []
+        tables = {}
         try:
             for li in peer_obj.LearnedInfo.find():
                 for table in li.Table.find():
                     columns = table.Columns
                     if not columns:
                         continue
+                    family = self._table_family(table.Type)
                     self.logger.debug(
-                        "_get_learned_table: peer=%r Type=%r Columns=%r "
-                        "RowCount=%d"
+                        "_get_learned_table: peer=%r Type=%r family=%r "
+                        "Columns=%r RowCount=%d"
                         % (
                             peer_obj.Name,
                             table.Type,
+                            family,
                             columns,
                             len(table.Values or []),
                         )
                     )
+                    if family is None:
+                        continue
                     col_idx = {col.strip(): i for i, col in enumerate(columns)}
+                    rows = tables.setdefault(family, [])
                     for row_vals in (table.Values or []):
                         rows.append({
                             col: row_vals[i]
@@ -569,7 +632,7 @@ class Bgp(Base):
                 "_get_learned_table: Table.find() failed for peer %r: %s"
                 % (peer_obj.Name, e)
             )
-        return rows
+        return tables
 
     # --- static low-level helpers ------------------------------------
 
@@ -1078,60 +1141,127 @@ class Bgp(Base):
 
     # --- public orchestrator -----------------------------------------
 
-    def get_learned_prefixes(self, peer_obj, session_index, family,
-                             bgp_prefix_request):
-        """Fetch and translate learned prefixes for one peer session.
+    def resolve_prefix_filters(self, prefix_filters):
+        """Return the address families a ``bgp_prefixes`` request asks for.
 
-        Calls :meth:`_get_learned_table` to retrieve raw IxNetwork rows,
-        converts each row to an OTG prefix dict, then applies any
-        unicast filters present in *bgp_prefix_request*.
+        ``StatesRequest.bgp_prefixes`` carries three independent filters.
+        ``prefix_filters`` selects **which address families** to report;
+        ``ipv4_unicast_filters``/``ipv6_unicast_filters`` then narrow the
+        prefixes *within* a family.  This resolves the first of the three.
+
+        Parameters
+        ----------
+        prefix_filters : list[str] or None
+            Values from the OTG enum: ``ipv4_unicast``, ``ipv6_unicast``,
+            ``ipv4_mpls_unicast``, ``ipv6_mpls_unicast``.  Empty or ``None``
+            means every family this backend supports.
+
+        Returns
+        -------
+        list[str]
+            Family names, in a stable order.
+
+        Raises
+        ------
+        Exception
+            If a family is unknown, or is a valid OTG family that this
+            backend cannot translate yet.  Failing loudly is deliberate:
+            returning an empty list would look like "the peer learned
+            nothing", which is indistinguishable from a working query.
+        """
+        if not prefix_filters:
+            return list(self._SUPPORTED_PREFIX_FILTERS)
+
+        requested = list(prefix_filters)
+
+        unknown = [
+            f for f in requested if f not in self._PREFIX_FILTER_FIELDS
+        ]
+        if unknown:
+            raise Exception(
+                "Unknown bgp_prefixes prefix_filters value(s): %s. Valid "
+                "values are %s."
+                % (sorted(unknown), sorted(self._PREFIX_FILTER_FIELDS))
+            )
+
+        unsupported = [
+            f for f in requested if f not in self._SUPPORTED_PREFIX_FILTERS
+        ]
+        if unsupported:
+            raise Exception(
+                "bgp_prefixes prefix_filters %s is not supported by the "
+                "IxNetwork backend yet; only %s can be retrieved."
+                % (sorted(unsupported), list(self._SUPPORTED_PREFIX_FILTERS))
+            )
+
+        # Deduplicate while keeping a deterministic order.
+        return [
+            f for f in self._SUPPORTED_PREFIX_FILTERS if f in set(requested)
+        ]
+
+    def get_learned_prefixes(self, peer_obj, bgp_prefix_request,
+                             families=None):
+        """Fetch and translate one peer's learned prefixes, by family.
+
+        Calls :meth:`_get_learned_table` for the raw rows, converts each row
+        to an OTG prefix dict, then applies the per-family unicast filters
+        from *bgp_prefix_request*.
+
+        The family of a prefix comes from the learned-info table it was read
+        from, **not** from the peer's own IP version, so an MP-BGP session
+        over IPv4 that has learned IPv6 NLRI reports those under
+        ``ipv6_unicast_prefixes``.
 
         Parameters
         ----------
         peer_obj :
             Live RestPy ``bgpIpv4Peer`` or ``bgpIpv6Peer`` object.
-        session_index : int
-            1-based session index (from :meth:`get_bgp_peer_objects`).
-        family : str
-            ``"v4"`` or ``"v6"``.
         bgp_prefix_request :
             Snappi ``BgpPrefixStateRequest`` (``request.bgp_prefixes``).
             May be ``None`` when called without filter context.
+        families : list[str] or None
+            Families to report, from :meth:`resolve_prefix_filters`.
+            ``None`` means every supported family.
 
         Returns
         -------
-        list[dict]
-            OTG-shaped prefix dicts ready for serialisation into
-            ``BgpPrefixIpv4/6UnicastState``.
+        dict[str, list[dict]]
+            ``{BgpPrefixesState field name: [prefix dict, ...]}``, holding
+            only the families this peer actually has a table for.  A family
+            whose filters exclude everything is present with an empty list,
+            which distinguishes "nothing matched" from "not carried".
         """
         # Fresh warning scope: a missing column is reported once per call,
         # not once per prefix, and not suppressed forever after the first.
         self._warned_columns = set()
 
-        rows = self._get_learned_table(peer_obj, session_index, family)
+        if families is None:
+            families = self._SUPPORTED_PREFIX_FILTERS
 
-        if family == "v4":
+        tables = self._get_learned_table(peer_obj)
+
+        prefixes_by_field = {}
+        for family in families:
+            if family not in tables:
+                continue
+            row_method, filter_method, filters_attr = (
+                self._FAMILY_TRANSLATION[family]
+            )
+            to_prefix = getattr(self, row_method)
             prefixes = [
-                p for p in (self._row_to_ipv4_prefix(r) for r in rows)
+                p
+                for p in (to_prefix(row) for row in tables[family])
                 if p is not None
             ]
             filters = (
-                bgp_prefix_request.ipv4_unicast_filters
+                getattr(bgp_prefix_request, filters_attr, None)
                 if bgp_prefix_request is not None
                 else None
             )
-            return self._apply_v4_filters(prefixes, filters)
-        else:
-            prefixes = [
-                p for p in (self._row_to_ipv6_prefix(r) for r in rows)
-                if p is not None
-            ]
-            filters = (
-                bgp_prefix_request.ipv6_unicast_filters
-                if bgp_prefix_request is not None
-                else None
-            )
-            return self._apply_v6_filters(prefixes, filters)
+            prefixes_by_field[self._PREFIX_FILTER_FIELDS[family]] = getattr(
+                self, filter_method
+            )(prefixes, filters)
+        return prefixes_by_field
 
     def _configure_route(self, route, ixn_route):
         self._ngpf.set_ixn_routes(route, ixn_route)
