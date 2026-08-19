@@ -407,6 +407,43 @@ class Bgp(Base):
         ------
         Exception
             If any name in *peer_names* is not found in the live topology.
+
+        Limitations
+        -----------
+        Peers are found by walking the live NGPF tree rather than by looking
+        them up by name, which has three known consequences.  The same walk
+        is used by the ``ipv4_neighbors``/``ipv6_neighbors`` branches of
+        :meth:`Ngpf.get_states`, so these apply there too.
+
+        * **Cost grows with the topology.** The walk runs on every call and
+          nothing is cached between calls (the topology may have changed),
+          so a configuration with very many device groups pays for a full
+          traversal each time.
+        * **Only top-level device groups are searched.**
+          ``DeviceGroup.find()`` returns the groups directly beneath the
+          topology, not their children, so a peer in a nested ("chained")
+          device group is not found.
+        * **Only Ethernet-backed interfaces are searched.** The chain is
+          ``DeviceGroup -> Ethernet -> Ipv4/Ipv6 -> BgpIpv4Peer/BgpIpv6Peer``,
+          so a peer configured on a loopback is not found.  This is not
+          hypothetical: :class:`LoopbackInt` places each loopback in a
+          *child* device group and attaches it as ``ipv4Loopback`` /
+          ``ipv6Loopback`` (or, for a VXLAN source interface, as
+          ``ethernet/ipv4`` inside that child group), so both limitations
+          above apply to it at once.
+
+        In each of those cases a requested peer name is reported as
+        "BGP peer(s) not found in topology", which does not distinguish an
+        unsupported topology from a mistyped name.
+
+        The robust fix is to stop searching and look the peer up directly:
+        ``ixn_objects`` already maps every snappi name to an ``IxNetInfo``
+        carrying ``.xpath``/``.href``, and the object type is the trailing
+        xpath segment (``.../ipv4[1]/bgpIpv4Peer[1]``), so filtering to
+        ``bgpIpv4Peer``/``bgpIpv6Peer`` needs no new capability in
+        :class:`IxNetObjects`.  That belongs in a follow-up which also
+        converts the two neighbor paths, so all three share one lookup
+        helper instead of three hand-rolled traversals.
         """
         requested = set(peer_names) if peer_names else None
         ixn_object_names = set(self._ngpf.api.ixn_objects.names)
