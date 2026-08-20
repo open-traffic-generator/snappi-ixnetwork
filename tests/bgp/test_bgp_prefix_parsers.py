@@ -160,7 +160,7 @@ def segments(as_path):
 
 
 # ---------------------------------------------------------------------------
-# _parse_as_path  (R6-b, R6-c)
+# _parse_as_path  
 # ---------------------------------------------------------------------------
 
 
@@ -320,7 +320,7 @@ def test_parse_as_path_valid_asns_never_warn(bgp, caplog):
 
 
 # ---------------------------------------------------------------------------
-# _parse_communities  (R6-d)
+# _parse_communities  
 # ---------------------------------------------------------------------------
 
 
@@ -472,7 +472,7 @@ def test_parse_communities_valid_never_warn(bgp, caplog):
 
 
 # ---------------------------------------------------------------------------
-# _row_to_ipv4_prefix / _row_to_ipv6_prefix  (R6-g)
+# _row_to_ipv4_prefix / _row_to_ipv6_prefix
 # ---------------------------------------------------------------------------
 
 
@@ -687,10 +687,6 @@ def test_path_id_present_when_set(bgp):
         ("egp", "egp"),
         ("Igp", "igp"),
         ("INCOMPLETE", "incomplete"),
-        # Single-char forms are unused on 10.80 but still mapped.
-        ("i", "igp"),
-        ("e", "egp"),
-        ("?", "incomplete"),
     ],
 )
 def test_origin_mapping(bgp, origin_cell, expected):

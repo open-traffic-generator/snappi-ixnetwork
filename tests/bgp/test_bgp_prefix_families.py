@@ -553,7 +553,7 @@ def test_per_family_filters_apply_to_their_own_family(bgp):
 
 
 # ---------------------------------------------------------------------------
-# Ngpf.get_bgp_prefix_states: end-to-end wiring  (R3-a, R3-d)
+# Ngpf.get_bgp_prefix_states: end-to-end wiring  
 # ---------------------------------------------------------------------------
 
 

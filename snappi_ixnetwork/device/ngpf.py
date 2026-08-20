@@ -420,26 +420,6 @@ class Ngpf(Base):
 
         Implements the ``bgp_prefixes`` choice of
         ``StatesRequest`` / ``StatesResponse`` on the IxNetwork backend.
-
-        Parameters
-        ----------
-        request : StatesRequest
-            The fully-deserialised snappi ``StatesRequest`` object whose
-            ``choice`` is ``"bgp_prefixes"``.
-
-        Returns
-        -------
-        dict
-            ``{"choice": "bgp_prefixes", "bgp_prefixes": [...]}``, where
-            each list entry is an OTG ``BgpPrefixesState`` dict.  There is
-            exactly one entry per peer, carrying every requested address
-            family that peer has learned.
-
-        Raises
-        ------
-        Exception
-            If ``prefix_filters`` names a family this backend cannot
-            retrieve (see :meth:`Bgp.resolve_prefix_filters`).
         """
         bgp_prefix_req = request.bgp_prefixes
         peer_names = bgp_prefix_req.bgp_peer_names or []

@@ -1,5 +1,4 @@
 import re
-import time
 
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.logger import get_ixnet_logger
@@ -103,7 +102,7 @@ class Bgp(Base):
         "as_confed_set": "assetconfederation",
     }
 
-    # OTG learned_information_filter → IxNetwork filterIpV*/filterIpV* Multivalue.
+    # OTG learned_information_filter.
     # Enabling a filter instructs IxNetwork to capture that route family in
     # learnedInfo.  Without at least one filter set to True the server stores
     # nothing and GetIPv4/6LearnedInfo returns empty results.
@@ -112,9 +111,6 @@ class Bgp(Base):
         "unicast_ipv6_prefix": "filterIpV6Unicast",
     }
 
-    # ------------------------------------------------------------------
-    # Address families for StatesRequest.bgp_prefixes
-    # ------------------------------------------------------------------
     # Every value of the OTG ``prefix_filters`` enum, mapped to the
     # ``BgpPrefixesState`` field it populates.
     _PREFIX_FILTER_FIELDS = {
@@ -159,15 +155,7 @@ class Bgp(Base):
     }
 
     # learnedInfo table ``Type`` -> address family, matched case-insensitively
-    # **by prefix**: the Type carries a trailing ordinal ('IPv4 Prefixes 1')
-    # which is assigned per fetch and is not stable between reads, so it must
-    # never be compared for equality.  An MPLS table is a distinct Type and
-    # therefore does not match either entry -- which is what keeps MPLS rows
-    # from being reported as plain unicast prefixes.
-    #
-    # These strings double as the server-side ``Table.find(Type=...)`` regex
-    # (see _table_type_pattern), so keep them free of regex metacharacters:
-    # they are matched literally, only anchored and alternated.
+
     _LEARNED_TABLE_FAMILIES = (
         ("IPv4 Prefixes", "ipv4_unicast"),
         ("IPv6 Prefixes", "ipv6_unicast"),
@@ -388,12 +376,8 @@ class Bgp(Base):
     # Learned-info helpers (used by ngpf.get_bgp_prefix_states)
     # ------------------------------------------------------------------
 
-    # IxNetwork single-char origin → OTG origin string
+    # IxNetwork origin → OTG origin string
     _IXN_ORIGIN_MAP = {
-        "i": "igp",
-        "e": "egp",
-        "?": "incomplete",
-        # accept long-form in case a future IxN version emits them
         "igp": "igp",
         "egp": "egp",
         "incomplete": "incomplete",
@@ -404,36 +388,18 @@ class Bgp(Base):
     # ------------------------------------------------------------------
     # The keys below are IxNetwork column *display names*.  RestPy exposes
     # no `name` attribute for learned-info columns: in ixnetwork_restpy
-    # 1.10.0 the `learnedInfo/table` resource's _SDM_ATT_MAP is only
+    # the `learnedInfo/table` resource's _SDM_ATT_MAP is only
     # {Actions, Columns, RowCount, Type, Values}, `learnedInfo` itself adds
     # only Id__/State, and the deprecated `col` child carries just `value`.
     # `columns` holds the display names, so keying off the display name is
     # the only option the API offers.
-    # Notes :
-    #   * 'IPv4 Prefix ' carries a trailing space.  _get_learned_table()
-    #     strips every column name, so the constants here are unpadded.
-    #   * an absent value arrives as 'NA', 'removePacket[ ]' or
-    #     'removePacket[N/A]' -- never a bare 'N/A'.  All are normalised to
-    #     None by _get_cell; 'removePacket' is matched by prefix because
-    #     the bracketed part varies (_NA_VALUE_PREFIXES).
-    #   * 'AIGP', 'Color', 'Large Community', 'SRv6 SID' and the locator
-    #     columns have no OTG counterpart and are deliberately unmapped.
-    #   * 'IPv6 Next Hop 2' is a second next-hop, not an alias of
-    #     'IPv6 Next Hop'; OTG has no field for it.
-    #   * this table has no extended-community column.
-    # A tuple with more than one entry is an ordered candidate list
-    # (first hit wins).  Keep these tuples minimal: every extra entry is
-    # a guess that hides a schema change instead of surfacing it.
-    #
-    # The IPv6 unicast table has not been captured yet -- entries tagged
-    # UNCONFIRMED are inferred from the IPv4 naming pattern above.
     _V4_ADDR_COLS = ("IPv4 Prefix",)
     _V6_ADDR_COLS = ("IPv6 Prefix",)
     _NLRI_COLS = ("Prefix Length",)
     _V4_NH_COLS = ("IPv4 Next Hop",)
     _V6_NH_COLS = ("IPv6 Next Hop",)
     # Legacy single next-hop column, used only as a fallback when neither
-    # explicit per-family column is present.  Not seen in 10.80.
+    # explicit per-family column is present.
     _NH_COLS = ("Next Hop",)
     _ORIGIN_COLS = ("Origin",)
     _LOCPREF_COLS = ("Local Preference",)
@@ -452,23 +418,6 @@ class Bgp(Base):
         """Return a list of ``(peer_name, restpy_peer_obj, session_index,
         family)`` for every BGP peer that matches *peer_names*.
 
-        Parameters
-        ----------
-        peer_names : list[str]
-            Snappi peer names to query.  An empty list means *all* configured
-            BGP peers.
-
-        Returns
-        -------
-        list of (str, restpy_obj, int, str)
-            *session_index* is 1-based (as required by
-            ``GetIPv4/6LearnedInfo``).  *family* is ``"v4"`` or ``"v6"``.
-
-        Raises
-        ------
-        Exception
-            If any name in *peer_names* is not found in the live topology.
-
         Limitations
         -----------
         Peers are found by walking the live NGPF tree rather than by looking
@@ -478,7 +427,7 @@ class Bgp(Base):
 
         * **Cost grows with the topology.** The walk runs on every call and
           nothing is cached between calls (the topology may have changed),
-          so a configuration with very many device groups pays for a full
+          so a configuration with many device groups pays for a full
           traversal each time.
         * **Only top-level device groups are searched.**
           ``DeviceGroup.find()`` returns the groups directly beneath the
@@ -569,9 +518,6 @@ class Bgp(Base):
 
     def _table_family(self, table_type):
         """Map a learnedInfo table ``Type`` to an OTG family, or ``None``.
-
-        Matched by prefix -- see :attr:`_LEARNED_TABLE_FAMILIES` for why the
-        trailing ordinal in ``'IPv4 Prefixes 1'`` must not be compared.
         """
         lowered = (table_type or "").strip().lower()
         for prefix, family in self._LEARNED_TABLE_FAMILIES:
@@ -585,13 +531,6 @@ class Bgp(Base):
         ``find()``'s named parameters are evaluated as regular expressions on
         the API server, so the requested families can be selected there
         rather than fetching every table and discarding most of them.
-
-        Verified against IxNetwork 10.80: anchoring, alternation and the
-        ``(?i)`` inline flag all work, and a pattern that matches nothing
-        returns an empty result rather than raising.  The flag matters --
-        without it the server match would be case-sensitive while
-        :meth:`_table_family` is not, so the two would disagree on a table
-        type that differed only in casing.
         """
         prefixes = [
             prefix
@@ -604,18 +543,6 @@ class Bgp(Base):
 
     def _find_learned_tables(self, learned_info, families):
         """Return ``(tables, fell_back)`` for one learnedInfo object.
-
-        The read is narrowed server-side to *families*.  When that returns
-        nothing the tables are re-read unfiltered, because an empty filtered
-        result is indistinguishable from "this peer learned no routes" -- and
-        without the re-read a table whose Type we no longer recognise would
-        produce no prefixes *and* no diagnostic.
-
-        Whether falling back indicates a problem depends on what the rows
-        turn out to be, which only the caller can see: a peer that simply
-        does not carry a requested family is the normal case and must stay
-        quiet.  So this reports the fallback and leaves the judgement to
-        :meth:`_get_learned_table`.
         """
         pattern = self._table_type_pattern(families)
         if pattern is None:
@@ -638,31 +565,7 @@ class Bgp(Base):
         """Trigger a learned-info fetch and return its rows **by family**.
 
         ``GetAllLearnedInfo`` (not ``GetIPv4/6LearnedInfo``) is the operation
-        that populates the ``Table`` child resource.  ``GetIPv4/6LearnedInfo``
-        only updates the deprecated inline ``Columns``/``Values`` fields which
-        are no longer written in IxNetwork 10.x.
-
-        A peer can carry tables for more than one family -- an MP-BGP session
-        over IPv4 may learn IPv6 NLRI -- so rows are grouped by the family
-        named in ``table.Type`` rather than by the peer's own IP version.
-        Tables whose Type is not a recognised family (EVPN, flow spec, MPLS,
-        ...) are skipped rather than merged, which is what stops their rows
-        being reported as plain unicast prefixes.
-
-        Parameters
-        ----------
-        peer_obj :
-            Live RestPy ``bgpIpv4Peer`` or ``bgpIpv6Peer`` object.
-        families : list[str] or None
-            Families to fetch.  Used to narrow the read server-side; ``None``
-            reads every table.  Rows are still classified by table Type, so
-            passing this is an optimisation, not a correctness requirement.
-
-        Returns
-        -------
-        dict[str, list[dict[str, str]]]
-            ``{family: [{column_display_name: value_str}, ...]}``, keyed by
-            the OTG ``prefix_filters`` family name.
+        that populates the ``Table`` child resource. 
         """
         # --- Step 1: trigger the learned-info fetch -----------------------
         # Equivalent to right-click → "Get Learned Info" in the GUI.
@@ -750,13 +653,6 @@ class Bgp(Base):
                 )
             )
         elif fell_back and tables:
-            # The server-side Type filter missed a table that this code then
-            # understood perfectly well.  Not expected -- the filter is built
-            # from the same prefixes, case-insensitively -- so it means the
-            # server's regex handling differs from what was verified.  Harmless
-            # here (the rows were recovered) but worth knowing about, since it
-            # is the mechanism by which a future version could start losing
-            # prefixes silently.
             self.logger.warning(
                 "Learned-info Type filter did not match the %s table(s) for "
                 "peer %r, which were read and parsed anyway. Server-side "
@@ -769,11 +665,6 @@ class Bgp(Base):
 
     def _is_na(self, value):
         """Return True if *value* is an IxNetwork "no value" placeholder.
-
-        IxNetwork does not leave absent cells empty; it emits ``NA`` or
-        ``removePacket[ ]`` (the bracketed part varies).  Treating those as
-        data yields nonsense such as ``path_id=0`` from ``'NA'`` or an
-        ``ipv6_next_hop`` of ``'removePacket[ ]'``.
         """
         lowered = value.lower()
         if lowered in self._NA_VALUES:
@@ -786,8 +677,7 @@ class Bgp(Base):
         Candidate names are IxNetwork column *display names* -- RestPy
         exposes no ``name`` attribute for learned-info columns, so the
         display name is the only key available (see the note above the
-        ``_*_COLS`` constants).  Names are matched against the already
-        stripped keys built by :meth:`_get_learned_table`.
+        ``_*_COLS`` constants).
 
         Returns ``None`` when no candidate column is present, and also
         when the matched cell holds a "no value" placeholder such as
@@ -796,12 +686,7 @@ class Bgp(Base):
         Keyword Arguments
         -----------------
         warn : bool, default True
-            Log a warning when none of *col_names* is present in *row*, so
-            that a renamed or removed column surfaces in the log instead of
-            silently producing an incomplete prefix.  Pass ``warn=False``
-            for probes that legitimately expect a miss -- the address
-            columns are used to decide whether a row belongs to this
-            address family at all.
+            Log a warning when none of *col_names* is present in *row*.
         """
         warn = kwargs.pop("warn", True)
         if kwargs:
@@ -820,10 +705,6 @@ class Bgp(Base):
 
     def _warn_missing_column(self, col_names, row):
         """Warn once per candidate-column set that no candidate matched.
-
-        Deduplicated for the lifetime of one
-        :meth:`get_learned_prefixes` call so that a missing column costs
-        one log line rather than one per learned prefix.
         """
         if col_names in self._warned_columns:
             return
@@ -845,10 +726,6 @@ class Bgp(Base):
 
     # --- AS-path / community parsers ---------------------------------
 
-    # AS numbers are uint32 in OTG (``as_numbers`` itemformat).  Community
-    # ``as_number``/``as_custom`` are each capped at 65535 by the OTG
-    # model, and snappi raises at serialisation time for anything larger,
-    # so an out-of-range parse would fail the whole get_states call.
     _MAX_ASN = 2 ** 32 - 1
     _MAX_COMMUNITY_FIELD = 65535
 
@@ -903,12 +780,6 @@ class Bgp(Base):
         """Warn about an AS-path token that is not an asplain AS number."""
         hint = ""
         if self._ASDOT_RE.match(token):
-            # Deliberate non-support: IxNetwork 10.80 emits asplain
-            # ('<100 200>') and neither bgpIpv4Peer nor anything else in
-            # ixnetwork_restpy 1.10.0 exposes an asdot notation setting.
-            # Guessing at a format we have never observed is what made the
-            # learned-info column aliases wrong; if this warning ever
-            # fires, implement the conversion (X.Y = X * 65536 + Y) here.
             hint = (
                 " This looks like asdot notation; asdot is not parsed "
                 "because IxNetwork has only ever been observed emitting "
@@ -990,13 +861,13 @@ class Bgp(Base):
         if not cell or cell.strip().lower() in ("", "n/a"):
             return []
 
-        # IxNetwork emits spaces around the colon: the 10.80 capture shows
+        # IxNetwork emits spaces around the colon: the capture shows
         # '1 : 2'.  Normalise to '1:2' before tokenising, so that a spaced
         # pair does not split into three tokens.
         cell = re.sub(r"\s*:\s*", ":", cell)
 
         result = []
-        # Entries are separated by commas, whitespace, or both -- 10.80
+        # Entries are separated by commas, whitespace, or both --
         # emits '1 : 2, NO_EXPORT, 65535 : 65535'.
         for token in self._ASN_SEPARATOR_RE.split(cell.strip()):
             if not token:
@@ -1106,7 +977,6 @@ class Bgp(Base):
 
         nlri_cell = self._get_cell(row, *self._NLRI_COLS)
 
-        # Some IxN versions emit a full CIDR in the address column.
         if "/" in addr_cell:
             parts = addr_cell.split("/", 1)
             ipv4_address = parts[0]
@@ -1156,7 +1026,6 @@ class Bgp(Base):
 
         Returns ``None`` when the row lacks address information.
         """
-        # warn=False: see the matching probe in _row_to_ipv4_prefix.
         addr_cell = self._get_cell(row, *self._V6_ADDR_COLS, warn=False)
 
         if not addr_cell:
@@ -1242,8 +1111,7 @@ class Bgp(Base):
         """Return prefixes that match at least one IPv4 unicast filter.
 
         An empty *filters* list (or ``None``) means no restriction: all
-        prefixes are returned.  Multiple filters are OR-ed; within each
-        filter, fields are AND-ed.
+        prefixes are returned. 
         """
         if not filters:
             return prefixes
@@ -1257,8 +1125,6 @@ class Bgp(Base):
 
     def _apply_v6_filters(self, prefixes, filters):
         """Return prefixes that match at least one IPv6 unicast filter.
-
-        Semantics identical to :meth:`_apply_v4_filters`.
         """
         if not filters:
             return prefixes
@@ -1279,26 +1145,6 @@ class Bgp(Base):
         ``prefix_filters`` selects **which address families** to report;
         ``ipv4_unicast_filters``/``ipv6_unicast_filters`` then narrow the
         prefixes *within* a family.  This resolves the first of the three.
-
-        Parameters
-        ----------
-        prefix_filters : list[str] or None
-            Values from the OTG enum: ``ipv4_unicast``, ``ipv6_unicast``,
-            ``ipv4_mpls_unicast``, ``ipv6_mpls_unicast``.  Empty or ``None``
-            means every family this backend supports.
-
-        Returns
-        -------
-        list[str]
-            Family names, in a stable order.
-
-        Raises
-        ------
-        Exception
-            If a family is unknown, or is a valid OTG family that this
-            backend cannot translate yet.  Failing loudly is deliberate:
-            returning an empty list would look like "the peer learned
-            nothing", which is indistinguishable from a working query.
         """
         if not prefix_filters:
             return list(self._SUPPORTED_PREFIX_FILTERS)
@@ -1342,25 +1188,6 @@ class Bgp(Base):
         from, **not** from the peer's own IP version, so an MP-BGP session
         over IPv4 that has learned IPv6 NLRI reports those under
         ``ipv6_unicast_prefixes``.
-
-        Parameters
-        ----------
-        peer_obj :
-            Live RestPy ``bgpIpv4Peer`` or ``bgpIpv6Peer`` object.
-        bgp_prefix_request :
-            Snappi ``BgpPrefixStateRequest`` (``request.bgp_prefixes``).
-            May be ``None`` when called without filter context.
-        families : list[str] or None
-            Families to report, from :meth:`resolve_prefix_filters`.
-            ``None`` means every supported family.
-
-        Returns
-        -------
-        dict[str, list[dict]]
-            ``{BgpPrefixesState field name: [prefix dict, ...]}``, holding
-            only the families this peer actually has a table for.  A family
-            whose filters exclude everything is present with an empty list,
-            which distinguishes "nothing matched" from "not carried".
         """
         # Fresh warning scope: a missing column is reported once per call,
         # not once per prefix, and not suppressed forever after the first.

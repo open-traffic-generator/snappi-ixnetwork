@@ -321,7 +321,7 @@ def test_bgp_prefix_states_ipv4_b2b(api, b2b_raw_config, utils):
     """
     Verify IPv4 unicast learned-prefix state is returned per BGP peer.
 
-    bgpv4_peer2 should learn rr1 (100.1.0.0/24 × 5) with AS-path [100,200],
+    bgpv4_peer2 should learn rr1 (100.1.0.0/24 x 5) with AS-path [100,200],
     community 1:2, MED 50 and origin EGP from bgpv4_peer1.
     """
     config = _build_v4_config(api, b2b_raw_config)
@@ -414,7 +414,7 @@ def test_bgp_prefix_states_ipv6_b2b(api, b2b_raw_config, utils):
     Verify IPv6 unicast learned-prefix state is returned for BGPv6 peers
     in a dual-stack configuration.
 
-    bgpv6_peer2 should learn rr1v6 (4000::/64 × 5) with AS-path [500,600]
+    bgpv6_peer2 should learn rr1v6 (4000::/64 x 5) with AS-path [500,600]
     and origin IGP from bgpv6_peer1.
     """
     config = _build_dual_stack_config(api, b2b_raw_config)
@@ -549,7 +549,7 @@ def test_bgp_prefix_states_filter_b2b(api, b2b_raw_config, utils):
     ipv4_unicast_filters must narrow the result to matching prefixes only.
 
     A filter for address 100.1.0.0 / prefix_length 24 applied to
-    bgpv4_peer2 (which learns 5 prefixes: 100.1.0.0–100.1.4.0 /24)
+    bgpv4_peer2 (which learns 5 prefixes: 100.1.0.0-100.1.4.0 /24)
     should return exactly 1 matching prefix.
     """
     config = _build_v4_config(api, b2b_raw_config)
