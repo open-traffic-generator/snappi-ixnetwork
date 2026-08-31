@@ -1,3 +1,8 @@
+
+import pytest
+
+
+@pytest.mark.e2e
 def test_global_pause(api, b2b_raw_config_vports, utils):
     """
     Configure three flows with raw IPv4,

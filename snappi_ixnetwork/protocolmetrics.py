@@ -3,9 +3,9 @@ import time
 
 
 class ProtocolMetrics(object):
-    # Currently paging of the statistic view is not handled
-    # TODO Need to enhance when device groups statistics reach
-    # more than one page.
+    # Paging is handled by setting PageSize = TotalRows on the drill-down
+    # statistics view before reading PageValues, which loads all rows in a
+    # single request regardless of the default page size.
 
     _SUPPORTED_PROTOCOLS_ = [
         "bgpv4",
@@ -173,8 +173,8 @@ class ProtocolMetrics(object):
             "ixn_name": "bgpIpv4Peer",
         },
         "bgpv6": {
-            "per_port": "BGP\+ Peer Per Port",
-            "drill_down": "BGP\+ Peer Drill Down",
+            "per_port": "BGP\\+ Peer Per Port",
+            "drill_down": "BGP\\+ Peer Drill Down",
             "drill_down_options": [
                 "BGP+ Peer:Per Device Group",
                 "BGP+ Peer:Per Session",

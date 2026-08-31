@@ -1,13 +1,5 @@
 import pytest
 
-
-@pytest.mark.skip(
-    reason="""
-    Skipping as this test as CI setup requires IxN update pending.
-    Once is IxN Patch is there, need to test and include this test 
-    in CI regression suite.
-    """
-)
 def test_bgpv6_dual_stack_routes(api, b2b_raw_config, utils):
     """
     Test for dual stack BGP configuration with both BGPv4 and BGPv6 sessions
@@ -132,12 +124,6 @@ def test_bgpv6_dual_stack_routes(api, b2b_raw_config, utils):
     # Apply configuration
     api.set_config(b2b_raw_config)
 
-    print("Printing object cache after applying config:")
-    api.ixn_objects.print_cache()
-    print("\nBuilding and printing config cache from get_config:")
-    api.ixn_objects.build_cache_from_config()
-    print("\nComparing object cache and config cache:")
-    api.ixn_objects.compare_object_and_config_cache()
     print("Starting all protocols ...")
     ps = api.control_state()
     ps.choice = ps.PROTOCOL

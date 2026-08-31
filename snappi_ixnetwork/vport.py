@@ -877,7 +877,9 @@ class Vport(object):
                 try:
                     row_val = row[int_name]
                     self._set_result_value(port_row, ext_name, row_val, typ)
-                except Exception:
-                    # TODO print a warning maybe ?
-                    pass
+                except Exception as e:
+                    self.logger.warning(
+                        "Could not set result value for column "
+                        "'%s': %s" % (ext_name, e)
+                    )
         return list(port_rows.values())
