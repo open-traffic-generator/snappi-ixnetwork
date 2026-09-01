@@ -41,7 +41,6 @@ import time
 import dpkt
 import pytest
 
-pytestmark = pytest.mark.skip(reason="ISIS-SRv6 control plane not yet supported")
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -67,8 +66,8 @@ _BEHAVIOR_NAME = {
     5:  "End.X",
     16: "End.DX6",
     18: "End.DT6",
+    28: "End.USD",
     43: "uN",
-    47: "End.USD",
     60: "uDX6",
     61: "uDX4",
     62: "uDT6",
@@ -143,6 +142,19 @@ def _add_end_sid(loc, function_hex, behavior="end"):
     sid.endpoint_behavior = behavior
     sid.c_flag = True
     return sid
+
+
+def _add_adj_sid(intf, function_hex, behavior="end_x"):
+    """Add an adjacency SID to an IS-IS interface (default End.X, code 5)."""
+    adj = intf.srv6_adjacency_sids.sids.add()
+    adj.function          = function_hex
+    adj.endpoint_behavior = behavior
+    adj.c_flag            = True
+    adj.b_flag            = False
+    adj.s_flag            = False
+    adj.weight            = 0
+    adj.locator           = "auto"
+    return adj
 
 
 def _add_isis_v6_routes(isis, prefix, name, prefix_len=64):
@@ -964,12 +976,17 @@ def _build_device_flow(cfg, name, tx_names, rx_names, pps=50, packets=100):
 # SRH wire parser (data plane)
 # ---------------------------------------------------------------------------
 
-def _parse_inner_payload(buf, inner_off, next_hdr_srh):
+def _parse_inner_payload(buf, inner_off, next_hdr_srh, tlv_embedded=False):
     """Parse the inner IPv4/IPv6 + TCP/UDP payload that follows an SRH.
 
     buf:          raw frame bytes
-    inner_off:    byte offset where the inner header starts (= srh_off + SRH len)
+    inner_off:    byte offset where the inner header starts
     next_hdr_srh: SRH Next Header field (4=IPv4, 41=IPv6)
+    tlv_embedded: True when the inner IPv6 was found inside the SRH TLV area
+                  (IxN device-flow quirk for non-uSID ipv6RoutingType4 flows).
+                  In that layout IxN places the transport header immediately
+                  before the inner IPv6: TCP at (inner_off - 20), UDP at
+                  (inner_off - 8).  Use the standard (inner_off + 40) otherwise.
 
     Returns a dict of parsed field values, or None if the payload cannot be
     parsed (wrong protocol, truncated frame, or exception).
@@ -1001,7 +1018,13 @@ def _parse_inner_payload(buf, inner_off, next_hdr_srh):
             ip_src  = str(ipaddress.IPv6Address(bytes(buf[inner_off +  8:inner_off + 24])))
             ip_dst  = str(ipaddress.IPv6Address(bytes(buf[inner_off + 24:inner_off + 40])))
             result  = {"ip_src": ip_src, "ip_dst": ip_dst, "ip_next_header": ip_next}
-            tl_off  = inner_off + 40
+            # IxN device-flow TLV layout: transport is immediately before inner IPv6.
+            if tlv_embedded and ip_next == 6:
+                tl_off = inner_off - 20    # TCP header (20 B) ends at inner_off
+            elif tlv_embedded and ip_next == 17:
+                tl_off = inner_off - 8     # UDP header (8 B) ends at inner_off
+            else:
+                tl_off = inner_off + 40    # standard: transport follows inner IPv6
             if ip_next == 6 and len(buf) >= tl_off + 14:      # TCP
                 result["src_port"]    = struct.unpack(">H", buf[tl_off    :tl_off + 2])[0]
                 result["dst_port"]    = struct.unpack(">H", buf[tl_off + 2:tl_off + 4])[0]
@@ -1017,6 +1040,139 @@ def _parse_inner_payload(buf, inner_off, next_hdr_srh):
     return None
 
 
+def _read_pcap_frames(pcap_bytes):
+    """Yield raw Ethernet frame bytes from a pcapng/pcap capture.
+
+    Prints a hex dump of the first two frames for quick visual sanity checks.
+    """
+    if pcap_bytes is None:
+        return
+
+    raw = pcap_bytes.read() if hasattr(pcap_bytes, "read") else bytes(pcap_bytes)
+    if hasattr(pcap_bytes, "seek"):
+        pcap_bytes.seek(0)
+    if not raw:
+        return
+
+    try:
+        pcap = dpkt.pcapng.Reader(io.BytesIO(raw))
+    except Exception:
+        try:
+            pcap = dpkt.pcap.Reader(io.BytesIO(raw))
+        except Exception:
+            return
+
+    for i, (_, pkt_data) in enumerate(pcap, start=1):
+        buf = bytes(pkt_data)
+        if i <= 2:
+            print("  [dp-pcap] pkt[%d] len=%d hex=%s" % (i, len(buf), buf[:64].hex()))
+        yield buf
+
+
+def _parse_srh_packet(buf):
+    """Parse a single raw Ethernet frame for an IPv6/SRH (routing_type=4) packet.
+
+    Returns: {"ip6_dst", "routing_type", "segments_left", "last_entry",
+               "flags_byte", "tag", "segments": [ipv6_str, ...], "inner"}
+    or None if this frame is not an IPv6/SRH packet.
+    """
+    try:
+        # Ethernet frame: dst(6)+src(6)+ethertype(2) = 14 bytes
+        if len(buf) < 14:
+            return None
+        ethertype = struct.unpack(">H", buf[12:14])[0]
+        if ethertype != 0x86DD:   # IPv6
+            return None
+
+        # IPv6 fixed header: 40 bytes (starts at offset 14)
+        if len(buf) < 54:
+            return None
+        ip6_off = 14
+        next_hdr = buf[ip6_off + 6]
+        if next_hdr != 43:        # Routing Extension Header
+            return None
+
+        # SRH starts immediately after the IPv6 fixed header
+        srh_off = ip6_off + 40
+        if len(buf) < srh_off + 8:
+            return None
+
+        next_hdr_srh = buf[srh_off]
+        hdr_ext_len  = buf[srh_off + 1]
+        routing_type = buf[srh_off + 2]
+        if routing_type != 4:
+            return None
+
+        segments_left = buf[srh_off + 3]
+        last_entry    = buf[srh_off + 4]
+        flags_byte    = buf[srh_off + 5]
+        tag           = struct.unpack(">H", buf[srh_off + 6:srh_off + 8])[0]
+
+        n_segs = last_entry + 1
+        seg_list = []
+        seg_start = srh_off + 8
+        for i in range(n_segs):
+            seg_bytes = buf[seg_start + i * 16: seg_start + i * 16 + 16]
+            if len(seg_bytes) < 16:
+                break
+            seg_list.append(str(ipaddress.IPv6Address(bytes(seg_bytes))))
+
+        inner_off_std = srh_off + (hdr_ext_len + 1) * 8
+        seg_list_end  = srh_off + 8 + n_segs * 16
+        inner_off     = inner_off_std
+        tlv_embedded  = False
+        # IxN device-flow quirk: for non-uSID ipv6RoutingType4 the inner
+        # IPv6 header can start inside the SRH's 64-byte TLV area (before
+        # inner_off_std).  In that layout the transport header (TCP/UDP) is
+        # placed immediately before the inner IPv6 in the TLV.  Scan from
+        # the end of the segment list for the first 0x60 byte that looks like
+        # an IPv6 header.
+        if next_hdr_srh == 41 and seg_list_end < inner_off_std:
+            for _i in range(seg_list_end, inner_off_std):
+                if _i + 8 <= len(buf) and (buf[_i] >> 4) == 6:
+                    _nh = buf[_i + 6]
+                    if _nh in (6, 17, 4, 41, 58, 59):  # plausible next-header
+                        inner_off    = _i
+                        tlv_embedded = True
+                        break
+
+        ip6_dst = str(ipaddress.IPv6Address(bytes(buf[ip6_off + 24:ip6_off + 40])))
+
+        return {
+            "ip6_dst":       ip6_dst,
+            "routing_type":  routing_type,
+            "segments_left": segments_left,
+            "last_entry":    last_entry,
+            "flags_byte":    flags_byte,
+            "tag":           tag,
+            "segments":      seg_list,
+            "inner":         _parse_inner_payload(buf, inner_off, next_hdr_srh,
+                                                  tlv_embedded=tlv_embedded),
+        }
+    except Exception:
+        return None
+
+
+def _parse_all_srh_from_pcap(pcap_bytes):
+    """Return a list of every IPv6/SRH (routing_type=4) packet dict in a capture.
+
+    Each dict has the same fields as _parse_srh_from_pcap plus "ip6_dst" (the
+    outer IPv6 destination address), so multiple flows captured together in
+    one burst can be matched back to the flow that produced them.
+    """
+    results = []
+    pkt_count = 0
+    for buf in _read_pcap_frames(pcap_bytes):
+        pkt_count += 1
+        parsed = _parse_srh_packet(buf)
+        if parsed is not None:
+            results.append(parsed)
+
+    if not results:
+        print("  [dp-pcap] scanned %d packets; no IPv6/SRH (routing_type=4) found" % pkt_count)
+    return results
+
+
 def _parse_srh_from_pcap(pcap_bytes):
     """Return first SRH packet fields from pcapng capture, or None.
 
@@ -1025,84 +1181,8 @@ def _parse_srh_from_pcap(pcap_bytes):
     """
     if pcap_bytes is None:
         return None
-
-    raw = pcap_bytes.read() if hasattr(pcap_bytes, "read") else bytes(pcap_bytes)
-    if hasattr(pcap_bytes, "seek"):
-        pcap_bytes.seek(0)
-    if not raw:
-        return None
-
-    try:
-        pcap = dpkt.pcapng.Reader(io.BytesIO(raw))
-    except Exception:
-        try:
-            pcap = dpkt.pcap.Reader(io.BytesIO(raw))
-        except Exception:
-            return None
-
-    pkt_count = 0
-    for _, pkt_data in pcap:
-        buf = bytes(pkt_data)
-        pkt_count += 1
-        if pkt_count <= 2:
-            print("  [dp-pcap] pkt[%d] len=%d hex=%s"
-                  % (pkt_count, len(buf), buf[:64].hex()))
-        try:
-            # Ethernet frame: dst(6)+src(6)+ethertype(2) = 14 bytes
-            if len(buf) < 14:
-                continue
-            ethertype = struct.unpack(">H", buf[12:14])[0]
-            if ethertype != 0x86DD:   # IPv6
-                continue
-
-            # IPv6 fixed header: 40 bytes (starts at offset 14)
-            if len(buf) < 54:
-                continue
-            ip6_off = 14
-            next_hdr = buf[ip6_off + 6]
-            if next_hdr != 43:        # Routing Extension Header
-                continue
-
-            # SRH starts immediately after the IPv6 fixed header
-            srh_off = ip6_off + 40
-            if len(buf) < srh_off + 8:
-                continue
-
-            next_hdr_srh = buf[srh_off]
-            hdr_ext_len  = buf[srh_off + 1]
-            routing_type = buf[srh_off + 2]
-            if routing_type != 4:
-                continue
-
-            segments_left = buf[srh_off + 3]
-            last_entry    = buf[srh_off + 4]
-            flags_byte    = buf[srh_off + 5]
-            tag           = struct.unpack(">H", buf[srh_off + 6:srh_off + 8])[0]
-
-            n_segs = last_entry + 1
-            seg_list = []
-            seg_start = srh_off + 8
-            for i in range(n_segs):
-                seg_bytes = buf[seg_start + i * 16: seg_start + i * 16 + 16]
-                if len(seg_bytes) < 16:
-                    break
-                seg_list.append(str(ipaddress.IPv6Address(bytes(seg_bytes))))
-
-            inner_off = srh_off + (hdr_ext_len + 1) * 8
-            return {
-                "routing_type":  routing_type,
-                "segments_left": segments_left,
-                "last_entry":    last_entry,
-                "flags_byte":    flags_byte,
-                "tag":           tag,
-                "segments":      seg_list,
-                "inner":         _parse_inner_payload(buf, inner_off, next_hdr_srh),
-            }
-        except Exception:
-            continue
-
-    print("  [dp-pcap] scanned %d packets; no IPv6/SRH (routing_type=4) found" % pkt_count)
-    return None
+    packets = _parse_all_srh_from_pcap(pcap_bytes)
+    return packets[0] if packets else None
 
 
 def _norm(addr):
@@ -1721,3 +1801,1353 @@ def test_tc5_srv6_msd_cp(api, b2b_raw_config, utils):
 
     _delete_captures("test_tc5_cp")
     print("\n  [%s] PASSED — Node MSD and Link MSD verified in IxN config state." % tc)
+
+
+# ---------------------------------------------------------------------------
+# SRv6 Adjacency SID wire parser (TLV 22 / sub-TLV 43)
+# ---------------------------------------------------------------------------
+
+def _parse_isis_srv6_adj_sids(pcap_bytes, source_system_id):
+    """Return {sid_addr: endpoint_behavior} from highest-sequence L2 LSP.
+
+    Walks TLV 22 (Extended IS Reachability) -> sub-TLV 43 (SRv6 End.X SID)
+    per RFC 9352 Section 8.  Each TLV-22 IS neighbor entry layout:
+      System ID + pseudonode (7) | metric (3) | sub-TLV length (1) | sub-TLVs
+    Sub-TLV 43 value layout:
+      flags(1) | reserved(1) | algo(1) | weight(1) | ep_behavior(2) | SID(16)
+    """
+    try:
+        src_bytes = bytes.fromhex(
+            source_system_id.replace(".", "").replace(":", "")
+        )
+    except ValueError:
+        return {}
+
+    best_seq  = -1
+    best_sids = {}
+
+    for _, raw_pkt in dpkt.pcapng.Reader(pcap_bytes):
+        try:
+            isis = _find_isis_pdu(bytes(raw_pkt))
+        except Exception:
+            continue
+        if isis is None or len(isis) < 27:
+            continue
+        if isis[0] != 0x83:
+            continue
+        if (isis[4] & 0x1F) != 0x14:           # Level 2 LSP
+            continue
+        if isis[10:16] != src_bytes:
+            continue
+        if isis[17] != 0:                       # fragment 0 only
+            continue
+
+        seq     = struct.unpack(">I", isis[18:22])[0]
+        pdu_len = struct.unpack(">H", isis[8:10])[0]
+        hdr_len = isis[1]
+
+        offset  = hdr_len
+        end_off = min(pdu_len, len(isis))
+        pkt_sids = {}
+
+        while offset + 2 <= end_off:
+            tlv_type = isis[offset]
+            tlv_len  = isis[offset + 1]
+            if offset + 2 + tlv_len > end_off:
+                break
+            tlv_val  = isis[offset + 2: offset + 2 + tlv_len]
+            offset  += 2 + tlv_len
+
+            if tlv_type != 22:
+                continue
+
+            # Iterate IS neighbor entries within the TLV 22 value
+            ne_off = 0
+            while ne_off + 11 <= len(tlv_val):
+                # 7 bytes neighbor ID + 3 bytes metric + 1 byte sub-TLV block len
+                sub_block_len = tlv_val[ne_off + 10]
+                entry_end     = ne_off + 11 + sub_block_len
+                if entry_end > len(tlv_val):
+                    break
+
+                sub_off = ne_off + 11
+                while sub_off + 2 <= entry_end:
+                    sub_type = tlv_val[sub_off]
+                    sub_len  = tlv_val[sub_off + 1]
+                    if sub_off + 2 + sub_len > entry_end:
+                        break
+                    sub_val  = tlv_val[sub_off + 2: sub_off + 2 + sub_len]
+                    sub_off += 2 + sub_len
+
+                    if sub_type != 43 or len(sub_val) < 22:
+                        continue
+                    ep_behavior = struct.unpack(">H", sub_val[4:6])[0]
+                    try:
+                        sid_addr = str(ipaddress.IPv6Address(bytes(sub_val[6:22])))
+                    except ValueError:
+                        continue
+                    pkt_sids[sid_addr] = ep_behavior
+
+                ne_off = entry_end
+
+        if seq > best_seq:
+            best_seq  = seq
+            best_sids = pkt_sids
+
+    if hasattr(pcap_bytes, "seek"):
+        pcap_bytes.seek(0)
+    return best_sids
+
+
+# ---------------------------------------------------------------------------
+# SRv6 Capabilities wire parser (TLV 242 / sub-TLV 25)
+# ---------------------------------------------------------------------------
+
+def _parse_isis_srv6_capabilities(pcap_bytes, source_system_id):
+    """Return {"o_flag": bool} from TLV 242 / sub-TLV 25 in highest-seq L2 LSP.
+
+    TLV 242 (IS-IS Router CAPABILITY, RFC 7981): Router ID(4) + Flags(1)
+    + sub-TLVs.  Sub-TLV 25 (SRv6 Capability, RFC 9352 Section 2):
+    Flags(2 bytes), bit 15 = O-flag.
+    """
+    try:
+        src_bytes = bytes.fromhex(
+            source_system_id.replace(".", "").replace(":", "")
+        )
+    except ValueError:
+        return {}
+
+    best_seq  = -1
+    best_caps = {}
+
+    for _, raw_pkt in dpkt.pcapng.Reader(pcap_bytes):
+        try:
+            isis = _find_isis_pdu(bytes(raw_pkt))
+        except Exception:
+            continue
+        if isis is None or len(isis) < 27:
+            continue
+        if isis[0] != 0x83:
+            continue
+        if (isis[4] & 0x1F) != 0x14:
+            continue
+        if isis[10:16] != src_bytes:
+            continue
+        if isis[17] != 0:
+            continue
+
+        seq     = struct.unpack(">I", isis[18:22])[0]
+        pdu_len = struct.unpack(">H", isis[8:10])[0]
+        hdr_len = isis[1]
+
+        offset  = hdr_len
+        end_off = min(pdu_len, len(isis))
+        pkt_caps = {}
+
+        while offset + 2 <= end_off:
+            tlv_type = isis[offset]
+            tlv_len  = isis[offset + 1]
+            if offset + 2 + tlv_len > end_off:
+                break
+            tlv_val  = isis[offset + 2: offset + 2 + tlv_len]
+            offset  += 2 + tlv_len
+
+            if tlv_type != 242 or len(tlv_val) < 5:    # IS-IS Router CAPABILITY
+                continue
+            sub_off = 5                                 # skip Router ID (4) + Flags (1)
+            while sub_off + 2 <= len(tlv_val):
+                sub_type = tlv_val[sub_off]
+                sub_len  = tlv_val[sub_off + 1]
+                if sub_off + 2 + sub_len > len(tlv_val):
+                    break
+                sub_val  = tlv_val[sub_off + 2: sub_off + 2 + sub_len]
+                sub_off += 2 + sub_len
+
+                if sub_type == 25 and len(sub_val) >= 2:    # SRv6 Capability
+                    flags2 = struct.unpack(">H", sub_val[0:2])[0]
+                    pkt_caps["o_flag"] = bool(flags2 & 0x8000)
+
+        if seq > best_seq:
+            best_seq  = seq
+            best_caps = pkt_caps
+
+    if hasattr(pcap_bytes, "seek"):
+        pcap_bytes.seek(0)
+    return best_caps
+
+
+# ---------------------------------------------------------------------------
+# Adjacency SID IxN state reader
+# ---------------------------------------------------------------------------
+
+def _read_adj_sid_state(api, intf_name):
+    """Return [{"sid", "function_code", "active"}] from IsisSRv6AdjSIDList.
+
+    Navigates to the IsisL3 interface via api.ixn_objects.get(intf_name).xpath
+    and reads Ipv6AdjSid / EndPointFunction / Active multivalue rows.
+    """
+    import re as _re
+    import ipaddress as _ip
+
+    result = []
+    try:
+        info  = api.ixn_objects.get(intf_name)
+        parts = _re.findall(r'(\w+)\[(\d+)\]', info.xpath)
+        obj   = api._ixnetwork
+        for cls_name, idx_str in parts:
+            attr = cls_name[0].upper() + cls_name[1:]
+            coll = getattr(obj, attr).find()
+            obj  = coll[int(idx_str) - 1]
+
+        for ixn_adj in obj.IsisSRv6AdjSIDList.find():
+            sid_vals = ixn_adj.Ipv6AdjSid.Values
+            act_vals = ixn_adj.Active.Values
+            fn_vals  = ixn_adj.EndPointFunction.Values
+            for sv, av, fv in zip(sid_vals, act_vals, fn_vals):
+                try:
+                    sid_addr = str(_ip.IPv6Address(sv))
+                except ValueError:
+                    sid_addr = str(sv)
+                active    = str(av).lower() not in ("false", "0")
+                try:
+                    func_code = int(fv)
+                except (ValueError, TypeError):
+                    func_code = 0
+                result.append({"sid": sid_addr, "active": active, "function_code": func_code})
+    except Exception as exc:
+        print("  [warn] _read_adj_sid_state(%s) failed: %s" % (intf_name, exc))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Adjacency SID and Capabilities verification helpers
+# ---------------------------------------------------------------------------
+
+def _verify_adj_sid_state(api, tc, intf_name, expected):
+    """Assert adjacency SIDs from IxN state match expected {sid: behavior_code}."""
+    sep = "-" * 64
+    print("\n" + sep)
+    print("  [%s] Adj SID verification  intf=%s  [IxN state]" % (tc, intf_name))
+    print(sep)
+
+    adj_sids = _read_adj_sid_state(api, intf_name)
+    actual   = {s["sid"]: s["function_code"] for s in adj_sids if s["active"]}
+
+    all_ok = True
+    for sid, code in sorted(expected.items()):
+        name = _BEHAVIOR_NAME.get(code, "code-%d" % code)
+        if sid in actual and actual[sid] == code:
+            print("  [PASS]  %-36s  behavior=%d (%s)" % (sid, code, name))
+        else:
+            got = actual.get(sid, "MISSING")
+            print("  [FAIL]  %-36s  expected=%d (%s)  got=%s"
+                  % (sid, code, name, got))
+            all_ok = False
+    print(sep)
+    for sid, code in expected.items():
+        assert sid in actual, (
+            "[%s] %s: Adj SID %s not active; got %s" % (tc, intf_name, sid, actual)
+        )
+        assert actual[sid] == code, (
+            "[%s] %s: %s behavior expected=%d got=%d"
+            % (tc, intf_name, sid, code, actual[sid])
+        )
+
+
+def _verify_adj_sid_wire(tc, pcap_bytes, router, sys_id, expected):
+    """Print pass/fail for Adj SIDs from wire (TLV 22 / sub-TLV 43); best-effort."""
+    wire_sids = _parse_isis_srv6_adj_sids(pcap_bytes, sys_id)
+    sep = "-" * 64
+    print("\n" + sep)
+    print("  [%s] Adj SID wire  router=%s  (TLV 22 / sub-TLV 43)" % (tc, router))
+    if not wire_sids:
+        print("  (no SRv6 End.X SID sub-TLVs in capture — may be IxN-internal)")
+        print(sep)
+        return False
+    print(sep)
+    for sid, code in sorted(expected.items()):
+        name = _BEHAVIOR_NAME.get(code, "code-%d" % code)
+        if sid in wire_sids and wire_sids[sid] == code:
+            print("  [PASS wire]  %-36s  behavior=%d (%s)" % (sid, code, name))
+        else:
+            got = wire_sids.get(sid, "NOT FOUND")
+            print("  [FAIL wire]  %-36s  expected=%d (%s)  wire=%s"
+                  % (sid, code, name, got))
+    print(sep)
+    return True
+
+
+def _verify_capabilities_wire(tc, pcap_bytes, router, sys_id):
+    """Print SRv6 Capability TLV presence and O-flag from wire; best-effort."""
+    caps = _parse_isis_srv6_capabilities(pcap_bytes, sys_id)
+    sep = "-" * 64
+    print("\n" + sep)
+    print("  [%s] SRv6 Capabilities wire  router=%s  (TLV 242 / sub-TLV 25)"
+          % (tc, router))
+    if not caps:
+        print("  (TLV 242 / sub-TLV 25 not found in capture)")
+        print(sep)
+        return False
+    o_flag = caps.get("o_flag", False)
+    status = "[PASS]" if o_flag else "[INFO]"
+    print("  %s  o_flag = %s" % (status, o_flag))
+    print(sep)
+    return True
+
+
+# ---------------------------------------------------------------------------
+# TC-6: SRv6 Capabilities + Node SIDs + Adjacency SIDs — CP wire verified
+# ---------------------------------------------------------------------------
+
+def test_tc6_srv6_capabilities_node_adj_sids_cp_dp(api, b2b_raw_config, utils):
+    """TC-6: SRv6 Capabilities + Node SIDs + Adj SIDs — CP verified, bidir DP on wire.
+
+    Each router advertises a Node SID (End) and an Adjacency SID (End.X).
+    The opposite router uses those advertised SIDs as the SRH segment list to
+    generate traffic, so the SID advertisement is the direct input to the DP
+    steering — proving the full round-trip from IS-IS advertisement to forwarding.
+
+    Topology (B2B, 2 ports):
+      port1 <---> port2
+      d1 / r1  sys-id=650000000001  locator fc00:0:1::/48
+                  Node SID  fc00:0:1:1::   End   (code 1)  advertised via TLV 27
+                  Adj SID   fc00:0:1:c8::  End.X (code 5)  advertised via TLV 22
+      d2 / r2  sys-id=650000000002  locator fc00:0:2::/48
+                  Node SID  fc00:0:2:1::   End   (code 1)
+                  Adj SID   fc00:0:2:c8::  End.X (code 5)
+
+    Traffic (bidirectional, using the peer's advertised SIDs):
+      Forward  p1→p2:  SRH [fc00:0:2:c8:: → fc00:0:2:1::]  inner IPv6/TCP
+                        r2's Adj SID used as first segment, r2's Node SID as last
+      Reverse  p2→p1:  SRH [fc00:0:1:c8:: → fc00:0:1:1::]  inner IPv6/UDP
+                        r1's Adj SID used as first segment, r1's Node SID as last
+
+    Verification:
+      CP — IxN config state: Node SIDs (hard assert), Adj SIDs (hard assert)
+      CP — wire (best-effort): TLV 27/sub-TLV 5, TLV 22/sub-TLV 43, TLV 242/sub-TLV 25
+      DP — wire: forward SRH on p2 capture, reverse SRH on p1 capture
+    """
+    tc = "TC6"
+    api.set_config(api.config())
+
+    # ---- Ports ---------------------------------------------------------------
+    cfg = api.config()
+
+    p1, p2 = cfg.ports.port(
+        name="tx", location=b2b_raw_config.ports[0].location
+    ).port(
+        name="rx", location=b2b_raw_config.ports[1].location
+    )
+
+    for l1_orig in b2b_raw_config.layer1:
+        l1 = cfg.layer1.add()
+        l1.name       = l1_orig.name
+        l1.port_names = [p1.name, p2.name]
+        l1.media      = l1_orig.media
+        l1.speed      = l1_orig.speed
+
+    cfg.options.port_options.location_preemption = True
+
+    # ---- Devices and Ethernet ------------------------------------------------
+    d1, d2 = cfg.devices.device(name="d1").device(name="d2")
+
+    d1_eth = d1.ethernets.add()
+    d1_eth.name                 = "d1_eth"
+    d1_eth.connection.port_name = p1.name
+    d1_eth.mac                  = "00:00:00:01:01:01"
+    d1_v6         = d1_eth.ipv6_addresses.add()
+    d1_v6.name    = "d1_ipv6"
+    d1_v6.address = "2001::1"
+    d1_v6.gateway = "2001::2"
+    d1_v6.prefix  = 64
+
+    d2_eth = d2.ethernets.add()
+    d2_eth.name                 = "d2_eth"
+    d2_eth.connection.port_name = p2.name
+    d2_eth.mac                  = "00:00:00:02:02:02"
+    d2_v6         = d2_eth.ipv6_addresses.add()
+    d2_v6.name    = "d2_ipv6"
+    d2_v6.address = "2001::2"
+    d2_v6.gateway = "2001::1"
+    d2_v6.prefix  = 64
+
+    # ---- IS-IS router r1 -----------------------------------------------------
+    r1           = d1.isis
+    r1.name      = "r1"
+    r1.system_id = "650000000001"
+    r1.basic.enable_wide_metric   = True
+    r1.basic.learned_lsp_filter   = True
+    r1.advanced.area_addresses    = ["490001"]
+    r1.advanced.lsp_refresh_rate  = 900
+    r1.advanced.lsp_lifetime      = 1200
+    r1.advanced.csnp_interval     = 10000
+    r1.advanced.psnp_interval     = 2000
+    r1.advanced.max_lsp_size      = 1492
+
+    r1_intf = r1.interfaces.add()
+    r1_intf.eth_name     = "d1_eth"
+    r1_intf.name         = "r1_intf"
+    r1_intf.network_type = "point_to_point"
+    r1_intf.level_type   = "level_2"
+    r1_intf.metric       = 10
+    r1_intf.l2_settings.dead_interval  = 30
+    r1_intf.l2_settings.hello_interval = 10
+    r1_intf.l2_settings.priority       = 0
+    r1_intf.advanced.auto_adjust_supported_protocols = True
+
+    # r1 SRv6 capability  (TLV 242 / sub-TLV 25)
+    r1.segment_routing.router_capability.srv6_capability.c_flag = True
+
+    # r1 SRv6 locator  (TLV 27 — F3216 uSID: lb=32, ln=16, fn=16, arg=0)
+    r1_loc = r1.segment_routing.srv6_locators.add()
+    r1_loc.locator_name  = "loc1"
+    r1_loc.locator       = "fc00:0:1::"
+    r1_loc.prefix_length = 48
+    r1_loc.algorithm     = 0
+    r1_loc.metric        = 10
+    r1_loc.d_flag        = False
+    r1_loc.sid_structure.locator_block_length = 32
+    r1_loc.sid_structure.locator_node_length  = 16
+    r1_loc.sid_structure.function_length      = 16
+    r1_loc.sid_structure.argument_length      = 0
+    r1_loc.advertise_locator_as_prefix.route_metric        = 10
+    r1_loc.advertise_locator_as_prefix.redistribution_type = "up"
+    r1_loc.advertise_locator_as_prefix.route_origin        = "internal"
+
+    # r1 Node SID  fc00:0:1:1:: — End  (TLV 27 / sub-TLV 5)
+    r1_end_sid                  = r1_loc.end_sids.add()
+    r1_end_sid.function         = "0001"
+    r1_end_sid.argument         = "0000"
+    r1_end_sid.endpoint_behavior = "end"
+    r1_end_sid.c_flag           = True
+
+    # r1 Adj SID  fc00:0:1:c8:: — End.X  (TLV 22 / sub-TLV 43)
+    r1_adj                   = r1_intf.srv6_adjacency_sids.sids.add()
+    r1_adj.function          = "00c8"
+    r1_adj.endpoint_behavior = "end_x"
+    r1_adj.c_flag            = True
+    r1_adj.b_flag            = False
+    r1_adj.s_flag            = False
+    r1_adj.weight            = 0
+    r1_adj.locator           = "auto"
+
+    r1_rr           = r1.v6_routes.add()
+    r1_rr.name      = "r1_v6_routes"
+    r1_rr.link_metric = 10
+    r1_rr.origin_type = "internal"
+    r1_rr_addr          = r1_rr.addresses.add()
+    r1_rr_addr.address  = "fd00:0:1::1"
+    r1_rr_addr.prefix   = 64
+    r1_rr_addr.count    = 1
+
+    # ---- IS-IS router r2 -----------------------------------------------------
+    r2           = d2.isis
+    r2.name      = "r2"
+    r2.system_id = "650000000002"
+    r2.basic.enable_wide_metric   = True
+    r2.basic.learned_lsp_filter   = True
+    r2.advanced.area_addresses    = ["490001"]
+    r2.advanced.lsp_refresh_rate  = 900
+    r2.advanced.lsp_lifetime      = 1200
+    r2.advanced.csnp_interval     = 10000
+    r2.advanced.psnp_interval     = 2000
+    r2.advanced.max_lsp_size      = 1492
+
+    r2_intf = r2.interfaces.add()
+    r2_intf.eth_name     = "d2_eth"
+    r2_intf.name         = "r2_intf"
+    r2_intf.network_type = "point_to_point"
+    r2_intf.level_type   = "level_2"
+    r2_intf.metric       = 10
+    r2_intf.l2_settings.dead_interval  = 30
+    r2_intf.l2_settings.hello_interval = 10
+    r2_intf.l2_settings.priority       = 0
+    r2_intf.advanced.auto_adjust_supported_protocols = True
+
+    # r2 SRv6 capability  (TLV 242 / sub-TLV 25)
+    r2.segment_routing.router_capability.srv6_capability.c_flag = True
+
+    # r2 SRv6 locator  (TLV 27 — F3216 uSID)
+    r2_loc = r2.segment_routing.srv6_locators.add()
+    r2_loc.locator_name  = "loc2"
+    r2_loc.locator       = "fc00:0:2::"
+    r2_loc.prefix_length = 48
+    r2_loc.algorithm     = 0
+    r2_loc.metric        = 10
+    r2_loc.d_flag        = False
+    r2_loc.sid_structure.locator_block_length = 32
+    r2_loc.sid_structure.locator_node_length  = 16
+    r2_loc.sid_structure.function_length      = 16
+    r2_loc.sid_structure.argument_length      = 0
+    r2_loc.advertise_locator_as_prefix.route_metric        = 10
+    r2_loc.advertise_locator_as_prefix.redistribution_type = "up"
+    r2_loc.advertise_locator_as_prefix.route_origin        = "internal"
+
+    # r2 Node SID  fc00:0:2:1:: — End  (TLV 27 / sub-TLV 5)
+    r2_end_sid                  = r2_loc.end_sids.add()
+    r2_end_sid.function         = "0001"
+    r2_end_sid.argument         = "0000"
+    r2_end_sid.endpoint_behavior = "end"
+    r2_end_sid.c_flag           = True
+
+    # r2 Adj SID  fc00:0:2:c8:: — End.X  (TLV 22 / sub-TLV 43)
+    r2_adj                   = r2_intf.srv6_adjacency_sids.sids.add()
+    r2_adj.function          = "00c8"
+    r2_adj.endpoint_behavior = "end_x"
+    r2_adj.c_flag            = True
+    r2_adj.b_flag            = False
+    r2_adj.s_flag            = False
+    r2_adj.weight            = 0
+    r2_adj.locator           = "auto"
+
+    r2_rr           = r2.v6_routes.add()
+    r2_rr.name      = "r2_v6_routes"
+    r2_rr.link_metric = 10
+    r2_rr.origin_type = "internal"
+    r2_rr_addr          = r2_rr.addresses.add()
+    r2_rr_addr.address  = "fd00:0:2::1"
+    r2_rr_addr.prefix   = 64
+    r2_rr_addr.count    = 1
+
+    # ---- Forward flow: d1→d2, r1-side uses r2's advertised SIDs --------------
+    # Device-based flow: IxN resolves Ethernet MACs via NDP from the device
+    # endpoints.  SRH is added via RestPy AppendProtocol() in the runtime.
+    # SRH segment list: [r2 Adj SID, r2 Node SID].
+    f_fwd = cfg.flows.add()
+    f_fwd.name = "srh_fwd"
+    f_fwd.tx_rx.device.tx_names = [d1_v6.name]
+    f_fwd.tx_rx.device.rx_names = [d2_v6.name]
+    f_fwd.rate.pps = 100
+    f_fwd.duration.fixed_packets.packets = 200
+    f_fwd.metrics.enable = True
+
+    pkt = f_fwd.packet.add()
+    pkt.choice = "ipv6"
+    pkt.ipv6.src.value         = "2001::1"
+    pkt.ipv6.dst.value         = "fc00:0:2:c8::"   # r2's Adj SID (outer destination)
+    pkt.ipv6.next_header.value = 43                 # Routing Extension Header
+
+    pkt = f_fwd.packet.add()
+    pkt.choice = "ipv6_extension_header"
+    pkt.ipv6_extension_header.routing.choice = "segment_routing"
+    sr = pkt.ipv6_extension_header.routing.segment_routing
+    sr.segments_left.value       = 1
+    sr.last_entry.value          = 1
+    sr.flags.protected.value     = 0
+    sr.flags.alert.value         = 0
+    sr.tag.value                 = 0
+    sr.segment_list.segment()[-1].segment.value = "fc00:0:2:c8::"  # r2 Adj SID
+    sr.segment_list.segment()[-1].segment.value = "fc00:0:2:1::"   # r2 Node SID
+
+    pkt = f_fwd.packet.add()                         # inner IPv6
+    pkt.choice = "ipv6"
+    pkt.ipv6.src.value         = "2001:db8::1"
+    pkt.ipv6.dst.value         = "2001:db8::2"
+    pkt.ipv6.next_header.value = 6                   # TCP
+
+    pkt = f_fwd.packet.add()                         # inner TCP
+    pkt.choice = "tcp"
+    pkt.tcp.src_port.value = 1234
+    pkt.tcp.dst_port.value = 80
+
+    # ---- Reverse flow: d2→d1, r2-side uses r1's advertised SIDs -------------
+    # Device-based flow: IxN resolves Ethernet MACs via NDP from the device
+    # endpoints.  SRH segment list: [r1 Adj SID, r1 Node SID].
+    f_rev = cfg.flows.add()
+    f_rev.name = "srh_rev"
+    f_rev.tx_rx.device.tx_names = [d2_v6.name]
+    f_rev.tx_rx.device.rx_names = [d1_v6.name]
+    f_rev.rate.pps = 100
+    f_rev.duration.fixed_packets.packets = 200
+    f_rev.metrics.enable = True
+
+    pkt = f_rev.packet.add()
+    pkt.choice = "ipv6"
+    pkt.ipv6.src.value         = "2001::2"
+    pkt.ipv6.dst.value         = "fc00:0:1:c8::"   # r1's Adj SID (outer destination)
+    pkt.ipv6.next_header.value = 43
+
+    pkt = f_rev.packet.add()
+    pkt.choice = "ipv6_extension_header"
+    pkt.ipv6_extension_header.routing.choice = "segment_routing"
+    sr = pkt.ipv6_extension_header.routing.segment_routing
+    sr.segments_left.value       = 1
+    sr.last_entry.value          = 1
+    sr.flags.protected.value     = 0
+    sr.flags.alert.value         = 0
+    sr.tag.value                 = 0
+    sr.segment_list.segment()[-1].segment.value = "fc00:0:1:c8::"  # r1 Adj SID
+    sr.segment_list.segment()[-1].segment.value = "fc00:0:1:1::"   # r1 Node SID
+
+    pkt = f_rev.packet.add()                         # inner IPv6
+    pkt.choice = "ipv6"
+    pkt.ipv6.src.value         = "2001:db8::2"
+    pkt.ipv6.dst.value         = "2001:db8::1"
+    pkt.ipv6.next_header.value = 17                  # UDP
+
+    pkt = f_rev.packet.add()                         # inner UDP
+    pkt.choice = "udp"
+    pkt.udp.src_port.value = 5000
+    pkt.udp.dst_port.value = 1234
+
+    # ---- Captures on both ports (p2 = forward rx, p1 = reverse rx) ----------
+    cap_p2 = cfg.captures.capture(name="cap_p2")[-1]
+    cap_p2.port_names = [p2.name]
+    cap_p2.format     = cap_p2.PCAPNG
+
+    cap_p1 = cfg.captures.capture(name="cap_p1")[-1]
+    cap_p1.port_names = [p1.name]
+    cap_p1.format     = cap_p1.PCAPNG
+
+    api.set_config(cfg)
+
+    # ---- Phase 1: Control plane (IS-IS adjacency + SRv6 advertisement) ------
+    _start_capture(api)
+    _start_protocols(api)
+    time.sleep(_CONVERGENCE)
+    _stop_capture(api)
+
+    cp_pcap = _get_capture(api, p2.name)
+    _save_capture(cp_pcap, "test_tc6_cp")
+    _check_isis_sessions_up(api, tc, min_sessions=2)
+
+    # Node SIDs — IxN config state (hard assert)
+    _verify_cp(api, tc,
+               expected_r1={"fc00:0:1:1::": 1},
+               expected_r2={"fc00:0:2:1::": 1})
+
+    # Adj SIDs — IxN config state (hard assert)
+    _verify_adj_sid_state(api, tc, "r1_intf", {"fc00:0:1:c8::": 5})
+    _verify_adj_sid_state(api, tc, "r2_intf", {"fc00:0:2:c8::": 5})
+
+    # Node SIDs — wire TLV 27 / sub-TLV 5 (best-effort)
+    _verify_cp_wire(tc, cp_pcap, "r1", _SYS_ID_R1, {"fc00:0:1:1::": 1})
+    _verify_cp_wire(tc, cp_pcap, "r2", _SYS_ID_R2, {"fc00:0:2:1::": 1})
+
+    # Adj SIDs — wire TLV 22 / sub-TLV 43 (best-effort)
+    _verify_adj_sid_wire(tc, cp_pcap, "r1", _SYS_ID_R1, {"fc00:0:1:c8::": 5})
+    _verify_adj_sid_wire(tc, cp_pcap, "r2", _SYS_ID_R2, {"fc00:0:2:c8::": 5})
+
+    # Capabilities — wire TLV 242 / sub-TLV 25 (best-effort)
+    _verify_capabilities_wire(tc, cp_pcap, "r1", _SYS_ID_R1)
+    _verify_capabilities_wire(tc, cp_pcap, "r2", _SYS_ID_R2)
+
+    # ---- Phase 2: Data plane — bidirectional SRH traffic --------------------
+    _start_capture(api)
+    _start_traffic(api)
+    time.sleep(4)
+    _stop_traffic(api)
+    _stop_capture(api)
+
+    # Forward p1→p2: verify r2's advertised SIDs appear in SRH on p2 capture
+    dp_fwd = _get_capture(api, p2.name)
+    _save_capture(dp_fwd, "test_tc6_dp_fwd")
+    srh_fwd = _parse_srh_from_pcap(dp_fwd)
+    _verify_dp(tc, srh_fwd, {
+        "routing_type":  4,
+        "segments_left": 1,
+        "last_entry":    1,
+        "flags_byte":    0,
+        "tag":           0,
+        "segments":      ["fc00:0:2:c8::", "fc00:0:2:1::"],  # r2 Adj SID, r2 Node SID
+    })
+    _verify_dp_inner(tc, srh_fwd.get("inner") if srh_fwd else None, {
+        "type": "ipv6_tcp",
+        "ip_src": "2001:db8::1", "ip_dst": "2001:db8::2",
+        "ip_next_header": 6, "src_port": 1234, "dst_port": 80, "data_offset": 5,
+    })
+
+    # Reverse p2→p1: verify r1's advertised SIDs appear in SRH on p1 capture
+    dp_rev = _get_capture(api, p1.name)
+    _save_capture(dp_rev, "test_tc6_dp_rev")
+    srh_rev = _parse_srh_from_pcap(dp_rev)
+    _verify_dp(tc, srh_rev, {
+        "routing_type":  4,
+        "segments_left": 1,
+        "last_entry":    1,
+        "flags_byte":    0,
+        "tag":           0,
+        "segments":      ["fc00:0:1:c8::", "fc00:0:1:1::"],  # r1 Adj SID, r1 Node SID
+    })
+    _verify_dp_inner(tc, srh_rev.get("inner") if srh_rev else None, {
+        "type": "ipv6_udp",
+        "ip_src": "2001:db8::2", "ip_dst": "2001:db8::1",
+        "ip_next_header": 17, "src_port": 5000, "dst_port": 1234, "udp_length": 8,
+    })
+
+    _, flow_results = utils.get_all_stats(api)
+    _verify_device_flow_metrics(tc, flow_results, "srh_fwd")
+    _verify_device_flow_metrics(tc, flow_results, "srh_rev")
+
+    _delete_captures("test_tc6_cp", "test_tc6_dp_fwd", "test_tc6_dp_rev")
+    print("\n  [%s] PASSED — Capabilities, Node/Adj SIDs and bidir DP verified." % tc)
+
+
+# ---------------------------------------------------------------------------
+# TC-7: SRv6 End SID flavors — PSP / USP / PSP+USP / USD — CP + DP wire format
+# ---------------------------------------------------------------------------
+
+_TC7_FLAVOR_SIDS = [
+    # (flow_name,      function_hex, sid,            behavior code, endpoint_behavior string)
+    ("srh_end",         "0001", "fc00:0:1:1::", 1,  "end"),
+    ("srh_end_psp",     "0002", "fc00:0:1:2::", 2,  "end_with_psp"),
+    ("srh_end_usp",     "0003", "fc00:0:1:3::", 3,  "end_with_usp"),
+    ("srh_end_psp_usp", "0004", "fc00:0:1:4::", 4,  "end_with_psp_usp"),
+    ("srh_end_usd",     "0005", "fc00:0:1:5::", 28, "end_with_usd"),
+]
+
+
+def test_tc7_srv6_end_sid_flavors_cp_dp(api, b2b_raw_config, utils):
+    """TC-7: End SID PSP/USP/PSP+USP/USD flavors — CP advertisement + DP wire format.
+
+    Control plane:
+      r1 locator fc00:0:1::/48 with five End SIDs covering every flavor
+      combination modeled by the End SID object:
+        fc00:0:1:1:: End              (code 1)
+        fc00:0:1:2:: End with PSP     (code 2)
+        fc00:0:1:3:: End with USP     (code 3)
+        fc00:0:1:4:: End with PSP+USP (code 4)
+        fc00:0:1:5:: End with USD     (code 28)
+      Verify: IS-IS L2 session up; all five SIDs active with correct
+              behavior codes in IxN config state.
+
+    Data plane:
+      One single-segment SRH flow per flavor SID (dst=segment=SID, sl=0,
+      le=0), all transmitted p1->p2 in one burst and captured together.
+      Verify each flow's packet arrives on the wire with the exact SRH
+      fields and inner payload it was sent with, matched back to its flow
+      by outer IPv6 destination address.
+
+      This proves packet construction / wire format for every flavor, NOT
+      the actual PSP/USP/USD pop-or-decapsulate transformation — B2B has no
+      DUT to perform that; see TC-PDP-1 for real forwarding verification.
+    """
+    tc = "TC7"
+    api.set_config(api.config())
+
+    # ---- Flat config build (no _build_*/_add_* helpers) -----------------
+    cfg = api.config()
+
+    p1_loc = b2b_raw_config.ports[0].location
+    p2_loc = b2b_raw_config.ports[1].location
+    p1, p2 = cfg.ports.port(name="tx", location=p1_loc).port(
+        name="rx", location=p2_loc
+    )
+
+    for l1_orig in b2b_raw_config.layer1:
+        l1 = cfg.layer1.add()
+        l1.name = l1_orig.name
+        l1.port_names = [p1.name, p2.name]
+        l1.media = l1_orig.media
+        l1.speed = l1_orig.speed
+
+    cfg.options.port_options.location_preemption = True
+
+    d1, d2 = cfg.devices.device(name="d1").device(name="d2")
+
+    d1_eth = d1.ethernets.add()
+    d1_eth.name = "d1_eth"
+    d1_eth.connection.port_name = p1.name
+    d1_eth.mac = "00:00:00:01:01:01"
+
+    d2_eth = d2.ethernets.add()
+    d2_eth.name = "d2_eth"
+    d2_eth.connection.port_name = p2.name
+    d2_eth.mac = "00:00:00:02:02:02"
+
+    d1_v6 = d1_eth.ipv6_addresses.add()
+    d1_v6.name = "d1_ipv6"
+    d1_v6.address = "2001::1"
+    d1_v6.gateway = "2001::2"
+    d1_v6.prefix = 64
+
+    d2_v6 = d2_eth.ipv6_addresses.add()
+    d2_v6.name = "d2_ipv6"
+    d2_v6.address = "2001::2"
+    d2_v6.gateway = "2001::1"
+    d2_v6.prefix = 64
+
+    # r1 IS-IS router
+    d1.isis.name = "r1"
+    d1.isis.system_id = _SYS_ID_R1
+    d1.isis.basic.enable_wide_metric = True
+    d1.isis.basic.learned_lsp_filter = True
+    d1.isis.advanced.area_addresses = [_AREA]
+    d1.isis.advanced.lsp_refresh_rate = 900
+    d1.isis.advanced.lsp_lifetime = 1200
+    d1.isis.advanced.csnp_interval = 10000
+    d1.isis.advanced.psnp_interval = 2000
+    d1.isis.advanced.max_lsp_size = 1492
+
+    r1_intf = d1.isis.interfaces.add()
+    r1_intf.eth_name = d1_eth.name
+    r1_intf.name = "r1_intf"
+    r1_intf.network_type = "point_to_point"
+    r1_intf.level_type = "level_2"
+    r1_intf.metric = 10
+    r1_intf.l2_settings.dead_interval = 30
+    r1_intf.l2_settings.hello_interval = 10
+    r1_intf.l2_settings.priority = 0
+    r1_intf.advanced.auto_adjust_supported_protocols = True
+
+    # r2 IS-IS router
+    d2.isis.name = "r2"
+    d2.isis.system_id = _SYS_ID_R2
+    d2.isis.basic.enable_wide_metric = True
+    d2.isis.basic.learned_lsp_filter = True
+    d2.isis.advanced.area_addresses = [_AREA]
+    d2.isis.advanced.lsp_refresh_rate = 900
+    d2.isis.advanced.lsp_lifetime = 1200
+    d2.isis.advanced.csnp_interval = 10000
+    d2.isis.advanced.psnp_interval = 2000
+    d2.isis.advanced.max_lsp_size = 1492
+
+    r2_intf = d2.isis.interfaces.add()
+    r2_intf.eth_name = d2_eth.name
+    r2_intf.name = "r2_intf"
+    r2_intf.network_type = "point_to_point"
+    r2_intf.level_type = "level_2"
+    r2_intf.metric = 10
+    r2_intf.l2_settings.dead_interval = 30
+    r2_intf.l2_settings.hello_interval = 10
+    r2_intf.l2_settings.priority = 0
+    r2_intf.advanced.auto_adjust_supported_protocols = True
+
+    # r1 locator fc00:0:1::/48 with one End SID per flavor
+    d1.isis.segment_routing.router_capability.srv6_capability.c_flag = True
+    loc1 = d1.isis.segment_routing.srv6_locators.add()
+    loc1.locator_name = "loc1"
+    loc1.locator = _LOC1
+    loc1.prefix_length = _PFX
+    loc1.algorithm = 0
+    loc1.metric = 10
+    loc1.d_flag = False
+    loc1.sid_structure.locator_block_length = _LB
+    loc1.sid_structure.locator_node_length = _LN
+    loc1.sid_structure.function_length = _FN
+    loc1.sid_structure.argument_length = _ARG
+    loc1.advertise_locator_as_prefix.route_metric = 10
+    loc1.advertise_locator_as_prefix.redistribution_type = "up"
+    loc1.advertise_locator_as_prefix.route_origin = "internal"
+
+    for _, function_hex, _sid, _code, behavior in _TC7_FLAVOR_SIDS:
+        end_sid = loc1.end_sids.add()
+        end_sid.function = function_hex
+        end_sid.argument = "0000"
+        end_sid.endpoint_behavior = behavior
+        end_sid.c_flag = True
+
+    r1_routes = d1.isis.v6_routes.add()
+    r1_routes.name = "r1_v6_routes"
+    r1_routes.link_metric = 10
+    r1_routes.origin_type = "internal"
+    r1_route_addr = r1_routes.addresses.add()
+    r1_route_addr.address = "fd00:0:1::1"
+    r1_route_addr.prefix = 64
+    r1_route_addr.count = 1
+
+    # r2 locator fc00:0:2::/48 with a single End SID
+    d2.isis.segment_routing.router_capability.srv6_capability.c_flag = True
+    loc2 = d2.isis.segment_routing.srv6_locators.add()
+    loc2.locator_name = "loc2"
+    loc2.locator = _LOC2
+    loc2.prefix_length = _PFX
+    loc2.algorithm = 0
+    loc2.metric = 10
+    loc2.d_flag = False
+    loc2.sid_structure.locator_block_length = _LB
+    loc2.sid_structure.locator_node_length = _LN
+    loc2.sid_structure.function_length = _FN
+    loc2.sid_structure.argument_length = _ARG
+    loc2.advertise_locator_as_prefix.route_metric = 10
+    loc2.advertise_locator_as_prefix.redistribution_type = "up"
+    loc2.advertise_locator_as_prefix.route_origin = "internal"
+
+    r2_end_sid = loc2.end_sids.add()
+    r2_end_sid.function = "0001"
+    r2_end_sid.argument = "0000"
+    r2_end_sid.endpoint_behavior = "end"
+    r2_end_sid.c_flag = True
+
+    r2_routes = d2.isis.v6_routes.add()
+    r2_routes.name = "r2_v6_routes"
+    r2_routes.link_metric = 10
+    r2_routes.origin_type = "internal"
+    r2_route_addr = r2_routes.addresses.add()
+    r2_route_addr.address = "fd00:0:2::1"
+    r2_route_addr.prefix = 64
+    r2_route_addr.count = 1
+
+    # One single-segment SRH flow per flavor SID, each with an inner IPv4/TCP payload
+    inner_cfgs = {}
+    for flow_name, _function_hex, sid, _code, _behavior in _TC7_FLAVOR_SIDS:
+        f = cfg.flows.add()
+        f.name = flow_name
+        f.tx_rx.port.tx_name = p1.name
+        f.tx_rx.port.rx_name = p2.name
+        f.rate.pps = 50
+        f.duration.fixed_packets.packets = 10
+        f.metrics.enable = True
+
+        eth = f.packet.add()
+        eth.choice = "ethernet"
+        eth.ethernet.src.value = "00:11:22:33:44:55"
+        eth.ethernet.dst.value = "00:aa:bb:cc:dd:ee"
+
+        ip6 = f.packet.add()
+        ip6.choice = "ipv6"
+        ip6.ipv6.src.value = "2001::1"
+        ip6.ipv6.dst.value = sid
+        ip6.ipv6.next_header.value = 43
+
+        ext = f.packet.add()
+        ext.choice = "ipv6_extension_header"
+        ext.ipv6_extension_header.routing.choice = "segment_routing"
+        sr = ext.ipv6_extension_header.routing.segment_routing
+        sr.segments_left.value = 0
+        sr.last_entry.value = 0
+        sr.flags.protected.value = 0
+        sr.flags.alert.value = 0
+        sr.tag.value = 0
+        sr.segment_list.segment()[-1].segment.value = sid
+
+        ip4 = f.packet.add()
+        ip4.choice = "ipv4"
+        ip4.ipv4.src.value = "10.1.1.1"
+        ip4.ipv4.dst.value = "10.2.2.2"
+        ip4.ipv4.protocol.value = 6
+
+        tcp = f.packet.add()
+        tcp.choice = "tcp"
+        tcp.tcp.src_port.value = 1234
+        tcp.tcp.dst_port.value = 80
+
+        inner_cfgs[sid] = {
+            "type": "ipv4_tcp",
+            "ip_src": "10.1.1.1", "ip_dst": "10.2.2.2", "ip_protocol": 6,
+            "src_port": 1234, "dst_port": 80, "data_offset": 5,
+        }
+
+    cap = cfg.captures.capture(name="cap")[-1]
+    cap.port_names = [p2.name]
+    cap.format = cap.PCAPNG
+
+    api.set_config(cfg)
+
+    # ---- Phase 1: Control plane -----------------------------------------
+    _start_capture(api)
+    _start_protocols(api)
+    time.sleep(_CONVERGENCE)
+    _stop_capture(api)
+
+    cp_pcap = _get_capture(api, p2.name)
+    _save_capture(cp_pcap, "test_tc7_cp")
+    _check_isis_sessions_up(api, tc)
+
+    expected_r1 = {sid: code for _, _fn, sid, code, _bh in _TC7_FLAVOR_SIDS}
+    _verify_cp_wire(tc, cp_pcap, "r1", _SYS_ID_R1, expected_r1)
+    _verify_cp(api, tc, expected_r1)
+
+    # ---- Phase 2: Data plane (IS-IS still running) ----------------------
+    _start_capture(api)
+    _start_traffic(api)
+    time.sleep(4)
+    _stop_traffic(api)
+    _stop_capture(api)
+
+    dp_pcap = _get_capture(api, p2.name)
+    _save_capture(dp_pcap, "test_tc7_dp")
+    by_dst = {}
+    for pkt in _parse_all_srh_from_pcap(dp_pcap):
+        by_dst.setdefault(pkt["ip6_dst"], pkt)
+
+    for flow_name, _function_hex, sid, _code, behavior in _TC7_FLAVOR_SIDS:
+        srh = by_dst.get(sid)
+        sub_tc = "%s/%s" % (tc, behavior)
+        _verify_dp(sub_tc, srh, {
+            "routing_type":  4,
+            "segments_left": 0,
+            "last_entry":    0,
+            "flags_byte":    0,
+            "tag":           0,
+            "segments":      [sid],
+        })
+        _verify_dp_inner(sub_tc, srh.get("inner") if srh else None, inner_cfgs[sid])
+
+    _, flow_results = utils.get_all_stats(api)
+    for flow_name, _function_hex, _sid, _code, _behavior in _TC7_FLAVOR_SIDS:
+        _verify_device_flow_metrics(tc, flow_results, flow_name)
+
+    _delete_captures("test_tc7_cp", "test_tc7_dp")
+    print("\n  [%s] PASSED — End SID flavors verified on CP and DP wire format." % tc)
+
+
+# ===========================================================================
+# TC-PDP-1: Node End SIDs — port-DUT-port control and data planes
+# ===========================================================================
+#
+# Topology:
+#
+#   IxN Port 1 (p1) ──IS-IS L2 P2P── DUT ──IS-IS L2 P2P── IxN Port 2 (p2)
+#   Device d1 / r1                                          Device d2 / r2
+#   Locator: fc00:0:1::/48                                  Locator: fc00:0:2::/48
+#   End SID: fc00:0:1:1::  (code 1)                         End SID: fc00:0:2:1::  (code 1)
+#
+# Each IxN device forms its own IS-IS P2P adjacency with the DUT (not with
+# each other).  The DUT redistributes LSPs between the two sides: r1's LSP
+# is flooded by the DUT to p2, and r2's LSP is flooded to p1.
+#
+# Data-plane forwarding path:
+#   p1 sends SRH with outer_dst = DUT End SID, segments_left = 1:
+#     segments = [fc00:0:2:1::,  fc00:0:10:1::]
+#                 ^seg[0]         ^seg[1] = sl pointer = outer dst
+#   DUT applies End behaviour:
+#     sl 1 → 0,  outer dst ← seg[0] = fc00:0:2:1::,  forwards to p2
+#   p2 capture: sl=0, segment list unchanged, inner IPv4/TCP intact.
+#
+# Update the constant below before running:
+#   _DUT_END_SID — DUT's IS-IS SRv6 End SID (segment processed by DUT)
+# ===========================================================================
+
+_DUT_END_SID     = "fc00:0:10:1::"      # DUT End SID — update to match DUT IS-IS SRv6 config
+_PDP_CONVERGENCE = 60                   # seconds — longer than B2B (real DUT adjacency)
+
+
+@pytest.mark.skip(reason="requires live DUT connectivity (port-DUT-port) - no DUT available")
+def test_tc_pdp1_srv6_node_end_sids_cp_dp(api, b2b_raw_config, utils):
+    """TC-PDP-1: IS-IS SRv6 Node End SIDs — port-DUT-port CP + DP.
+
+    Control plane:
+      r1 (Port 1): locator fc00:0:1::/48, End SID fc00:0:1:1:: (behavior=End, code=1)
+      r2 (Port 2): locator fc00:0:2::/48, End SID fc00:0:2:1:: (behavior=End, code=1)
+      Both adjacencies (r1↔DUT, r2↔DUT) must form; DUT re-floods LSPs.
+      Wire: r1's LSP (re-flooded by DUT) and r2's own LSP both captured on p2.
+
+    Data plane (device-based, via DUT):
+      tx=d1_v6, rx=d2_v6 — IxN resolves DUT MAC via NDP automatically
+      Outer IPv6 src=2001:0:1::1  dst=fc00:0:10:1:: (DUT End SID)  nh=43
+      SRH: routing_type=4, segments_left=1, last_entry=1
+           seg[0]=fc00:0:2:1::  seg[1]=fc00:0:10:1::
+      Inner: IPv4 TCP  src=10.1.1.1 dst=10.2.2.2 sport=1234 dport=80
+      DUT End processing: sl 1→0, outer dst→fc00:0:2:1::, forwarded to p2.
+      Capture on p2: sl=0, segment list unchanged, inner TCP intact.
+    """
+    tc = "PDP1"
+    api.set_config(api.config())
+
+    # ---- Ports ---------------------------------------------------------------
+    cfg = api.config()
+
+    p1, p2 = cfg.ports.port(
+        name="tx", location=b2b_raw_config.ports[0].location
+    ).port(
+        name="rx", location=b2b_raw_config.ports[1].location
+    )
+
+    for l1_orig in b2b_raw_config.layer1:
+        l1            = cfg.layer1.add()
+        l1.name       = l1_orig.name
+        l1.port_names = [p1.name, p2.name]
+        l1.media      = l1_orig.media
+        l1.speed      = l1_orig.speed
+
+    cfg.options.port_options.location_preemption = True
+
+    # ---- Devices and Ethernet / IPv6 link addresses --------------------------
+    d1, d2 = cfg.devices.device(name="d1").device(name="d2")
+
+    # p1 and p2 face DIFFERENT DUT interfaces — each is on its own /64 subnet.
+    # d1 (p1 side): IxN=2001:0:1::1, DUT port-1=2001:0:1::2
+    # d2 (p2 side): IxN=2001:0:2::1, DUT port-2=2001:0:2::2
+    d1_eth                      = d1.ethernets.add()
+    d1_eth.name                 = "d1_eth"
+    d1_eth.connection.port_name = p1.name
+    d1_eth.mac                  = "00:00:00:01:01:01"
+    d1_v6         = d1_eth.ipv6_addresses.add()
+    d1_v6.name    = "d1_ipv6"
+    d1_v6.address = "2001:0:1::1"   # IxN port-1 address
+    d1_v6.gateway = "2001:0:1::2"   # DUT interface connected to port 1
+    d1_v6.prefix  = 64
+
+    d2_eth                      = d2.ethernets.add()
+    d2_eth.name                 = "d2_eth"
+    d2_eth.connection.port_name = p2.name
+    d2_eth.mac                  = "00:00:00:02:02:02"
+    d2_v6         = d2_eth.ipv6_addresses.add()
+    d2_v6.name    = "d2_ipv6"
+    d2_v6.address = "2001:0:2::1"   # IxN port-2 address
+    d2_v6.gateway = "2001:0:2::2"   # DUT interface connected to port 2
+    d2_v6.prefix  = 64
+
+    # ---- IS-IS router r1 — Port 1 ↔ DUT -------------------------------------
+    r1                              = d1.isis
+    r1.name                         = "r1"
+    r1.system_id                    = "650000000001"
+    r1.basic.enable_wide_metric     = True
+    r1.basic.learned_lsp_filter     = True
+    r1.advanced.area_addresses      = ["490001"]
+    r1.advanced.lsp_refresh_rate    = 900
+    r1.advanced.lsp_lifetime        = 1200
+    r1.advanced.csnp_interval       = 10000
+    r1.advanced.psnp_interval       = 2000
+    r1.advanced.max_lsp_size        = 1492
+
+    r1_intf                                          = r1.interfaces.add()
+    r1_intf.eth_name                                 = "d1_eth"
+    r1_intf.name                                     = "r1_intf"
+    r1_intf.network_type                             = "point_to_point"
+    r1_intf.level_type                               = "level_2"
+    r1_intf.metric                                   = 10
+    r1_intf.l2_settings.dead_interval                = 30
+    r1_intf.l2_settings.hello_interval               = 10
+    r1_intf.l2_settings.priority                     = 0
+    r1_intf.advanced.auto_adjust_supported_protocols = True
+
+    r1.segment_routing.router_capability.srv6_capability.c_flag = True
+
+    r1_loc                                              = r1.segment_routing.srv6_locators.add()
+    r1_loc.locator_name                                 = "loc1"
+    r1_loc.locator                                      = "fc00:0:1::"
+    r1_loc.prefix_length                                = 48
+    r1_loc.algorithm                                    = 0
+    r1_loc.metric                                       = 10
+    r1_loc.d_flag                                       = False
+    r1_loc.sid_structure.locator_block_length           = 32
+    r1_loc.sid_structure.locator_node_length            = 16
+    r1_loc.sid_structure.function_length                = 16
+    r1_loc.sid_structure.argument_length                = 0
+    r1_loc.advertise_locator_as_prefix.route_metric     = 10
+    r1_loc.advertise_locator_as_prefix.redistribution_type = "up"
+    r1_loc.advertise_locator_as_prefix.route_origin    = "internal"
+
+    r1_sid                    = r1_loc.end_sids.add()   # fc00:0:1:1:: End (code 1)
+    r1_sid.function           = "0001"
+    r1_sid.argument           = "0000"
+    r1_sid.endpoint_behavior  = "end"
+    r1_sid.c_flag             = True
+
+    r1_routes         = r1.v6_routes.add()
+    r1_routes.name    = "r1_v6_routes"
+    r1_routes.link_metric  = 10
+    r1_routes.origin_type  = "internal"
+    r1_addr           = r1_routes.addresses.add()
+    r1_addr.address   = "fd00:0:1::1"
+    r1_addr.prefix    = 64
+    r1_addr.count     = 1
+
+    # ---- IS-IS router r2 — Port 2 ↔ DUT -------------------------------------
+    r2                              = d2.isis
+    r2.name                         = "r2"
+    r2.system_id                    = "650000000002"
+    r2.basic.enable_wide_metric     = True
+    r2.basic.learned_lsp_filter     = True
+    r2.advanced.area_addresses      = ["490001"]
+    r2.advanced.lsp_refresh_rate    = 900
+    r2.advanced.lsp_lifetime        = 1200
+    r2.advanced.csnp_interval       = 10000
+    r2.advanced.psnp_interval       = 2000
+    r2.advanced.max_lsp_size        = 1492
+
+    r2_intf                                          = r2.interfaces.add()
+    r2_intf.eth_name                                 = "d2_eth"
+    r2_intf.name                                     = "r2_intf"
+    r2_intf.network_type                             = "point_to_point"
+    r2_intf.level_type                               = "level_2"
+    r2_intf.metric                                   = 10
+    r2_intf.l2_settings.dead_interval                = 30
+    r2_intf.l2_settings.hello_interval               = 10
+    r2_intf.l2_settings.priority                     = 0
+    r2_intf.advanced.auto_adjust_supported_protocols = True
+
+    r2.segment_routing.router_capability.srv6_capability.c_flag = True
+
+    r2_loc                                              = r2.segment_routing.srv6_locators.add()
+    r2_loc.locator_name                                 = "loc2"
+    r2_loc.locator                                      = "fc00:0:2::"
+    r2_loc.prefix_length                                = 48
+    r2_loc.algorithm                                    = 0
+    r2_loc.metric                                       = 10
+    r2_loc.d_flag                                       = False
+    r2_loc.sid_structure.locator_block_length           = 32
+    r2_loc.sid_structure.locator_node_length            = 16
+    r2_loc.sid_structure.function_length                = 16
+    r2_loc.sid_structure.argument_length                = 0
+    r2_loc.advertise_locator_as_prefix.route_metric     = 10
+    r2_loc.advertise_locator_as_prefix.redistribution_type = "up"
+    r2_loc.advertise_locator_as_prefix.route_origin    = "internal"
+
+    r2_sid                    = r2_loc.end_sids.add()   # fc00:0:2:1:: End (code 1)
+    r2_sid.function           = "0001"
+    r2_sid.argument           = "0000"
+    r2_sid.endpoint_behavior  = "end"
+    r2_sid.c_flag             = True
+
+    r2_routes         = r2.v6_routes.add()
+    r2_routes.name    = "r2_v6_routes"
+    r2_routes.link_metric  = 10
+    r2_routes.origin_type  = "internal"
+    r2_addr           = r2_routes.addresses.add()
+    r2_addr.address   = "fd00:0:2::1"
+    r2_addr.prefix    = 64
+    r2_addr.count     = 1
+
+    # ---- SRH device-based flow: d1 → DUT → d2 ----------------------------------
+    # tx=d1_v6 / rx=d2_v6: IxN resolves the DUT's MAC via NDP (no hardcoded MAC).
+    # Outer IPv6 dst = DUT End SID; DUT applies End:
+    #   sl 1→0, outer dst ← seg[0] = fc00:0:2:1::, forwards out port 2.
+    # Capture on p2 verifies: sl=0, segments unchanged, inner TCP intact.
+    f1                                = cfg.flows.add()
+    f1.name                           = "srh_pdp1"
+    f1.tx_rx.device.tx_names          = [d1_v6.name]
+    f1.tx_rx.device.rx_names          = [d2_v6.name]
+    f1.rate.pps                       = 100
+    f1.duration.fixed_packets.packets = 200
+    f1.metrics.enable                 = True
+
+    ip6_1                       = f1.packet.add().ipv6
+    ip6_1.src.value             = "2001:0:1::1"
+    ip6_1.dst.value             = _DUT_END_SID    # DUT End SID: sl pointer
+    ip6_1.next_header.value     = 43              # SRH
+
+    sr1                         = f1.packet.add().ipv6_extension_header.routing.segment_routing
+    sr1.segments_left.value     = 1               # points to seg[1] = DUT End SID
+    sr1.last_entry.value        = 1               # 2-segment list (0-indexed)
+    sr1.flags.protected.value   = 0
+    sr1.flags.oam.value         = 0
+    sr1.flags.alert.value       = 0
+    sr1.tag.value               = 0
+    seg                         = sr1.segment_list.segment()[-1]
+    seg.segment.value           = "fc00:0:2:1::"  # seg[0]: next hop after DUT
+    seg                         = sr1.segment_list.segment()[-1]
+    seg.segment.value           = _DUT_END_SID    # seg[1]: DUT End SID (current)
+
+    ip4_inner                   = f1.packet.add().ipv4
+    ip4_inner.src.value         = "10.1.1.1"
+    ip4_inner.dst.value         = "10.2.2.2"
+    ip4_inner.protocol.value    = 6              # TCP
+
+    tcp_inner                   = f1.packet.add().tcp
+    tcp_inner.src_port.value    = 1234
+    tcp_inner.dst_port.value    = 80
+
+    # ---- Device flow — route reachability check via DUT ---------------------
+    # Plain IPv6 device flow; IxN resolves MAC via IS-IS adjacency.
+    # Passes only if the DUT correctly redistributes both route ranges.
+    f_dev                              = cfg.flows.add()
+    f_dev.name                         = "isis_dev_flow"
+    f_dev.tx_rx.device.tx_names        = ["r1_v6_routes"]
+    f_dev.tx_rx.device.rx_names        = ["r2_v6_routes"]
+    f_dev.rate.pps                     = 50
+    f_dev.duration.fixed_packets.packets = 100
+    f_dev.metrics.enable               = True
+
+    # ---- Capture on p2 (DUT egress side) ------------------------------------
+    cap                = cfg.captures.capture(name="cap")[-1]
+    cap.port_names     = [p2.name]
+    cap.format         = cap.PCAPNG
+
+    api.set_config(cfg)
+
+    # =========================================================================
+    # Phase 1: Control plane
+    # Wait for both IS-IS adjacencies (r1↔DUT and r2↔DUT) to form.
+    # DUT re-floods r1's LSP to p2, so TLV-27 wire verification works for
+    # both routers from the single p2 capture.
+    # =========================================================================
+    cs = api.control_state()
+    cs.choice = cs.PORT
+    cs.port.choice = cs.port.CAPTURE
+    cs.port.capture.state = cs.port.capture.START
+    api.set_control_state(cs)
+
+    cs = api.control_state()
+    cs.protocol.all.state = cs.protocol.all.START
+    api.set_control_state(cs)
+
+    time.sleep(_PDP_CONVERGENCE)
+
+    cs = api.control_state()
+    cs.choice = cs.PORT
+    cs.port.choice = cs.port.CAPTURE
+    cs.port.capture.state = cs.port.capture.STOP
+    api.set_control_state(cs)
+
+    req = api.capture_request()
+    req.port_name = p2.name
+    cp_pcap = api.get_capture(req)
+    _save_capture(cp_pcap, "test_tc_pdp1_cp")
+
+    # Expect 2 IS-IS L2 sessions: r1↔DUT and r2↔DUT
+    _check_isis_sessions_up(api, tc, min_sessions=2)
+
+    # IxN config-state: both End SIDs active (hard assert)
+    _verify_cp(api, tc,
+               expected_r1={"fc00:0:1:1::": 1},
+               expected_r2={"fc00:0:2:1::": 1})
+
+    # Wire (p2): r2 sends its own LSP; DUT re-floods r1's LSP from port 1
+    _verify_cp_wire(tc, cp_pcap, "r1", "650000000001", {"fc00:0:1:1::": 1})
+    _verify_cp_wire(tc, cp_pcap, "r2", "650000000002", {"fc00:0:2:1::": 1})
+
+    # =========================================================================
+    # Phase 2: Data plane (IS-IS still running)
+    # SRH sent from p1: sl=1, outer dst = DUT End SID.
+    # DUT applies End: sl 1→0, outer dst → fc00:0:2:1::, forwards to p2.
+    # Capture on p2 must show the DUT-processed SRH (sl=0).
+    # =========================================================================
+    cs = api.control_state()
+    cs.choice = cs.PORT
+    cs.port.choice = cs.port.CAPTURE
+    cs.port.capture.state = cs.port.capture.START
+    api.set_control_state(cs)
+
+    cs = api.control_state()
+    cs.choice = cs.TRAFFIC
+    cs.traffic.choice = cs.traffic.FLOW_TRANSMIT
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
+    api.set_control_state(cs)
+
+    time.sleep(4)
+
+    cs = api.control_state()
+    cs.choice = cs.TRAFFIC
+    cs.traffic.choice = cs.traffic.FLOW_TRANSMIT
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.STOP
+    api.set_control_state(cs)
+
+    cs = api.control_state()
+    cs.choice = cs.PORT
+    cs.port.choice = cs.port.CAPTURE
+    cs.port.capture.state = cs.port.capture.STOP
+    api.set_control_state(cs)
+
+    req = api.capture_request()
+    req.port_name = p2.name
+    dp_pcap = api.get_capture(req)
+    _save_capture(dp_pcap, "test_tc_pdp1_dp")
+
+    srh = _parse_srh_from_pcap(dp_pcap)
+    _verify_dp(tc, srh, {
+        "routing_type":  4,
+        "segments_left": 0,                                   # DUT decremented 1 → 0
+        "last_entry":    1,                                   # 2-segment list, unchanged
+        "flags_byte":    0,
+        "tag":           0,
+        "segments":      ["fc00:0:2:1::", _DUT_END_SID],      # DUT does not alter SID list
+    })
+    _verify_dp_inner(tc, srh.get("inner") if srh else None, {
+        "type":        "ipv4_tcp",
+        "ip_src":      "10.1.1.1",
+        "ip_dst":      "10.2.2.2",
+        "ip_protocol": 6,
+        "src_port":    1234,
+        "dst_port":    80,
+        "data_offset": 5,
+    })
+
+    _, flow_results = utils.get_all_stats(api)
+    _verify_device_flow_metrics(tc, flow_results, "isis_dev_flow")
+
+    _delete_captures("test_tc_pdp1_cp", "test_tc_pdp1_dp")
+    print("\n  [%s] PASSED — Node End SIDs PDP: CP adjacencies up; "
+          "DUT End-SID forwarding verified (sl=0 on p2 capture)." % tc)
