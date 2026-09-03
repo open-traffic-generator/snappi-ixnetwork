@@ -445,7 +445,7 @@ class Ngpf(Base):
                 % (peer_name, session_index, family)
             )
             prefixes_by_field = self._bgp.get_learned_prefixes(
-                peer_obj, bgp_prefix_req, families
+                peer_obj, bgp_prefix_req, families, session_index
             )
             entry = results.setdefault(
                 peer_name, {"bgp_peer_name": peer_name}

@@ -70,6 +70,14 @@ class Bgp(Base):
         "next_hop_ipv6_address": "ipv6NextHop",
     }
 
+    # BgpV6IPRouteProperty.NextHopType only accepts "manual" (not
+    # "manually" as BgpIPRouteProperty does).
+    _ROUTE_V6 = dict(_ROUTE)
+    _ROUTE_V6["next_hop_mode"] = {
+        "ixn_attr": "nextHopType",
+        "enum_map": {"local_ip": "sameaslocalip", "manual": "manual"},
+    }
+
     _COMMUNITY = {
         "type": {
             "ixn_attr": "type",
@@ -370,7 +378,7 @@ class Bgp(Base):
                     ixn_ip_pool, "bgpV6IPRouteProperty", route.get("name")
                 )
                 self._ngpf.set_device_info(route, ixn_ip_pool)
-                self._configure_route(route, ixn_route)
+                self._configure_route(route, ixn_route, Bgp._ROUTE_V6)
 
     # ------------------------------------------------------------------
     # Learned-info helpers (used by ngpf.get_bgp_prefix_states)
@@ -561,11 +569,21 @@ class Bgp(Base):
             return found, False
         return learned_info.Table.find(), True
 
-    def _get_learned_table(self, peer_obj, families=None):
+    def _get_learned_table(self, peer_obj, families=None, session_index=1):
         """Trigger a learned-info fetch and return its rows **by family**.
 
         ``GetAllLearnedInfo`` (not ``GetIPv4/6LearnedInfo``) is the operation
-        that populates the ``Table`` child resource. 
+        that populates the ``Table`` child resource.
+
+        *peer_obj* may be a compacted/scaled node representing several
+        real BGP sessions at once (one per identically-shaped device
+        group). IxNetwork rejects ``GetAllLearnedInfo`` outright when more
+        than one of those sessions is selected at the same time
+        ("Fetching Learned Information on more than 1 BGP session in a
+        single action is not supported"), so the fetch is always scoped to
+        *session_index* (1-based), and only that session's ``LearnedInfo``
+        entry is read back -- reading all of them would also pick up
+        stale/empty data left over from other sessions' peers.
         """
         # --- Step 1: trigger the learned-info fetch -----------------------
         # Equivalent to right-click → "Get Learned Info" in the GUI.
@@ -574,11 +592,11 @@ class Bgp(Base):
         # not to be populated by this call, GetIPv4MplsLearnedInfo /
         # GetIPv6MplsLearnedInfo have to be triggered here as well.
         try:
-            peer_obj.GetAllLearnedInfo()
+            peer_obj.GetAllLearnedInfo(SessionIndices=[session_index])
         except Exception as e:
             self.logger.warning(
-                "GetAllLearnedInfo failed for peer %r: %s"
-                % (peer_obj.Name, e)
+                "GetAllLearnedInfo failed for peer %r session %d: %s"
+                % (peer_obj.Name, session_index, e)
             )
             return {}
 
@@ -595,7 +613,14 @@ class Bgp(Base):
             else self._SUPPORTED_PREFIX_FILTERS
         )
         try:
-            for li in peer_obj.LearnedInfo.find():
+            all_learned_info = peer_obj.LearnedInfo.find()
+            # One LearnedInfo child per session on a compacted/scaled peer;
+            # only session_index's entry was just refreshed above.
+            if session_index - 1 < len(all_learned_info):
+                learned_info = [all_learned_info[session_index - 1]]
+            else:
+                learned_info = all_learned_info
+            for li in learned_info:
                 found, li_fell_back = self._find_learned_tables(li, families)
                 fell_back = fell_back or li_fell_back
                 for table in found:
@@ -1177,7 +1202,7 @@ class Bgp(Base):
         ]
 
     def get_learned_prefixes(self, peer_obj, bgp_prefix_request,
-                             families=None):
+                             families=None, session_index=1):
         """Fetch and translate one peer's learned prefixes, by family.
 
         Calls :meth:`_get_learned_table` for the raw rows, converts each row
@@ -1188,6 +1213,10 @@ class Bgp(Base):
         from, **not** from the peer's own IP version, so an MP-BGP session
         over IPv4 that has learned IPv6 NLRI reports those under
         ``ipv6_unicast_prefixes``.
+
+        *session_index* (1-based) selects which real session to fetch when
+        *peer_obj* is a compacted/scaled node representing several -- see
+        :meth:`_get_learned_table`.
         """
         # Fresh warning scope: a missing column is reported once per call,
         # not once per prefix, and not suppressed forever after the first.
@@ -1196,7 +1225,7 @@ class Bgp(Base):
         if families is None:
             families = self._SUPPORTED_PREFIX_FILTERS
 
-        tables = self._get_learned_table(peer_obj, families)
+        tables = self._get_learned_table(peer_obj, families, session_index)
 
         prefixes_by_field = {}
         for family in families:
@@ -1221,9 +1250,11 @@ class Bgp(Base):
             )(prefixes, filters)
         return prefixes_by_field
 
-    def _configure_route(self, route, ixn_route):
+    def _configure_route(self, route, ixn_route, route_map=None):
+        if route_map is None:
+            route_map = Bgp._ROUTE
         self._ngpf.set_ixn_routes(route, ixn_route)
-        self.configure_multivalues(route, ixn_route, Bgp._ROUTE)
+        self.configure_multivalues(route, ixn_route, route_map)
 
         advanced = route.get("advanced")
         if advanced is not None:
