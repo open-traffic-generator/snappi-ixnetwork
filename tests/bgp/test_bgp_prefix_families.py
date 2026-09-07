@@ -156,7 +156,7 @@ class FakePeer(object):
     def table_finder(self):
         return self._learned_info.Table
 
-    def GetAllLearnedInfo(self):
+    def GetAllLearnedInfo(self, SessionIndices=None):
         self.get_all_learned_info_calls += 1
 
 
