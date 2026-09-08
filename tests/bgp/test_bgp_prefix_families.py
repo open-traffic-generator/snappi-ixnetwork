@@ -178,7 +178,7 @@ def bgp():
 
 
 # ---------------------------------------------------------------------------
-# resolve_prefix_filters  (R3-a, R3-c)
+# resolve_prefix_filters
 # ---------------------------------------------------------------------------
 
 
@@ -242,7 +242,7 @@ def test_prefix_filter_values_cover_the_otg_enum(bgp):
 
 
 # ---------------------------------------------------------------------------
-# Table type -> family  (the R4-a piece R3-b needs)
+# Table type -> family
 # ---------------------------------------------------------------------------
 
 
@@ -313,7 +313,7 @@ def test_learned_table_survives_a_failed_trigger(bgp):
 
 
 # ---------------------------------------------------------------------------
-# Server-side table selection  (R4-d)
+# Server-side table selection
 # ---------------------------------------------------------------------------
 
 
@@ -398,9 +398,6 @@ def test_renamed_table_type_is_reported_not_silently_empty(bgp, caplog):
 
 def test_case_differing_table_type_is_still_matched(bgp, caplog):
     """The server pattern is case-insensitive, matching _table_family.
-
-    The '(?i)' flag is verified to work on IxNetwork 10.80, so a type that
-    differs only in casing is selected server-side with no re-read.
     """
     peer = FakePeer("p", [v4_table(type_="ipv4 prefixes 1")])
 
@@ -476,7 +473,7 @@ def test_recognised_plus_unrecognised_does_not_warn(bgp, caplog):
 
 
 # ---------------------------------------------------------------------------
-# get_learned_prefixes: family routing  (R3-b)
+# get_learned_prefixes: family routing
 # ---------------------------------------------------------------------------
 
 
@@ -553,7 +550,7 @@ def test_per_family_filters_apply_to_their_own_family(bgp):
 
 
 # ---------------------------------------------------------------------------
-# Ngpf.get_bgp_prefix_states: end-to-end wiring  
+# Ngpf.get_bgp_prefix_states: end-to-end wiring
 # ---------------------------------------------------------------------------
 
 
@@ -621,7 +618,7 @@ def test_no_prefix_filters_reports_every_family(bgp):
 
 
 def test_dual_stack_peer_yields_one_entry_not_two(bgp):
-    """R3-d: one BgpPrefixesState per peer, however many families."""
+    """One BgpPrefixesState per peer, however many families."""
     peer = FakePeer("peer1", [v4_table(), v6_table()])
     ngpf = FakeNgpf(bgp, [("peer1", peer, 1, "v4")])
 

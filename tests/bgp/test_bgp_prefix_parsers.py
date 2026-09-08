@@ -160,7 +160,7 @@ def segments(as_path):
 
 
 # ---------------------------------------------------------------------------
-# _parse_as_path  
+# _parse_as_path
 # ---------------------------------------------------------------------------
 
 
@@ -248,8 +248,7 @@ def test_parse_captured_ebgp_as_path(bgp, caplog):
 @pytest.mark.parametrize(
     "cell, expected",
     [
-        # Comma-separated members, with and without spaces.  '{300,400}' is
-        # the real 10.80 AS_SET rendering.
+        # Comma-separated members, with and without spaces.  '{300,400}' 
         ("{300,400}", [("as_set", [300, 400])]),
         ("{300, 400}", [("as_set", [300, 400])]),
         ("<100,200>", [("as_seq", [100, 200])]),
@@ -320,7 +319,7 @@ def test_parse_as_path_valid_asns_never_warn(bgp, caplog):
 
 
 # ---------------------------------------------------------------------------
-# _parse_communities  
+# _parse_communities
 # ---------------------------------------------------------------------------
 
 
@@ -335,7 +334,6 @@ def manual(as_number, as_custom):
 @pytest.mark.parametrize(
     "cell, expected",
     [
-        # The spaced form IxNetwork 10.80 actually emits.
         ("1 : 2", [manual(1, 2)]),
         ("1:2", [manual(1, 2)]),
         ("1:2 3:4", [manual(1, 2), manual(3, 4)]),
@@ -395,14 +393,12 @@ def test_parse_captured_ebgp_communities(bgp, caplog):
 @pytest.mark.parametrize(
     "cell, expected",
     [
-        # Comma-separated, the real 10.80 rendering.
         ("1:2,3:4", [manual(1, 2), manual(3, 4)]),
         ("1:2, 3:4", [manual(1, 2), manual(3, 4)]),
         ("1 : 2, 3 : 4", [manual(1, 2), manual(3, 4)]),
         # Trailing/repeated separators must not produce phantom entries.
         ("1:2,", [manual(1, 2)]),
         ("1:2,,3:4", [manual(1, 2), manual(3, 4)]),
-        # Uppercase / underscore spellings, as emitted on 10.80.
         ("NO_EXPORT", [{"type": "no_export"}]),
         ("NO_ADVERTISED", [{"type": "no_advertised"}]),
         ("NO_EXPORT_SUBCONFED", [{"type": "no_export_subconfed"}]),
@@ -477,7 +473,7 @@ def test_parse_communities_valid_never_warn(bgp, caplog):
 
 
 def test_captured_row_maps_completely(bgp, captured_v4_row, caplog):
-    """The real 10.80 row must translate with no warnings at all."""
+    """The real in IxNetwork row must translate with no warnings at all."""
     with caplog.at_level(logging.WARNING):
         prefix = bgp._row_to_ipv4_prefix(captured_v4_row)
 
@@ -502,9 +498,6 @@ def test_captured_row_maps_completely(bgp, captured_v4_row, caplog):
 
 def test_captured_ebgp_row_maps_completely(bgp, caplog):
     """The verbatim eBGP row: comma separators, NO_EXPORT, title-case origin.
-
-    Every value here is exactly what IxNetwork 10.80 returned; this is the
-    row that broke the first version of the parsers.
     """
     row = v4_row(
         **{
@@ -572,7 +565,7 @@ def test_v6_row_maps_completely(bgp, caplog):
 @pytest.mark.parametrize(
     "address, length_cell, expected_addr, expected_len",
     [
-        # Bare address plus a separate Prefix Length column (10.80).
+        # Bare address plus a separate Prefix Length column.
         ("100.1.0.0", "24", "100.1.0.0", 24),
         # Full CIDR in the address column (other IxNetwork versions).
         ("100.1.0.0/24", "24", "100.1.0.0", 24),
@@ -618,7 +611,7 @@ def test_v6_link_local_second_next_hop_is_not_mapped(bgp):
 
 
 def test_whitespace_only_community_is_empty(bgp, caplog):
-    """An empty Community column arrives as a single space on 10.80."""
+    """An empty Community column arrives as a single space in IxNetwork."""
     with caplog.at_level(logging.WARNING):
         prefix = bgp._row_to_ipv6_prefix(v6_row(**{"Community": " "}))
     assert prefix["communities"] == []
