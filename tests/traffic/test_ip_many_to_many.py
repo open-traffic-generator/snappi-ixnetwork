@@ -46,17 +46,19 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
         dev = b2b_raw_config.devices.device()[-1]
 
         dev.name = "%s_dev_%d" % (node, i + 1)
-        dev.container_name = b2b_raw_config.ports[port].name
+        eth = dev.ethernets.add()
+        eth.connection.port_name = b2b_raw_config.ports[port].name
 
-        dev.ethernet.name = "%s_eth_%d" % (node, i + 1)
-        dev.ethernet.mac = addrs["mac_%s" % node][i]
+        eth.name = "%s_eth_%d" % (node, i + 1)
+        eth.mac = addrs["mac_%s" % node][i]
 
-        dev.ethernet.ipv4.name = "%s_ipv4_%d" % (node, i + 1)
-        dev.ethernet.ipv4.address = addrs["ip_%s" % node][i]
-        dev.ethernet.ipv4.gateway = addrs[
+        ip = eth.ipv4_addresses.add()
+        ip.name = "%s_ipv4_%d" % (node, i + 1)
+        ip.address = addrs["ip_%s" % node][i]
+        ip.gateway = addrs[
             "ip_%s" % ("rx" if node == "tx" else "tx")
         ][i]
-        dev.ethernet.ipv4.prefix = 24
+        ip.prefix = 24
     b2b_raw_config.flows.clear()
     f1, f2 = b2b_raw_config.flows.flow(name="TxFlow-1").flow(name="TxFlow-2")
     f1.tx_rx.device.tx_names = [
@@ -67,7 +69,8 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     ]
     f1.size.fixed = size
     f1.duration.fixed_packets.packets = packets
-    f1.rate.percentage = "10"
+    f1.rate.percentage = 10
+    f1.metrics.enable = True
 
     f2.tx_rx.device.tx_names = [
         b2b_raw_config.devices[i].name for i in range(count)
@@ -77,15 +80,16 @@ def test_ip_device_and_flow(api, b2b_raw_config, utils):
     ]
     f2.packet.ethernet().ipv4().tcp()
     tcp = f2.packet[-1]
-    tcp.src_port.increment.start = "5000"
-    tcp.src_port.increment.step = "1"
-    tcp.src_port.increment.count = "%d" % count
-    tcp.dst_port.increment.start = "2000"
-    tcp.dst_port.increment.step = "1"
-    tcp.dst_port.increment.count = "%d" % count
+    tcp.src_port.increment.start = 5000
+    tcp.src_port.increment.step = 1
+    tcp.src_port.increment.count = count
+    tcp.dst_port.increment.start = 2000
+    tcp.dst_port.increment.step = 1
+    tcp.dst_port.increment.count = count
     f2.size.fixed = size * 2
     f2.duration.fixed_packets.packets = packets
-    f2.rate.percentage = "10"
+    f2.rate.percentage = 10
+    f2.metrics.enable = True
     utils.start_traffic(api, b2b_raw_config)
     utils.wait_for(
         lambda: results_ok(api, utils, size, size * 2, packets),

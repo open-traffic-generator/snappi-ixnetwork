@@ -2,6 +2,7 @@ import snappi
 import pytest
 from mock import MagicMock
 from collections import namedtuple
+from types import SimpleNamespace
 from snappi_ixnetwork.trafficitem import TrafficItem
 
 expected_raw_type = {
@@ -471,6 +472,132 @@ def test_configure_duration():
     assert config_elem[0]["transmissionControl"]["minGapBytes"] == 12
     assert config_elem[0]["transmissionControl"]["startDelay"] == 0.0
     assert config_elem[0]["transmissionControl"]["startDelayUnits"] == "bytes"
+
+
+class _FakeTrafficItems:
+    def __init__(self, starting=False):
+        self.starting = starting
+        self.present = 1
+        self.find_calls = []
+        self.actions = {}
+
+    def __len__(self):
+        return self.present
+
+    def find(self, **kwargs):
+        self.find_calls.append(kwargs)
+        if kwargs.get("State") == "^unapplied$":
+            self.present = 1
+        elif kwargs.get("Suspend") is True:
+            self.present = 1 if self.starting else 0
+        elif kwargs.get("State") == "^started$":
+            self.present = 0 if self.starting else 1
+        elif kwargs.get("State") == "^stopped$":
+            self.present = 1
+        else:
+            self.present = 1
+        return self
+
+    def __getattr__(self, name):
+        if name not in self.actions:
+            self.actions[name] = MagicMock()
+        return self.actions[name]
+
+
+def _traffic_item_for_transmit(starting=False):
+    api = MagicMock()
+    api._config.flows = [namedtuple("Flow", ["name"])("flow1")]
+    api._config.devices = []
+    api._config.get.return_value = None
+    api._topology.find.return_value = []
+    api._traffic_item = _FakeTrafficItems(starting=starting)
+    api.special_char.side_effect = lambda names: names
+    api.capture._start_capture = MagicMock()
+    api.info = MagicMock()
+    return api
+
+
+@pytest.mark.parametrize("state, method_name", [("stop", "StopStatelessTrafficBlocking"), ("pause", "PauseStatelessTraffic")])
+def test_transmit_control_modes(state, method_name):
+    api = _traffic_item_for_transmit()
+    tr_obj = TrafficItem(api)
+    request = namedtuple("TransmitRequest", ["state", "flow_names"])(
+        state, ["flow1"]
+    )
+
+    tr_obj.transmit(request)
+
+    getattr(api._traffic_item, method_name).assert_called_once_with(
+        *(([True] if state == "pause" else []))
+    )
+
+
+def test_transmit_start_mode():
+    api = _traffic_item_for_transmit(starting=True)
+    tr_obj = TrafficItem(api)
+    request = namedtuple("TransmitRequest", ["state", "flow_names"])(
+        "start", ["flow1"]
+    )
+
+    tr_obj.transmit(request)
+
+    api._traffic_item.Generate.assert_called_once_with()
+    api._traffic.Apply.assert_called_once_with()
+    api._traffic_item.PauseStatelessTraffic.assert_called_once_with(False)
+    api._traffic_item.StartStatelessTrafficBlocking.assert_called_once_with()
+    api.capture._start_capture.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    "endpoint_choice, mode, expected_mesh",
+    [
+        ("port", None, "oneToOne"),
+        ("device", None, "manyToMany"),
+        ("device", "mesh", "manyToMany"),
+        ("device", "oneToOne", "oneToOne"),
+    ],
+)
+def test_endpoint_mesh_modes(endpoint_choice, mode, expected_mesh):
+    config = snappi.Api().config()
+    flow = config.flows.flow(name="f1")[-1]
+    if endpoint_choice == "port":
+        flow.tx_rx.port.tx_name = "tx"
+        flow.tx_rx.port.rx_name = "rx"
+    else:
+        flow.tx_rx.device.tx_names = ["tx"]
+        flow.tx_rx.device.rx_names = ["rx"]
+        flow.tx_rx.device.mode = mode
+
+    tr_obj = TrafficItem(MagicMock())
+
+    assert tr_obj._get_mesh_type(flow) == expected_mesh
+    assert tr_obj._get_bidirectional(flow) is False
+
+
+@pytest.mark.parametrize(
+    "field, names",
+    [("tx_names", ["tx", "tx"]), ("rx_names", ["rx", "rx"])],
+)
+def test_endpoint_validation_rejects_duplicate_names(field, names):
+    config = snappi.Api().config()
+    flow = config.flows.flow(name="f1")[-1]
+    flow.tx_rx.device.tx_names = ["tx"]
+    flow.tx_rx.device.rx_names = ["rx"]
+    setattr(flow.tx_rx.device, field, names)
+    tr_obj = TrafficItem(MagicMock())
+
+    with pytest.raises(ValueError, match="must be unique"):
+        tr_obj._endpoint_validation(flow)
+
+
+def test_endpoint_validation_requires_endpoint_choice():
+    flow = SimpleNamespace(
+        name="f1", tx_rx=SimpleNamespace(choice=None)
+    )
+    tr_obj = TrafficItem(MagicMock())
+
+    with pytest.raises(ValueError, match="cannot be None"):
+        tr_obj._endpoint_validation(flow)
 
 
 if __name__ == "__main__":
