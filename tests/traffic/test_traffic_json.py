@@ -473,5 +473,106 @@ def test_configure_duration():
     assert config_elem[0]["transmissionControl"]["startDelayUnits"] == "bytes"
 
 
+@pytest.mark.parametrize(
+    "choice, expected_type",
+    [
+        ("fixed", "custom"),
+        ("increment_byte", "incrementByte"),
+        ("decrement_byte", "decrementByte"),
+        ("increment_word", "incrementWord"),
+        ("decrement_word", "decrementWord"),
+    ],
+)
+def test_configure_payload_choices(choice, expected_type):
+    config = snappi.Api().config()
+    tr_obj = TrafficItem(MagicMock())
+    config_elem = [{"xpath": "/traffic/trafficItem[1]/configElement[1]"}]
+    flow = config.flows.flow(name="f1")[-1]
+    flow.payload.choice = choice
+    if choice == "fixed":
+        flow.payload.fixed.pattern = "abcd"
+        flow.payload.fixed.repeat = True
+
+    tr_obj._configure_payload(config_elem, flow.payload)
+
+    payload = config_elem[0]["framePayload"]
+    assert payload["type"] == expected_type
+    if choice == "fixed":
+        assert payload["customPattern"] == "abcd"
+        assert payload["customRepeat"] is True
+
+
+@pytest.mark.parametrize(
+    "choice, expected_type",
+    [
+        ("continuous", "continuous"),
+        ("fixed_packets", "fixedFrameCount"),
+        ("fixed_seconds", "fixedDuration"),
+        ("burst", "burstFixedDuration"),
+    ],
+)
+def test_configure_duration_choices(choice, expected_type):
+    config = snappi.Api().config()
+    tr_obj = TrafficItem(MagicMock())
+    config_elem = [{"xpath": "/traffic/trafficItem[1]/configElement[1]"}]
+    flow = config.flows.flow(name="f1")[-1]
+
+    if choice == "continuous":
+        flow.duration.continuous.delay.nanoseconds = 10
+    elif choice == "fixed_packets":
+        flow.duration.fixed_packets.packets = 100
+        flow.duration.fixed_packets.delay.nanoseconds = 20
+    elif choice == "fixed_seconds":
+        flow.duration.fixed_seconds.seconds = 5
+        flow.duration.fixed_seconds.delay.nanoseconds = 30
+    else:
+        flow.duration.burst.packets = 10
+        flow.duration.burst.gap = 1
+        flow.duration.burst.inter_burst_gap.nanoseconds = 40
+        flow.duration.burst.bursts = 2
+
+    tr_obj._configure_duration(config_elem, 2, flow.duration)
+
+    transmission = config_elem[0]["transmissionControl"]
+    assert transmission["type"] == expected_type
+    if choice == "fixed_packets":
+        assert transmission["frameCount"] == 50
+    if choice == "burst":
+        assert transmission["repeatBurst"] == 2
+        assert transmission["enableInterBurstGap"] is True
+
+
+@pytest.mark.parametrize(
+    "choice, expected_type",
+    [
+        ("value", "singleValue"),
+        ("values", "valueList"),
+        ("increment", "increment"),
+        ("decrement", "decrement"),
+    ],
+)
+def test_configure_field_pattern_choices(choice, expected_type):
+    config = snappi.Api().config()
+    tr_obj = TrafficItem(MagicMock())
+    eth = config.flows.flow(name="f1")[-1].packet.ethernet()
+    field = eth[0].src
+    field.choice = choice
+
+    if choice == "value":
+        field.value = "00:00:00:00:00:01"
+    elif choice == "values":
+        field.values = ["00:00:00:00:00:01", "00:00:00:00:00:02"]
+    elif choice in ("increment", "decrement"):
+        pattern = getattr(field, choice)
+        pattern.start = "00:00:00:00:00:01"
+        pattern.step = 1
+        pattern.count = 2
+
+    field_json = {}
+    tr_obj._config_field_pattern(field, field_json)
+
+    assert field_json["valueType"] == expected_type
+
+
 if __name__ == "__main__":
     pytest.main(["-s", __file__])
