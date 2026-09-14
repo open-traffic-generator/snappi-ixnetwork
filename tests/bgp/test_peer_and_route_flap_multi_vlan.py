@@ -36,6 +36,17 @@ TEST_CONST = {
     "pktRate": 50,
     "pktCount": 100,
     "pktSize": 128,
+    "ports": [
+        {"name": "ptx"},
+        {"name": "prx"},
+    ],
+    "layer1": {
+        "name": "ly",
+        "port_names": ["ptx", "prx"],
+        "mtu": 1500,
+        "promiscuous": True,
+        "speed": "speed_1_gbps",
+    },
     "useVlan": True,
     "pairs": [
         {
@@ -201,13 +212,6 @@ def configure_bgp_pair(config, ptx, prx, pair, use_vlan):
         gateway=pair["txGateway"],
         prefix=pair["txPrefix"]
     )
-    dtx_ipv6 = dtx_eth.ipv6_addresses.add(name=f"dtx{pair_id}_ipv6")
-    dtx_ipv6.set(
-        address=pair["txIpv6"],
-        gateway=pair["txGatewayV6"],
-        prefix=64
-    )
-
     dtx.bgp.router_id = pair["txIp"]
     dtx_bgpv4 = dtx.bgp.ipv4_interfaces.add(ipv4_name=dtx_ip.name)
     dtx_bgpv4_peer = dtx_bgpv4.peers.add(name=f"dtx{pair_id}_peer")
@@ -217,19 +221,8 @@ def configure_bgp_pair(config, ptx, prx, pair, use_vlan):
         peer_address=pair["txGateway"]
     )
     dtx_bgpv4_peer.learned_information_filter.unicast_ipv4_prefix = True
-
-    # IxNetwork requires IPv6 route ranges to be advertised by a genuine
-    # BGP+ IPv6 peer (its own protocol stack over an IPv6 interface); it
-    # rejects them when attached to an IPv4-only peer, even with MP-BGP
-    # capability negotiation enabled.
-    dtx_bgpv6 = dtx.bgp.ipv6_interfaces.add(ipv6_name=dtx_ipv6.name)
-    dtx_bgpv6_peer = dtx_bgpv6.peers.add(name=f"dtx{pair_id}_v6_peer")
-    dtx_bgpv6_peer.set(
-        as_number=pair["txAs"],
-        as_type=dtx_bgpv6_peer.EBGP,
-        peer_address=pair["txGatewayV6"]
-    )
-    dtx_bgpv6_peer.learned_information_filter.unicast_ipv6_prefix = True
+    dtx_bgpv4_peer.learned_information_filter.unicast_ipv6_prefix = True
+    dtx_bgpv4_peer.capability.ipv6_unicast = True
 
     # Create multiple route ranges based on routeRangeCount
     dtx_v4_routes = []
@@ -264,6 +257,7 @@ def configure_bgp_pair(config, ptx, prx, pair, use_vlan):
             step=1
         )
         dtx_v4.advanced.set(
+            local_preference=100,
             multi_exit_discriminator=50,
             origin=dtx_v4.advanced.EGP
         )
@@ -272,7 +266,7 @@ def configure_bgp_pair(config, ptx, prx, pair, use_vlan):
         # IPv6 route
         ipv6_offset = route_idx * pair["txRouteCount"]
 
-        dtx_v6 = dtx_bgpv6_peer.v6_routes.add(
+        dtx_v6 = dtx_bgpv4_peer.v6_routes.add(
             name=f"dtx{pair_id}_v6route_{route_idx}"
         )
         dtx_v6.set(
@@ -303,6 +297,7 @@ def configure_bgp_pair(config, ptx, prx, pair, use_vlan):
             step=1
         )
         dtx_v6.advanced.set(
+            local_preference=100,
             multi_exit_discriminator=50,
             origin=dtx_v6.advanced.EGP
         )
@@ -324,13 +319,6 @@ def configure_bgp_pair(config, ptx, prx, pair, use_vlan):
         gateway=pair["rxGateway"],
         prefix=pair["rxPrefix"]
     )
-    drx_ipv6 = drx_eth.ipv6_addresses.add(name=f"drx{pair_id}_ipv6")
-    drx_ipv6.set(
-        address=pair["rxIpv6"],
-        gateway=pair["rxGatewayV6"],
-        prefix=64
-    )
-
     drx.bgp.router_id = pair["rxIp"]
     drx_bgpv4 = drx.bgp.ipv4_interfaces.add()
     drx_bgpv4.ipv4_name = drx_ip.name
@@ -341,15 +329,8 @@ def configure_bgp_pair(config, ptx, prx, pair, use_vlan):
         peer_address=pair["rxGateway"]
     )
     drx_bgpv4_peer.learned_information_filter.unicast_ipv4_prefix = True
-
-    drx_bgpv6 = drx.bgp.ipv6_interfaces.add(ipv6_name=drx_ipv6.name)
-    drx_bgpv6_peer = drx_bgpv6.peers.add(name=f"drx{pair_id}_v6_peer")
-    drx_bgpv6_peer.set(
-        as_number=pair["rxAs"],
-        as_type=drx_bgpv6_peer.EBGP,
-        peer_address=pair["rxGatewayV6"]
-    )
-    drx_bgpv6_peer.learned_information_filter.unicast_ipv6_prefix = True
+    drx_bgpv4_peer.learned_information_filter.unicast_ipv6_prefix = True
+    drx_bgpv4_peer.capability.ipv6_unicast = True
 
     # Create multiple route ranges based on routeRangeCount
     drx_v4_routes = []
@@ -383,6 +364,7 @@ def configure_bgp_pair(config, ptx, prx, pair, use_vlan):
             step=1
         )
         drx_v4.advanced.set(
+            local_preference=100,
             multi_exit_discriminator=50,
             origin=drx_v4.advanced.EGP
         )
@@ -391,7 +373,7 @@ def configure_bgp_pair(config, ptx, prx, pair, use_vlan):
         # IPv6 route
         ipv6_offset = route_idx * pair["rxRouteCount"]
 
-        drx_v6 = drx_bgpv6_peer.v6_routes.add(
+        drx_v6 = drx_bgpv4_peer.v6_routes.add(
             name=f"drx{pair_id}_v6route_{route_idx}"
         )
         drx_v6.set(
@@ -421,6 +403,7 @@ def configure_bgp_pair(config, ptx, prx, pair, use_vlan):
             step=1
         )
         drx_v6.advanced.set(
+            local_preference=100,
             multi_exit_discriminator=50,
             origin=drx_v6.advanced.EGP
         )
@@ -449,6 +432,9 @@ def create_traffic_flows(config, pair, tc, tx_v4, rx_v4, tx_v6, rx_v6):
     """
     pair_id = pair["pairId"]
 
+    def omit_default_bidirectional(flow):
+        flow.tx_rx.device._properties.pop("bidirectional", None)
+
     # Create flows for each route range (one flow per route)
     # API limitation: only 1 device (route) per flow is supported
     for route_idx in range(len(tx_v4)):
@@ -459,10 +445,9 @@ def create_traffic_flows(config, pair, tc, tx_v4, rx_v4, tx_v6, rx_v6):
         flow.rate.pps = tc["pktRate"]
         flow.size.fixed = tc["pktSize"]
         flow.metrics.enable = True
-        flow.tx_rx.device.set(
-            tx_names=[tx_v4[route_idx].name],
-            rx_names=[rx_v4[route_idx].name]
-        )
+        flow.tx_rx.device.tx_names = [tx_v4[route_idx].name]
+        flow.tx_rx.device.rx_names = [rx_v4[route_idx].name]
+        omit_default_bidirectional(flow)
         eth, ip, tcp = flow.packet.ethernet().ipv4().tcp()
         eth.src.value = pair["txMac"]
         ip.src.value = pair["txAdvRouteV4"]
@@ -477,10 +462,9 @@ def create_traffic_flows(config, pair, tc, tx_v4, rx_v4, tx_v6, rx_v6):
         flow.rate.pps = tc["pktRate"]
         flow.size.fixed = tc["pktSize"]
         flow.metrics.enable = True
-        flow.tx_rx.device.set(
-            tx_names=[tx_v6[route_idx].name],
-            rx_names=[rx_v6[route_idx].name]
-        )
+        flow.tx_rx.device.tx_names = [tx_v6[route_idx].name]
+        flow.tx_rx.device.rx_names = [rx_v6[route_idx].name]
+        omit_default_bidirectional(flow)
         eth, ip, tcp = flow.packet.ethernet().ipv6().tcp()
         eth.src.value = pair["txMac"]
         ip.src.value = pair["txAdvRouteV6"]
@@ -495,10 +479,9 @@ def create_traffic_flows(config, pair, tc, tx_v4, rx_v4, tx_v6, rx_v6):
         flow.rate.pps = tc["pktRate"]
         flow.size.fixed = tc["pktSize"]
         flow.metrics.enable = True
-        flow.tx_rx.device.set(
-            tx_names=[rx_v4[route_idx].name],
-            rx_names=[tx_v4[route_idx].name]
-        )
+        flow.tx_rx.device.tx_names = [rx_v4[route_idx].name]
+        flow.tx_rx.device.rx_names = [tx_v4[route_idx].name]
+        omit_default_bidirectional(flow)
         eth, ip, tcp = flow.packet.ethernet().ipv4().tcp()
         eth.src.value = pair["rxMac"]
         ip.src.value = pair["rxAdvRouteV4"]
@@ -513,10 +496,9 @@ def create_traffic_flows(config, pair, tc, tx_v4, rx_v4, tx_v6, rx_v6):
         flow.rate.pps = tc["pktRate"]
         flow.size.fixed = tc["pktSize"]
         flow.metrics.enable = True
-        flow.tx_rx.device.set(
-            tx_names=[rx_v6[route_idx].name],
-            rx_names=[tx_v6[route_idx].name]
-        )
+        flow.tx_rx.device.tx_names = [rx_v6[route_idx].name]
+        flow.tx_rx.device.rx_names = [tx_v6[route_idx].name]
+        omit_default_bidirectional(flow)
         eth, ip, tcp = flow.packet.ethernet().ipv6().tcp()
         eth.src.value = pair["rxMac"]
         ip.src.value = pair["rxAdvRouteV6"]
@@ -561,6 +543,36 @@ def build_multi_vlan_config(config, tc, ptx, prx):
     return config
 
 
+def reset_b2b_raw_config(config, tc):
+    """Replace b2b_raw_config fixture defaults with the target BGP config."""
+    port_locations = [port.location for port in config.ports]
+
+    config.ports.clear()
+    config.layer1.clear()
+    config.devices.clear()
+    config.flows.clear()
+    config.captures.clear()
+    config._properties.pop("captures", None)
+
+    ptx = config.ports.add(
+        name=tc["ports"][0]["name"],
+        location=port_locations[0],
+    )
+    prx = config.ports.add(
+        name=tc["ports"][1]["name"],
+        location=port_locations[1],
+    )
+
+    layer1_config = tc["layer1"]
+    layer1 = config.layer1.add(name=layer1_config["name"])
+    layer1.port_names = layer1_config["port_names"]
+    layer1.mtu = layer1_config["mtu"]
+    layer1.promiscuous = layer1_config["promiscuous"]
+    layer1.speed = layer1_config["speed"]
+
+    return ptx, prx
+
+
 def _find_pair(tc, name):
     for pair in tc["pairs"]:
         pair_id = pair["pairId"]
@@ -570,11 +582,11 @@ def _find_pair(tc, name):
 
 
 def _bgp_family_metrics_ok(metrics, tc):
-    """Validate one address family's BGP metrics (v4 or v6).
+    """Validate BGPv4 peer metrics.
 
-    Each peer's address-family peer advertises/receives routeRangeCount
-    route ranges of that family only (v4 and v6 routes live on separate
-    peers).
+    Each BGPv4 peer carries both its v4 routes and (via
+    ``capability.ipv6_unicast``) its v6 routes, so routes_advertised/
+    routes_received cover both address families together.
     """
     for m in metrics:
         print(f"  Name: {m.name}, State: {m.session_state}, "
@@ -586,11 +598,11 @@ def _bgp_family_metrics_ok(metrics, tc):
             continue
 
         if "dtx" in m.name:
-            expected_adv = peer_pair["routeRangeCount"] * peer_pair["txRouteCount"]
-            expected_rec = peer_pair["routeRangeCount"] * peer_pair["rxRouteCount"]
+            expected_adv = peer_pair["routeRangeCount"] * peer_pair["txRouteCount"] * 2
+            expected_rec = peer_pair["routeRangeCount"] * peer_pair["rxRouteCount"] * 2
         else:  # drx
-            expected_adv = peer_pair["routeRangeCount"] * peer_pair["rxRouteCount"]
-            expected_rec = peer_pair["routeRangeCount"] * peer_pair["txRouteCount"]
+            expected_adv = peer_pair["routeRangeCount"] * peer_pair["rxRouteCount"] * 2
+            expected_rec = peer_pair["routeRangeCount"] * peer_pair["txRouteCount"] * 2
 
         if (m.session_state == m.DOWN or
                 m.routes_advertised != expected_adv or
@@ -604,31 +616,22 @@ def _bgp_family_metrics_ok(metrics, tc):
 def bgp_metrics_ok_all_pairs(api, tc):
     """Check if BGP metrics meet expectations for all peer pairs.
 
-    Each pair has 2 BGPv4 peers (v4 routes only) and 2 BGPv6 peers
-    (v6 routes only).
+    Each pair has 2 BGPv4 peers, each carrying both v4 and v6 routes
+    (v6 routes are attached to the BGPv4 peer, not a separate BGPv6 peer).
     """
-    expected_peer_count = len(tc["pairs"]) * 2  # 2 peers per pair, per family
+    expected_peer_count = len(tc["pairs"]) * 2  # tx + rx peer per pair
 
     req = api.metrics_request()
     req.bgpv4.peer_names = []
     v4_metrics = api.get_metrics(req).bgpv4_metrics
 
-    req = api.metrics_request()
-    req.bgpv6.peer_names = []
-    v6_metrics = api.get_metrics(req).bgpv6_metrics
-
-    if len(v4_metrics) < expected_peer_count or len(v6_metrics) < expected_peer_count:
-        print(f"Expected {expected_peer_count} BGPv4 and {expected_peer_count} "
-              f"BGPv6 peers, found {len(v4_metrics)} BGPv4 and "
-              f"{len(v6_metrics)} BGPv6")
+    if len(v4_metrics) < expected_peer_count:
+        print(f"Expected {expected_peer_count} BGPv4 peers, "
+              f"found {len(v4_metrics)}")
         return False
 
     print("BGPv4 Metrics:")
     if not _bgp_family_metrics_ok(v4_metrics, tc):
-        return False
-
-    print("BGPv6 Metrics:")
-    if not _bgp_family_metrics_ok(v6_metrics, tc):
         return False
 
     return True
@@ -803,9 +806,7 @@ def test_multi_vlan_bgp_peer_and_route_flap(api, b2b_raw_config, utils):
     tc = TEST_CONST
 
     api.set_config(api.config())
-    b2b_raw_config.flows.clear()
-
-    ptx, prx = b2b_raw_config.ports
+    ptx, prx = reset_b2b_raw_config(b2b_raw_config, tc)
 
     print("Building multi-VLAN BGP config...")
     build_multi_vlan_config(b2b_raw_config, tc, ptx, prx)
@@ -815,13 +816,13 @@ def test_multi_vlan_bgp_peer_and_route_flap(api, b2b_raw_config, utils):
     print(b2b_raw_config)
     api.set_config(b2b_raw_config)
 
-    # utils.start_protocols(api)
+    utils.start_protocols(api)
 
-    # utils.wait_for(
-    #     lambda: bgp_metrics_ok_all_pairs(api, tc),
-    #     "all BGP pairs to establish",
-    #     timeout_seconds=30,
-    # )
+    utils.wait_for(
+        lambda: bgp_metrics_ok_all_pairs(api, tc),
+        "all BGP pairs to establish",
+        timeout_seconds=30,
+    )
     
     # req_dbg = api.states_request()
     # req_dbg.bgp_prefixes.bgp_peer_names = ["dtx1_peer"]
