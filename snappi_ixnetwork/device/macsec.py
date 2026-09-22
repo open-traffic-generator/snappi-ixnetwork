@@ -204,8 +204,21 @@ class Macsec(Base):
         rx = encapsulation.get("rx")
         if rx is None:
             return
-        # TODO: replay protection, replay window.
-        # self.logger.debug("replay_protection %s replay_window %s" % (rx.replay_protection, rx.replay_window))
+        # IxNetwork StaticMacsec does not expose replay protection or replay
+        # window size as configurable per-device multivalue fields, so these
+        # OTG attributes cannot be applied until IxNetwork adds API support.
+        replay_protection = rx.get("replay_protection")
+        if replay_protection is not None:
+            self.logger.warning(
+                "replay_protection is set but is not configurable via "
+                "IxNetwork StaticMacsec; the value will be ignored."
+            )
+        replay_window = rx.get("replay_window")
+        if replay_window is not None:
+            self.logger.warning(
+                "replay_window is set but is not configurable via "
+                "IxNetwork StaticMacsec; the value will be ignored."
+            )
 
     def _config_crypto_engine(
         self, device, ethernet_interface, ixn_staticmacsec

@@ -6,8 +6,8 @@ else
     PYTHON=${1}
 fi
 
-rm -rf env
+rm -rf .venv
 ${PYTHON} -m pip install --upgrade virtualenv \
-&& ${PYTHON} -m virtualenv env \
-&& env/bin/python -m pip install --upgrade -r requirements.txt \
-&& env/bin/python -m pip install --upgrade -e ".[dev]"
+&& ${PYTHON} -m virtualenv .venv \
+&& .venv/bin/python -m pip install --upgrade -r requirements.txt \
+&& .venv/bin/python -m pip install --upgrade -e ".[dev]"

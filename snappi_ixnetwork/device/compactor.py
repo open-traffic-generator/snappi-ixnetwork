@@ -52,7 +52,10 @@ class Compactor(object):
             if isinstance(src_value, dict):
                 if self._comparator(src_value, dst_value) is False:
                     return False
-            # todo: we need to restructure if same element in different position
+            # Limitation: list elements are compared positionally. Two objects
+            # with identical content in a different order are treated as
+            # non-compactable. Restructuring to support order-independent
+            # comparison requires a deeper algorithmic change.
             elif isinstance(src_value, list):
                 if len(src_value) != len(dst_value):
                     return False
@@ -82,7 +85,12 @@ class Compactor(object):
             if key == "name":
                 parent[key] = self._get_names(parent)
                 self._api.ixn_objects.set_scalable(parent)
-                self._api.ixn_routes.set_scalable(parent)
+                # ixn_routes entries must be updated even when the key sets
+                # of the pre-compaction member node and the representative
+                # differ (data-dependent IPv6 divergence).  The compactor
+                # walks top-down so the last write is always the route
+                # property node — the correct one.
+                self._api.ixn_routes.set_scalable(parent, strict_key_match=False)
                 continue
             if isinstance(value, list):
                 for val in value:
@@ -135,7 +143,11 @@ class SimilarObjects(Base):
                     if isinstance(dst_value, MultiValue)
                     else self.multivalue(dst_value)
                 )
-            # todo: fill with product default value for
+            # dst_value could be None when the destination object is missing a
+            # key that exists in the source. Filling from a product default
+            # would require a snappi model API that supports default-value
+            # retrieval (e.g. obj.get(key, with_default=True)), which is not
+            # currently available.
             # if dst_value is None:
             #     dst_value = obj.get(key, with_default=True)
             if isinstance(dst_value, list):

@@ -48,7 +48,7 @@ class IxNetObjects(object):
             ixnobject, self._api.ngpf.working_dg
         )
 
-    def set_scalable(self, ixnobject):
+    def set_scalable(self, ixnobject, strict_key_match=True):
         names = ixnobject.get("name")
         self.logger.debug("set_scalable names : %s" % names)
         set_names = []
@@ -57,11 +57,20 @@ class IxNetObjects(object):
                 continue
             if name not in self._ixnet_infos:
                 continue
-            # Same name may present within different object structure
-            old_keys = sorted(self._ixnet_infos[name].ixnobject)
-            keys = sorted(ixnobject)
-            if old_keys != keys:
-                continue
+            # Same name may present within different object structure.
+            # When strict_key_match=True (default, used by ixn_objects) the
+            # original guard is kept: skip if the key sets differ so that a
+            # cross-type clobber (e.g. bgpV6IPRouteProperty overwriting the
+            # ipv6PrefixPools entry) is prevented.
+            # When strict_key_match=False (used by ixn_routes) the key-match
+            # guard is bypassed entirely; the compactor walks top-down so the
+            # last write for a given name is always the deepest (route
+            # property) node, which is the correct one.
+            if strict_key_match:
+                old_keys = sorted(self._ixnet_infos[name].ixnobject)
+                keys = sorted(ixnobject)
+                if old_keys != keys:
+                    continue
             set_names.append(name)
             self._ixnet_infos[name] = IxNetInfo(
                 ixnobject,

@@ -46,12 +46,14 @@ def test_global_pause_e2e(api, settings, utils):
     tx_ipv4.priority.raw.increment.count = 256
     tx_flow.duration.fixed_packets.packets = packets
     tx_flow.duration.fixed_packets.delay.nanoseconds = 10**9
+    tx_flow.metrics.enable = True
     tx_flow.size.fixed = size
     tx_flow.rate.percentage = 100
     rx_eth_pause.src.value = "00:AB:BC:AB:BC:AB"
-    rx_eth_pause.control_op_code.value = "01"
-    rx_eth_pause.time.value = "FFFF"
+    rx_eth_pause.control_op_code.value = 1
+    rx_eth_pause.time.value = 65535
     rx_flow.duration.fixed_seconds.seconds = 20
+    rx_flow.metrics.enable = True
     rx_flow.size.fixed = size
     rx_flow.rate.percentage = 100
     api.set_config(config)

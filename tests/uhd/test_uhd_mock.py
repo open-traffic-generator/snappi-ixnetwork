@@ -28,6 +28,7 @@ expected_global = {
             "xpath": "/traffic/trafficItem[1]",
             "name": "f1",
             "srcDestMesh": "oneToOne",
+            "biDirectional": False,
             "endpointSet": [
                 {
                     "xpath": "/traffic/trafficItem[1]/endpointSet[1]",

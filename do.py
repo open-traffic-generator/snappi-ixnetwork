@@ -11,7 +11,7 @@ from email.mime.text import MIMEText
 
 global ixnexception
 
-SNAPPI_BRANCH=None
+SNAPPI_BRANCH=None  # Specify the branch name here if you want to install a specific branch of snappi
 def get_snappi_dev_branch():
     if SNAPPI_BRANCH is not None and SNAPPI_BRANCH != "":
         print(f"Test is using this snappi branch {SNAPPI_BRANCH}")
@@ -86,7 +86,7 @@ def test(card="novus100g"):
         "--psd='" + psd + "'",
         "tests",
         '-m "not e2e and not l1_manual and not uhd"',
-        "--cov=./snappi_ixnetwork --cov-report term",
+        "--cov=./snappi_ixnetwork --cov-report=term-missing",
         " --cov-report html:cov_report",
         " -o junit_logging=all --junitxml=allure-results/report-pytest.xml"
     ]
