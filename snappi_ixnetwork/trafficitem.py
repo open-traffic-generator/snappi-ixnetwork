@@ -661,6 +661,11 @@ class TrafficItem(CustomField):
             self._api._ixnetwork.Traffic.EgressOnlyTracking.find().refresh()
         self.egress_only_tracking_index = 1
 
+        if len(self._api._ixnetwork.Traffic.RoceV2Traffic.find()) > 0:
+            url = "%s/traffic/roceV2Traffic" % self._api._ixnetwork.href
+            self._api._request("DELETE", url)
+            self._api._ixnetwork.Traffic.RoceV2Traffic.find().refresh()
+
     def _gen_dev_endpoint(self, devices, portId, names, endpoints, scalable_endpoints):
         self.logger.debug("Generating Device Endpoints with names %s" % names)
         while len(names) > 0:
