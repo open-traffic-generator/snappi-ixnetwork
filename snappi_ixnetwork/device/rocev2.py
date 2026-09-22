@@ -165,7 +165,8 @@ class RoCEv2(Base):
             self._ngpf.working_dg = self._ngpf.api.ixn_objects.get_working_dg(
                 ipv6_name
             )
-            if not self._is_valid(ipv6_name):
+            status, ip_address = self._is_valid(ipv6_name)
+            if not status:
                 continue
             ixn_ipv6 = self._ngpf.api.ixn_objects.get_object(ipv6_name)
             self._config_rocev2v6(
@@ -174,15 +175,19 @@ class RoCEv2(Base):
                 ixn_ipv6,
                 stateful_flow,
                 options,
+                ip_address,
             )
 
     def _config_rocev2v6(
-        self, ipv6_interface, rocev2_peers, ixn_ipv6, stateful_flow, options
+        self, ipv6_interface, rocev2_peers, ixn_ipv6, stateful_flow, options, ip_address=None
     ):
         if rocev2_peers is None:
             return
         self.logger.debug("Configuring RoCEv2 Peer")
         for rocev2_peer in rocev2_peers:
+            if rocev2_peer.get("name") in self._aldready_processed_nodes:
+                continue
+            self._aldready_processed_nodes.append(rocev2_peer.get("name"))
             ixn_rocev2v6 = self.create_node_elemet(
                 ixn_ipv6, "roce6v2", rocev2_peer.get("name")
             )
@@ -191,10 +196,7 @@ class RoCEv2(Base):
                 rocev2_peer, ixn_rocev2v6, RoCEv2._RoCEv2
             )
             ixn_rocev2v6["qpCount"] = len(rocev2_peer.qps)
-
-            peerIPlist = rocev2_peer.get("destination_ip_address")
-            cleaned_list = [x for x in peerIPlist.split(",") if x]
-            ixn_rocev2v6["peerIPList"] = cleaned_list
+            self._ngpf.api._rocev2_ip_to_peer_map[ip_address] = rocev2_peer.get("name")
             self._configureFlowSettings(
                 rocev2_peer, ixn_rocev2v6, stateful_flow, options
             )
