@@ -2597,7 +2597,12 @@ class TrafficItem(CustomField):
                 )
             )
 
-        flow_count = len(flow_names)
+        # When flow tracking is enabled, count actual tracking combinations
+        # (traffic_item + tx_port + rx_port). Otherwise count traffic items.
+        if self._api._flow_tracking:
+            flow_count = len(flow_rows)
+        else:
+            flow_count = len(flow_names)
         ixn_page = self._api._ixnetwork.Statistics.View.find(
             Caption="Flow Statistics"
         ).Page
