@@ -26,6 +26,7 @@ class Ngpf(Base):
         "BgpV6Peer": "ipv6",
         "BgpV4RouteRange": "ipv4",
         "BgpV6RouteRange": "ipv6",
+        "BgpL3vpnV6RouteRange": "ipv6",
         "DeviceIpv4Loopback": "ipv4",
         "DeviceIpv6Loopback": "ipv6",
         "VxlanV4Tunnel": "ipv4",

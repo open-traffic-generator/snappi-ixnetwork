@@ -2947,6 +2947,29 @@ class TrafficItem(CustomField):
             ixn_traffic_item = ixn_traffic_item.get("trafficItem")
             tr_json = {"traffic": {"xpath": "/traffic", "trafficItem": []}}
             len_app_cfg = len(appcgfs) + 1
+            # self._flows_packet is normally populated by copy_flow_packet(),
+            # which only runs from the regular config() path and only when
+            # the config passed to set_config() already has at least one
+            # flow. Appending flows to a config that started with zero
+            # flows (the only way to add an L3VPN/EVPN device flow without
+            # tripping "Please Start BGP/EVPN..." during set_config) means
+            # copy_flow_packet() never ran, so self._flows_packet would be
+            # either missing entirely or too short for the indices read
+            # below - confirmed live 2026-09-29. Build the missing entries
+            # here, the same way copy_flow_packet() builds them.
+            if not hasattr(self, "_flows_packet"):
+                self._flows_packet = []
+            for i, flow in enumerate(appcgfs):
+                pos = index - len_app_cfg + i
+                while len(self._flows_packet) <= pos:
+                    self._flows_packet.append([])
+                flow_packet = []
+                for pkt in flow.packet:
+                    parent = pkt.parent.__deepcopy__(None)
+                    head = parent.get(parent.choice)
+                    head._parent = parent
+                    flow_packet.append(head)
+                self._flows_packet[pos] = flow_packet
             for i, flow in enumerate(appcgfs):
                 tr_item = {
                     "xpath": ixn_traffic_item[index - len_app_cfg + i]["xpath"]

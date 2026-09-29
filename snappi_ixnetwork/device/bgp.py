@@ -3,6 +3,7 @@ import re
 from snappi_ixnetwork.device.base import Base
 from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.device.bgpevpn import BgpEvpn
+from snappi_ixnetwork.device.bgpl3vpn import BgpL3vpn
 
 
 class Bgp(Base):
@@ -166,6 +167,7 @@ class Bgp(Base):
         self._ngpf = ngpf
         self.logger = get_ixnet_logger(__name__)
         self._bgp_evpn = BgpEvpn(ngpf)
+        self._bgp_l3vpn = BgpL3vpn(ngpf)
         self._router_id = None
         # get_learned_prefixes call by _warn_missing_column's caller.
         self._warned_columns = set()
@@ -277,6 +279,7 @@ class Bgp(Base):
                 )
             self._bgp_route_builder(bgp_peer, ixn_bgpv4)
             self._bgp_evpn.config(bgp_peer, ixn_bgpv4)
+            self._bgp_l3vpn.config(bgp_peer, ixn_bgpv4, "bgpVrf", self)
             lif = bgp_peer.get("learned_information_filter")
             if lif is not None:
                 self.configure_multivalues(
@@ -307,6 +310,7 @@ class Bgp(Base):
                 )
             self._bgp_route_builder(bgp_peer, ixn_bgpv6)
             self._bgp_evpn.config(bgp_peer, ixn_bgpv6)
+            self._bgp_l3vpn.config(bgp_peer, ixn_bgpv6, "bgpV6Vrf", self)
             lif = bgp_peer.get("learned_information_filter")
             if lif is not None:
                 self.configure_multivalues(
@@ -327,50 +331,53 @@ class Bgp(Base):
             return
         self.logger.debug("Configuring BGPv4 Route")
         for route in v4_routes:
-            addresses = route.get("addresses")
-            for addresse in addresses:
-                ixn_ng = self.create_node_elemet(
-                    self._ngpf.working_dg, "networkGroup", route.get("name")
-                )
-                ixn_ng["multiplier"] = 1
-                ixn_ip_pool = self.create_node_elemet(
-                    ixn_ng, "ipv4PrefixPools", route.get("name")
-                )
-                ixn_connector = self.create_property(ixn_ip_pool, "connector")
-                ixn_connector["connectedTo"] = self.post_calculated(
-                    "connectedTo", ref_ixnobj=ixn_bgp
-                )
-                self.configure_multivalues(addresse, ixn_ip_pool, Bgp._IP_POOL)
-                ixn_route = self.create_node_elemet(
-                    ixn_ip_pool, "bgpIPRouteProperty", route.get("name")
-                )
-                self._ngpf.set_device_info(route, ixn_ip_pool)
-                self._configure_route(route, ixn_route)
+            self._configure_route_range_pool(
+                route, ixn_bgp, "ipv4PrefixPools", "bgpIPRouteProperty"
+            )
 
     def _configure_bgpv6_route(self, v6_routes, ixn_bgp):
         if v6_routes is None:
             return
         self.logger.debug("Configuring BGPv6 Route")
         for route in v6_routes:
-            addresses = route.get("addresses")
-            for addresse in addresses:
-                ixn_ng = self.create_node_elemet(
-                    self._ngpf.working_dg, "networkGroup", route.get("name")
-                )
-                ixn_ng["multiplier"] = 1
-                ixn_ip_pool = self.create_node_elemet(
-                    ixn_ng, "ipv6PrefixPools", route.get("name")
-                )
-                ixn_connector = self.create_property(ixn_ip_pool, "connector")
-                ixn_connector["connectedTo"] = self.post_calculated(
-                    "connectedTo", ref_ixnobj=ixn_bgp
-                )
-                self.configure_multivalues(addresse, ixn_ip_pool, Bgp._IP_POOL)
-                ixn_route = self.create_node_elemet(
-                    ixn_ip_pool, "bgpV6IPRouteProperty", route.get("name")
-                )
-                self._ngpf.set_device_info(route, ixn_ip_pool)
-                self._configure_route(route, ixn_route)
+            self._configure_route_range_pool(
+                route, ixn_bgp, "ipv6PrefixPools", "bgpV6IPRouteProperty"
+            )
+
+    def _configure_route_range_pool(
+        self, route, ixn_bgp, prefix_pool_type, route_property_type
+    ):
+        """Build NetworkGroup -> {prefix_pool_type} -> Connector ->
+        {route_property_type} for one route range.
+
+        Shared by the plain v4_routes/v6_routes callers above and by
+        BgpL3vpn (an L3VPN VRF's v4_routes/v6_routes use the same chain,
+        only the route-property node type differs). Returns the created
+        route-property ixn nodes so a caller like BgpL3vpn can attach
+        additional fields (route distinguisher, MPLS label) onto them.
+        """
+        addresses = route.get("addresses")
+        ixn_routes = []
+        for addresse in addresses:
+            ixn_ng = self.create_node_elemet(
+                self._ngpf.working_dg, "networkGroup", route.get("name")
+            )
+            ixn_ng["multiplier"] = 1
+            ixn_ip_pool = self.create_node_elemet(
+                ixn_ng, prefix_pool_type, route.get("name")
+            )
+            ixn_connector = self.create_property(ixn_ip_pool, "connector")
+            ixn_connector["connectedTo"] = self.post_calculated(
+                "connectedTo", ref_ixnobj=ixn_bgp
+            )
+            self.configure_multivalues(addresse, ixn_ip_pool, Bgp._IP_POOL)
+            ixn_route = self.create_node_elemet(
+                ixn_ip_pool, route_property_type, route.get("name")
+            )
+            self._ngpf.set_device_info(route, ixn_ip_pool)
+            self._configure_route(route, ixn_route)
+            ixn_routes.append(ixn_route)
+        return ixn_routes
 
     # ------------------------------------------------------------------
     # Learned-info helpers (used by ngpf.get_bgp_prefix_states)
