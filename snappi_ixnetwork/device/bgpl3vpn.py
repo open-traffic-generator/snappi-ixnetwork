@@ -95,7 +95,7 @@ class BgpL3vpn(Base):
                 )
                 for ixn_route in ixn_routes:
                     self._config_vpn_route_property(
-                        vrf, ixn_route, route.get("mpls_labels")
+                        route, ixn_route, route.get("mpls_labels")
                     )
         v6_routes = vrf.get("v6_routes")
         if v6_routes:
@@ -106,21 +106,17 @@ class BgpL3vpn(Base):
                     "ipv6PrefixPools",
                     "bgpV6L3VpnRouteProperty",
                 )
-                service_binding = route.get("service_binding")
-                mpls_labels = (
-                    service_binding.get("mpls_labels")
-                    if service_binding is not None
-                    else None
-                )
+                mpls_labels = route.get("service_binding").get("mpls_labels")
                 for ixn_route in ixn_routes:
                     self._config_vpn_route_property(
-                        vrf, ixn_route, mpls_labels
+                        route, ixn_route, mpls_labels
                     )
 
-    def _config_vpn_route_property(self, vrf, ixn_route, mpls_labels):
-        rd = vrf.get("route_distinguisher")
-        if rd is not None:
-            self._set_distinguisher(ixn_route, rd)
+    def _config_vpn_route_property(self, route, ixn_route, mpls_labels):
+        # route_distinguisher and mpls_labels are both carried on the route
+        # range itself (required fields), not on the parent vrf - see
+        # bgpl3vpnv4routerange.yaml / bgpl3vpnv6routerange.yaml.
+        self._set_distinguisher(ixn_route, route.get("route_distinguisher"))
         self._set_label(ixn_route, mpls_labels)
 
     def _set_distinguisher(self, ixn_obj, rd):
@@ -156,20 +152,7 @@ class BgpL3vpn(Base):
             converted.assign_num[0]
         )
 
-    def _set_label(self, ixn_obj, mpls_labels):
-        if mpls_labels is None:
-            return
-        labels = mpls_labels.get("labels")
-        if not labels:
-            return
-        if len(labels) > 1:
-            self.logger.warning(
-                "%d MPLS labels configured on an L3VPN route; only the "
-                "first is mapped to LabelStart/LabelEnd/LabelStep (RFC "
-                "8277 multi-label bindings are not yet supported for "
-                "L3VPN routes)." % len(labels)
-            )
-        label = labels[0]
-        ixn_obj["labelStart"] = self.multivalue(label.get("start"))
-        ixn_obj["labelEnd"] = self.multivalue(label.get("max"))
-        ixn_obj["labelStep"] = self.multivalue(label.get("step"))
+    def _set_label(self, ixn_obj, mpls_label):
+        ixn_obj["labelStart"] = self.multivalue(mpls_label.get("start"))
+        ixn_obj["labelEnd"] = self.multivalue(mpls_label.get("max"))
+        ixn_obj["labelStep"] = self.multivalue(mpls_label.get("step"))

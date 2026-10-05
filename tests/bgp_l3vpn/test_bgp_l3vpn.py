@@ -110,8 +110,6 @@ def test_bgp_l3vpn(api, utils):
     # vrf name must be globally unique across the config - snappi rejects
     # two BgpL3vpnVrf objects sharing a name, even on different peers.
     tx_vrf = tx_bgp_peer.l3vpn_vrfs.add(name="tx_vpn_a")
-    tx_vrf.route_distinguisher.rd_type = tx_vrf.route_distinguisher.AS_2OCTET
-    tx_vrf.route_distinguisher.rd_value = "65000:100"
     tx_export_rt = tx_vrf.route_target_export.add()
     tx_export_rt.rt_type = tx_export_rt.AS_2OCTET
     tx_export_rt.rt_value = "65000:999"
@@ -119,11 +117,15 @@ def test_bgp_l3vpn(api, utils):
     tx_import_rt.rt_type = tx_import_rt.AS_2OCTET
     tx_import_rt.rt_value = "65000:999"
     tx_route = tx_vrf.v4_routes.add(name="tx_customer_route")
+    tx_route.route_distinguisher.rd_type = (
+        tx_route.route_distinguisher.AS_2OCTET
+    )
+    tx_route.route_distinguisher.rd_value = "65000:100"
     tx_route.addresses.add(address="10.1.1.0", prefix=24)
-    tx_route.mpls_labels.labels.add(start=1000, max=1000, step=1)
+    tx_route.mpls_labels.start = 1000
+    tx_route.mpls_labels.max = 1000
+    tx_route.mpls_labels.step = 1
     rx_vrf = rx_bgp_peer.l3vpn_vrfs.add(name="rx_vpn_a")
-    rx_vrf.route_distinguisher.rd_type = rx_vrf.route_distinguisher.AS_2OCTET
-    rx_vrf.route_distinguisher.rd_value = "65000:200"
     rx_export_rt = rx_vrf.route_target_export.add()
     rx_export_rt.rt_type = rx_export_rt.AS_2OCTET
     rx_export_rt.rt_value = "65000:999"
@@ -131,8 +133,14 @@ def test_bgp_l3vpn(api, utils):
     rx_import_rt.rt_type = rx_import_rt.AS_2OCTET
     rx_import_rt.rt_value = "65000:999"
     rx_route = rx_vrf.v4_routes.add(name="rx_customer_route")
+    rx_route.route_distinguisher.rd_type = (
+        rx_route.route_distinguisher.AS_2OCTET
+    )
+    rx_route.route_distinguisher.rd_value = "65000:200"
     rx_route.addresses.add(address="10.2.1.0", prefix=24)
-    rx_route.mpls_labels.labels.add(start=2000, max=2000, step=1)
+    rx_route.mpls_labels.start = 2000
+    rx_route.mpls_labels.max = 2000
+    rx_route.mpls_labels.step = 1
 
     # The flow is deliberately not added to `config` yet: IxNetwork rejects
     # a config push that includes a BGP L3VPN device flow before BGP
