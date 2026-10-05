@@ -438,6 +438,17 @@ class Bgp(Base):
     _MED_COLS = ("MED",)
     _ASPATH_COLS = ("AS Path",)
     _COMMUNITY_COLS = ("Community",)
+    # Unverified against a live chassis capture (unlike the other _*_COLS
+    # tuples, whose display names were confirmed against a real 10.80
+    # learned-info dump) -- candidate names guessed from IxNetwork's usual
+    # "Community"/"Extended Community" naming convention. The captured
+    # 10.80 column list in tests/bgp/test_bgp_prefix_parsers.py has no such
+    # column at all, so _get_cell is called with warn=False here (unlike
+    # every other column in this file): with the real-world baseline
+    # already missing the column, the default warn=True would fire on
+    # every single learned-info row rather than only on an unexpected
+    # schema change, which is the opposite of what that warning is for.
+    _EXT_COMMUNITY_COLS = ("Extended Community", "Extended Communities")
     _PATHID_COLS = ("Path ID",)
 
     # Cell values that mean "no value" rather than data.  Compared
@@ -972,6 +983,45 @@ class Bgp(Base):
                 )
         return result
 
+    # 8-byte extended community, optionally "0x"-prefixed.
+    _EXT_COMMUNITY_HEX_RE = re.compile(r"^(?:0x)?([0-9a-fA-F]{16})$")
+
+    def _parse_extended_communities(self, cell):
+        """Convert an IxNetwork extended-communities string to a list of
+        OTG ``ResultExtendedCommunity``-shaped dicts.
+
+        Unlike :meth:`_parse_communities`, this only ever populates the
+        ``raw`` field (8 bytes / 16 hex chars per RFC4360) and never the
+        ``structured`` side of ``ResultExtendedCommunity`` -- decoding a
+        raw extended community back into its typed type/subtype/value
+        requires knowing the exact first-byte type code, and reproducing
+        that decoder has not been validated against a live chassis
+        capture. ``raw`` alone is a complete, order-preserving
+        representation of what was received, so this is a correct (if
+        less convenient) readback rather than a partial one.
+
+        The exact column text format (separator, "0x" prefix, casing) is
+        also unverified against hardware -- see the comment above
+        ``_EXT_COMMUNITY_COLS``. Tokens that don't look like a 16-hex-char
+        value are skipped with a warning rather than guessed at.
+        """
+        if not cell or cell.strip().lower() in ("", "n/a"):
+            return []
+
+        result = []
+        for token in self._ASN_SEPARATOR_RE.split(cell.strip()):
+            if not token:
+                continue
+            match = self._EXT_COMMUNITY_HEX_RE.match(token)
+            if match is None:
+                self.logger.warning(
+                    "Skipping unrecognised extended community token %r: "
+                    "not a 16-hex-character raw value." % token
+                )
+                continue
+            result.append({"raw": match.group(1).lower()})
+        return result
+
     # --- row → OTG prefix dict ---------------------------------------
 
     def _get_next_hops(self, row):
@@ -1048,6 +1098,9 @@ class Bgp(Base):
             "communities": self._parse_communities(
                 self._get_cell(row, *self._COMMUNITY_COLS)
             ),
+            "extended_communities": self._parse_extended_communities(
+                self._get_cell(row, *self._EXT_COMMUNITY_COLS, warn=False)
+            ),
         }
         if origin:
             prefix["origin"] = origin
@@ -1103,6 +1156,9 @@ class Bgp(Base):
             ),
             "communities": self._parse_communities(
                 self._get_cell(row, *self._COMMUNITY_COLS)
+            ),
+            "extended_communities": self._parse_extended_communities(
+                self._get_cell(row, *self._EXT_COMMUNITY_COLS, warn=False)
             ),
         }
         if origin:
@@ -1337,12 +1393,13 @@ class Bgp(Base):
         elif sub_choice == "link_bandwidth_subtype":
             # Unlike BgpEvpn._config_ext_communities, LinkBandwidth is a
             # direct field on this restpy object - no manual byte packing
-            # needed.
+            # needed. The OTG field is named "bandwidth" (installed snappy
+            # 1.61.0), not "link_bandwidth".
             ixn_ext["asNumber2Bytes"] = self.multivalue(
                 fields.get("global_2byte_as")
             )
             ixn_ext["linkBandwidth"] = self.multivalue(
-                fields.get("link_bandwidth")
+                fields.get("bandwidth")
             )
         elif sub_choice == "color_subtype":
             ixn_ext["colorCOBits"] = self.multivalue(fields.get("flags"))
@@ -1405,8 +1462,14 @@ class Bgp(Base):
                 ixn_extended_community = self.create_node_elemet(
                     ixn_route, "bgpExtendedCommunitiesList"
                 )
+                # Iterating a BgpExtendedCommunityIter yields the resolved
+                # top-level choice object (e.g. a
+                # BgpExtendedCommunityTransitive2OctetAsType) rather than
+                # the BgpExtendedCommunity wrapper that actually carries
+                # the top-level "choice" string -- .parent is that
+                # wrapper.
                 self._configure_extended_community(
-                    extended_community, ixn_extended_community
+                    extended_community.parent, ixn_extended_community
                 )
 
         as_path = route.get("as_path")
