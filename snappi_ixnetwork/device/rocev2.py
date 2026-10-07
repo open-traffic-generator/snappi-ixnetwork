@@ -48,13 +48,14 @@ class RoCEv2(Base):
         super(RoCEv2, self).__init__()
         self._ngpf = ngpf
         self.logger = get_ixnet_logger(__name__)
-        self._aldready_processed_nodes = []
+        self._already_processed_nodes = set()
 
     def config(self, device):
         self.logger.debug("Configuring RoCEv2")
         rocev2 = device.get("rocev2")
         if rocev2 is None:
             return
+        self._already_processed_nodes = set()
         stateful_flow = None
         options = None
         if hasattr(self._ngpf.api.snappi_config, "stateful_flows"):
@@ -136,10 +137,10 @@ class RoCEv2(Base):
             return
         self.logger.debug("Configuring RoCEv2 Peer")
         for rocev2_peer in rocev2_peers:
-            if rocev2_peer.get("name") in self._aldready_processed_nodes:
+            if rocev2_peer.get("name") in self._already_processed_nodes:
                 #self._ngpf.api._rocev2_ip_to_peer_map[ip_address] = rocev2_peer.get("name")
                 continue
-            self._aldready_processed_nodes.append(rocev2_peer.get("name"))
+            self._already_processed_nodes.add(rocev2_peer.get("name"))
             ixn_rocev2v4 = self.create_node_elemet(
                 ixn_ipv4, "rocev2", rocev2_peer.get("name")
             )
@@ -185,9 +186,9 @@ class RoCEv2(Base):
             return
         self.logger.debug("Configuring RoCEv2 Peer")
         for rocev2_peer in rocev2_peers:
-            if rocev2_peer.get("name") in self._aldready_processed_nodes:
+            if rocev2_peer.get("name") in self._already_processed_nodes:
                 continue
-            self._aldready_processed_nodes.append(rocev2_peer.get("name"))
+            self._already_processed_nodes.add(rocev2_peer.get("name"))
             ixn_rocev2v6 = self.create_node_elemet(
                 ixn_ipv6, "roce6v2", rocev2_peer.get("name")
             )
