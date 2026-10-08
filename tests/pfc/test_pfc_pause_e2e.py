@@ -58,24 +58,25 @@ def test_pfc_pause_e2e(api, settings, utils, lossless_priorities):
         eth = f.packet.ethernet()[-1]
         eth.src.value = "00:CD:DC:CD:DC:CD"
         eth.dst.value = "00:AB:BC:AB:BC:AB"
-        eth.pfc_queue.value = str(i)
+        eth.pfc_queue.value = i
         ipv4 = f.packet.ipv4()[-1]
         ipv4.src.value = "1.1.1.2"
         ipv4.dst.value = "1.1.1.1"
-        ipv4.priority.dscp.phb.value = str(i * 8)
+        ipv4.priority.dscp.phb.value = i * 8
         f.duration.fixed_packets.packets = packets
         f.duration.fixed_packets.delay.nanoseconds = 10**9
         f.size.fixed = size
         f.rate.percentage = 10
+        f.metrics.enable = True
     rx_pause = config.flows.flow(name="rx_pause")[-1]
     rx_pause.tx_rx.port.tx_name = rx.name
     rx_pause.tx_rx.port.rx_name = tx.name
     pfc = rx_pause.packet.pfcpause()[-1]
     pfc.src.value = "00:AB:BC:AB:BC:AB"
-    pfc.control_op_code.value = "0101"
-    pfc.class_enable_vector.value = "0xFF"
+    pfc.control_op_code.value = 257
+    pfc.class_enable_vector.value = 255
     [
-        setattr(getattr(pfc, "pause_class_%d" % i), "value", "FFFF")
+        setattr(getattr(pfc, "pause_class_%d" % i), "value", 65535)
         for i in range(8)
     ]
     rx_pause.duration.fixed_seconds.seconds = 20
