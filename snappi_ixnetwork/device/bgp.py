@@ -94,6 +94,27 @@ class Bgp(Base):
         "as_custom": "lastTwoOctets",
     }
 
+    # BgpExtendedCommunity.choice -> bgpExtendedCommunitiesList "type".
+    _EXTENDED_COMMUNITY_TYPE = {
+        "transitive_2octet_as_type": "administratoras2octet",
+        "transitive_ipv4_address_type": "administratorip",
+        "transitive_4octet_as_type": "administratoras4octet",
+        "transitive_opaque_type": "opaque",
+        "transitive_evpn_type": "evpn",
+        "non_transitive_2octet_as_type": "administratoras2octetlinkbw",
+    }
+
+    # Subtype choice (nested under each type above) -> bgpExtendedCommunitiesList
+    # "subType".
+    _EXTENDED_COMMUNITY_SUBTYPE = {
+        "route_target_subtype": "routetarget",
+        "route_origin_subtype": "origin",
+        "link_bandwidth_subtype": "extendedbandwidth",
+        "color_subtype": "color",
+        "encapsulation_subtype": "encapsulation",
+        "router_mac_subtype": "macaddress",
+    }
+
     _BGP_AS_MODE = {
         "do_not_include_local_as": "dontincludelocalas",
         "include_as_seq": "includelocalasasasseq",
@@ -414,6 +435,7 @@ class Bgp(Base):
     _MED_COLS = ("MED",)
     _ASPATH_COLS = ("AS Path",)
     _COMMUNITY_COLS = ("Community",)
+    _EXT_COMMUNITY_COLS = ("Extended Community", "Extended Communities")
     _PATHID_COLS = ("Path ID",)
 
     # Cell values that mean "no value" rather than data.  Compared
@@ -948,6 +970,45 @@ class Bgp(Base):
                 )
         return result
 
+    # 8-byte extended community, optionally "0x"-prefixed.
+    _EXT_COMMUNITY_HEX_RE = re.compile(r"^(?:0x)?([0-9a-fA-F]{16})$")
+
+    def _parse_extended_communities(self, cell):
+        """Convert an IxNetwork extended-communities string to a list of
+        OTG ``ResultExtendedCommunity``-shaped dicts.
+
+        Unlike :meth:`_parse_communities`, this only ever populates the
+        ``raw`` field (8 bytes / 16 hex chars per RFC4360) and never the
+        ``structured`` side of ``ResultExtendedCommunity`` -- decoding a
+        raw extended community back into its typed type/subtype/value
+        requires knowing the exact first-byte type code, and reproducing
+        that decoder has not been validated against a live chassis
+        capture. ``raw`` alone is a complete, order-preserving
+        representation of what was received, so this is a correct (if
+        less convenient) readback rather than a partial one.
+
+        The exact column text format (separator, "0x" prefix, casing) is
+        also unverified against hardware -- see the comment above
+        ``_EXT_COMMUNITY_COLS``. Tokens that don't look like a 16-hex-char
+        value are skipped with a warning rather than guessed at.
+        """
+        if not cell or cell.strip().lower() in ("", "n/a"):
+            return []
+
+        result = []
+        for token in self._ASN_SEPARATOR_RE.split(cell.strip()):
+            if not token:
+                continue
+            match = self._EXT_COMMUNITY_HEX_RE.match(token)
+            if match is None:
+                self.logger.warning(
+                    "Skipping unrecognised extended community token %r: "
+                    "not a 16-hex-character raw value." % token
+                )
+                continue
+            result.append({"raw": match.group(1).lower()})
+        return result
+
     # --- row → OTG prefix dict ---------------------------------------
 
     def _get_next_hops(self, row):
@@ -1024,6 +1085,9 @@ class Bgp(Base):
             "communities": self._parse_communities(
                 self._get_cell(row, *self._COMMUNITY_COLS)
             ),
+            "extended_communities": self._parse_extended_communities(
+                self._get_cell(row, *self._EXT_COMMUNITY_COLS, warn=False)
+            ),
         }
         if origin:
             prefix["origin"] = origin
@@ -1079,6 +1143,9 @@ class Bgp(Base):
             ),
             "communities": self._parse_communities(
                 self._get_cell(row, *self._COMMUNITY_COLS)
+            ),
+            "extended_communities": self._parse_extended_communities(
+                self._get_cell(row, *self._EXT_COMMUNITY_COLS, warn=False)
             ),
         }
         if origin:
@@ -1250,6 +1317,96 @@ class Bgp(Base):
             )(prefixes, filters)
         return prefixes_by_field
 
+    def _configure_extended_community(self, community, ixn_ext):
+        """Encode one BgpExtendedCommunity choice-model entry onto an
+        ixn bgpExtendedCommunitiesList node (the same node EVPN drives
+        via BgpEvpn._config_ext_communities, but keyed off the newer
+        typed-field OTG model rather than a pre-encoded hex value).
+        """
+        choice = community.get("choice")
+        if choice == "custom":
+            custom = community.get("custom") or {}
+            community_type = custom.get("community_type", "00")
+            community_subtype = custom.get("community_subtype", "00")
+            value = custom.get("value", "000000000000")
+            # CustomExtCommType is the 2-byte type+subtype pair; the
+            # dedicated Type/SubType enum fields don't apply to "custom".
+            ixn_ext["customExtCommType"] = self.multivalue(
+                community_type + community_subtype
+            )
+            ixn_ext["customExtCommValue"] = self.multivalue(value)
+            return
+
+        ixn_type = Bgp._EXTENDED_COMMUNITY_TYPE.get(choice)
+        if ixn_type is None:
+            self.logger.warning(
+                "Unsupported BGP extended community type %r" % choice
+            )
+            return
+        ixn_ext["type"] = self.multivalue(ixn_type)
+
+        sub_obj = community.get(choice) or {}
+        sub_choice = sub_obj.get("choice")
+        ixn_subtype = Bgp._EXTENDED_COMMUNITY_SUBTYPE.get(sub_choice)
+        if ixn_subtype is not None:
+            ixn_ext["subType"] = self.multivalue(ixn_subtype)
+
+        fields = {}
+        if sub_choice is not None:
+            fields = sub_obj.get(sub_choice) or {}
+
+        if sub_choice in ("route_target_subtype", "route_origin_subtype"):
+            if choice == "transitive_2octet_as_type":
+                ixn_ext["asNumber2Bytes"] = self.multivalue(
+                    fields.get("global_2byte_as")
+                )
+                ixn_ext["assignedNumber4Bytes"] = self.multivalue(
+                    fields.get("local_4byte_admin")
+                )
+            elif choice == "transitive_ipv4_address_type":
+                ixn_ext["ip"] = self.multivalue(
+                    fields.get("global_ipv4_admin")
+                )
+                ixn_ext["assignedNumber2Bytes"] = self.multivalue(
+                    fields.get("local_2byte_admin")
+                )
+            elif choice == "transitive_4octet_as_type":
+                ixn_ext["asNumber4Bytes"] = self.multivalue(
+                    fields.get("global_4byte_as")
+                )
+                ixn_ext["assignedNumber2Bytes"] = self.multivalue(
+                    fields.get("local_2byte_admin")
+                )
+        elif sub_choice == "link_bandwidth_subtype":
+            # Unlike BgpEvpn._config_ext_communities, LinkBandwidth is a
+            # direct field on this restpy object - no manual byte packing
+            # needed. The OTG field is named "bandwidth".
+            ixn_ext["asNumber2Bytes"] = self.multivalue(
+                fields.get("global_2byte_as")
+            )
+            ixn_ext["linkBandwidth"] = self.multivalue(
+                fields.get("bandwidth")
+            )
+        elif sub_choice == "color_subtype":
+            ixn_ext["colorCOBits"] = self.multivalue(fields.get("flags"))
+            ixn_ext["colorValue"] = self.multivalue(fields.get("color"))
+        elif sub_choice == "encapsulation_subtype":
+            # bgpExtendedCommunitiesList has no dedicated reserved/
+            # tunnel_type field in this restpy schema; pack both into the
+            # generic 6-byte opaqueData field the same way
+            # BgpEvpn._config_ext_communities does for types that have no
+            # specific field of their own.
+            reserved = fields.get("reserved", 0)
+            tunnel_type = fields.get("tunnel_type", 1)
+            ixn_ext["opaqueData"] = self.multivalue(
+                "%08x%04x" % (reserved, tunnel_type)
+            )
+        elif sub_choice == "router_mac_subtype":
+            router_mac = fields.get("router_mac", "00:00:00:00:00:00")
+            ixn_ext["opaqueData"] = self.multivalue(
+                router_mac.replace(":", "")
+            )
+
     def _configure_route(self, route, ixn_route, route_map=None):
         if route_map is None:
             route_map = Bgp._ROUTE
@@ -1280,6 +1437,25 @@ class Bgp(Base):
                 )
                 self.configure_multivalues(
                     community, ixn_community, Bgp._COMMUNITY
+                )
+
+        extended_communities = route.get("extended_communities")
+        if extended_communities is not None and len(extended_communities) > 0:
+            self.logger.debug("Configuring BGP route extended community")
+            ixn_route["enableExtendedCommunity"] = self.multivalue(True)
+            ixn_route["noOfExternalCommunities"] = len(extended_communities)
+            for extended_community in extended_communities:
+                ixn_extended_community = self.create_node_elemet(
+                    ixn_route, "bgpExtendedCommunitiesList"
+                )
+                # Iterating a BgpExtendedCommunityIter yields the resolved
+                # top-level choice object (e.g. a
+                # BgpExtendedCommunityTransitive2OctetAsType) rather than
+                # the BgpExtendedCommunity wrapper that actually carries
+                # the top-level "choice" string -- .parent is that
+                # wrapper.
+                self._configure_extended_community(
+                    extended_community.parent, ixn_extended_community
                 )
 
         as_path = route.get("as_path")
