@@ -95,9 +95,6 @@ class Bgp(Base):
     }
 
     # BgpExtendedCommunity.choice -> bgpExtendedCommunitiesList "type".
-    # Mirrors BgpEvpn._SEG_EXT_COMMUNITIES; "custom" has no IANA type byte of
-    # its own since it is carried via CustomExtCommType/CustomExtCommValue
-    # instead of Type/SubType.
     _EXTENDED_COMMUNITY_TYPE = {
         "transitive_2octet_as_type": "administratoras2octet",
         "transitive_ipv4_address_type": "administratorip",
@@ -438,16 +435,6 @@ class Bgp(Base):
     _MED_COLS = ("MED",)
     _ASPATH_COLS = ("AS Path",)
     _COMMUNITY_COLS = ("Community",)
-    # Unverified against a live chassis capture (unlike the other _*_COLS
-    # tuples, whose display names were confirmed against a real 10.80
-    # learned-info dump) -- candidate names guessed from IxNetwork's usual
-    # "Community"/"Extended Community" naming convention. The captured
-    # 10.80 column list in tests/bgp/test_bgp_prefix_parsers.py has no such
-    # column at all, so _get_cell is called with warn=False here (unlike
-    # every other column in this file): with the real-world baseline
-    # already missing the column, the default warn=True would fire on
-    # every single learned-info row rather than only on an unexpected
-    # schema change, which is the opposite of what that warning is for.
     _EXT_COMMUNITY_COLS = ("Extended Community", "Extended Communities")
     _PATHID_COLS = ("Path ID",)
 
@@ -1393,8 +1380,7 @@ class Bgp(Base):
         elif sub_choice == "link_bandwidth_subtype":
             # Unlike BgpEvpn._config_ext_communities, LinkBandwidth is a
             # direct field on this restpy object - no manual byte packing
-            # needed. The OTG field is named "bandwidth" (installed snappy
-            # 1.61.0), not "link_bandwidth".
+            # needed. The OTG field is named "bandwidth".
             ixn_ext["asNumber2Bytes"] = self.multivalue(
                 fields.get("global_2byte_as")
             )

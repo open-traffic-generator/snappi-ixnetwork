@@ -224,7 +224,7 @@ def test_transitive_opaque_color(bgp):
 
 def test_transitive_opaque_encapsulation_packs_into_opaque_data(bgp):
     """No dedicated reserved/tunnel_type field exists on
-    bgpExtendedCommunitiesList (confirmed against the restpy stub), so both
+    bgpExtendedCommunitiesList, so both
     values are packed into the generic 6-byte opaqueData field instead.
     """
     route_range = make_route_range()
