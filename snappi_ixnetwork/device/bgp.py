@@ -1457,7 +1457,7 @@ class Bgp(Base):
         if extended_communities is not None and len(extended_communities) > 0:
             self.logger.debug("Configuring BGP route extended community")
             ixn_route["enableExtendedCommunity"] = self.multivalue(True)
-            ixn_route["noOfExtendedCommunity"] = len(extended_communities)
+            ixn_route["noOfExternalCommunities"] = len(extended_communities)
             for extended_community in extended_communities:
                 ixn_extended_community = self.create_node_elemet(
                     ixn_route, "bgpExtendedCommunitiesList"

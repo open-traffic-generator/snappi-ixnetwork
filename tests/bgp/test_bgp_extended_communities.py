@@ -363,7 +363,7 @@ def test_configure_route_wires_extended_communities(bgp):
     bgp._configure_route(route_range, ixn_route)
 
     assert ixn_route["enableExtendedCommunity"].value is True
-    assert ixn_route["noOfExtendedCommunity"] == 2
+    assert ixn_route["noOfExternalCommunities"] == 2
 
     nodes = ixn_route["bgpExtendedCommunitiesList"]
     assert len(nodes) == 2
