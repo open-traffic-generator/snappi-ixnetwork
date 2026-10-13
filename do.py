@@ -86,7 +86,7 @@ def test(card="novus100g"):
         "--psd='" + psd + "'",
         "tests",
         '-m "not e2e and not l1_manual and not uhd"',
-        "--cov=./snappi_ixnetwork --cov-report term",
+        "--cov=./snappi_ixnetwork --cov-report=term-missing",
         " --cov-report html:cov_report",
         " -o junit_logging=all --junitxml=allure-results/report-pytest.xml"
     ]

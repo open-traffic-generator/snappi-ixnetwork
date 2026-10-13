@@ -4,9 +4,7 @@ from bgp_convergece_config_ipv6 import bgp_convergence_multi_routes_ipv6_config 
 PRIMARY_ROUTES_NAME = "rx_rr"
 PRIMARY_PORT_NAME = "rx"
 
-# @pytest.mark.skip(
-#     reason="WIP"
-# )
+
 def test_convergence(utils, api, bgp_convergence_multi_routes_ipv6_config):
     """
     1. set convergence config & start traffic

@@ -7,6 +7,7 @@ on:
 jobs:
   test_novus_10g:
     runs-on: [snappi-ixn-ci-novus10g]
+    timeout-minutes: 600
     steps:
       - name: Set Timestamp
         id: timestamp

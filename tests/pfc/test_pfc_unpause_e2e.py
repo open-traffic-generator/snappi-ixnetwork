@@ -59,42 +59,45 @@ def test_pfc_unpause_e2e(api, settings, utils, lossless_priorities):
         eth = f.packet.ethernet()[-1]
         eth.src.value = "00:CD:DC:CD:DC:CD"
         eth.dst.value = "00:AB:BC:AB:BC:AB"
-        eth.pfc_queue.value = str(prio)
+        eth.pfc_queue.value = prio
         ipv4 = f.packet.ipv4()[-1]
         ipv4.src.value = "1.1.1.2"
         ipv4.dst.value = "1.1.1.1"
-        ipv4.priority.dscp.phb.value = str(prio * 8)
+        ipv4.priority.dscp.phb.value = prio * 8
         f.duration.fixed_packets.packets = packets
         f.duration.fixed_packets.delay.nanoseconds = 10**9
         f.size.fixed = size
         f.rate.percentage = 10
+        f.metrics.enable = True
 
     rx_pause = config.flows.flow(name="rx_pfc_pause")[-1]
     rx_pause.tx_rx.port.tx_name = rx.name
     rx_pause.tx_rx.port.rx_name = tx.name
     pfc = rx_pause.packet.pfcpause()[-1]
     pfc.src.value = "00:AB:BC:AB:BC:AB"
-    pfc.control_op_code.value = "0101"
-    pfc.class_enable_vector.value = "0xFF"
-    pfc.pause_class_3.value = "FFFF"
-    pfc.pause_class_4.value = "FFFF"
+    pfc.control_op_code.value = 257
+    pfc.class_enable_vector.value = 255
+    pfc.pause_class_3.value = 65535
+    pfc.pause_class_4.value = 65535
     rx_pause.duration.fixed_seconds.seconds = 10
     rx_pause.size.fixed = size
     rx_pause.rate.percentage = 50
+    rx_pause.metrics.enable = True
 
     rx_unpause = config.flows.flow(name="rx_pfc_unpause")[-1]
     rx_unpause.tx_rx.port.tx_name = rx.name
     rx_unpause.tx_rx.port.rx_name = tx.name
     pfc = rx_unpause.packet.pfcpause()[-1]
     pfc.src.value = "00:AB:BC:AB:BC:AB"
-    pfc.control_op_code.value = "0101"
-    pfc.class_enable_vector.value = "0xFF"
-    pfc.pause_class_3.value = "0000"
-    pfc.pause_class_4.value = "0000"
+    pfc.control_op_code.value = 257
+    pfc.class_enable_vector.value = 255
+    pfc.pause_class_3.value = 0
+    pfc.pause_class_4.value = 0
     rx_unpause.duration.fixed_seconds.seconds = 10
     rx_unpause.duration.fixed_seconds.delay.nanoseconds = (10**9) * 10
     rx_unpause.size.fixed = size
     rx_unpause.rate.percentage = 50
+    rx_unpause.metrics.enable = True
 
     utils.start_traffic(api, config)
 

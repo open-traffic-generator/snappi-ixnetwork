@@ -71,7 +71,7 @@ def pytest_sessionfinish(session, exitstatus):
     lines.append("-" * 70)
     lines.append("")
 
-    with open(out_path, "w") as fh:
+    with open(out_path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines))
 
     print("\n  [results] saved %s" % out_path)
