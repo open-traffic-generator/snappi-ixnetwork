@@ -558,10 +558,7 @@ class Capture(object):
                             " %s before start capture" % vport_name
                         )
                     payload = {"arg1": "{0}/capture".format(vport["href"])}
-                    try:
-                        self._api._request("POST", url, payload)
-                    except Exception:
-                        pass
+                    self._api._request("POST", url, payload)
 
     def _stop_capture(self):
         with Timer(self._api, "Captures stop"):
