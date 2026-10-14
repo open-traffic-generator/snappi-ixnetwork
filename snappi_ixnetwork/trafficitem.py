@@ -3019,7 +3019,8 @@ class TrafficItem(CustomField):
                         size.choice
                     ),
                 )
-            ixn_hl_stream.FrameSize.FixedSize = size.fixed
+            if ixn_hl_stream.FrameSize.FixedSize != size.fixed:
+                ixn_hl_stream.FrameSize.FixedSize = size.fixed
 
     def _update_rate(self, ixn_hl_stream, rate):
         if rate.choice is None:
