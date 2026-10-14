@@ -509,6 +509,8 @@ class Capture(object):
         with Timer(self._api, "Captures start"):
             if self._capture_request is None:
                 return
+            if self._capture_request.state != "start":
+                return
             ixn_vports = self._api.select_vports()
             if len(ixn_vports) == 0:
                 raise Exception("Please configure port before start capture")
