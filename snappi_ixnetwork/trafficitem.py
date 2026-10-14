@@ -2666,10 +2666,14 @@ class TrafficItem(CustomField):
                 self.logger.debug(str(row))
                 if name in flow_rows:
                     flow_row = flow_rows[name]
-                    if (
-                        float(row["Tx Frame Rate"]) > 0
-                        or int(row["Tx Frames"]) == 0
-                    ):
+                    try:
+                        is_transmitting = (
+                            float(row["Tx Frame Rate"]) > 0
+                            or int(row["Tx Frames"]) == 0
+                        )
+                    except (TypeError, ValueError):
+                        is_transmitting = False
+                    if is_transmitting:
                         flow_row["transmit"] = "started"
                     else:
                         flow_row["transmit"] = "stopped"
