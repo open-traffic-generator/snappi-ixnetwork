@@ -115,9 +115,14 @@ class Bgp(Base):
     # Enabling a filter instructs IxNetwork to capture that route family in
     # learnedInfo.  Without at least one filter set to True the server stores
     # nothing and GetIPv4/6LearnedInfo returns empty results.
+    # Confirmed live 2026-10-14: this filter must be enabled before
+    # protocols are started -- setting it on an already-running peer did
+    # not make the VPN learned-info table populate.
     _LEARNED_INFO_FILTER = {
         "unicast_ipv4_prefix": "filterIpV4Unicast",
         "unicast_ipv6_prefix": "filterIpV6Unicast",
+        "ipv4_vpn_unicast_prefix": "filterIpV4MplsVpn",
+        "ipv6_vpn_unicast_prefix": "filterIpV6MplsVpn",
     }
 
     # Every value of the OTG ``prefix_filters`` enum, mapped to the
@@ -127,6 +132,8 @@ class Bgp(Base):
         "ipv6_unicast": "ipv6_unicast_prefixes",
         "ipv4_mpls_unicast": "ipv4_mpls_unicast_prefixes",
         "ipv6_mpls_unicast": "ipv6_mpls_unicast_prefixes",
+        "ipv4_mpls_vpn_unicast": "ipv4_mpls_vpn_unicast_prefixes",
+        "ipv6_mpls_vpn_unicast": "ipv6_mpls_vpn_unicast_prefixes",
     }
 
     # The subset this backend can translate today.  An empty prefix_filters
@@ -146,7 +153,18 @@ class Bgp(Base):
     # The response fields ipv4_mpls_unicast_prefixes /
     # ipv6_mpls_unicast_prefixes already exist in the OTG model, and
     # _PREFIX_FILTER_FIELDS above already maps them.
-    _SUPPORTED_PREFIX_FILTERS = ("ipv4_unicast", "ipv6_unicast")
+    #
+    # ipv4_mpls_vpn_unicast/ipv6_mpls_vpn_unicast ARE supported (confirmed
+    # live 2026-10-14) but do NOT go through _FAMILY_TRANSLATION /
+    # _get_learned_table below -- see get_learned_vpn_routes. They use a
+    # different IxNetwork retrieval mechanism entirely (dedicated per-VRF
+    # trigger methods, not GetAllLearnedInfo).
+    _SUPPORTED_PREFIX_FILTERS = (
+        "ipv4_unicast",
+        "ipv6_unicast",
+        "ipv4_mpls_vpn_unicast",
+        "ipv6_mpls_vpn_unicast",
+    )
 
     # How to turn a row of each family into an OTG prefix, and which
     # per-family filter list applies to it.
@@ -163,12 +181,45 @@ class Bgp(Base):
         ),
     }
 
+    # ipv4/ipv6_mpls_vpn_unicast row converter, keyed by family. Unlike
+    # _FAMILY_TRANSLATION these are read from the VRF's own learned-info
+    # table (see get_learned_vpn_routes), which has no per-family unicast
+    # filter list of its own.
+    _VPN_FAMILY_ROW_CONVERTER = {
+        "ipv4_mpls_vpn_unicast": "_row_to_ipv4_vpn_route",
+        "ipv6_mpls_vpn_unicast": "_row_to_ipv6_vpn_route",
+    }
+
+    # Columns of the "IPv4/6 VPN Routes [Per VRF] <n>" learned-info table
+    # (confirmed live 2026-10-14 against a real BgpVrf/BgpV6Vrf session --
+    # NOT the same column set as the flat unicast table). Notably absent:
+    # any AS-path, community, extended-community, local-preference or MED
+    # column -- those BgpPrefixIpv4/6MplsVpnUnicast.Route fields are never
+    # populated for this family; this is a confirmed IxNetwork runtime
+    # limitation, not an oversight here.
+    # "VRF #" (an internal IxNetwork slot label, e.g. "VRF-1" -- NOT the
+    # configured VRF name) is intentionally not read: with at most one VRF
+    # per peer (see BgpL3vpn's own live-confirmed limitation), the VRF
+    # object's own .Name already gives the real name. "IPv6 Next Hop 2"
+    # and the SRv6-related columns (SRv6 VPN SID, Locator/Transposition
+    # lengths, Color) are not mapped yet -- out of scope for this family.
+    _VPN_V4_ADDR_COLS = ("IPv4 Prefix",)
+    _VPN_V6_ADDR_COLS = ("IPv6 Prefix",)
+    _VPN_RD_COLS = ("RD",)
+    _VPN_LABEL_COLS = ("Label",)
+
     # learnedInfo table ``Type`` -> address family, matched case-insensitively
 
     _LEARNED_TABLE_FAMILIES = (
         ("IPv4 Prefixes", "ipv4_unicast"),
         ("IPv6 Prefixes", "ipv6_unicast"),
     )
+
+    # Table ``Type`` prefixes for the VPN families, handled entirely by
+    # get_learned_vpn_routes (not the generic machinery below) -- listed
+    # here only so _get_learned_table doesn't log them as a genuinely
+    # unrecognised table type.
+    _VPN_LEARNED_TABLE_PREFIXES = ("IPv4 VPN Routes", "IPv6 VPN Routes")
 
     def __init__(self, ngpf):
         super(Bgp, self).__init__()
@@ -448,14 +499,15 @@ class Bgp(Base):
           ``DeviceGroup.find()`` returns the groups directly beneath the
           topology, not their children, so a peer in a nested ("chained")
           device group is not found.
-        * **Only Ethernet-backed interfaces are searched.** The chain is
-          ``DeviceGroup -> Ethernet -> Ipv4/Ipv6 -> BgpIpv4Peer/BgpIpv6Peer``,
-          so a peer configured on a loopback is not found.  This is not
-          hypothetical: :class:`LoopbackInt` places each loopback in a
-          *child* device group and attaches it as ``ipv4Loopback`` /
-          ``ipv6Loopback`` (or, for a VXLAN source interface, as
-          ``ethernet/ipv4`` inside that child group), so both limitations
-          above apply to it at once.
+        * **Ethernet- and loopback-backed interfaces are searched** (as of
+          2026-10-14, needed to make BGP L3VPN Get States usable at all --
+          L3VPN peers are conventionally over a loopback). The chains are
+          ``DeviceGroup -> Ethernet -> Ipv4/Ipv6 -> BgpIpv4Peer/BgpIpv6Peer``
+          and ``DeviceGroup -> DeviceGroup -> Ipv4Loopback/Ipv6Loopback ->
+          BgpIpv4Peer/BgpIpv6Peer``. A VXLAN source interface's loopback
+          (``ethernet/ipv4`` inside the child device group instead of
+          ``ipv4Loopback``) is still not covered, so the second limitation
+          below still applies to it.
 
         In each of those cases a requested peer name is reported as
         "BGP peer(s) not found in topology", which does not distinguish an
@@ -476,18 +528,41 @@ class Bgp(Base):
 
         topologies = self._ngpf.api._ixnetwork.Topology.find()
         dg_chain = topologies.DeviceGroup.find().Ethernet.find()
+        # BGP/MPLS L3VPN peers are conventionally configured over a
+        # loopback (next hop resolved via an IGP), not directly on the
+        # Ethernet-backed interface -- confirmed live 2026-10-14 that the
+        # Ethernet-only walk above misses them entirely, exactly as this
+        # method's own docstring already flagged. LoopbackInt places each
+        # loopback in a child device group as ipv4Loopback/ipv6Loopback, so
+        # walk that chain too rather than solving the full "robust fix"
+        # (direct ixn_objects lookup) described in the docstring.
+        loopback_dg_chain = topologies.DeviceGroup.find().DeviceGroup.find()
 
         try:
-            bgpv4_peers = dg_chain.Ipv4.find().BgpIpv4Peer.find()
+            bgpv4_peers = list(dg_chain.Ipv4.find().BgpIpv4Peer.find())
         except Exception:
             # No IPv4 interfaces in the current topology (e.g. IPv6-only test).
             bgpv4_peers = []
+        try:
+            bgpv4_peers += list(
+                loopback_dg_chain.Ipv4Loopback.find().BgpIpv4Peer.find()
+            )
+        except Exception:
+            # No IPv4 loopbacks in the current topology.
+            pass
 
         try:
-            bgpv6_peers = dg_chain.Ipv6.find().BgpIpv6Peer.find()
+            bgpv6_peers = list(dg_chain.Ipv6.find().BgpIpv6Peer.find())
         except Exception:
             # No IPv6 interfaces in the current topology (e.g. IPv4-only test).
             bgpv6_peers = []
+        try:
+            bgpv6_peers += list(
+                loopback_dg_chain.Ipv6Loopback.find().BgpIpv6Peer.find()
+            )
+        except Exception:
+            # No IPv6 loopbacks in the current topology.
+            pass
 
         for peer_obj in bgpv4_peers:
             self._collect_peer_entries(
@@ -647,7 +722,12 @@ class Bgp(Base):
                         )
                     )
                     if family is None:
-                        skipped_types.append(table.Type)
+                        lowered_type = (table.Type or "").lower()
+                        if not any(
+                            lowered_type.startswith(p.lower())
+                            for p in self._VPN_LEARNED_TABLE_PREFIXES
+                        ):
+                            skipped_types.append(table.Type)
                         continue
                     if family not in wanted:
                         continue
@@ -1109,6 +1189,83 @@ class Bgp(Base):
 
         return prefix
 
+    # --- VPN row -> OTG route dict -------------------------------------
+    # See _VPN_FAMILY_ROW_CONVERTER / get_learned_vpn_routes: these read
+    # the VRF's own "IPv4/6 VPN Routes Per VRF" learned-info table, whose
+    # column set (confirmed live) has no path-attribute columns, so
+    # communities/as_path/local_preference/multi_exit_discriminator are
+    # never set here.
+
+    def _row_to_ipv4_vpn_route(self, row):
+        """Convert a raw IPv4 VPN learned-info row to an OTG Route dict.
+
+        Returns ``None`` when the row lacks address information (e.g. an
+        empty/placeholder row before any route has been learned).
+        """
+        addr_cell = self._get_cell(row, *self._VPN_V4_ADDR_COLS, warn=False)
+        if not addr_cell:
+            return None
+
+        route = {
+            "ipv4_address": addr_cell,
+            "prefix_length": self._safe_int(
+                self._get_cell(row, *self._NLRI_COLS)
+            ),
+        }
+        rd = self._get_cell(row, *self._VPN_RD_COLS)
+        if rd:
+            route["route_distinguisher"] = rd
+        label = self._get_cell(row, *self._VPN_LABEL_COLS)
+        if label is not None:
+            route["label"] = self._safe_int(label)
+        ipv4_nh, ipv6_nh = self._get_next_hops(row)
+        if ipv4_nh:
+            route["ipv4_next_hop"] = ipv4_nh
+        if ipv6_nh:
+            route["ipv6_next_hop"] = ipv6_nh
+        pid_val = self._get_cell(row, *self._PATHID_COLS, warn=False)
+        if pid_val not in (None, "", "N/A", "0"):
+            route["path_id"] = self._safe_int(pid_val)
+        return route
+
+    def _row_to_ipv6_vpn_route(self, row):
+        """Convert a raw IPv6 VPN learned-info row to an OTG Route dict.
+
+        Returns ``None`` when the row lacks address information.
+        """
+        addr_cell = self._get_cell(row, *self._VPN_V6_ADDR_COLS, warn=False)
+        if not addr_cell:
+            return None
+
+        route = {
+            "ipv6_address": addr_cell,
+            "prefix_length": self._safe_int(
+                self._get_cell(row, *self._NLRI_COLS)
+            ),
+        }
+        rd = self._get_cell(row, *self._VPN_RD_COLS)
+        if rd:
+            route["route_distinguisher"] = rd
+        label = self._get_cell(row, *self._VPN_LABEL_COLS)
+        if label is not None:
+            # service_binding is a choice (currently "label" only) mirroring
+            # the config-side Bgp.L3vpn.V6ServiceBinding, kept extensible
+            # for a future dataplane binding (e.g. SRv6 Service SID) --
+            # see result/bgpprefix.yaml.
+            route["service_binding"] = {
+                "choice": "label",
+                "label": self._safe_int(label),
+            }
+        ipv4_nh, ipv6_nh = self._get_next_hops(row)
+        if ipv4_nh:
+            route["ipv4_next_hop"] = ipv4_nh
+        if ipv6_nh:
+            route["ipv6_next_hop"] = ipv6_nh
+        pid_val = self._get_cell(row, *self._PATHID_COLS, warn=False)
+        if pid_val not in (None, "", "N/A", "0"):
+            route["path_id"] = self._safe_int(pid_val)
+        return route
+
     # --- filter application ------------------------------------------
 
     @staticmethod
@@ -1256,6 +1413,128 @@ class Bgp(Base):
                 self, filter_method
             )(prefixes, filters)
         return prefixes_by_field
+
+    def _get_peer_vrf(self, peer_obj):
+        """Return this peer's single BgpVrf/BgpV6Vrf RESTpy object, or
+        ``None`` if the peer has no VRF configured.
+
+        At most one VRF is configurable per peer -- confirmed live:
+        IxNetwork rejects a second ``BgpVrf``/``BgpV6Vrf`` under the same
+        peer ("BGP VRF and BGP VRF are not allowed to share the same
+        stack", see ``BgpL3vpn``). A scaled/compacted multi-session peer
+        may expose more than one VRF instance; this returns the first
+        match. Indexing a specific session's VRF out of a scaled peer
+        (mirroring ``_get_learned_table``'s ``session_index`` handling for
+        the flat families) has not been verified live and is a known gap.
+        """
+        for attr in ("BgpVrf", "BgpV6Vrf"):
+            collection = getattr(peer_obj, attr, None)
+            if collection is None:
+                continue
+            try:
+                found = collection.find()
+            except Exception:
+                continue
+            if found:
+                return found[0]
+        return None
+
+    def get_learned_vpn_routes(self, peer_obj, families, session_index=1):
+        """Fetch and translate one peer's matched-VRF VPN routes, by family.
+
+        Returns a ``{field_name: [state_dict]}`` dict, one ``state_dict``
+        per requested VPN family -- a single
+        ``BgpPrefixIpv4/6MplsVpnUnicast.State`` dict with
+        ``choice=matched_vrf_routes`` and exactly one VRF entry (at most
+        one VRF per peer, confirmed live -- see ``_get_peer_vrf``).
+        Returns ``{}`` if the peer has no VRF configured, or if none of
+        *families* is a VPN family.
+
+        Unlike the flat unicast/MPLS families (:meth:`get_learned_prefixes`),
+        VPN routes are **not** read via ``GetAllLearnedInfo`` +
+        ``_get_learned_table`` -- confirmed live 2026-10-14 that
+        ``GetAllLearnedInfo`` only creates the "IPv4/6 VPN Routes <n>"
+        table *shape*, never its row *values*. The real trigger is the
+        dedicated per-peer/per-VRF operation:
+        ``BgpIpv4Peer.GetIPv4VpnLearnedInfo`` /
+        ``BgpVrf.GetIPv4VpnLearnedInfoPerVRF`` (and the Ipv6/BgpV6Vrf
+        equivalents), read back from the VRF object's own
+        ``LearnedInfo.Table`` (Type ``"IPv4/6 VPN Routes Per VRF <n>"``).
+        Also confirmed live: the ``filterIpV4MplsVpn``/``filterIpV6MplsVpn``
+        learned-info filter (OTG ``learned_information_filter.
+        ipv4_vpn_unicast_prefix`` / ``ipv6_vpn_unicast_prefix``) must
+        already be enabled *before* protocols start -- enabling it on an
+        already-running peer did not make the table populate.
+        """
+        vpn_families = [
+            f for f in families if f in self._VPN_FAMILY_ROW_CONVERTER
+        ]
+        if not vpn_families:
+            return {}
+
+        vrf_obj = self._get_peer_vrf(peer_obj)
+        if vrf_obj is None:
+            return {}
+
+        result = {}
+        for family in vpn_families:
+            ipv4 = family == "ipv4_mpls_vpn_unicast"
+            try:
+                if ipv4:
+                    peer_obj.GetIPv4VpnLearnedInfo(
+                        SessionIndices=[session_index]
+                    )
+                    vrf_obj.GetIPv4VpnLearnedInfoPerVRF(
+                        SessionIndices=[session_index]
+                    )
+                else:
+                    peer_obj.GetIPv6VpnLearnedInfo(
+                        SessionIndices=[session_index]
+                    )
+                    vrf_obj.GetIPv6VpnLearnedInfoPerVRF(
+                        SessionIndices=[session_index]
+                    )
+            except Exception as e:
+                self.logger.warning(
+                    "VPN learned-info trigger failed for peer %r family "
+                    "%r: %s" % (peer_obj.Name, family, e)
+                )
+                continue
+
+            to_route = getattr(self, self._VPN_FAMILY_ROW_CONVERTER[family])
+            routes = []
+            try:
+                for li in vrf_obj.LearnedInfo.find():
+                    for table in li.Table.find():
+                        columns = table.Columns
+                        if not columns:
+                            continue
+                        col_idx = {
+                            c.strip(): i for i, c in enumerate(columns)
+                        }
+                        for row_vals in (table.Values or []):
+                            row = {
+                                c: row_vals[i]
+                                for c, i in col_idx.items()
+                                if i < len(row_vals)
+                            }
+                            route = to_route(row)
+                            if route is not None:
+                                routes.append(route)
+            except Exception as e:
+                self.logger.warning(
+                    "Reading VRF learned-info failed for peer %r family "
+                    "%r: %s" % (peer_obj.Name, family, e)
+                )
+
+            state = {
+                "choice": "matched_vrf_routes",
+                "matched_vrf_routes": {
+                    "vrfs": [{"name": vrf_obj.Name, "routes": routes}],
+                },
+            }
+            result[self._PREFIX_FILTER_FIELDS[family]] = [state]
+        return result
 
     def _configure_route(self, route, ixn_route, route_map=None):
         if route_map is None:
