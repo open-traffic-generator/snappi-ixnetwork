@@ -1,4 +1,5 @@
 import json
+import re
 import snappi
 from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.logger import get_ixnet_logger
@@ -2973,7 +2974,7 @@ class TrafficItem(CustomField):
         self._validate_update_flows_config(update_flows_config)
         for flow in update_flows_config.flows:
             hl = self._api._ixnetwork.Traffic.TrafficItem.find(
-                Name=flow.name
+                Name="^%s$" % re.escape(flow.name)
             ).HighLevelStream.find()
             self._update_size(hl, flow.size)
             self._update_rate(hl, flow.rate)
