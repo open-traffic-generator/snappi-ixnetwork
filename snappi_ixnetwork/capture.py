@@ -619,6 +619,14 @@ class Capture(object):
                     % (request.port_name)
                 )
 
+        hardware_enabled = capture.HardwareEnabled
+        software_enabled = capture.SoftwareEnabled
+        if not hardware_enabled and not software_enabled:
+            raise RuntimeError(
+                "Capture has no enabled buffers for port %s"
+                % request.port_name
+            )
+
         self._api._ixnetwork.SaveCaptureFiles(
             self._api._ixnetwork.Globals.PersistencePath + "/capture"
         )
@@ -630,16 +638,17 @@ class Capture(object):
         merged_capture = persist + "/capture/" + vport_name + ".cap"
 
         merged = False
-        try:
-            self._api._ixnetwork.MergeCapture(
-                Arg1=cc, Arg2=dc, Arg3=merged_capture
-            )
-            merged = True
-        except Exception:
-            # MergeCapture fails when one of the source files is absent
-            # (e.g. port has only SW or only HW capture).  Continue and
-            # download whichever individual file is available.
-            pass
+        if hardware_enabled and software_enabled:
+            try:
+                self._api._ixnetwork.MergeCapture(
+                    Arg1=cc, Arg2=dc, Arg3=merged_capture
+                )
+                merged = True
+            except Exception:
+                # MergeCapture fails when one of the source files is absent
+                # (e.g. port has only SW or only HW capture).  Continue and
+                # download whichever individual file is available.
+                pass
 
         url = "{}/vport/operations/releaseCapturePorts".format(
             self._api._ixnetwork.href
@@ -654,7 +663,10 @@ class Capture(object):
         # That bug is fixed in later versions, so prefer merged now.
         last_exc = None
         cap_paths = [merged_capture] if merged else []
-        cap_paths.extend([dc, cc])
+        if hardware_enabled:
+            cap_paths.append(dc)
+        if software_enabled:
+            cap_paths.append(cc)
         for cap_path in cap_paths:
             url = "%s/files?absolute=%s&filename=%s" % (
                 self._api._ixnetwork.href,
