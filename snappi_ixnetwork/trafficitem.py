@@ -2971,12 +2971,15 @@ class TrafficItem(CustomField):
         Update the flows with property size & rate
         """
         self._validate_update_flows_config(update_flows_config)
+        properties = update_flows_config.property_names or ["size", "rate"]
         for flow in update_flows_config.flows:
             hl = self._api._ixnetwork.Traffic.TrafficItem.find(
                 Name=flow.name
             ).HighLevelStream.find()
-            self._update_size(hl, flow.size)
-            self._update_rate(hl, flow.rate)
+            if "size" in properties:
+                self._update_size(hl, flow.size)
+            if "rate" in properties:
+                self._update_rate(hl, flow.rate)
 
     def _validate_update_flows_config(self, update_flows_config):
         errors = []
