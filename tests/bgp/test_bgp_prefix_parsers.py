@@ -488,6 +488,7 @@ def test_captured_row_maps_completely(bgp, captured_v4_row, caplog):
             "segments": [{"type": "as_seq", "as_numbers": [100, 200]}]
         },
         "communities": [manual(1, 2)],
+        "extended_communities": [],
     }
     # 'NA' Path ID must not become path_id=0, and the
     # 'removePacket[ ]' IPv6 next hop must not be emitted as an address.
@@ -557,6 +558,7 @@ def test_v6_row_maps_completely(bgp, caplog):
             "segments": [{"type": "as_seq", "as_numbers": [500, 600]}]
         },
         "communities": [manual(3, 4)],
+        "extended_communities": [],
     }
     assert "ipv4_next_hop" not in prefix
     assert caplog.records == []
