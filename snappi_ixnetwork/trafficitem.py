@@ -665,9 +665,11 @@ class TrafficItem(CustomField):
             # RoCEv2 is stateful traffic; stop via Traffic.Stop() before delete.
             if self._api._ixnetwork.Traffic.State in start_states:
                 self._api._ixnetwork.Traffic.Stop()
-            url = "%s/traffic/roceV2Traffic" % self._api._ixnetwork.href
-            self._api._request("DELETE", url)
-            self._api._ixnetwork.Traffic.RoceV2Traffic.find().refresh()
+            rocev2_traffic = self._api._ixnetwork.Traffic.RoceV2Traffic.find()
+            if len(rocev2_traffic.RoceV2Stream.find()) > 0:
+                # DeleteAllStreams clears the flow groups; deleting the
+                # roceV2Traffic container alone does not remove the streams.
+                rocev2_traffic.DeleteAllStreams()
 
     def _gen_dev_endpoint(self, devices, portId, names, endpoints, scalable_endpoints):
         self.logger.debug("Generating Device Endpoints with names %s" % names)

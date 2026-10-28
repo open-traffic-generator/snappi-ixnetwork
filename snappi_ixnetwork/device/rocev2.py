@@ -69,24 +69,26 @@ class RoCEv2(Base):
         ip_types = ["ipv4", "ipv6"]
         same_dg_ips = []
         invalid_ips = []
+        ip_name_to_address = {}
         ethernets = self._ngpf.working_dg.get("ethernet")
         if ethernets is None:
-            return same_dg_ips, invalid_ips
+            return same_dg_ips, invalid_ips, ip_name_to_address
         for ethernet in ethernets:
             for ip_type in ip_types:
                 ips = ethernet.get(ip_type)
                 if ips is not None:
                     ip_names = [ip.get("name").value for ip in ips]
                     ip_address = [ip.get("address").value for ip in ips]
-                    self._ngpf.api._rocev2_ip_to_peer_map[ip_address[0]] = ""
+                    for name, address in zip(ip_names, ip_address):
+                        ip_name_to_address[name] = address
                     same_dg_ips.extend(ip_names)
                     if len(ips) > 1:
                         invalid_ips.extend(ip_names)
-        return same_dg_ips, invalid_ips, ip_address
+        return same_dg_ips, invalid_ips, ip_name_to_address
 
     def _is_valid(self, ip_name):
         is_invalid = True
-        same_dg_ips, invalid_ips , ip_address = self._get_interface_info()
+        same_dg_ips, invalid_ips, ip_name_to_address = self._get_interface_info()
         self.logger.debug(
             "Validating %s against interface same_dg_ips : %s invalid_ips %s"
             % (ip_name, same_dg_ips, invalid_ips)
@@ -103,7 +105,7 @@ class RoCEv2(Base):
                 "RoCEv2 should not configured on top of different device"
             )
             is_invalid = False
-        return is_invalid, ip_address[0]
+        return is_invalid, ip_name_to_address.get(ip_name)
 
     def _config_ipv4_interfaces(
         self, rocev2, stateful_flow=None, options=None
@@ -138,7 +140,6 @@ class RoCEv2(Base):
         self.logger.debug("Configuring RoCEv2 Peer")
         for rocev2_peer in rocev2_peers:
             if rocev2_peer.get("name") in self._already_processed_nodes:
-                #self._ngpf.api._rocev2_ip_to_peer_map[ip_address] = rocev2_peer.get("name")
                 continue
             self._already_processed_nodes.add(rocev2_peer.get("name"))
             ixn_rocev2v4 = self.create_node_elemet(
@@ -151,7 +152,6 @@ class RoCEv2(Base):
 
             # Assign Dp QP Count as number of QPs added in a peer
             ixn_rocev2v4["qpCount"] = len(rocev2_peer.qps)
-            self._ngpf.api._rocev2_ip_to_peer_map[ip_address] = rocev2_peer.get("name")
             self._configureFlowSettings(
                 rocev2_peer, ixn_rocev2v4, stateful_flow, options
             )
@@ -197,7 +197,6 @@ class RoCEv2(Base):
                 rocev2_peer, ixn_rocev2v6, RoCEv2._RoCEv2
             )
             ixn_rocev2v6["qpCount"] = len(rocev2_peer.qps)
-            self._ngpf.api._rocev2_ip_to_peer_map[ip_address] = rocev2_peer.get("name")
             self._configureFlowSettings(
                 rocev2_peer, ixn_rocev2v6, stateful_flow, options
             )
@@ -319,9 +318,12 @@ class RoCEv2(Base):
                                 ixn_flow_settings["executeCommands"] = (
                                     self.multivalue(mapped_verbs)
                                 )
-                                ixn_flow_settings["immidtData"] = (
-                                    self.multivalue(immediate_data)
-                                )
+                                # Only non-immediate verbs produce no immediate
+                                # data; an empty multivalue is rejected by IxN.
+                                if immediate_data:
+                                    ixn_flow_settings["immidtData"] = (
+                                        self.multivalue(immediate_data)
+                                    )
 
                             return
 
@@ -335,6 +337,9 @@ class RoCEv2(Base):
         ack_ecn_map = {}
         nak_dscp_map = {} 
         nak_ecn_map = {}
+        enable_ack_timeout_map = {}
+        ack_timeout_map = {}
+        retrans_retry_count_map = {}
         index = 0
         ixnRocev2GlobalPortSettings = (
             self._ngpf._ixnetwork.Globals.Topology.find().Rocev2.find()
@@ -402,6 +407,27 @@ class RoCEv2(Base):
                                 if ecn_numeric is not None :
                                     nak_ecn_map[index] = ecn_numeric
 
+                        # Retransmission
+                        if hasattr(protocol, "connection_type") and \
+                            hasattr(protocol.connection_type, "reliable_connection"):
+                            reliable_connection = (
+                                protocol.connection_type.reliable_connection
+                            )
+                            enable_retransmission = reliable_connection.get(
+                                "enable_retransmission_timeout"
+                            )
+                            if enable_retransmission is not None:
+                                # IxNetwork expects 'true'/'false', not Python bool
+                                enable_ack_timeout_map[index] = str(
+                                    enable_retransmission
+                                ).lower()
+                            ack_timeout_map[index] = reliable_connection.get(
+                                "retransmission_timeout_value"
+                            )
+                            retrans_retry_count_map[index] = reliable_connection.get(
+                                "retransmission_retry_count"
+                            )
+
         self.apply_multivalue(ixnRocev2GlobalPortSettings.CnpPriorityValue, cnp_dscp_map)
         self.apply_multivalue(ixnRocev2GlobalPortSettings.CnpEcnVal, cnp_ecn_map)
         self.apply_multivalue(ixnRocev2GlobalPortSettings.CnpDelayTimer, cnp_delay_timer_map)
@@ -409,10 +435,9 @@ class RoCEv2(Base):
         self.apply_multivalue(ixnRocev2GlobalPortSettings.AckEcnVal, ack_ecn_map)
         self.apply_multivalue(ixnRocev2GlobalPortSettings.NakPriorityValue, nak_dscp_map)
         self.apply_multivalue(ixnRocev2GlobalPortSettings.NakEcnVal, nak_ecn_map)
-                    # Retransmission
-                    # ixnRocev2GlobalPortSettings.EnableACKTimeout.Single(protocol.connection_type.reliable_connection.get("enable_retransmission_timeout"))
-                    # ixnRocev2GlobalPortSettings.AckTimeout.Single(protocol.connection_type.reliable_connection.get("retransmission_timeout_value"))
-                    # ixnRocev2GlobalPortSettings.RetransRetryCount.Single(protocol.connection_type.reliable_connection.get("retransmission_retry_count"))
+        self.apply_multivalue(ixnRocev2GlobalPortSettings.EnableACKTimeout, enable_ack_timeout_map)
+        self.apply_multivalue(ixnRocev2GlobalPortSettings.AckTimeout, ack_timeout_map)
+        self.apply_multivalue(ixnRocev2GlobalPortSettings.RetransRetryCount, retrans_retry_count_map)
 
     def _configureTrafficParameters(
         self, rocev2_traffic, stateful_flow=None, options=None

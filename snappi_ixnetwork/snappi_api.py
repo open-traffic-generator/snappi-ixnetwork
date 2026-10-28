@@ -5,7 +5,7 @@ import logging
 from collections import namedtuple
 
 import snappi
-from ixnetwork_restpy import TestPlatform, SessionAssistant
+from ixnetwork_restpy import TestPlatform, SessionAssistant, BatchFind
 
 from snappi_ixnetwork.logger import setup_ixnet_logger
 from snappi_ixnetwork.capture import Capture
@@ -121,7 +121,6 @@ class Api(snappi.Api):
         self._mka = Mka(self)
         self._macsec = Macsec(self)
         self._rocev2 = RoCEv2(self)
-        self._rocev2_ip_to_peer_map = {}
         self._port_compaction = False
         self.rocev2GlobalSettingsPopulated = False
 
@@ -367,6 +366,7 @@ class Api(snappi.Api):
         self.ixn_objects = IxNetObjects(self)
         self.ixn_routes = IxNetObjects(self)
         self._dev_compacted = {}
+        self.rocev2GlobalSettingsPopulated = False
         self._connect()
         self.capture.reset_capture_request()
         self._config = self._validate_instance(config)
@@ -387,6 +387,7 @@ class Api(snappi.Api):
             # Start all protocols is workaround for pCPU crash reported by
             # Microsoft, need to revert once fix is available for pCPU crash
             if self._protocols_exists():
+                has_rocev2 = False
                 for device in self._config.devices:
                     # After the config is pushed in IxNetwork, only then we can do ClearOverlays() in MKA Globals.
                     # That is why it cannot be done from within MKA module itself.
@@ -397,9 +398,10 @@ class Api(snappi.Api):
                         if self._macsec._is_dynamic_key(macsec):
                             # it is MKA
                             self._mka._clear_overlays_in_globals(macsec)
-                    rocev2 = device.get("rocev2")
-                    if rocev2:
-                        self._populate_rocev2_destination_peers_and_global_port_settings(rocev2)
+                    if device.get("rocev2"):
+                        has_rocev2 = True
+                if has_rocev2:
+                    self._populate_rocev2_destination_peers_and_global_port_settings()
                 self._start_interface()
             else:
                 if len(self._ixnetwork.Topology.find()) > 0:
@@ -414,65 +416,63 @@ class Api(snappi.Api):
                     )
                     self._ixnetwork.Lag.find(Name=lag.name).Stop()
 
-    def _populate_rocev2_destination_peers_and_global_port_settings(self, rocev2):
+    def _populate_rocev2_destination_peers_and_global_port_settings(self):
         self.logger.debug(
             "Populating RoCEv2 destination peers for RoCEv2 config"
         )
-        ipv4_interfaces = rocev2.get("ipv4_interfaces")
-        if ipv4_interfaces is not None:
-            # Fetch all RoCEv2 nodes once and index by name for O(1) lookup.
-            rest_rocev2_by_name = {
-                rest_rocev2.Name: rest_rocev2
-                for rest_rocev2 in self._ixnetwork.Topology.find()
-                .DeviceGroup.find()
-                .Ethernet.find()
-                .Ipv4.find()
-                .Rocev2.find()
-            }
-            for ipv4_interface in ipv4_interfaces:
-                rocev2_peers = ipv4_interface.get("peers")
-                if rocev2_peers is None:
-                    continue
-                self.logger.debug("Configuring RoCEv2 Peer")
-                for rocev2_peer in rocev2_peers:
-                    ip_address = rocev2_peer.get("destination_ip_address")
-                    destination_peer_name = self._rocev2_ip_to_peer_map[ip_address]
-                    rest_rocev2 = rest_rocev2_by_name.get(rocev2_peer.get("name"))
-                    if rest_rocev2 is None:
-                        continue
-                    if destination_peer_name not in rest_rocev2.DestinationPeerNames:
-                        if not rest_rocev2.DestinationPeerNames:
-                            rest_rocev2.DestinationPeerNames = [destination_peer_name]
-                        else:
-                            rest_rocev2.DestinationPeerNames.append(destination_peer_name)
+        with BatchFind(self._ixnetwork) as bf:
+            self._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv4.find().Rocev2.find()
+            self._ixnetwork.Topology.find().DeviceGroup.find().Ethernet.find().Ipv6.find().Roce6v2.find()
 
-        ipv6_interfaces = rocev2.get("ipv6_interfaces")
-        if ipv6_interfaces is not None:
-            # Fetch all RoCEv2 nodes once and index by name for O(1) lookup.
-            rest_rocev2_by_name = {
-                rest_rocev2.Name: rest_rocev2
-                for rest_rocev2 in self._ixnetwork.Topology.find()
-                .DeviceGroup.find()
-                .Ethernet.find()
-                .Ipv6.find()
-                .Roce6v2.find()
-            }
-            for ipv6_interface in ipv6_interfaces:
-                rocev2_peers = ipv6_interface.get("peers")
-                if rocev2_peers is None:
-                    continue
-                self.logger.debug("Configuring RoCEv2 Peer")
-                for rocev2_peer in rocev2_peers:
-                    ip_address = rocev2_peer.get("destination_ip_address")
-                    destination_peer_name = self._rocev2_ip_to_peer_map[ip_address]
-                    rest_rocev2 = rest_rocev2_by_name.get(rocev2_peer.get("name"))
+        rest_rocev2s = []
+        if hasattr(bf.results, "rocev2"):
+            rest_rocev2s.extend(bf.results.rocev2)
+        if hasattr(bf.results, "roce6v2"):
+            rest_rocev2s.extend(bf.results.roce6v2)
+
+        if not rest_rocev2s:
+            self.logger.debug(
+                "No RoCEv2 config found, skipping population of "
+                "destination peers and global port settings"
+            )
+            return
+
+        rocev2_name_rest_obj_map = {r.Name: r for r in rest_rocev2s}
+        # Map every IP of the parent interface (multiplier > 1 has several)
+        rocev2_by_ips = {
+            ip: roce.Name
+            for roce in rest_rocev2s
+            for ip in roce.parent.Address.Values
+        }
+
+        self.logger.debug("Configuring RoCEv2 Peer")
+        for device in self._config.devices:
+            # .get() so devices without rocev2 are not modified
+            rocev2 = device.get("rocev2")
+            if rocev2 is None:
+                continue
+            interfaces = list(rocev2.get("ipv4_interfaces") or []) + list(
+                rocev2.get("ipv6_interfaces") or []
+            )
+            for interface in interfaces:
+                # One IxNetwork rocev2 node per peer, so update per peer
+                for peer in interface.get("peers") or []:
+                    rest_rocev2 = rocev2_name_rest_obj_map.get(peer.name)
                     if rest_rocev2 is None:
                         continue
-                    if destination_peer_name not in rest_rocev2.DestinationPeerNames:
-                        if not rest_rocev2.DestinationPeerNames:
-                            rest_rocev2.DestinationPeerNames = [destination_peer_name]
-                        else:
-                            rest_rocev2.DestinationPeerNames.append(destination_peer_name)
+                    destination_peer_name = rocev2_by_ips.get(
+                        peer.destination_ip_address
+                    )
+                    if destination_peer_name is None:
+                        # "Clear" must be sent alone; an empty list does not
+                        # clear the peers in IxNetwork
+                        rest_rocev2.update(
+                            DestinationPeerNames=["Clear"], QpCount=0
+                        )
+                    else:
+                        rest_rocev2.update(
+                            DestinationPeerNames=[destination_peer_name]
+                        )
 
         if hasattr(self.snappi_config, "options") and self.rocev2GlobalSettingsPopulated is False:
             options = self.snappi_config.options
