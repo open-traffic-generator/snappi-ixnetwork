@@ -324,8 +324,8 @@ class RoCEv2(Base):
                                     ixn_flow_settings["immidtData"] = (
                                         self.multivalue(immediate_data)
                                     )
-
-                            return
+                                # return only after all QP flows are collected
+                                return
 
     def _populateGLobalPortSettings(self, options):
         perportoptions = []
