@@ -14,11 +14,11 @@ Fix -> test mapping
 """
 import pytest
 
-@pytest.mark.skip(
-    reason="""
-    "Skipping this test in CI due to setup unavailability"
-    """
+# Applies to every test in this module (needs IxNetwork RoCEv2 setup not on CI)
+pytestmark = pytest.mark.skip(
+    reason="Skipping this test in CI due to setup unavailability"
 )
+
 
 # --------------------------------------------------------------------------- #
 # Query helpers (white-box assertions against the pushed IxNetwork config)
