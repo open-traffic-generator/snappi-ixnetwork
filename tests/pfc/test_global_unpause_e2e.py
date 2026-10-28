@@ -58,18 +58,21 @@ def test_global_unpause_e2e(api, settings, utils):
     tx_flow.rate.percentage = 100
     rx_eth_pause = rx_flow.packet.ethernetpause()[-1]
     rx_eth_pause.src.value = "00:AB:BC:AB:BC:AB"
-    rx_eth_pause.ether_type.value = "8808"
-    rx_eth_pause.control_op_code.value = "01"
-    rx_eth_pause.time.value = "FFFF"
+    rx_eth_pause.ether_type.value = 0x8808
+    rx_eth_pause.control_op_code.value = 1
+    rx_eth_pause.time.value = 65535
     rx_flow.duration.fixed_seconds.seconds = 10
     rx_flow.size.fixed = size
     rx_flow.rate.percentage = 50
+    rx_flow.metrics.enable = True
+    rx_global_unpause.metrics.enable = True
+    tx_flow.metrics.enable = True
 
     rx_eth_unpause = rx_global_unpause.packet.ethernetpause()[-1]
     rx_eth_unpause.src.value = "00:AB:BC:AB:BC:AB"
-    rx_eth_unpause.ether_type.value = "8808"
-    rx_eth_unpause.control_op_code.value = "01"
-    rx_eth_unpause.time.value = "FFFF"
+    rx_eth_unpause.ether_type.value = 0x8808
+    rx_eth_unpause.control_op_code.value = 1
+    rx_eth_unpause.time.value = 65535
     rx_global_unpause.duration.fixed_seconds.seconds = 10
     rx_global_unpause.duration.fixed_seconds.delay.nanoseconds = (10**9) * 10
     rx_global_unpause.size.fixed = size
