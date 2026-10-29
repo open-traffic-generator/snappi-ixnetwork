@@ -5,7 +5,17 @@ from snappi_ixnetwork.logger import get_ixnet_logger
 class Compactor(object):
     def __init__(self, ixnetworkapi):
         self._api = ixnetworkapi
-        self._unsupported_nodes = []
+        # bgpVrf/bgpV6Vrf must never be compacted: the comparator below only
+        # checks structural shape (same keys), not scalar values, so two
+        # peers with different RD/RT/routes but the same VRF *shape* would
+        # otherwise be merged into one Multiplier>1 node - which real
+        # IxNetwork rejects outright for BgpVrf ("BGP VRF and BGP VRF are
+        # not allowed to share the same stack", confirmed live 2026-09-29;
+        # see design_snappi_ixnetwork_bgp_l3vpn.md Section 3). Listing the
+        # key here disqualifies compaction as soon as the recursive
+        # comparator reaches it, at any nesting depth (peer, loopback,
+        # device group, topology).
+        self._unsupported_nodes = ["bgpVrf", "bgpV6Vrf"]
         self._ignore_keys = ["xpath", "name"]
         self.logger = get_ixnet_logger(__name__)
 
