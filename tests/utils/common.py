@@ -100,7 +100,11 @@ class Settings(object):
 
     def register_pytest_command_line_options(self, parser):
         for key, val in object_dict_items(self):
-            parser.addoption("--%s" % key, action="store", default=None)
+            # explicit dest lets keys such as log_level share the dest of
+            # pytest's built-in options (e.g. --log-level) in newer pytest
+            parser.addoption(
+                "--%s" % key, action="store", default=None, dest=key
+            )
 
     def load_from_pytest_command_line(self, config):
         for key, val in object_dict_items(self):
