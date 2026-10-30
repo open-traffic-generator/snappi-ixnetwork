@@ -637,16 +637,16 @@ class TrafficItem(CustomField):
 
     def remove_ixn_traffic(self):
         self.logger.debug("Removing Traffic Items")
+        start_states = [
+            "txStopWatchExpected",
+            "locked",
+            "started",
+            "startedWaitingForStats",
+            "startedWaitingForStreams",
+            "stoppedWaitingForStats",
+        ]
         if len(self._api._ixnetwork.Traffic.TrafficItem.find()) > 0:
             # with Timer(self._api, "Remove Flows"):
-            start_states = [
-                "txStopWatchExpected",
-                "locked",
-                "started",
-                "startedWaitingForStats",
-                "startedWaitingForStreams",
-                "stoppedWaitingForStats",
-            ]
             state = self._api._ixnetwork.Traffic.State
             if state in start_states:
                 self._api._ixnetwork.Traffic.StopStatelessTrafficBlocking()
@@ -660,6 +660,16 @@ class TrafficItem(CustomField):
             self._api._request("DELETE", url)
             self._api._ixnetwork.Traffic.EgressOnlyTracking.find().refresh()
         self.egress_only_tracking_index = 1
+
+        if len(self._api._ixnetwork.Traffic.RoceV2Traffic.find()) > 0:
+            # RoCEv2 is stateful traffic; stop via Traffic.Stop() before delete.
+            if self._api._ixnetwork.Traffic.State in start_states:
+                self._api._ixnetwork.Traffic.Stop()
+            rocev2_traffic = self._api._ixnetwork.Traffic.RoceV2Traffic.find()
+            if len(rocev2_traffic.RoceV2Stream.find()) > 0:
+                # DeleteAllStreams clears the flow groups; deleting the
+                # roceV2Traffic container alone does not remove the streams.
+                rocev2_traffic.DeleteAllStreams()
 
     def _gen_dev_endpoint(self, devices, portId, names, endpoints, scalable_endpoints):
         self.logger.debug("Generating Device Endpoints with names %s" % names)
