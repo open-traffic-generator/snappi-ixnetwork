@@ -742,8 +742,9 @@ class TrafficItem(CustomField):
             if flow.tx_rx.choice == "port":
                 tr_type = "raw"
                 ep = getattr(flow.tx_rx, "port")
-                tx_objs = ["%s/protocols" % ports.get(ep.tx_name)]
-                rx_objs = ["%s/protocols" % ports.get(ep.rx_name)]
+                tx_objs, rx_objs = self._get_port_endpoints(
+                    ep, ports, flow.name
+                )
                 tr["trafficItem"][-1]["endpointSet"][0]["sources"] = [
                     o for o in tx_objs
                 ]
@@ -1326,10 +1327,59 @@ class TrafficItem(CustomField):
             prev_was_srh = False
         return [config_elem]
 
+    def _get_rx_port_names(self, ep, flow_name):
+        """Return the list of rx port names of a port endpoint, taken from
+        either rx_names or the single rx_name."""
+        rx_names = ep.rx_names
+        rx_name = ep.rx_name
+        has_names = rx_names is not None and len(rx_names) > 0
+        if has_names and rx_name is not None:
+            raise ValueError(
+                "Only one of port rx_name and rx_names can be set "
+                "in flow %s" % flow_name
+            )
+        if has_names:
+            if len(rx_names) != len(set(rx_names)):
+                raise ValueError(
+                    "All names in port rx_names must be unique "
+                    "for flow %s" % flow_name
+                )
+            return list(rx_names)
+        if rx_name is None:
+            raise ValueError(
+                "Either port rx_name or rx_names must be set "
+                "in flow %s" % flow_name
+            )
+        return [rx_name]
+
+    def _get_port_endpoints(self, ep, ports, flow_name):
+        """Return (tx_objs, rx_objs) IxNetwork protocol xpaths for a port
+        endpoint."""
+        if ep.tx_name is None:
+            raise ValueError(
+                "Port tx_name must be set in flow %s" % flow_name
+            )
+        names = [ep.tx_name] + self._get_rx_port_names(ep, flow_name)
+        for name in names:
+            if ports.get(name) is None:
+                raise NameError(
+                    "Port %s used in flow %s does not exist"
+                    % (name, flow_name)
+                )
+        tx_objs = ["%s/protocols" % ports.get(ep.tx_name)]
+        rx_objs = [
+            "%s/protocols" % ports.get(n)
+            for n in self._get_rx_port_names(ep, flow_name)
+        ]
+        return tx_objs, rx_objs
+
     def _get_mesh_type(self, flow):
         self.logger.debug("Getting mesh type")
         if flow.tx_rx.choice == "port":
-            mesh_type = "oneToOne"
+            if len(self._get_rx_port_names(flow.tx_rx.port, flow.name)) > 1:
+                mesh_type = "manyToMany"
+            else:
+                mesh_type = "oneToOne"
         else:
             device = flow.tx_rx.device
             if device.mode == "mesh" or device.mode is None:
@@ -3344,8 +3394,9 @@ class TrafficItem(CustomField):
             if flow.tx_rx.choice == "port":
                 tr_type = "raw"
                 ep = getattr(flow.tx_rx, "port")
-                tx_objs = ["%s/protocols" % ports.get(ep.tx_name)]
-                rx_objs = ["%s/protocols" % ports.get(ep.rx_name)]
+                tx_objs, rx_objs = self._get_port_endpoints(
+                    ep, ports, flow.name
+                )
                 tr["trafficItem"][-1]["endpointSet"][0]["sources"] = [
                     o for o in tx_objs
                 ]
