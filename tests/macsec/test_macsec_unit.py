@@ -1,0 +1,680 @@
+"""Hardware-free unit tests for the MACsec device build phase.
+
+No chassis and no IxNetwork server are needed: Ngpf is created with a mocked
+API and the tests assert on the plain dict tree in ngpf._ixn_config.
+"""
+
+import pytest
+import snappi
+from unittest.mock import MagicMock
+
+from snappi_ixnetwork.device.base import MultiValue
+from snappi_ixnetwork.device.macsec import Macsec
+from snappi_ixnetwork.device.ngpf import Ngpf
+from snappi_ixnetwork.exceptions import SnappiIxnException
+
+SAK128 = "f123456789abcdef0123456789abcdef"
+SAK256 = SAK128 + SAK128
+SSCI = "0000000a"
+SALT = "00000000000000000000000b"
+
+
+def _value(node, key):
+    value = node[key]
+    return value.value if isinstance(value, MultiValue) else value
+
+
+class _Env(object):
+    """Config plus a minimal Ngpf/Macsec able to run Macsec.config()."""
+
+    def __init__(self):
+        self.config = snappi.Api().config()
+        self.ixn_ethernets = {}
+        self.warnings = []
+
+    def device(self, name, engine="encrypt_only", key="static_key", **kw):
+        device = self.config.devices.add()
+        device.name = name
+        eth = device.ethernets.add()
+        eth.name = name + "_eth"
+        eth.mac = "00:00:00:00:00:11"
+        eth.connection.port_name = kw.get("port", "p1")
+        ip = eth.ipv4_addresses.add()
+        ip.name = name + "_ip"
+        ip.address = "1.1.1.1"
+        ip.gateway_mac.value = "00:00:00:00:00:22"
+        iface = device.macsec.ethernet_interfaces.add()
+        iface.eth_name = eth.name
+        secy = iface.secure_entity
+        secy.name = name + "_secy"
+        self.configure(
+            secy, engine, key, kw.get("cipher", "gcm_aes_128"), kw.get("sak")
+        )
+        return device
+
+    def configure(self, secy, engine, key, cipher="gcm_aes_128", sak=None):
+        secy.data_plane.choice = "encapsulation"
+        crypto = secy.data_plane.encapsulation.crypto_engine
+        if engine == "encrypt_only":
+            crypto.choice = "encrypt_only"
+            crypto.encrypt_only.secure_channels.add()
+        elif engine == "encrypt_decrypt":
+            crypto.choice = "encrypt_decrypt"
+        elif engine == "inline_crypto":
+            crypto.choice = "encrypt_decrypt"
+            crypto.encrypt_decrypt.hardware_acceleration.choice = (
+                "inline_crypto"
+            )
+        secy.key_generation_protocol.choice = key
+        if key == "static_key":
+            static_key = secy.key_generation_protocol.static_key
+            static_key.cipher_suite = cipher
+            sak = sak or (SAK128 if "128" in cipher else SAK256)
+            for side in (static_key.tx, static_key.rx):
+                sc = side.secure_channels.add()
+                for _ in range(3):
+                    s = sc.saks.add()
+                    s.sak, s.ssci, s.salt = sak, SSCI, SALT
+        return secy
+
+    def macsec(self):
+        ngpf = Ngpf.__new__(Ngpf)
+        ngpf.api = MagicMock()
+        ngpf.logger = MagicMock()
+        ngpf.ether_ip_restriction_map = {}
+        ngpf.api.ixn_objects.get_working_dg.return_value = {"name": "dg"}
+        ngpf.api.ixn_objects.get_object.side_effect = lambda n: (
+            self.ixn_ethernets.setdefault(n, {"xpath": ""})
+        )
+        macsec = Macsec(ngpf)
+        macsec.logger = MagicMock()
+        self.ngpf = ngpf
+        return macsec
+
+    def build(self, device_name=None):
+        macsec = self.macsec()
+        for device in self.config.devices:
+            macsec.config(device)
+            macsec.set_ip_restriction(device)
+        self.logger = macsec.logger
+        return macsec
+
+    def node(self, device_name, kind="staticMacsec"):
+        return self.ixn_ethernets[device_name + "_eth"][kind][0]
+
+
+def _status(excinfo):
+    return excinfo.value.status_code
+
+
+# U18: software regression
+
+
+def test_encrypt_only_static_key_baseline():
+    env = _Env()
+    env.device("d1")
+    env.build()
+    node = env.node("d1")
+    assert node["encryptedTrafficType"] == "statelessL23"
+    assert _value(node, "cipherSuite") == "aes128"
+    assert node["txSakPoolSize"] == 3
+    assert node["rxSakPoolSize"] == 3
+    assert _value(node["txSakPool"][0], "txSak128") == [SAK128] * 3
+    assert _value(node["rxSakPool"][0], "rxSak128") == [SAK128] * 3
+    assert "txSsci" not in node["txSakPool"][0]
+    assert _value(node, "sourceIp") == "1.1.1.1"
+    assert _value(node, "dutMac") == "00:00:00:00:00:22"
+    env.ngpf.api.set_device_traffic_endpoint.assert_any_call(
+        "d1_eth", "d1_secy"
+    )
+    assert env.ngpf.ether_ip_restriction_map == {"d1_eth": True}
+    # name registered so flows can reference the secure entity
+    env.ngpf.api.ixn_objects.set.assert_called_with("d1_secy", node)
+
+
+# U2 / U3 / U4: cipher suites, SAK pools
+
+
+@pytest.mark.parametrize(
+    "cipher,enum,attr,xpn",
+    [
+        ("gcm_aes_128", "aes128", "Sak128", False),
+        ("gcm_aes_256", "aes256", "Sak256", False),
+        ("gcm_aes_xpn_128", "aesxpn128", "Sak128", True),
+        ("gcm_aes_xpn_256", "aesxpn256", "Sak256", True),
+    ],
+)
+def test_cipher_suites_and_sak_attributes(cipher, enum, attr, xpn):
+    env = _Env()
+    env.device("d1", cipher=cipher)
+    env.build()
+    node = env.node("d1")
+    assert _value(node, "cipherSuite") == enum
+    for direction in ("tx", "rx"):
+        pool = node[direction + "SakPool"][0]
+        assert direction + attr in pool
+        other = "Sak256" if attr == "Sak128" else "Sak128"
+        assert direction + other not in pool
+        assert (direction + "Ssci" in pool) is xpn
+        assert (direction + "Salt" in pool) is xpn
+
+
+def test_rx_secure_channel_dut_sci_mapped():
+    env = _Env()
+    device = env.device("d1")
+    rxsc = device.macsec.ethernet_interfaces[
+        0
+    ].secure_entity.key_generation_protocol.static_key.rx.secure_channels[0]
+    rxsc.dut_sci_system_id = "00:00:00:00:00:22"
+    rxsc.dut_sci_port_id = 7
+    env.build()
+    node = env.node("d1")
+    assert _value(node, "dutSciMac") == "00:00:00:00:00:22"
+    assert _value(node, "dutSciPortId") == 7
+
+
+# U15: encrypt_decrypt + none -> staticMacsec, stateful
+
+
+def test_encrypt_decrypt_none_uses_static_macsec_stateful():
+    env = _Env()
+    device = env.device("d1", engine="encrypt_decrypt")
+    tx_pn = device.macsec.ethernet_interfaces[
+        0
+    ].secure_entity.data_plane.encapsulation.crypto_engine.encrypt_decrypt.tx_pn
+    tx_pn.starting_pn = 5
+    tx_pn.starting_xpn = "0000000000000009"
+    env.build()
+    eth = env.ixn_ethernets["d1_eth"]
+    assert "macsec" not in eth
+    node = env.node("d1")
+    assert node["encryptedTrafficType"] == "statefulL47"
+    assert _value(node, "startingPn") == 5
+    assert _value(node, "startingXpn") == "0000000000000009"
+    assert "sourceIp" not in node and "dutMac" not in node
+    assert env.ngpf.ether_ip_restriction_map == {}
+
+
+def _hw_crypto(device):
+    return device.macsec.ethernet_interfaces[
+        0
+    ].secure_entity.data_plane.encapsulation
+
+
+# Hardware (inline crypto) engine
+
+
+def test_inline_crypto_builds_macsec_node_not_static_macsec():
+    env = _Env()
+    device = env.device("d1", engine="inline_crypto")
+    tx_pn = _hw_crypto(device).crypto_engine.encrypt_decrypt.tx_pn
+    tx_pn.starting_pn = 5
+    tx_pn.starting_xpn = "0000000000000009"
+    env.build()
+    eth = env.ixn_ethernets["d1_eth"]
+    assert "staticMacsec" not in eth
+    node = env.node("d1", "macsec")
+    assert "encryptedTrafficType" not in node
+    assert _value(node, "cipherSuite") == "aes128"
+    assert _value(node, "startingPn") == 5
+    assert _value(node, "startingXpn") == "0000000000000009"
+    assert "sourceIp" not in node and "dutMac" not in node
+    assert env.ngpf.ether_ip_restriction_map == {}
+    env.ngpf.api.ixn_objects.set.assert_called_with("d1_secy", node)
+
+
+@pytest.mark.parametrize(
+    "cipher,attr,xpn",
+    [
+        ("gcm_aes_128", "Sak128", False),
+        ("gcm_aes_256", "Sak256", False),
+        ("gcm_aes_xpn_128", "Sak128", True),
+        ("gcm_aes_xpn_256", "Sak256", True),
+    ],
+)
+def test_inline_crypto_sak_pools(cipher, attr, xpn):
+    env = _Env()
+    env.device("d1", engine="inline_crypto", cipher=cipher)
+    env.build()
+    node = env.node("d1", "macsec")
+    assert node["txSakPoolSize"] == 3 and node["rxSakPoolSize"] == 3
+    for direction in ("tx", "rx"):
+        pool = node[direction + "SakPool"][0]
+        assert direction + attr in pool
+        assert (direction + "Ssci" in pool) is xpn
+
+
+def test_inline_crypto_replay_window_mapped_without_ignored_warning():
+    env = _Env()
+    device = env.device("d1", engine="inline_crypto")
+    _hw_crypto(device).rx.replay_window = 64
+    env.build()
+    assert _value(env.node("d1", "macsec"), "replayWindowSize") == 64
+    env.logger.warning.assert_not_called()
+
+
+def test_inline_crypto_replay_protection_reported_as_per_port():
+    env = _Env()
+    device = env.device("d1", engine="inline_crypto")
+    _hw_crypto(device).rx.replay_protection = True
+    env.build()
+    assert env.logger.warning.call_count == 0
+    assert "replayProtection" not in env.node("d1", "macsec")
+
+
+@pytest.mark.parametrize(
+    "choice,mode,behaviour",
+    [
+        ("dont_rekey", "timerBased", "dontRekey"),
+        ("pn_based", "pnBased", "rekeyContinuous"),
+    ],
+)
+def test_inline_crypto_rekey_mode(choice, mode, behaviour):
+    env = _Env()
+    device = env.device("d1", engine="inline_crypto")
+    key = device.macsec.ethernet_interfaces[0].secure_entity
+    key.key_generation_protocol.static_key.tx.rekey_mode.choice = choice
+    env.build()
+    node = env.node("d1", "macsec")
+    assert node["rekeyMode"] == mode
+    assert node["rekeyBehaviour"] == behaviour
+
+
+def test_inline_crypto_timer_based_rekey():
+    env = _Env()
+    device = env.device("d1", engine="inline_crypto")
+    rekey = device.macsec.ethernet_interfaces[
+        0
+    ].secure_entity.key_generation_protocol.static_key.tx.rekey_mode
+    rekey.choice = "timer_based"
+    rekey.timer_based.choice = "fixed_count"
+    rekey.timer_based.fixed_count = 3
+    rekey.timer_based.interval = 60
+    env.build()
+    node = env.node("d1", "macsec")
+    assert node["rekeyMode"] == "timerBased"
+    assert node["rekeyBehaviour"] == "rekeyFixedCount"
+    assert node["periodicRekeyAttempts"] == 3
+    assert node["periodicRekeyInterval"] == 60
+
+
+def test_inline_crypto_with_mka_writes_no_sak_pools():
+    env = _Env()
+    device = env.device("d1", engine="inline_crypto", key="mka")
+    macsec = env.macsec()
+    macsec._mka = MagicMock()
+    macsec.config(device)
+    node = env.node("d1", "macsec")
+    assert "txSakPool" not in node and "rxSakPool" not in node
+    macsec._mka.config.assert_called_once_with(device)
+
+
+def test_inline_crypto_end_station_and_sci():
+    env = _Env()
+    device = env.device("d1", engine="inline_crypto")
+    tx = _hw_crypto(device).tx
+    tx.end_station = True
+    tx.include_sci = True
+    env.build()
+    node = env.node("d1", "macsec")
+    assert _value(node, "endStation") is True
+    assert _value(node, "includeSci") is True
+
+
+def test_software_and_hardware_in_different_devices_accepted():
+    env = _Env()
+    env.device("d1", engine="encrypt_only", port="p1")
+    env.device("d2", engine="inline_crypto", port="p1")
+    Macsec.validate_config(env.config)
+    env.build()
+    assert "staticMacsec" in env.ixn_ethernets["d1_eth"]
+    assert "macsec" in env.ixn_ethernets["d2_eth"]
+
+
+def test_software_and_hardware_in_one_device_rejected():
+    env = _Env()
+    device = env.device("d1", engine="encrypt_decrypt")
+    eth2 = device.ethernets.add()
+    eth2.name = "d1_eth2"
+    eth2.connection.port_name = "p1"
+    iface2 = device.macsec.ethernet_interfaces.add()
+    iface2.eth_name = eth2.name
+    iface2.secure_entity.name = "d1_secy2"
+    env.configure(
+        iface2.secure_entity, "inline_crypto", "static_key", "gcm_aes_128"
+    )
+    with pytest.raises(SnappiIxnException) as excinfo:
+        Macsec.validate_config(env.config)
+    assert _status(excinfo) == 400
+
+
+def test_inline_crypto_sak_length_checked():
+    env = _Env()
+    env.device("d1", engine="inline_crypto", sak=SAK256)
+    with pytest.raises(SnappiIxnException) as excinfo:
+        env.build()
+    assert _status(excinfo) == 400
+
+
+# U27: encrypt_only options
+
+
+def test_encrypt_only_send_gratuitous_arp_mapped():
+    env = _Env()
+    device = env.device("d1")
+    (
+        device.macsec.ethernet_interfaces[
+            0
+        ].secure_entity.data_plane.encapsulation.crypto_engine.encrypt_only.traffic_options.send_gratuitous_arp
+    ) = False
+    env.build()
+    assert env.node("d1")["sendGratArp"] is False
+
+
+# U14 / U14b: no_encapsulation
+
+
+def test_no_encapsulation_with_mka_builds_no_macsec_node():
+    env = _Env()
+    device = env.device("d1", key="mka")
+    secy = device.macsec.ethernet_interfaces[0].secure_entity
+    secy.data_plane.choice = "no_encapsulation"
+    macsec = env.macsec()
+    macsec._mka = MagicMock()
+    macsec.config(device)
+    assert env.ixn_ethernets == {}
+    macsec._mka.config.assert_called_once_with(device)
+
+
+def test_no_encapsulation_with_static_key_is_rejected():
+    env = _Env()
+    device = env.device("d1")
+    device.macsec.ethernet_interfaces[0].secure_entity.data_plane.choice = (
+        "no_encapsulation"
+    )
+    with pytest.raises(SnappiIxnException) as excinfo:
+        env.build()
+    assert _status(excinfo) == 400
+
+
+# U16: empty secure channels / SAKs
+
+
+def test_empty_secure_channels_rejected_not_index_error():
+    env = _Env()
+    device = env.device("d1")
+    static_key = device.macsec.ethernet_interfaces[
+        0
+    ].secure_entity.key_generation_protocol.static_key
+    static_key.tx.secure_channels.clear()
+    with pytest.raises(SnappiIxnException) as excinfo:
+        env.build()
+    assert _status(excinfo) == 400
+    assert "secure_channels" in str(excinfo.value)
+
+
+def test_missing_saks_rejected():
+    env = _Env()
+    device = env.device("d1")
+    static_key = device.macsec.ethernet_interfaces[
+        0
+    ].secure_entity.key_generation_protocol.static_key
+    static_key.rx.secure_channels[0].saks.clear()
+    with pytest.raises(SnappiIxnException) as excinfo:
+        env.build()
+    assert _status(excinfo) == 400
+
+
+# U21: SAK length against cipher suite
+
+
+@pytest.mark.parametrize(
+    "cipher,sak",
+    [
+        ("gcm_aes_128", SAK256),
+        ("gcm_aes_xpn_128", SAK256),
+        ("gcm_aes_256", SAK128),
+        ("gcm_aes_xpn_256", SAK128),
+    ],
+)
+def test_sak_length_must_match_cipher_suite(cipher, sak):
+    env = _Env()
+    env.device("d1", cipher=cipher, sak=sak)
+    with pytest.raises(SnappiIxnException) as excinfo:
+        env.build()
+    assert _status(excinfo) == 400
+    assert "hex digits" in str(excinfo.value)
+
+
+def test_sak_with_0x_prefix_accepted():
+    env = _Env()
+    env.device("d1", sak="0x" + SAK128)
+    env.build()
+
+
+# U22: pn_based rekey on software
+
+
+@pytest.mark.parametrize("engine", ["encrypt_only", "encrypt_decrypt"])
+def test_pn_based_rekey_rejected_on_software(engine):
+    env = _Env()
+    device = env.device("d1", engine=engine)
+    (
+        device.macsec.ethernet_interfaces[
+            0
+        ].secure_entity.key_generation_protocol.static_key.tx.rekey_mode
+    ).choice = "pn_based"
+    with pytest.raises(SnappiIxnException) as excinfo:
+        env.build()
+    assert _status(excinfo) == 400
+    assert "pn_based" in str(excinfo.value)
+
+
+def test_timer_based_rekey_mapped():
+    env = _Env()
+    device = env.device("d1")
+    rekey = device.macsec.ethernet_interfaces[
+        0
+    ].secure_entity.key_generation_protocol.static_key.tx.rekey_mode
+    rekey.choice = "timer_based"
+    rekey.timer_based.choice = "fixed_count"
+    rekey.timer_based.fixed_count = 3
+    rekey.timer_based.interval = 60
+    env.build()
+    node = env.node("d1")
+    assert node["rekeyBehaviour"] == "rekeyFixedCount"
+    assert node["periodicRekeyAttempts"] == 3
+    assert node["periodicRekeyInterval"] == 60
+
+
+# U23: replay settings are warned about and not written
+
+
+def test_replay_settings_warn_and_are_not_written():
+    env = _Env()
+    device = env.device("d1")
+    rx = device.macsec.ethernet_interfaces[
+        0
+    ].secure_entity.data_plane.encapsulation.rx
+    rx.replay_protection = True
+    rx.replay_window = 32
+    env.build()
+    assert env.logger.warning.call_count == 2
+    node = env.node("d1")
+    assert "replayWindowSize" not in node and "replayProtection" not in node
+
+
+# U17: per secure entity dispatch (B1, B2)
+
+
+def test_dynamic_key_is_decided_per_secure_entity():
+    env = _Env()
+    device = env.device("d1")
+    # second interface on the same device uses MKA (no static SAK pools)
+    eth2 = device.ethernets.add()
+    eth2.name = "d1_eth2"
+    eth2.connection.port_name = "p1"
+    iface2 = device.macsec.ethernet_interfaces.add()
+    iface2.eth_name = eth2.name
+    iface2.secure_entity.name = "d1_secy2"
+    env.configure(iface2.secure_entity, "encrypt_only", "mka")
+    macsec = env.macsec()
+    macsec._mka = MagicMock()
+    macsec.config(device)
+    first = env.ixn_ethernets["d1_eth"]["staticMacsec"][0]
+    second = env.ixn_ethernets["d1_eth2"]["staticMacsec"][0]
+    assert "txSakPool" in first
+    assert "txSakPool" not in second
+
+
+def test_every_interface_is_checked_for_data_plane():
+    env = _Env()
+    device = env.device("d1", key="mka")
+    device.macsec.ethernet_interfaces[0].secure_entity.data_plane.choice = (
+        "no_encapsulation"
+    )
+    eth2 = device.ethernets.add()
+    eth2.name = "d1_eth2"
+    eth2.connection.port_name = "p1"
+    ip = eth2.ipv4_addresses.add()
+    ip.name, ip.address = "d1_ip2", "1.1.1.2"
+    ip.gateway_mac.value = "00:00:00:00:00:22"
+    iface2 = device.macsec.ethernet_interfaces.add()
+    iface2.eth_name = eth2.name
+    iface2.secure_entity.name = "d1_secy2"
+    env.configure(iface2.secure_entity, "encrypt_only", "mka")
+    macsec = env.macsec()
+    macsec._mka = MagicMock()
+    macsec.config(device)
+    assert "d1_eth" not in env.ixn_ethernets
+    assert "staticMacsec" in env.ixn_ethernets["d1_eth2"]
+
+
+# U13: conflicting engines / key generation on one device or port
+
+
+def test_mixed_engines_in_one_device_rejected():
+    env = _Env()
+    device = env.device("d1")
+    eth2 = device.ethernets.add()
+    eth2.name = "d1_eth2"
+    eth2.connection.port_name = "p1"
+    iface2 = device.macsec.ethernet_interfaces.add()
+    iface2.eth_name = eth2.name
+    iface2.secure_entity.name = "d1_secy2"
+    env.configure(iface2.secure_entity, "encrypt_decrypt", "static_key")
+    with pytest.raises(SnappiIxnException) as excinfo:
+        Macsec.validate_config(env.config)
+    assert _status(excinfo) == 400
+    assert "d1" in str(excinfo.value)
+
+
+def test_engines_in_different_devices_accepted():
+    env = _Env()
+    env.device("d1", engine="encrypt_only", port="p1")
+    env.device("d2", engine="encrypt_decrypt", port="p1")
+    Macsec.validate_config(env.config)
+
+
+def test_key_generation_mixed_on_one_port_rejected():
+    env = _Env()
+    env.device("d1", key="static_key", port="p1")
+    env.device("d2", key="mka", port="p1")
+    with pytest.raises(SnappiIxnException) as excinfo:
+        Macsec.validate_config(env.config)
+    assert _status(excinfo) == 400
+    assert "p1" in str(excinfo.value)
+
+
+def test_key_generation_on_different_ports_accepted():
+    env = _Env()
+    env.device("d1", key="static_key", port="p1")
+    env.device("d2", key="mka", port="p2")
+    Macsec.validate_config(env.config)
+
+
+# U28: LAG MACsec
+
+
+def test_lag_port_macsec_rejected():
+    config = snappi.Api().config()
+    lag = config.lags.add()
+    lag.name = "lag1"
+    lag_port = lag.ports.add()
+    lag_port.port_name = "p1"
+    lag_port.macsec.secure_entity.name = "lag_secy"
+    with pytest.raises(SnappiIxnException) as excinfo:
+        Macsec.validate_config(config)
+    assert _status(excinfo) == 400
+
+
+def test_lag_without_macsec_accepted():
+    config = snappi.Api().config()
+    lag = config.lags.add()
+    lag.name = "lag1"
+    lag.ports.add().port_name = "p1"
+    Macsec.validate_config(config)
+
+
+# U24: MKA key source
+
+
+def test_mka_msk_key_source_rejected():
+    from snappi_ixnetwork.device.mka import Mka
+
+    # snappi 1.61.0 only models psk, so the msk choice is faked
+    kay = MagicMock()
+    kay.get.side_effect = lambda name: {
+        "basic": MagicMock(key_source=MagicMock(choice="msk")),
+        "tx": MagicMock(),
+    }[name]
+    with pytest.raises(SnappiIxnException) as excinfo:
+        Mka(MagicMock())._is_valid("d1_eth", kay)
+    assert _status(excinfo) == 400
+    assert "msk" in str(excinfo.value)
+
+
+def test_mka_psk_key_source_accepted():
+    from snappi_ixnetwork.device.mka import Mka
+
+    env = _Env()
+    device = env.device("d1", key="mka")
+    kay = device.macsec.ethernet_interfaces[
+        0
+    ].secure_entity.key_generation_protocol.mka
+    kay.basic.key_source.choice = "psk"
+    kay.basic.key_source.psks.add()
+    kay.tx.secure_channels.add()
+    assert Mka(MagicMock())._is_valid("d1_eth", kay) is True
+
+
+# VLAN options (both engines): enableClearTextVlans is a plain bool, the
+# inverse of encrypt_interface_vlans
+
+
+@pytest.mark.parametrize("engine", ["encrypt_only", "inline_crypto"])
+@pytest.mark.parametrize("encrypt,clear_text", [(True, False), (False, True)])
+def test_vlan_options_map_to_enable_clear_text_vlans(
+    engine, encrypt, clear_text
+):
+    env = _Env()
+    device = env.device("d1", engine=engine)
+    vlan_options = _hw_crypto(device).vlan_options
+    vlan_options.encrypt_interface_vlans = encrypt
+    env.build()
+    kind = "macsec" if engine == "inline_crypto" else "staticMacsec"
+    assert env.node("d1", kind)["enableClearTextVlans"] is clear_text
+
+
+def test_mka_macsec_capability_enum_values_exist_in_ixnetwork():
+    from snappi_ixnetwork.device.mka import Mka
+
+    # values read from IxNetwork 10.80 (mka.MacsecCapability enum)
+    allowed = {
+        "macsecnotimplemented",
+        "macsecintegritywithoutconfidentiality",
+        "macsecintegritywithnoconfidentialityoffset",
+        "macsecintegritywithconfidentialityoffset",
+    }
+    mapped = Mka._BASIC["macsec_capability"]["enum_map"].values()
+    assert set(mapped) == allowed

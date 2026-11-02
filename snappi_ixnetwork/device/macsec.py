@@ -1,4 +1,6 @@
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.device import macsec_hw
+from snappi_ixnetwork.device.macsec_hw import MacsecHw
 from snappi_ixnetwork.device.mka import Mka
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.logger import get_ixnet_logger
@@ -70,6 +72,7 @@ class Macsec(Base):
             "pn_based": False,
             "replay": False,
         },
+        macsec_hw.ENGINE_KEY: macsec_hw.ENGINE,
     }
 
     _SAK_HEX_LENGTH = {
@@ -83,6 +86,7 @@ class Macsec(Base):
         super(Macsec, self).__init__()
         self._ngpf = ngpf
         self._mka = Mka(ngpf)
+        self._hw = MacsecHw()
         self.logger = get_ixnet_logger(__name__)
 
     @staticmethod
@@ -183,11 +187,7 @@ class Macsec(Base):
             if acceleration.choice == "none":
                 return "encrypt_decrypt_none"
             if acceleration.choice == "inline_crypto":
-                raise SnappiIxnException(
-                    400,
-                    "Secure entity %s: hardware_acceleration inline_crypto "
-                    "is not supported yet" % name,
-                )
+                return macsec_hw.ENGINE_KEY
             raise SnappiIxnException(
                 400,
                 "Secure entity %s: unknown hardware_acceleration choice %s"
@@ -396,17 +396,17 @@ class Macsec(Base):
             ixn_node["encryptedTrafficType"] = descriptor["traffic_type"]
         self._ngpf.set_device_info(secy, ixn_node)
         if not self._secy_is_dynamic_key(ethernet_interface):
-            self._config_static_key(secy, ixn_node)
+            self._config_static_key(secy, ixn_node, descriptor)
         self._config_data_plane(device, ethernet_interface, ixn_node, engine)
 
-    def _config_static_key(self, secy, ixn_node):
+    def _config_static_key(self, secy, ixn_node, descriptor):
         self.logger.debug("Configuring static key")
         key_generation_protocol = secy.get("key_generation_protocol")
         static_key = key_generation_protocol.get("static_key")
         if static_key is None:
             return
         self._config_static_key_cipher(static_key, ixn_node)
-        self._config_static_key_tx(static_key, ixn_node)
+        self._config_static_key_tx(static_key, ixn_node, descriptor)
         self._config_static_key_rx(static_key, ixn_node)
 
     def _config_static_key_cipher(self, static_key, ixn_node):
@@ -420,9 +420,23 @@ class Macsec(Base):
         if encapsulation is None:
             return
         self._config_data_plane_tx(encapsulation, ixn_node)
+        self._config_vlan_options(encapsulation, ixn_node)
+        if Macsec._ENGINES[engine]["replay"]:
+            self._hw.config_replay(secy, encapsulation, ixn_node)
         self._config_crypto_engine(
             device, ethernet_interface, ixn_node, engine
         )
+
+    def _config_vlan_options(self, encapsulation, ixn_node):
+        """encrypt_interface_vlans false sends the Ethernet VLANs as clear
+        text before the SecTAG. IxNetwork's enableClearTextVlans is a plain
+        bool whose default (false) means encrypted VLANs."""
+        vlan_options = encapsulation.get("vlan_options")
+        if vlan_options is None:
+            return
+        encrypt = vlan_options.get("encrypt_interface_vlans")
+        if encrypt is not None:
+            ixn_node["enableClearTextVlans"] = not encrypt
 
     def _config_data_plane_tx(self, encapsulation, ixn_node):
         self.logger.debug("Configuring data plane Tx properties")
@@ -444,7 +458,7 @@ class Macsec(Base):
             self._config_crypto_engine_encrypt_only(
                 device, ethernet_interface, ixn_node
             )
-        elif engine == "encrypt_decrypt_none":
+        elif Macsec._ENGINES[engine]["tx_pn"] == "single":
             self._config_crypto_engine_encrypt_decrypt(
                 crypto_engine.encrypt_decrypt, ixn_node
             )
@@ -457,13 +471,16 @@ class Macsec(Base):
             tx_pn, ixn_node, Macsec._ENCRYPT_DECRYPT_TX_PN
         )
 
-    def _config_static_key_tx(self, static_key, ixn_node):
+    def _config_static_key_tx(self, static_key, ixn_node, descriptor):
         self.logger.debug("Configuring Tx properties for static key")
         tx = static_key.get("tx")
         if tx is None:
             return
         self._config_static_key_txsc(static_key, ixn_node)
-        self._config_rekey_mode(tx.rekey_mode, ixn_node)
+        if descriptor["pn_based"]:
+            self._hw.config_rekey_mode(tx.rekey_mode, ixn_node)
+        else:
+            self._config_rekey_mode(tx.rekey_mode, ixn_node)
 
     def _config_static_key_rx(self, static_key, ixn_node):
         self.logger.debug("Configuring Rx properties for static key")

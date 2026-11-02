@@ -17,7 +17,7 @@ class Mka(Base):
             "enum_map": {
                 "macsec_not_implemented": "macsecnotimplemented",
                 "macsec_integrity_without_confidentiality": "macsecintegritywithoutconfidentiality",
-                "macsec_integrity_with_no_confidentiality_offset": "acsecintegritywithnoconfidentialityoffset",
+                "macsec_integrity_with_no_confidentiality_offset": "macsecintegritywithnoconfidentialityoffset",
                 "macsec_integrity_with_confidentiality_offset": "macsecintegritywithconfidentialityoffset",
             },
         },
