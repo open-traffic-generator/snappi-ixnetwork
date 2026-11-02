@@ -30,7 +30,7 @@ class Bgp(Base):
         "vpls": "capabilityVpls",
         "route_refresh": "capabilityRouteRefresh",
         "route_constraint": "capabilityRouteConstraint",
-        "ink_state_non_vpn": "capabilityLinkStateNonVpn",
+        "link_state_non_vpn": "capabilityLinkStateNonVpn",
         "link_state_vpn": "capabilityLinkStateVpn",
         "evpn": "evpn",
         "ipv4_multicast_vpn": "capabilityIpV4MulticastVpn",
