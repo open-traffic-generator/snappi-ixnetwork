@@ -304,7 +304,6 @@ class Macsec(Base):
         ixn_rx_sak_pool = self.create_node_elemet(
             ixn_staticmacsec, "rxSakPool", name=None
         )
-        static_key = secy.get("static_key")
         cipher_suite = static_key.cipher_suite
         if cipher_suite == "gcm_aes_128" or cipher_suite == "gcm_aes_xpn_128":
             ixn_rx_sak_pool["rxSak128"] = self.multivalue(saks)
