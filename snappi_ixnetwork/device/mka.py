@@ -1,4 +1,5 @@
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.logger import get_ixnet_logger
 
 
@@ -86,25 +87,26 @@ class Mka(Base):
                 psks = key_src.psks
                 if len(psks) == 0:
                     self._ngpf.api.add_error(
-                        "No PSK added".format(name=ethernet_name)
+                        "No PSK added on ethernet %s" % ethernet_name
                     )
                     is_valid = False
             else:
-                self._ngpf.api.add_error(
-                    "Key source other than PSK set".format(name=ethernet_name)
+                raise SnappiIxnException(
+                    400,
+                    "Ethernet %s: MKA key_source %s is not supported, only "
+                    "psk is" % (ethernet_name, key_src.choice),
                 )
-                is_valid = False
             # Validate TxSC properties
             tx = kay.get("tx")
             txscs = tx.get("secure_channels")
             if len(txscs) == 0:
                 self._ngpf.api.add_error(
-                    "No TxSC added".format(name=ethernet_name)
+                    "No TxSC added on ethernet %s" % ethernet_name
                 )
                 is_valid = False
             elif len(txscs) > 1:
                 self._ngpf.api.add_error(
-                    "More than one TxSC added".format(name=ethernet_name)
+                    "More than one TxSC added on ethernet %s" % ethernet_name
                 )
                 is_valid = False
         if is_valid == True:
