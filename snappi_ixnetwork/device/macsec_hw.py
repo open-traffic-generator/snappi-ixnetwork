@@ -11,6 +11,7 @@ The hardware engine is the NGPF ``macsec`` node, selected by
 """
 
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.device.utils import items
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.logger import get_ixnet_logger
 
@@ -115,15 +116,15 @@ class MacsecHw(Base):
     def _secys_per_port(config):
         """port name -> list of inline crypto secure entities on the port"""
         ports = {}
-        for device in config.devices:
+        for device in items(config.devices):
             macsec = device.get("macsec")
             if macsec is None:
                 continue
             ethernets = {
                 ethernet.get("name"): ethernet
-                for ethernet in device.get("ethernets") or []
+                for ethernet in items(device.get("ethernets"))
             }
-            for iface in macsec.get("ethernet_interfaces") or []:
+            for iface in items(macsec.get("ethernet_interfaces")):
                 secy = iface.get("secure_entity")
                 if secy is None or not MacsecHw.is_inline_crypto(secy):
                     continue
@@ -147,8 +148,8 @@ class MacsecHw(Base):
         result = {}
         if options is None:
             return result
-        for per_port in options.per_port_options:
-            for protocol in per_port.protocols:
+        for per_port in items(options.per_port_options):
+            for protocol in items(per_port.protocols):
                 # iterating yields the object of the choice, as for flow
                 # headers
                 if protocol.parent.choice == "macsec":

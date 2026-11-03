@@ -1,4 +1,5 @@
 from snappi_ixnetwork.device import macsec_hw
+from snappi_ixnetwork.device.utils import items
 from snappi_ixnetwork.device.macsec import Macsec
 from snappi_ixnetwork.timer import Timer
 import time
@@ -633,7 +634,7 @@ class ProtocolMetrics(object):
         different views, so query only the ones that the requested devices
         use."""
         keys = []
-        for device in self._api.snappi_config.devices:
+        for device in items(self._api.snappi_config.devices):
             if len(self.device_names) > 0 and (
                 device.get("name") not in self.device_names
             ):
@@ -641,7 +642,7 @@ class ProtocolMetrics(object):
             macsec = device.get("macsec")
             if macsec is None:
                 continue
-            for iface in macsec.get("ethernet_interfaces") or []:
+            for iface in items(macsec.get("ethernet_interfaces")):
                 secy = iface.get("secure_entity")
                 if secy is None:
                     continue

@@ -1,4 +1,5 @@
 from snappi_ixnetwork.device.base import Base
+from snappi_ixnetwork.device.utils import items
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.logger import get_ixnet_logger
 
@@ -79,15 +80,15 @@ class Mka(Base):
     def _instances(config):
         """(port name, kay) of every MKA instance, in configuration order"""
         instances = []
-        for device in config.devices:
+        for device in items(config.devices):
             macsec = device.get("macsec")
             if macsec is None:
                 continue
             ethernets = {
                 ethernet.get("name"): ethernet
-                for ethernet in device.get("ethernets") or []
+                for ethernet in items(device.get("ethernets"))
             }
-            for iface in macsec.get("ethernet_interfaces") or []:
+            for iface in items(macsec.get("ethernet_interfaces")):
                 secy = iface.get("secure_entity")
                 if secy is None:
                     continue

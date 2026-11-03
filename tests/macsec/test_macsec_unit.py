@@ -82,6 +82,7 @@ class _Env(object):
     def macsec(self):
         ngpf = Ngpf.__new__(Ngpf)
         ngpf.api = MagicMock()
+        ngpf.api.snappi_config = self.config
         ngpf.logger = MagicMock()
         ngpf.ether_ip_restriction_map = {}
         ngpf.api.ixn_objects.get_working_dg.return_value = {"name": "dg"}
@@ -957,3 +958,26 @@ def test_engines_on_port():
         "encrypt_decrypt_none"
     }
     assert Macsec.engines_on_port(env.config, "p3") == set()
+
+
+def test_every_device_is_built_when_helpers_iterate_the_config():
+    """snappi lists share one iteration index: a helper that iterates
+    config.devices while the build loop does the same ends that loop after
+    the first device. Mka._config_test_start_time does, via
+    Mka.first_test_start_time."""
+    env = _Env()
+    for name in ("d1", "d2", "d3"):
+        device = env.device(name, engine="inline_crypto", key="mka")
+        kay = device.macsec.ethernet_interfaces[
+            0
+        ].secure_entity.key_generation_protocol.mka
+        kay.name = "mka_" + name
+        kay.basic.key_source.choice = "psk"
+        psk = kay.basic.key_source.psks.add()
+        psk.cak_name, psk.cak_value = "F" * 64, "F" * 32
+        kay.tx.secure_channels.add().name = "txsc_" + name
+        _set_utc(kay.basic, 5)
+    env.build()
+    for name in ("d1", "d2", "d3"):
+        eth = env.ixn_ethernets[name + "_eth"]
+        assert "macsec" in eth and "mka" in eth, name

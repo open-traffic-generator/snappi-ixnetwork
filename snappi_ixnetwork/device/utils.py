@@ -44,3 +44,14 @@ def hex_to_ipv4(hex_value):
     bytes = ["".join(x) for x in zip(*[iter(hex_value)] * 2)]
     bytes = [int(x, 16) for x in bytes]
     return ".".join(str(x) for x in reversed(bytes))
+
+
+def items(snappi_list):
+    """The items of a snappi list, by index. Iterating a snappi list uses one
+    index stored on the list itself, so a nested iteration over the same
+    list ends the outer loop early. Use this in code that can run while
+    the configuration is being iterated."""
+    if snappi_list is None:
+        return []
+    return [snappi_list[i] for i in range(len(snappi_list))]
+
