@@ -224,6 +224,27 @@ def test_inline_crypto_builds_macsec_node_not_static_macsec():
 
 
 @pytest.mark.parametrize(
+    "engine,moved",
+    [("inline_crypto", True), ("encrypt_decrypt", False), ("encrypt_only", False)],
+)
+def test_ip_stacked_under_hardware_node_only(engine, moved):
+    env = _Env()
+    env.device("d1", engine=engine)
+    ip = {"xpath": "", "name": "d1_ip"}
+    ip6 = {"xpath": "", "name": "d1_ip6"}
+    env.ixn_ethernets["d1_eth"] = {"xpath": "", "ipv4": [ip], "ipv6": [ip6]}
+    env.build()
+    eth = env.ixn_ethernets["d1_eth"]
+    if moved:
+        node = env.node("d1", "macsec")
+        assert node["ipv4"] == [ip] and node["ipv4"][0] is ip
+        assert node["ipv6"] == [ip6]
+        assert "ipv4" not in eth and "ipv6" not in eth
+    else:
+        assert eth["ipv4"] == [ip] and eth["ipv6"] == [ip6]
+
+
+@pytest.mark.parametrize(
     "cipher,attr,xpn",
     [
         ("gcm_aes_128", "Sak128", False),

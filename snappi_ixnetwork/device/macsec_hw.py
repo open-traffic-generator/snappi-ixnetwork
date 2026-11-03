@@ -22,6 +22,8 @@ ENGINE = {
     "tx_pn": "single",
     "pn_based": True,
     "replay": True,
+    # IPv4/IPv6 must sit on the macsec node, or flows bypass the SecY
+    "ip_under_node": True,
 }
 
 

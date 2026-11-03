@@ -102,6 +102,9 @@ class TrafficItem(CustomField):
         "vxlan": "vxlan",
         "ethernetARP": "arp",
         "macsec": "macsec",
+        # added by IxNetwork for flows over a hardware MACsec SecY, there is
+        # no snappi header for it
+        "MacsecHw": "MacsecHw",
         "payloadProtocolType": "payloadProtocolType",
         "icmpv2": "icmp",
         "icmpv6": "icmpv6",
@@ -126,6 +129,7 @@ class TrafficItem(CustomField):
         "vxlan": "vxlan",
         "arp": "ethernetARP",
         "macsec": "macsec",
+        "MacsecHw": "MacsecHw",
         "payloadProtocolType": "payloadProtocolType",
         "icmp": "icmpv2",
         "icmpv6": "icmpv6",
@@ -1963,7 +1967,7 @@ class TrafficItem(CustomField):
                 raise SnappiIxnException("400", msg)
             index = "%s-%s" % (ixn_header_name, index + 1)
             xpath = "%s = '%s']" % (ce_path, index)
-            if stack == "payloadProtocolType":
+            if stack in ("payloadProtocolType", "MacsecHw"):
                 self._append_header(xpath, stacks)
             elif stack in snappi_stack_names:
                 # Find the first unconsumed snappi_packet entry with this choice

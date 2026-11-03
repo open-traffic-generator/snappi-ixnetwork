@@ -395,9 +395,21 @@ class Macsec(Base):
         if descriptor["traffic_type"] is not None:
             ixn_node["encryptedTrafficType"] = descriptor["traffic_type"]
         self._ngpf.set_device_info(secy, ixn_node)
+        if descriptor.get("ip_under_node"):
+            self._move_ip_under_node(ixn_ethernet, ixn_node)
         if not self._secy_is_dynamic_key(ethernet_interface):
             self._config_static_key(secy, ixn_node, descriptor)
         self._config_data_plane(device, ethernet_interface, ixn_node, engine)
+
+    def _move_ip_under_node(self, ixn_ethernet, ixn_node):
+        """The hardware engine only protects traffic of the IP interfaces
+        stacked on its node, so move the Ethernet's IPv4/IPv6 there. The
+        elements keep their identity, so registered names and anything built
+        on top of them (BGP, ...) follow."""
+        for ip_node in ("ipv4", "ipv6"):
+            elements = ixn_ethernet.pop(ip_node, None)
+            if elements is not None:
+                ixn_node.setdefault(ip_node, []).extend(elements)
 
     def _config_static_key(self, secy, ixn_node, descriptor):
         self.logger.debug("Configuring static key")
