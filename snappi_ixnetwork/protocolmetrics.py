@@ -1,3 +1,6 @@
+from snappi_ixnetwork.device import macsec_hw
+from snappi_ixnetwork.device.utils import items
+from snappi_ixnetwork.device.macsec import Macsec
 from snappi_ixnetwork.timer import Timer
 import time
 
@@ -79,6 +82,30 @@ class ProtocolMetrics(object):
             ("in_pkts_untagged", "Non-MACsec Packet Rx", int),
             ("out_octets_protected", "Tx Bytes Protected", int),
             ("out_octets_encrypted", "Tx Bytes Encrypted", int),
+            ("in_octets_validated", "Rx Bytes Validated", int),
+            ("in_octets_decrypted", "Rx Bytes Decrypted", int),
+        ],
+        # hardware (inline crypto) MACsec views only count receive side
+        # packets and bytes, the remaining OTG fields are reported as 0
+        "macsec_hw": [
+            ("name", "Device Group", str),
+            ("session_state", "Status", str),
+            ("session_flap_count", "Flap Count", int),
+            ("out_pkts_protected", "Protected Packet Tx", int, True),
+            ("out_pkts_encrypted", "Encrypted Packet Tx", int, True),
+            ("in_pkts_ok", "Valid Packet Rx", int),
+            ("in_pkts_bad", "Bad Packet Rx", int),
+            ("in_pkts_bad_tag", "Bad Tag/ICV Discarded", int, True),
+            ("in_pkts_late", "Out of Window Discarded", int, True),
+            ("in_pkts_no_sci", "Unknown SCI Discarded", int, True),
+            ("in_pkts_not_using_sa", "Unused SA Discarded", int, True),
+            ("in_pkts_not_valid", "Invalid ICV Discarded", int),
+            ("in_pkts_unknown_sci", "Unknown SCI Rx", int, True),
+            ("in_pkts_unused_sa", "Unused SA Rx", int, True),
+            ("in_pkts_invalid", "Invalid ICV Accepted", int),
+            ("in_pkts_untagged", "Non-MACsec Packet Rx", int, True),
+            ("out_octets_protected", "Tx Bytes Protected", int, True),
+            ("out_octets_encrypted", "Tx Bytes Encrypted", int, True),
             ("in_octets_validated", "Rx Bytes Validated", int),
             ("in_octets_decrypted", "Rx Bytes Decrypted", int),
         ],
@@ -190,6 +217,15 @@ class ProtocolMetrics(object):
             ],
             "supported_stats": [s[0] for s in _RESULT_COLUMNS["macsec"]],
             "ixn_name": "staticMacsec",
+        },
+        "macsec_hw": {
+            "per_port": "MACsec Per Port",
+            "drill_down": "MACsec Drill Down",
+            "drill_down_options": [
+                "MACsec:Per Session",
+            ],
+            "supported_stats": [s[0] for s in _RESULT_COLUMNS["macsec_hw"]],
+            "ixn_name": "macsec",
         },
         "mka": {
             "per_port": "MKA Per Port",
@@ -409,9 +445,11 @@ class ProtocolMetrics(object):
         row_lst = list()
         for i in indices:
             try:
-                drill = self.ixn.Statistics.View.find(Caption=drill_name)
                 for option in drill_options:
                     self._do_drill_down(v, per_port, i, option)
+                # some drill down views (hardware MACsec) are created by the
+                # drill down, so look them up afterwards
+                drill = self.ixn.Statistics.View.find(Caption=drill_name)
                 self._check_if_page_ready(drill)
             except Exception as e:
                 msg = """
@@ -476,7 +514,7 @@ class ProtocolMetrics(object):
                 row_dt[stat_name] = (
                     0
                     if stat_type.__name__ in ["float", "int"]
-                    else data[ix_name]
+                    else data.get(ix_name, "na")
                 )
 
     def _topo_stats(self, protocol):
@@ -556,4 +594,67 @@ class ProtocolMetrics(object):
             self.columns.append("name") if "name" not in self.columns else None
             self.columns = list(set(self.columns))
         # with Timer(self._api, "Fetching {} Metrics".format(protocol)):
+        if protocol == "macsec":
+            rows = []
+            for key in self._macsec_view_keys():
+                key_rows = self._filter_stats(key)
+                if key == "macsec_hw":
+                    self._fill_session_state(key, key_rows)
+                rows.extend(key_rows)
+            return rows
         return self._filter_stats(protocol)
+
+    def _fill_session_state(self, protocol, rows):
+        """Some IxNetwork builds have no Status column in the hardware
+        MACsec per session view. Derive the state from the session counts of
+        the device group in that case."""
+        missing = [
+            r for r in rows if r.get("session_state") in (None, "na")
+        ]
+        if len(missing) == 0:
+            return
+        device_names = self.device_names
+        self.device_names = []
+        try:
+            topo = {t.get("name"): t for t in self._topo_stats(protocol)}
+        finally:
+            self.device_names = device_names
+        for row in missing:
+            counts = topo.get(row.get("name"))
+            if counts is None:
+                continue
+            total = counts.get("sessions_total", 0)
+            row["session_state"] = (
+                "up" if total > 0 and counts.get("sessions_up") == total
+                else "down"
+            )
+
+    def _macsec_view_keys(self):
+        """The static and the hardware MACsec engines report through
+        different views, so query only the ones that the requested devices
+        use."""
+        keys = []
+        for device in items(self._api.snappi_config.devices):
+            if len(self.device_names) > 0 and (
+                device.get("name") not in self.device_names
+            ):
+                continue
+            macsec = device.get("macsec")
+            if macsec is None:
+                continue
+            for iface in items(macsec.get("ethernet_interfaces")):
+                secy = iface.get("secure_entity")
+                if secy is None:
+                    continue
+                engine = Macsec._engine_for(secy)
+                if engine is None:
+                    continue
+                key = (
+                    "macsec_hw"
+                    if engine == macsec_hw.ENGINE_KEY
+                    else "macsec"
+                )
+                if key not in keys:
+                    keys.append(key)
+        # no MACsec device selected: keep the previous behaviour
+        return keys if len(keys) > 0 else ["macsec"]

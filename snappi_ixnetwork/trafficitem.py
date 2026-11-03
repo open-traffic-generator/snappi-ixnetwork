@@ -4,6 +4,7 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.customfield import CustomField
+from snappi_ixnetwork.device.macsec import Macsec
 from snappi_ixnetwork.device.rocev2 import RoCEv2
 
 
@@ -102,6 +103,9 @@ class TrafficItem(CustomField):
         "vxlan": "vxlan",
         "ethernetARP": "arp",
         "macsec": "macsec",
+        # added by IxNetwork for flows over a hardware MACsec SecY, there is
+        # no snappi header for it
+        "MacsecHw": "MacsecHw",
         "payloadProtocolType": "payloadProtocolType",
         "icmpv2": "icmp",
         "icmpv6": "icmpv6",
@@ -126,6 +130,7 @@ class TrafficItem(CustomField):
         "vxlan": "vxlan",
         "arp": "ethernetARP",
         "macsec": "macsec",
+        "MacsecHw": "MacsecHw",
         "payloadProtocolType": "payloadProtocolType",
         "icmp": "icmpv2",
         "icmpv6": "icmpv6",
@@ -831,6 +836,16 @@ class TrafficItem(CustomField):
                     # 0xPQRS is ethernet type. When MACsec header is the first ethernet type, it is 0x88E5
                     # When clear text VLAN enabled, it is TPID e.g. 0x8810.
                     tr["trafficItem"][-1]["enableMacsecEgressOnlyAutoConfig"] = True
+                    others = Macsec.engines_on_port(
+                        self._api.snappi_config, eotr_port_name
+                    ) - {"encrypt_only"}
+                    if len(others) > 0:
+                        self._api.warning(
+                            "auto_macsec filter on port %s: the signature is "
+                            "specific to encrypt_only devices, but the port "
+                            "has %s secure entities. Their frames are not "
+                            "matched" % (eotr_port_name, ", ".join(sorted(others)))
+                        )
                     self.logger.debug(
                         "Auto MACsec filter. MACsec auto signature is applied as filter for egress only tracking at port %s"
                         % eotr_port_name
@@ -1963,7 +1978,7 @@ class TrafficItem(CustomField):
                 raise SnappiIxnException("400", msg)
             index = "%s-%s" % (ixn_header_name, index + 1)
             xpath = "%s = '%s']" % (ce_path, index)
-            if stack == "payloadProtocolType":
+            if stack in ("payloadProtocolType", "MacsecHw"):
                 self._append_header(xpath, stacks)
             elif stack in snappi_stack_names:
                 # Find the first unconsumed snappi_packet entry with this choice
