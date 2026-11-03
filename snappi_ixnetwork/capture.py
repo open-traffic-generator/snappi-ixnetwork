@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import io
 from snappi_ixnetwork.timer import Timer
@@ -585,7 +586,7 @@ class Capture(object):
         """Gets capture file and returns it as a byte stream"""
         with Timer(self._api, "Captures stop"):
             capture = self._api._vport.find(
-                Name=self._api.special_char(request.port_name)
+                Name="^%s$" % re.escape(request.port_name)
             ).Capture
             capture.Stop("allTraffic")
 
@@ -598,7 +599,7 @@ class Capture(object):
                 port_ready = True
                 time.sleep(3)
                 capture = self._api._vport.find(
-                    Name=self._api.special_char(request.port_name)
+                    Name="^%s$" % re.escape(request.port_name)
                 ).Capture
                 if (
                     capture.HardwareEnabled
