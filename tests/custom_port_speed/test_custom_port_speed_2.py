@@ -13,6 +13,7 @@ def test_custom_port_speed_2(api, utils):
     layer, = config.layer1.layer1(name='layer')
     layer.port_names = [tx.name, rx.name]
     layer.speed = layer.SPEED_100_GBPS
+    layer.mode = layer.MODE_DEFAULT
     layer.media = layer.FIBER
     # configure flow properties
     flw, = config.flows.flow(name='flw')
@@ -54,10 +55,12 @@ def test_custom_port_speed_2(api, utils):
     aggregation = target_card.Aggregation.find()
     current_mode = aggregation.Mode
     
-    # Verify the mode matches the custom_speed configured
+    # Verify the mode matches the speed configured and is not high stream
     expected_mode = "hundredgig"
     assert expected_mode.lower() in current_mode.lower(), \
         f"Expected mode to contain '{expected_mode}' but got '{current_mode}'"
+    assert "highstream" not in current_mode.lower(), \
+        f"Expected default mode but got '{current_mode}'"
     
     print(f"Port speed mode successfully changed to: {current_mode}")
     

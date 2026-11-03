@@ -181,22 +181,29 @@ class ResourceGroup(object):
             current_mode = supported_group["currentSetting"][
                 "resourceGroupMode"
             ]
+            # collect the group modes in which this port is active
+            group_modes = []
             for available_setting in supported_group["availableSettings"]:
                 group_mode = available_setting["resourceGroupMode"]
                 for panel_info in available_setting["panelInfo"]:
-                    for display_name in panel_info["activePortsDisplayNames"]:
-                        if property.port == display_name:
-                            l1_name = property.set_property(
-                                chassis_id,
-                                card,
-                                group_id,
-                                current_mode,
-                                group_mode,
-                            )
-                            if l1_name is not None:
-                                if l1_name not in self.layer1_check:
-                                    self.layer1_check.append(l1_name)
-                                return True
+                    if (
+                        property.port in panel_info["activePortsDisplayNames"]
+                        and group_mode not in group_modes
+                    ):
+                        group_modes.append(group_mode)
+            if len(group_modes) == 0:
+                continue
+            l1_name = property.set_property(
+                chassis_id,
+                card,
+                group_id,
+                current_mode,
+                group_modes,
+            )
+            if l1_name is not None:
+                if l1_name not in self.layer1_check:
+                    self.layer1_check.append(l1_name)
+                return True
         return False
 
 
@@ -207,7 +214,7 @@ class StoreProperty(object):
         self._port = port.lstrip("0")
         self._port_name = port_name
         self._speed = layer1.speed
-        self._speed_mode = layer1.custom_speed
+        self._mode = layer1.get("mode", with_default=True)
         self._l1name = layer1.name
         self._chassis_id = None
         self._card_id = None
@@ -254,10 +261,7 @@ class StoreProperty(object):
             map_speed = "normal"
         else:
             try:
-                if self._speed == "custom_speed":
-                    map_speed = self._speed_mode.lower()
-                else:
-                    map_speed = Vport._SPEED_MODE_MAP[self._speed]
+                map_speed = Vport._SPEED_MODE_MAP[self._speed]
             except Exception:
                 raise Exception(
                     "Speed %s not available within internal map" % self._speed
@@ -265,10 +269,13 @@ class StoreProperty(object):
         return map_speed
 
     def set_property(
-        self, chassis_id, card, group_id, current_mode, group_mode
+        self, chassis_id, card, group_id, current_mode, group_modes
     ):
         map_speed = self._get_speed_map(card)
-        if re.search(map_speed, group_mode.lower()) is not None:
+        group_mode = Vport.select_aggregation_mode(
+            map_speed, self._mode, current_mode, group_modes
+        )
+        if group_mode is not None:
             self._chassis_id = chassis_id
             self._card_id = card["cardId"]
             self._group_id = group_id
