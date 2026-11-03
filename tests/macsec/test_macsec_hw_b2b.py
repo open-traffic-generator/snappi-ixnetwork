@@ -6,12 +6,14 @@ that support it.
 """
 
 import datetime
+import os
 
 import pytest
 
-
-@pytest.mark.skip(
-    reason="HW MACSEC supported Chassis is not available in CI"
+# A chassis with inline crypto MACsec ports is not available in CI
+pytestmark = pytest.mark.skipif(
+    os.environ.get("GITHUB_ACTIONS") == "true",
+    reason="HW MACSEC supported Chassis is not available in CI",
 )
 
 SAK = {
