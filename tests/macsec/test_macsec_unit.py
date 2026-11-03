@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 
 from snappi_ixnetwork.device.base import MultiValue
 from snappi_ixnetwork.device.macsec import Macsec
+from snappi_ixnetwork.device.macsec_hw import MacsecHw
 from snappi_ixnetwork.device.ngpf import Ngpf
 from snappi_ixnetwork.exceptions import SnappiIxnException
 
@@ -225,9 +226,9 @@ def test_inline_crypto_builds_macsec_node_not_static_macsec():
 
 @pytest.mark.parametrize(
     "engine,moved",
-    [("inline_crypto", True), ("encrypt_decrypt", False), ("encrypt_only", False)],
+    [("inline_crypto", True), ("encrypt_decrypt", True), ("encrypt_only", False)],
 )
-def test_ip_stacked_under_hardware_node_only(engine, moved):
+def test_ip_stacked_under_stateful_engine_node_only(engine, moved):
     env = _Env()
     env.device("d1", engine=engine)
     ip = {"xpath": "", "name": "d1_ip"}
@@ -236,7 +237,9 @@ def test_ip_stacked_under_hardware_node_only(engine, moved):
     env.build()
     eth = env.ixn_ethernets["d1_eth"]
     if moved:
-        node = env.node("d1", "macsec")
+        node = env.node(
+            "d1", "macsec" if engine == "inline_crypto" else "staticMacsec"
+        )
         assert node["ipv4"] == [ip] and node["ipv4"][0] is ip
         assert node["ipv6"] == [ip6]
         assert "ipv4" not in eth and "ipv6" not in eth
@@ -699,3 +702,159 @@ def test_mka_macsec_capability_enum_values_exist_in_ixnetwork():
     }
     mapped = Mka._BASIC["macsec_capability"]["enum_map"].values()
     assert set(mapped) == allowed
+
+
+# ---------------------------------------------------------------------------
+# Per port settings (Globals.Topology.Macsec)
+
+
+def _port_options(env, port="p1"):
+    per_port = env.config.options.per_port_options.add()
+    per_port.port_name = port
+    protocol = per_port.protocols.add()
+    protocol.choice = "macsec"
+    return protocol.macsec
+
+
+def _inline(options):
+    options.hardware_acceleration.choice = "inline_crypto"
+    return options.hardware_acceleration.inline_crypto
+
+
+def test_port_settings_none_without_hardware_secy():
+    env = _Env()
+    env.device("d1", engine="encrypt_only")
+    assert MacsecHw.port_settings(env.config) == {}
+
+
+def test_port_settings_no_options_means_nothing_to_write():
+    env = _Env()
+    env.device("d1", engine="inline_crypto")
+    assert MacsecHw.port_settings(env.config) == {}
+
+
+def test_port_settings_inline_crypto_defaults_and_mapping():
+    env = _Env()
+    env.device("d1", engine="inline_crypto")
+    options = _port_options(env)
+    inline = _inline(options)
+    assert MacsecHw.port_settings(env.config) == {
+        "RxSecTagOffset": 12,
+        "RxScIdentifyingField": "rxscidentifyingfieldsrcmac",
+        "MaxCaCount": "macsecmaxcatwohundredfiftysix",
+        "TypeOfCa": "pairwiseca",
+    }
+    inline.rx_sectag_offset = 20
+    inline.rx_sc_identifying_field = "sci_port_id"
+    inline.max_ca_count = "thirty_two"
+    inline.type_of_ca.choice = "group_ca"
+    inline.type_of_ca.group_ca.choice = "multiple_dut_tx_sc"
+    inline.type_of_ca.group_ca.multiple_dut_tx_sc.max_dut_tx_sc_per_ca = 4
+    options.validate_frames.choice = "check"
+    attrs = MacsecHw.port_settings(env.config)
+    assert attrs["RxSecTagOffset"] == 20
+    assert attrs["RxScIdentifyingField"] == "rxscidentifyingfieldsciportid"
+    assert attrs["MaxCaCount"] == "macsecmaxcathirtytwo"
+    assert attrs["TypeOfCa"] == "groupwithmultidut"
+    assert attrs["MaxDutTxScPerCa"] == 4
+    assert attrs["MacsecValidation"] == "check"
+
+
+def test_port_settings_single_dut_group_ca():
+    env = _Env()
+    env.device("d1", engine="inline_crypto")
+    inline = _inline(_port_options(env))
+    inline.type_of_ca.choice = "group_ca"
+    inline.type_of_ca.group_ca.choice = "single_dut_tx_sc"
+    attrs = MacsecHw.port_settings(env.config)
+    assert attrs["TypeOfCa"] == "groupwithsingledut"
+    assert "MaxDutTxScPerCa" not in attrs
+
+
+def test_port_settings_strict_validate_frames_rejected():
+    env = _Env()
+    env.device("d1", engine="inline_crypto")
+    _port_options(env).validate_frames.choice = "strict"
+    with pytest.raises(SnappiIxnException) as err:
+        MacsecHw.port_settings(env.config)
+    assert err.value.status_code == 400 and "strict" in str(err.value)
+
+
+def test_port_settings_max_ca_count_smaller_than_secure_entities():
+    env = _Env()
+    for name in ("d1", "d2", "d3"):
+        env.device(name, engine="inline_crypto")
+    inline = _inline(_port_options(env))
+    inline.max_ca_count = "two"
+    with pytest.raises(SnappiIxnException) as err:
+        MacsecHw.port_settings(env.config)
+    assert "max_ca_count" in str(err.value)
+
+
+def test_port_settings_differing_between_ports_rejected():
+    env = _Env()
+    env.device("d1", engine="inline_crypto", port="p1")
+    env.device("d2", engine="inline_crypto", port="p2")
+    _inline(_port_options(env, "p1")).rx_sectag_offset = 12
+    _inline(_port_options(env, "p2")).rx_sectag_offset = 16
+    with pytest.raises(SnappiIxnException) as err:
+        MacsecHw.port_settings(env.config)
+    assert "differ between ports" in str(err.value)
+
+
+def test_port_settings_same_on_every_port_accepted():
+    env = _Env()
+    env.device("d1", engine="inline_crypto", port="p1")
+    env.device("d2", engine="inline_crypto", port="p2")
+    _inline(_port_options(env, "p1")).rx_sectag_offset = 16
+    _inline(_port_options(env, "p2")).rx_sectag_offset = 16
+    assert MacsecHw.port_settings(env.config)["RxSecTagOffset"] == 16
+
+
+def test_port_settings_options_without_hardware_secy_ignored():
+    env = _Env()
+    env.device("d1", engine="encrypt_decrypt")
+    _inline(_port_options(env)).rx_sectag_offset = 99
+    assert MacsecHw.port_settings(env.config) == {}
+
+
+def test_port_settings_replay_protection_from_secure_entity():
+    env = _Env()
+    d1 = env.device("d1", engine="inline_crypto")
+    secy = d1.macsec.ethernet_interfaces[0].secure_entity
+    secy.data_plane.encapsulation.rx.replay_protection = True
+    assert MacsecHw.port_settings(env.config)["ReplayProtection"] is True
+
+
+def test_port_settings_replay_protection_conflict_on_one_port_rejected():
+    env = _Env()
+    for name, value in (("d1", True), ("d2", False)):
+        device = env.device(name, engine="inline_crypto")
+        secy = device.macsec.ethernet_interfaces[0].secure_entity
+        secy.data_plane.encapsulation.rx.replay_protection = value
+    with pytest.raises(SnappiIxnException) as err:
+        MacsecHw.port_settings(env.config)
+    assert "replay_protection" in str(err.value)
+
+
+def test_apply_port_settings_writes_globals():
+    env = _Env()
+    env.device("d1", engine="inline_crypto")
+    inline = _inline(_port_options(env))
+    inline.rx_sectag_offset = 20
+    env.config.devices[0].macsec.ethernet_interfaces[
+        0
+    ].secure_entity.data_plane.encapsulation.rx.replay_protection = True
+    ixnetwork = MagicMock()
+    glob = ixnetwork.Globals.Topology.find.return_value.Macsec.find.return_value
+    MacsecHw.apply_port_settings(ixnetwork, env.config)
+    glob.RxSecTagOffset.Single.assert_called_once_with("20")
+    glob.ReplayProtection.Single.assert_called_once_with("true")
+
+
+def test_apply_port_settings_without_hardware_touches_nothing():
+    env = _Env()
+    env.device("d1", engine="encrypt_only")
+    ixnetwork = MagicMock()
+    MacsecHw.apply_port_settings(ixnetwork, env.config)
+    ixnetwork.Globals.Topology.find.assert_not_called()

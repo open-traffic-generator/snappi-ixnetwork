@@ -513,7 +513,7 @@ class ProtocolMetrics(object):
                 row_dt[stat_name] = (
                     0
                     if stat_type.__name__ in ["float", "int"]
-                    else data[ix_name]
+                    else data.get(ix_name, "na")
                 )
 
     def _topo_stats(self, protocol):
@@ -596,9 +596,37 @@ class ProtocolMetrics(object):
         if protocol == "macsec":
             rows = []
             for key in self._macsec_view_keys():
-                rows.extend(self._filter_stats(key))
+                key_rows = self._filter_stats(key)
+                if key == "macsec_hw":
+                    self._fill_session_state(key, key_rows)
+                rows.extend(key_rows)
             return rows
         return self._filter_stats(protocol)
+
+    def _fill_session_state(self, protocol, rows):
+        """Some IxNetwork builds have no Status column in the hardware
+        MACsec per session view. Derive the state from the session counts of
+        the device group in that case."""
+        missing = [
+            r for r in rows if r.get("session_state") in (None, "na")
+        ]
+        if len(missing) == 0:
+            return
+        device_names = self.device_names
+        self.device_names = []
+        try:
+            topo = {t.get("name"): t for t in self._topo_stats(protocol)}
+        finally:
+            self.device_names = device_names
+        for row in missing:
+            counts = topo.get(row.get("name"))
+            if counts is None:
+                continue
+            total = counts.get("sessions_total", 0)
+            row["session_state"] = (
+                "up" if total > 0 and counts.get("sessions_up") == total
+                else "down"
+            )
 
     def _macsec_view_keys(self):
         """The static and the hardware MACsec engines report through

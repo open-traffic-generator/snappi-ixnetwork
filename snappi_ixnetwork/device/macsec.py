@@ -71,6 +71,8 @@ class Macsec(Base):
             "tx_pn": "single",
             "pn_based": False,
             "replay": False,
+            # stateful engine: only IP stacked on the node is protected
+            "ip_under_node": True,
         },
         macsec_hw.ENGINE_KEY: macsec_hw.ENGINE,
     }
@@ -101,6 +103,7 @@ class Macsec(Base):
                         "MACsec on LAG ports (lag %s, port %s) is not "
                         "supported" % (lag.get("name"), lag_port.port_name),
                     )
+        MacsecHw.port_settings(config)
         port_protocols = {}
         for device in config.devices:
             macsec = device.get("macsec")

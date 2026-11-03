@@ -23,6 +23,7 @@ from snappi_ixnetwork.vport import Vport
 from snappi_ixnetwork.ixnetworkconfig import IxNetworkConfig
 from snappi_ixnetwork.device.mka import Mka
 from snappi_ixnetwork.device.macsec import Macsec
+from snappi_ixnetwork.device.macsec_hw import MacsecHw
 
 
 class Api(snappi.Api):
@@ -262,10 +263,16 @@ class Api(snappi.Api):
 
         # Need to add this hack as dumping json config throws this exception
         # Traffic regeneration will be part of set_transmit_state
+        # The same applies to flows over a MACsec device, which can only be
+        # generated once the MACsec session is started
         errors = [
             error
             for error in errors
             if "before trying to generate BGP EVPN traffic" not in error
+            and not (
+                "MACSec on selected Tx ports" in error
+                and "before trying to generate traffic" in error
+            )
         ]
 
         if len(errors) > 0:
@@ -379,6 +386,7 @@ class Api(snappi.Api):
             self.traffic_item.config()
         self._running_config = self._config
         self._apply_change()
+        MacsecHw.apply_port_settings(self._ixnetwork, self._config)
         with Timer(self, "Start interfaces"):
             # Start all protocols is workaround for pCPU crash reported by
             # Microsoft, need to revert once fix is available for pCPU crash
