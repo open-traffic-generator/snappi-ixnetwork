@@ -72,6 +72,137 @@ class Mka(Base):
             return
         self._config_ethernet_interfaces(device)
 
+    # Per port settings, IxNetwork Globals.Topology.Mka ---------------------
+    _DEFAULT_ETHER_TYPE = "888e"
+
+    @staticmethod
+    def _instances(config):
+        """(port name, kay) of every MKA instance, in configuration order"""
+        instances = []
+        for device in config.devices:
+            macsec = device.get("macsec")
+            if macsec is None:
+                continue
+            ethernets = {
+                ethernet.get("name"): ethernet
+                for ethernet in device.get("ethernets") or []
+            }
+            for iface in macsec.get("ethernet_interfaces") or []:
+                secy = iface.get("secure_entity")
+                if secy is None:
+                    continue
+                protocol = secy.get("key_generation_protocol")
+                if protocol is None or protocol.choice != "mka":
+                    continue
+                kay = protocol.get("mka")
+                if kay is None:
+                    continue
+                ethernet = ethernets.get(iface.get("eth_name"))
+                connection = (
+                    ethernet.get("connection") if ethernet is not None else None
+                )
+                port_name = (
+                    connection.get("port_name")
+                    if connection is not None
+                    else None
+                )
+                instances.append((port_name, kay))
+        return instances
+
+    @staticmethod
+    def _utc(kay):
+        basic = kay.get("basic")
+        if basic is None:
+            return None
+        start = basic.psk_chain_start_time
+        if start.choice == "utc" and start.utc.day is not None:
+            utc = start.utc
+            return (
+                utc.day,
+                utc.month,
+                utc.year,
+                utc.hour,
+                utc.minute,
+                utc.second,
+            )
+        return None
+
+    @staticmethod
+    def first_test_start_time(config):
+        """(kay name, utc tuple) of the first MKA instance with a user
+        defined psk_chain_start_time, or None."""
+        for _, kay in Mka._instances(config):
+            utc = Mka._utc(kay)
+            if utc is not None:
+                return (kay.get("name"), utc)
+        return None
+
+    @staticmethod
+    def port_settings(config):
+        """Settings for Globals.Topology.Mka as {IxNetwork attribute: value}.
+        IxNetwork keeps them per port and shared by all MKA instances on it,
+        so the first instance on a port wins and a later one that differs is
+        reported with a warning. The global is one multivalue for all ports,
+        so values that differ between ports are rejected. Needs no IxNetwork
+        connection."""
+        logger = get_ixnet_logger(__name__)
+        per_port = {}
+        for port_name, kay in Mka._instances(config):
+            basic = kay.get("basic")
+            if basic is None:
+                continue
+            value = str(basic.eapol_ethernet_type).lower()
+            if value.startswith("0x"):
+                value = value[2:]
+            if port_name not in per_port:
+                per_port[port_name] = (kay.get("name"), value)
+            elif per_port[port_name][1] != value:
+                logger.warning(
+                    "MKA %s: eapol_ethernet_type %s differs from %s of %s on "
+                    "port %s. The first instance wins, it is a per port "
+                    "setting" % (
+                        kay.get("name"),
+                        value,
+                        per_port[port_name][1],
+                        per_port[port_name][0],
+                        port_name,
+                    )
+                )
+        values = {v for _, v in per_port.values()}
+        if len(values) > 1:
+            raise SnappiIxnException(
+                400,
+                "MKA eapol_ethernet_type differs between ports (%s). IxNetwork "
+                "holds it in one global, so it must be the same on every port"
+                % ", ".join(
+                    "%s: %s" % (p, v) for p, (_, v) in sorted(per_port.items(), key=lambda i: str(i[0]))
+                ),
+            )
+        first = Mka.first_test_start_time(config)
+        if first is not None:
+            for _, kay in Mka._instances(config):
+                utc = Mka._utc(kay)
+                if utc is not None and utc != first[1]:
+                    logger.warning(
+                        "MKA %s: psk_chain_start_time differs from %s. It is "
+                        "a per port setting, the first instance wins"
+                        % (kay.get("name"), first[0])
+                    )
+        attrs = {}
+        if len(values) == 1 and values != {Mka._DEFAULT_ETHER_TYPE}:
+            attrs["EtherType"] = values.pop()
+        return attrs
+
+    @staticmethod
+    def apply_port_settings(ixnetwork, config):
+        """Write the per port settings, after the configuration is pushed."""
+        attrs = Mka.port_settings(config)
+        if len(attrs) == 0:
+            return
+        glob = ixnetwork.Globals.Topology.find().Mka.find()
+        for name, value in sorted(attrs.items()):
+            getattr(glob, name).Single(str(value))
+
     def _is_valid(self, ethernet_name, kay):
         is_valid = True
         if kay is None:
@@ -161,7 +292,7 @@ class Mka(Base):
         self._config_key_source(basic, ixn_mka)
         self._config_rekey_mode(basic, ixn_mka)
         self._config_supported_cipher_suites(basic, ixn_mka)
-        self._config_test_start_time(basic, ixn_mka)
+        self._config_test_start_time(basic, ixn_mka, kay.get("name"))
 
     def _is_test_start_time_user_defined(self, macsec):
         self.logger.debug("Checking if MKA is configured")
@@ -189,8 +320,13 @@ class Mka(Base):
             )
             ixn_mka_globals_port_settings.TestStartTime.ClearOverlays()
 
-    def _config_test_start_time(self, basic, ixn_mka):
+    def _config_test_start_time(self, basic, ixn_mka, kay_name=None):
         self.logger.debug("Configuring test start time")
+        # It is a per port IxNetwork global shared by every MKA instance, so
+        # the first instance decides (Mka.port_settings warns on conflicts)
+        first = Mka.first_test_start_time(self._ngpf.api.snappi_config)
+        if first is not None and first[0] != kay_name:
+            return
         psk_chain_start_time = basic.psk_chain_start_time
         if (
             psk_chain_start_time.choice == "utc"

@@ -387,6 +387,7 @@ class Api(snappi.Api):
         self._running_config = self._config
         self._apply_change()
         MacsecHw.apply_port_settings(self._ixnetwork, self._config)
+        Mka.apply_port_settings(self._ixnetwork, self._config)
         with Timer(self, "Start interfaces"):
             # Start all protocols is workaround for pCPU crash reported by
             # Microsoft, need to revert once fix is available for pCPU crash

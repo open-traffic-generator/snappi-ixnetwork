@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 from snappi_ixnetwork.device.base import MultiValue
 from snappi_ixnetwork.device.macsec import Macsec
 from snappi_ixnetwork.device.macsec_hw import MacsecHw
+from snappi_ixnetwork.device.mka import Mka
 from snappi_ixnetwork.device.ngpf import Ngpf
 from snappi_ixnetwork.exceptions import SnappiIxnException
 
@@ -858,3 +859,101 @@ def test_apply_port_settings_without_hardware_touches_nothing():
     ixnetwork = MagicMock()
     MacsecHw.apply_port_settings(ixnetwork, env.config)
     ixnetwork.Globals.Topology.find.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# MKA per port settings (phase 4) and auto_macsec helper (phase 5)
+
+
+def _mka_basic(device):
+    secy = device.macsec.ethernet_interfaces[0].secure_entity
+    return secy.key_generation_protocol.mka.basic
+
+
+def _set_utc(basic, day):
+    basic.psk_chain_start_time.choice = "utc"
+    utc = basic.psk_chain_start_time.utc
+    utc.day, utc.month, utc.year = day, 11, 2026
+    utc.hour, utc.minute, utc.second = 1, 2, 3
+
+
+def test_mka_port_settings_default_ether_type_writes_nothing():
+    env = _Env()
+    _mka_basic(env.device("d1", engine="inline_crypto", key="mka"))
+    assert Mka.port_settings(env.config) == {}
+
+
+def test_mka_port_settings_ether_type():
+    env = _Env()
+    d1 = env.device("d1", engine="inline_crypto", key="mka")
+    _mka_basic(d1).eapol_ethernet_type = "88E7"
+    assert Mka.port_settings(env.config) == {"EtherType": "88e7"}
+
+
+def test_mka_port_settings_first_instance_on_a_port_wins(caplog):
+    env = _Env()
+    d1 = env.device("d1", engine="inline_crypto", key="mka")
+    d2 = env.device("d2", engine="inline_crypto", key="mka")
+    _mka_basic(d1).eapol_ethernet_type = "88E7"
+    _mka_basic(d2).eapol_ethernet_type = "88E8"
+    with caplog.at_level("WARNING"):
+        attrs = Mka.port_settings(env.config)
+    assert attrs == {"EtherType": "88e7"}
+    assert any("first instance wins" in r.message for r in caplog.records)
+
+
+def test_mka_port_settings_differing_between_ports_rejected():
+    env = _Env()
+    d1 = env.device("d1", engine="inline_crypto", key="mka", port="p1")
+    d2 = env.device("d2", engine="inline_crypto", key="mka", port="p2")
+    _mka_basic(d1).eapol_ethernet_type = "88E7"
+    _mka_basic(d2).eapol_ethernet_type = "88E8"
+    with pytest.raises(SnappiIxnException) as err:
+        Mka.port_settings(env.config)
+    assert "differs between ports" in str(err.value)
+
+
+def test_mka_first_test_start_time_and_conflict_warning(caplog):
+    env = _Env()
+    d1 = env.device("d1", engine="inline_crypto", key="mka")
+    d2 = env.device("d2", engine="inline_crypto", key="mka")
+    env.config.devices[0].macsec.ethernet_interfaces[
+        0
+    ].secure_entity.key_generation_protocol.mka.name = "mka1"
+    env.config.devices[1].macsec.ethernet_interfaces[
+        0
+    ].secure_entity.key_generation_protocol.mka.name = "mka2"
+    _set_utc(_mka_basic(d1), 5)
+    _set_utc(_mka_basic(d2), 6)
+    assert Mka.first_test_start_time(env.config) == (
+        "mka1",
+        (5, 11, 2026, 1, 2, 3),
+    )
+    with caplog.at_level("WARNING"):
+        Mka.port_settings(env.config)
+    assert any("psk_chain_start_time differs" in r.message for r in caplog.records)
+
+
+def test_mka_apply_port_settings_writes_ether_type():
+    env = _Env()
+    d1 = env.device("d1", engine="inline_crypto", key="mka")
+    _mka_basic(d1).eapol_ethernet_type = "88E7"
+    ixnetwork = MagicMock()
+    glob = ixnetwork.Globals.Topology.find.return_value.Mka.find.return_value
+    Mka.apply_port_settings(ixnetwork, env.config)
+    glob.EtherType.Single.assert_called_once_with("88e7")
+
+
+def test_engines_on_port():
+    env = _Env()
+    env.device("d1", engine="encrypt_only", port="p1")
+    env.device("d2", engine="inline_crypto", port="p1")
+    env.device("d3", engine="encrypt_decrypt", port="p2")
+    assert Macsec.engines_on_port(env.config, "p1") == {
+        "encrypt_only",
+        "encrypt_decrypt_inline_crypto",
+    }
+    assert Macsec.engines_on_port(env.config, "p2") == {
+        "encrypt_decrypt_none"
+    }
+    assert Macsec.engines_on_port(env.config, "p3") == set()

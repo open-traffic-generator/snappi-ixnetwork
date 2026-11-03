@@ -104,6 +104,7 @@ class Macsec(Base):
                         "supported" % (lag.get("name"), lag_port.port_name),
                     )
         MacsecHw.port_settings(config)
+        Mka.port_settings(config)
         port_protocols = {}
         for device in config.devices:
             macsec = device.get("macsec")
@@ -165,6 +166,31 @@ class Macsec(Base):
         if self._is_dynamic_key(macsec):
             self._mka.config(device)
         self._config_ethernet_interfaces(device)
+
+    @staticmethod
+    def engines_on_port(config, port_name):
+        """Engine keys of the secure entities on a port."""
+        engines = set()
+        for device in config.devices:
+            macsec = device.get("macsec")
+            if macsec is None:
+                continue
+            ethernets = {
+                ethernet.get("name"): ethernet
+                for ethernet in device.get("ethernets") or []
+            }
+            for iface in macsec.get("ethernet_interfaces") or []:
+                ethernet = ethernets.get(iface.get("eth_name"))
+                connection = (
+                    ethernet.get("connection") if ethernet is not None else None
+                )
+                if connection is None or connection.get("port_name") != port_name:
+                    continue
+                secy = iface.get("secure_entity")
+                engine = Macsec._engine_for(secy) if secy is not None else None
+                if engine is not None:
+                    engines.add(engine)
+        return engines
 
     @staticmethod
     def _engine_for(secy):
