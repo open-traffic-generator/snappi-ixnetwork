@@ -511,10 +511,20 @@ class Api(snappi.Api):
                     res.response.protocol.ipv6.ping.responses.deserialize(
                         self.ping.results(request_payload, control_choice)
                     )
+            elif control_choice == "isis":
+                isis_inner_choice = choice_obj.get("choice")
+                if isis_inner_choice == "initiate_graceful_restart":
+                    res = self.control_action_response()
+                    self.logger.warning(
+                        "set_control_action: isis.initiate_graceful_restart "
+                        "not yet implemented"
+                    )
+                else:
+                    res = self.control_action_response()
             elif control_option is not None:
                 msg = "{} is not a supported choice for metrics; \
                 the supported choices are \
-                ['ipv4', 'ipv6']".format(
+                ['ipv4', 'ipv6', 'isis']".format(
                     control_option
                 )
                 raise SnappiIxnException(400, msg)
@@ -1044,32 +1054,28 @@ class Api(snappi.Api):
                     self._license_servers
                 )
             try:
-                import pkg_resources
+                from importlib.metadata import version, PackageNotFoundError
 
                 snappi_ver = (
                     "snappi-"
-                    + pkg_resources.get_distribution("snappi").version
+                    + version("snappi")
                 )
                 self.info(snappi_ver)
                 snappi_ixn = (
                     "snappi_ixnetwork-"
-                    + pkg_resources.get_distribution(
-                        "snappi_ixnetwork"
-                    ).version
+                    + version("snappi_ixnetwork")
                 )
                 self.info(snappi_ixn)
                 restpy = (
                     "ixnetwork_restpy-"
-                    + pkg_resources.get_distribution(
-                        "ixnetwork_restpy"
-                    ).version
+                    + version("ixnetwork_restpy")
                 )
                 self.info(restpy)
-            except pkg_resources.DistributionNotFound as e:
-                version = "Could not determine version for pkg {}".format(
-                    e.req.project_name
+            except PackageNotFoundError as e:
+                version_msg = "Could not determine version for pkg {}".format(
+                    e.name
                 )
-                self.info(version)
+                self.info(version_msg)
             except Exception as e:
                 self.warning("{}".format(e))
         self._backup_errors()
@@ -1136,11 +1142,13 @@ class Api(snappi.Api):
                 % self._ixnetwork.href
             )
             payload = {"arg1": glob_topo.href}
-            # todo: Sometime it redirect to some unknown loaction
             try:
                 self._request("POST", url, payload)
-            except Exception:
-                pass
+            except Exception as e:
+                # IxNetwork occasionally redirects to an unknown location
+                # when applying on-the-fly changes; the change is typically
+                # applied successfully despite the redirect error.
+                self.warning("Apply on the fly request failed: %s" % e)
 
     def _start_interface(self):
         topos = self._ixnetwork.Topology.find()
@@ -1523,19 +1531,19 @@ class Api(snappi.Api):
 
     def get_version(self):
         try:
-            import pkg_resources
+            from importlib.metadata import version
 
             sdk_version = (
-                "snappi-" + pkg_resources.get_distribution("snappi").version
+                "snappi-" + version("snappi")
             )
             app_version = (
                 "snappi_ixnetwork-"
-                + pkg_resources.get_distribution("snappi_ixnetwork").version
+                + version("snappi_ixnetwork")
             )
 
             return {
-                "api_spec_version": "open-api-models-"
-                + snappi.Api.get_local_version(self).api_spec_version,
+                "api_spec_version": "open-api-models-" +
+                snappi.Api.get_local_version(self).api_spec_version,
                 "sdk_version": sdk_version,
                 "app_version": app_version,
             }

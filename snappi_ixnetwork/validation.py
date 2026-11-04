@@ -41,10 +41,10 @@ class Validation(object):
                         '%s.name: "%s" is not unique'
                         % (config_item.__class__.__name__, attr_value)
                     )
-                # todo: we will enable after finalyze model
+                # None names are permitted: many anonymous config objects
+                # (e.g. route ranges, VLAN sub-objects) do not require a name.
                 if attr_value is None:
                     continue
-                    # self._unique_name_errors.append('%s.name: "None" is not allowed' % (config_item.__class__.__name__))
                 else:
                     self._api._config_objects[attr_value] = config_item
             elif "__module__" in dir(attr_value):

@@ -22,6 +22,7 @@ def test_layer1_flow_control_8021qbb(api, utils):
     fcoe1.name = "enabled pfc delay"
     fcoe1.port_names = [tx_port.name]
     fcoe1.speed = utils.settings.speed
+    fcoe1.mtu = 14000
     fcoe1.auto_negotiate = True
     fcoe1.media = utils.settings.media
     fcoe1.flow_control.directed_address = directed_address

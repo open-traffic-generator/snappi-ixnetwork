@@ -100,7 +100,11 @@ class Settings(object):
 
     def register_pytest_command_line_options(self, parser):
         for key, val in object_dict_items(self):
-            parser.addoption("--%s" % key, action="store", default=None)
+            # explicit dest lets keys such as log_level share the dest of
+            # pytest's built-in options (e.g. --log-level) in newer pytest
+            parser.addoption(
+                "--%s" % key, action="store", default=None, dest=key
+            )
 
     def load_from_pytest_command_line(self, config):
         for key, val in object_dict_items(self):
@@ -116,6 +120,26 @@ class Settings(object):
 
 # shared global settings
 settings = Settings()
+
+
+def start_protocols(api):
+    """Start all protocols without starting traffic flows."""
+    print("Starting all protocols ...")
+    cs = api.control_state()
+    cs.protocol.all.state = cs.protocol.all.START
+    api.set_control_state(cs)
+
+
+def start_traffic_only(api):
+    """Start traffic flows only - config and protocols must already be running."""
+    print("Starting transmit on all flows ...")
+    cs = api.control_state()
+    cs.choice = cs.TRAFFIC
+    cs.traffic.choice = cs.traffic.FLOW_TRANSMIT
+    cs.traffic.flow_transmit.state = cs.traffic.flow_transmit.START
+    res = api.set_control_state(cs)
+    if len(res.warnings) > 0:
+        print("Warnings: {}".format(res.warnings))
 
 
 def start_traffic(api, cfg, start_capture=True):

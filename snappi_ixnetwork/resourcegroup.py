@@ -90,9 +90,14 @@ class ResourceGroup(object):
                 )
                 self._api.info(final_arg2)
                 self._api._request("POST", url, payload)
-            except:
-                # todo: redirect to unknown page. Probable IxNetwork issue
-                pass
+            except Exception as e:
+                # IxNetwork occasionally redirects to an unknown location
+                # when setting resource group info; the speed conversion is
+                # typically applied successfully despite the redirect error.
+                self._api.warning(
+                    "Resource group speed conversion request failed "
+                    "(possible IxNetwork redirect): %s" % e
+                )
 
         return self.layer1_check
 
