@@ -99,6 +99,7 @@ class Vport(object):
         "mode_macsec_128": "macsec128",
         "mode_macsec_256": "macsec256",
         "mode_high_stream": "highstream",
+        "mode_rocev2": "rocev2",
     }
 
     # aggregation modes containing these are never selected as mode_default
