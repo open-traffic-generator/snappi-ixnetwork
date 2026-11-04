@@ -274,13 +274,16 @@ class Capture(object):
         generic_size,
         expression_string,
     ):
-        if cap_filter.src.value is not None:
+        # Header placeholders establish subsequent offsets without adding
+        # address predicates. Do not materialize absent default "00" fields.
+        src, dst = cap_filter.get("src"), cap_filter.get("dst")
+        if src is not None and src.value not in (None, "00"):
             expression_string = self._config_source_address(
-                cap_filter.src, pallette, trigger, filter, expression_string
+                src, pallette, trigger, filter, expression_string
             )
-        if cap_filter.dst.value is not None:
+        if dst is not None and dst.value not in (None, "00"):
             expression_string = self._config_destination_address(
-                cap_filter.dst, pallette, trigger, filter, expression_string
+                dst, pallette, trigger, filter, expression_string
             )
 
         ethernet_fields = [
