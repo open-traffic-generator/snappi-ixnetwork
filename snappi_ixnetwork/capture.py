@@ -614,8 +614,8 @@ class Capture(object):
                     continue
                 break
             if not port_ready:
-                self._api.warning(
-                    "Capture was not stopped for this port %s"
+                raise RuntimeError(
+                    "Capture did not become ready for port %s"
                     % (request.port_name)
                 )
 
