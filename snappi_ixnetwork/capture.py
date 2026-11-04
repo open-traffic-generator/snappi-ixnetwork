@@ -569,15 +569,13 @@ class Capture(object):
             if len(ixn_vports) == 0:
                 raise Exception("Please configure port before stop capture")
             if self._capture_request.port_names:
-                payload = {"arg1": []}
-                for vport_name, vport in ixn_vports.items():
-                    if vport_name in self._capture_request.port_names:
-                        payload["arg1"].append(vport["href"])
-                url = "{}/vport/operations/clearCaptureInfos".format(
+                url = "{}/vport/capture/operations/stop".format(
                     self._api._ixnetwork.href
                 )
-
-                self._api._request("POST", url, payload)
+                for vport_name, vport in ixn_vports.items():
+                    if vport_name in self._capture_request.port_names:
+                        payload = {"arg1": "{}/capture".format(vport["href"])}
+                        self._api._request("POST", url, payload)
             else:
                 self._api._ixnetwork.StopCapture()
 
