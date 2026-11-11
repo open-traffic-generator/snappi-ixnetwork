@@ -91,10 +91,22 @@ def test_rocev2_stats(api, utils):
     protocol1.rocev2.cnp.ip_dscp.value = 49
     protocol1.rocev2.connection_type.choice = "reliable_connection"
     protocol1.rocev2.connection_type.reliable_connection.enable_retransmission_timeout = False
-    protocol1.rocev2.connection_type.reliable_connection.retransmission_timeout_value = 10
+    protocol1.rocev2.connection_type.reliable_connection.retransmission_timeout_value = 13
+    protocol1.rocev2.connection_type.reliable_connection.retransmission_retry_count = 5
     protocol1.rocev2.dcqcn_settings.alpha_g = 1020
     protocol1.rocev2.dcqcn_settings.initial_alpha = 1000
     protocol1.rocev2.dcqcn_settings.maximum_rate_decrement_at_time = 12
+
+
+    protocol2.rocev2.cnp.choice = "ip_dscp"
+    protocol2.rocev2.cnp.ip_dscp.value = 51
+    protocol2.rocev2.connection_type.choice = "reliable_connection"
+    protocol2.rocev2.connection_type.reliable_connection.enable_retransmission_timeout = True
+    protocol2.rocev2.connection_type.reliable_connection.retransmission_timeout_value = 11
+    protocol2.rocev2.connection_type.reliable_connection.retransmission_retry_count = 3
+    protocol2.rocev2.dcqcn_settings.alpha_g = 1020
+    protocol2.rocev2.dcqcn_settings.initial_alpha = 1000
+    protocol2.rocev2.dcqcn_settings.maximum_rate_decrement_at_time = 12
 
     api.set_config(config)
 
