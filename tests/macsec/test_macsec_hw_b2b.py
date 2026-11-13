@@ -275,7 +275,7 @@ def test_per_port_options_are_applied(api, b2b_raw_config, utils):
         acceleration = protocol.macsec.hardware_acceleration
         acceleration.choice = "inline_crypto"
         inline = acceleration.inline_crypto
-        inline.rx_sectag_offset = 16
+        inline.rx_sectag_offset = 12
         inline.rx_sc_identifying_field = "source_mac"
         inline.max_ca_count = "sixteen"
         inline.type_of_ca.choice = "pairwise_ca"
@@ -289,7 +289,7 @@ def test_per_port_options_are_applied(api, b2b_raw_config, utils):
     glob = api._ixnetwork.Globals.Topology.find().Macsec.find()
     # read only in IxNetwork, derived from the configuration
     assert glob.KeyGenerationMode == "staticKeyGenerationMode"
-    assert set(glob.RxSecTagOffset.Values) == {"16"}
+    assert set(glob.RxSecTagOffset.Values) == {"12"}
     assert set(glob.MaxCaCount.Values) == {"macsecmaxcasixteen"}
     assert set(glob.TypeOfCa.Values) == {"pairwiseca"}
     assert set(glob.RxScIdentifyingField.Values) == {
