@@ -2506,6 +2506,18 @@ class TrafficItem(CustomField):
                     with Timer(self._api, "Flows pause"):
                         self._api._traffic_item.PauseStatelessTraffic(True)
 
+    def _get_cell(self, row, internal_name, column_type=str):
+        """Read a statistics cell. The lookup must happen here and not in the
+        arguments of _set_result_value, otherwise a column that is missing
+        from the view (e.g. Tx Bytes) raises before the numeric default
+        in _set_result_value can apply."""
+        try:
+            return row[internal_name]
+        except Exception:
+            if column_type.__name__ in ["float", "int"]:
+                return 0
+            raise
+
     def _set_result_value(
         self, row, column_name, column_value, column_type=str
     ):
@@ -2691,7 +2703,9 @@ class TrafficItem(CustomField):
                             self._set_result_value(
                                 flow_row,
                                 external_name,
-                                row[internal_name],
+                                self._get_cell(
+                                    row, internal_name, external_type
+                                ),
                                 external_type,
                             )
                         except Exception as e:
@@ -2738,7 +2752,9 @@ class TrafficItem(CustomField):
                             self._set_result_value(
                                 flow_row,
                                 external_name,
-                                row[internal_name],
+                                self._get_cell(
+                                    row, internal_name, external_type
+                                ),
                                 external_type,
                             )
                         except Exception as e:
@@ -2887,7 +2903,9 @@ class TrafficItem(CustomField):
                         self._set_result_value(
                             result_flow_row,
                             external_name,
-                            row[internal_name],
+                            self._get_cell(
+                                row, internal_name, external_type
+                            ),
                             external_type,
                         )
                     except Exception as exception_err:
@@ -3147,7 +3165,9 @@ class TrafficItem(CustomField):
                         self._set_result_value(
                             flow_row,
                             external_name,
-                            row[internal_name],
+                            self._get_cell(
+                                row, internal_name, external_type
+                            ),
                             external_type,
                         )
                     except Exception as e:
