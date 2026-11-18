@@ -2466,7 +2466,11 @@ class TrafficItem(CustomField):
             self._api._traffic_item.find(State="^started$")
             if len(self._api._traffic_item) == 0:
                 with Timer(self._api, "Flows clear statistics"):
-                    self._api._ixnetwork.ClearStats(
+                    # Clear only port/traffic stats. ClearStats also clears
+                    # protocol stats (e.g. "Clear Stats LACP"), which can
+                    # hang and block later actions such as route withdraw
+                    # (ApplyOnTheFly).
+                    self._api._ixnetwork.ClearPortsAndTrafficStats(
                         [
                             "waitForPortStatsRefresh",
                             "waitForTrafficStatsRefresh",
