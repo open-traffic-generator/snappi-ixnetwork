@@ -629,10 +629,12 @@ class Capture(object):
         cc = persist + "/capture/" + vport_name + "_SW.cap"
         merged_capture = persist + "/capture/" + vport_name + ".cap"
 
+        merged = False
         try:
             self._api._ixnetwork.MergeCapture(
                 Arg1=cc, Arg2=dc, Arg3=merged_capture
             )
+            merged = True
         except Exception:
             # MergeCapture fails when one of the source files is absent
             # (e.g. port has only SW or only HW capture).  Continue and
@@ -651,7 +653,9 @@ class Capture(object):
         # an IxNetwork 9.20 bug where merged-capture download was broken.
         # That bug is fixed in later versions, so prefer merged now.
         last_exc = None
-        for cap_path in [merged_capture, dc, cc]:
+        cap_paths = [merged_capture] if merged else []
+        cap_paths.extend([dc, cc])
+        for cap_path in cap_paths:
             url = "%s/files?absolute=%s&filename=%s" % (
                 self._api._ixnetwork.href,
                 path,
