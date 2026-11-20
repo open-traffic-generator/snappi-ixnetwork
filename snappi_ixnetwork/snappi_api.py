@@ -1192,7 +1192,12 @@ class Api(snappi.Api):
             content = response.json()
             while content["state"] == "IN_PROGRESS":
                 time.sleep(0.2)
-                response = self._request("GET", content["url"])
+                content = self._request("GET", content["url"])
+            if content["state"] != "SUCCESS":
+                raise SnappiIxnException(
+                    400, "Async operation failed: {}".format(content)
+                )
+            return content
         if response.headers.get("Content-Type"):
             if response.headers["Content-Type"] == "application/json":
                 return response.json()
