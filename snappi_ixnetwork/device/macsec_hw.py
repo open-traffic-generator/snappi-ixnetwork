@@ -22,7 +22,7 @@ ENGINE = {
     "traffic_type": None,
     "ip_restricted": False,
     "tx_pn": "single",
-    "pn_based": True,
+    "pn_based_rekey": True,
     "replay": True,
     # IPv4/IPv6 must sit on the macsec node, or flows bypass the SecY
     "ip_under_node": True,
@@ -101,6 +101,18 @@ class MacsecHw(Base):
         "multiple_dut_tx_sc": "groupwithmultidut",
     }
 
+    # IxNetwork defaults of the settings above. They are filled in before
+    # ports are compared (a port that spells out a default is the same as one
+    # that leaves it unset) and written explicitly, so a value left by an
+    # earlier configuration in the same session never survives.
+    _PORT_DEFAULTS = {
+        "RxSecTagOffset": 12,
+        "RxScIdentifyingField": "rxscidentifyingfieldsrcmac",
+        "MaxCaCount": "macsecmaxcatwohundredfiftysix",
+        "TypeOfCa": "pairwiseca",
+    }
+    _MAX_RX_SECTAG_OFFSET = 255
+
     @staticmethod
     def is_inline_crypto(secy):
         data_plane = secy.get("data_plane")
@@ -176,8 +188,9 @@ class MacsecHw(Base):
                 )
         by_port = {}
         for port_name, secys in secys_per_port.items():
-            attrs = MacsecHw._port_attrs(
-                port_name, secys, per_port.get(port_name)
+            attrs = dict(MacsecHw._PORT_DEFAULTS)
+            attrs.update(
+                MacsecHw._port_attrs(port_name, secys, per_port.get(port_name))
             )
             by_port[port_name] = attrs
         first = None
@@ -231,7 +244,17 @@ class MacsecHw(Base):
         if acceleration is None or acceleration.choice != "inline_crypto":
             return attrs
         inline = acceleration.inline_crypto
-        attrs["RxSecTagOffset"] = inline.rx_sectag_offset
+        offset = inline.rx_sectag_offset
+        if offset is not None and not (
+            0 <= offset <= MacsecHw._MAX_RX_SECTAG_OFFSET
+        ):
+            raise SnappiIxnException(
+                400,
+                "Port %s: rx_sectag_offset %s is out of range, it must be "
+                "between 0 and %d"
+                % (port_name, offset, MacsecHw._MAX_RX_SECTAG_OFFSET),
+            )
+        attrs["RxSecTagOffset"] = offset
         attrs["RxScIdentifyingField"] = MacsecHw._RX_SC_IDENTIFYING_FIELD[
             inline.rx_sc_identifying_field
         ]

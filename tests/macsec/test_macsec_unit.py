@@ -179,7 +179,7 @@ def test_rx_secure_channel_dut_sci_mapped():
 # U15: encrypt_decrypt + none -> staticMacsec, stateful
 
 
-def test_encrypt_decrypt_none_uses_static_macsec_stateful():
+def test_encrypt_decrypt_sw_uses_static_macsec_stateful():
     env = _Env()
     device = env.device("d1", engine="encrypt_decrypt")
     tx_pn = device.macsec.ethernet_interfaces[
@@ -426,17 +426,29 @@ def test_no_encapsulation_with_static_key_is_rejected():
 # U16: empty secure channels / SAKs
 
 
-def test_empty_secure_channels_rejected_not_index_error():
+def test_empty_secure_channels_accepted_without_index_error():
     env = _Env()
     device = env.device("d1")
     static_key = device.macsec.ethernet_interfaces[
         0
     ].secure_entity.key_generation_protocol.static_key
     static_key.tx.secure_channels.clear()
+    env.build()
+    assert "txSakPool" not in env.node("d1")
+
+
+@pytest.mark.parametrize("direction", ["tx", "rx"])
+def test_more_than_one_secure_channel_rejected(direction):
+    env = _Env()
+    device = env.device("d1")
+    static_key = device.macsec.ethernet_interfaces[
+        0
+    ].secure_entity.key_generation_protocol.static_key
+    getattr(static_key, direction).secure_channels.add()
     with pytest.raises(SnappiIxnException) as excinfo:
         env.build()
     assert _status(excinfo) == 400
-    assert "secure_channels" in str(excinfo.value)
+    assert "only one is supported" in str(excinfo.value)
 
 
 def test_missing_saks_rejected():
@@ -729,10 +741,28 @@ def test_port_settings_none_without_hardware_secy():
     assert MacsecHw.port_settings(env.config) == {}
 
 
-def test_port_settings_no_options_means_nothing_to_write():
+def test_port_settings_no_options_writes_defaults_explicitly():
     env = _Env()
     env.device("d1", engine="inline_crypto")
-    assert MacsecHw.port_settings(env.config) == {}
+    assert MacsecHw.port_settings(env.config) == MacsecHw._PORT_DEFAULTS
+
+
+def test_port_settings_default_spelled_out_equals_unset_on_other_port():
+    env = _Env()
+    env.device("d1", engine="inline_crypto", port="p1")
+    env.device("d2", engine="inline_crypto", port="p2")
+    _inline(_port_options(env, "p1")).rx_sectag_offset = 12
+    assert MacsecHw.port_settings(env.config) == MacsecHw._PORT_DEFAULTS
+
+
+def test_port_settings_rx_sectag_offset_out_of_range_rejected():
+    env = _Env()
+    env.device("d1", engine="inline_crypto")
+    _inline(_port_options(env)).rx_sectag_offset = 256
+    with pytest.raises(SnappiIxnException) as excinfo:
+        MacsecHw.port_settings(env.config)
+    assert _status(excinfo) == 400
+    assert "rx_sectag_offset" in str(excinfo.value)
 
 
 def test_port_settings_inline_crypto_defaults_and_mapping():
@@ -878,10 +908,10 @@ def _set_utc(basic, day):
     utc.hour, utc.minute, utc.second = 1, 2, 3
 
 
-def test_mka_port_settings_default_ether_type_writes_nothing():
+def test_mka_port_settings_default_ether_type_written_explicitly():
     env = _Env()
     _mka_basic(env.device("d1", engine="inline_crypto", key="mka"))
-    assert Mka.port_settings(env.config) == {}
+    assert Mka.port_settings(env.config) == {"EtherType": "888e"}
 
 
 def test_mka_port_settings_ether_type():
@@ -955,7 +985,7 @@ def test_engines_on_port():
         "encrypt_decrypt_inline_crypto",
     }
     assert Macsec.engines_on_port(env.config, "p2") == {
-        "encrypt_decrypt_none"
+        "encrypt_decrypt_sw"
     }
     assert Macsec.engines_on_port(env.config, "p3") == set()
 

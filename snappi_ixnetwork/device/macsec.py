@@ -52,9 +52,11 @@ class Macsec(Base):
     # and the maps it needs, not a copy of the build code.
     #   node           NGPF node created under the Ethernet
     #   traffic_type   staticMacsec encryptedTrafficType (None if not applicable)
-    #   ip_restricted  encrypt only engine cannot carry IP stacks
+    #   ip_restricted  encrypt only engine cannot carry IP stacks. Engines
+    #                  that are not restricted protect only the IP stacked on
+    #                  their own node, so IP is moved under the node.
     #   tx_pn          "per_secure_channel" (encrypt_only array) or "single"
-    #   pn_based       pn_based rekey supported
+    #   pn_based_rekey pn_based rekey supported
     #   replay         replay_protection / replay_window supported
     _ENGINES = {
         "encrypt_only": {
@@ -62,18 +64,16 @@ class Macsec(Base):
             "traffic_type": "statelessL23",
             "ip_restricted": True,
             "tx_pn": "per_secure_channel",
-            "pn_based": False,
+            "pn_based_rekey": False,
             "replay": False,
         },
-        "encrypt_decrypt_none": {
+        "encrypt_decrypt_sw": {
             "node": "staticMacsec",
             "traffic_type": "statefulL47",
             "ip_restricted": False,
             "tx_pn": "single",
-            "pn_based": False,
+            "pn_based_rekey": False,
             "replay": False,
-            # stateful engine: only IP stacked on the node is protected
-            "ip_under_node": True,
         },
         macsec_hw.ENGINE_KEY: macsec_hw.ENGINE,
     }
@@ -120,7 +120,7 @@ class Macsec(Base):
                 secy = iface.get("secure_entity")
                 if secy is None:
                     continue
-                engine = Macsec._engine_for(secy)
+                engine = Macsec._engine_type(secy)
                 if engine is not None:
                     descriptor = Macsec._ENGINES[engine]
                     device_engines[secy.get("name")] = (
@@ -188,13 +188,13 @@ class Macsec(Base):
                 if connection is None or connection.get("port_name") != port_name:
                     continue
                 secy = iface.get("secure_entity")
-                engine = Macsec._engine_for(secy) if secy is not None else None
+                engine = Macsec._engine_type(secy) if secy is not None else None
                 if engine is not None:
                     engines.add(engine)
         return engines
 
     @staticmethod
-    def _engine_for(secy):
+    def _engine_type(secy):
         """Return the engine descriptor key for a secure entity, None when the
         secure entity has no MACsec data plane (MKA only)."""
         name = secy.get("name")
@@ -215,7 +215,7 @@ class Macsec(Base):
         if crypto_engine.choice == "encrypt_decrypt":
             acceleration = crypto_engine.encrypt_decrypt.hardware_acceleration
             if acceleration.choice == "none":
-                return "encrypt_decrypt_none"
+                return "encrypt_decrypt_sw"
             if acceleration.choice == "inline_crypto":
                 return macsec_hw.ENGINE_KEY
             raise SnappiIxnException(
@@ -278,7 +278,7 @@ class Macsec(Base):
         return True
 
     def _validate_rekey(self, name, engine, key_generation_protocol):
-        if self._ENGINES[engine]["pn_based"]:
+        if self._ENGINES[engine]["pn_based_rekey"]:
             return
         if key_generation_protocol.choice != "static_key":
             return
@@ -302,17 +302,14 @@ class Macsec(Base):
                 continue
             secure_channels = side.get("secure_channels")
             if secure_channels is None or len(secure_channels) == 0:
+                # nothing to configure for this direction
+                continue
+            if len(secure_channels) > 1:
                 raise SnappiIxnException(
                     400,
-                    "Secure entity %s: static_key.%s.secure_channels is empty,"
-                    " exactly one secure channel is needed"
-                    % (name, direction),
-                )
-            if len(secure_channels) > 1:
-                self.logger.warning(
-                    "Secure entity %s: only the first of %d static_key.%s "
-                    "secure channels is configured"
-                    % (name, len(secure_channels), direction)
+                    "Secure entity %s: static_key.%s has %d secure channels,"
+                    " only one is supported"
+                    % (name, direction, len(secure_channels)),
                 )
             saks = secure_channels[0].get("saks")
             if saks is None or len(saks) == 0:
@@ -360,7 +357,7 @@ class Macsec(Base):
             secy = ethernet_interface.get("secure_entity")
             if secy is None:
                 continue
-            engine = self._engine_for(secy)
+            engine = self._engine_type(secy)
             if engine is None or not self._ENGINES[engine]["ip_restricted"]:
                 continue
             self.logger.debug(
@@ -406,7 +403,7 @@ class Macsec(Base):
             self._ngpf.working_dg = self._ngpf.api.ixn_objects.get_working_dg(
                 ethernet_name
             )
-            engine = self._engine_for(secy)
+            engine = self._engine_type(secy)
             if not self._is_valid(ethernet_name, secy, engine):
                 continue
             if engine is None:
@@ -425,7 +422,7 @@ class Macsec(Base):
         if descriptor["traffic_type"] is not None:
             ixn_node["encryptedTrafficType"] = descriptor["traffic_type"]
         self._ngpf.set_device_info(secy, ixn_node)
-        if descriptor.get("ip_under_node"):
+        if not descriptor["ip_restricted"]:
             self._move_ip_under_node(ixn_ethernet, ixn_node)
         if not self._secy_is_dynamic_key(ethernet_interface):
             self._config_static_key(secy, ixn_node, descriptor)
@@ -463,11 +460,24 @@ class Macsec(Base):
             return
         self._config_data_plane_tx(encapsulation, ixn_node)
         self._config_vlan_options(encapsulation, ixn_node)
-        if Macsec._ENGINES[engine]["replay"]:
-            self._hw.config_replay(secy, encapsulation, ixn_node)
+        self._config_data_plane_rx(secy, encapsulation, ixn_node, engine)
         self._config_crypto_engine(
             device, ethernet_interface, ixn_node, engine
         )
+
+    def _config_data_plane_rx(self, secy, encapsulation, ixn_node, engine):
+        """Rx data plane properties. Kept as its own step so Rx properties
+        (replay window, ...) have one place to be added per engine."""
+        self.logger.debug("Configuring data plane Rx properties")
+        if Macsec._ENGINES[engine]["replay"]:
+            self._hw.config_replay(secy, encapsulation, ixn_node)
+        else:
+            self._config_replay_unsupported(secy, encapsulation, ixn_node)
+
+    def _config_replay_unsupported(self, secy, encapsulation, ixn_node):
+        """Engines without replay support: nothing to configure (a warning
+        for the unsupported fields is raised by _is_valid). Replace this
+        when replay support is added for them."""
 
     def _config_vlan_options(self, encapsulation, ixn_node):
         """encrypt_interface_vlans false sends the Ethernet VLANs as clear
@@ -518,8 +528,9 @@ class Macsec(Base):
         tx = static_key.get("tx")
         if tx is None:
             return
-        self._config_static_key_txsc(static_key, ixn_node)
-        if descriptor["pn_based"]:
+        if len(tx.get("secure_channels") or []) > 0:
+            self._config_static_key_txsc(static_key, ixn_node)
+        if descriptor["pn_based_rekey"]:
             self._hw.config_rekey_mode(tx.rekey_mode, ixn_node)
         else:
             self._config_rekey_mode(tx.rekey_mode, ixn_node)
@@ -529,7 +540,8 @@ class Macsec(Base):
         rx = static_key.get("rx")
         if rx is None:
             return
-        self._config_static_key_rxsc(static_key, ixn_node)
+        if len(rx.get("secure_channels") or []) > 0:
+            self._config_static_key_rxsc(static_key, ixn_node)
 
     def _config_sak_pool(
         self, direction, static_key, secure_channel, ixn_node

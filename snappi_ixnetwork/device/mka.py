@@ -190,7 +190,9 @@ class Mka(Base):
                         % (kay.get("name"), first[0])
                     )
         attrs = {}
-        if len(values) == 1 and values != {Mka._DEFAULT_ETHER_TYPE}:
+        if len(values) == 1:
+            # written even when it is the default, so a value left by an
+            # earlier configuration in the same session does not survive
             attrs["EtherType"] = values.pop()
         return attrs
 

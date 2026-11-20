@@ -646,7 +646,7 @@ class ProtocolMetrics(object):
                 secy = iface.get("secure_entity")
                 if secy is None:
                     continue
-                engine = Macsec._engine_for(secy)
+                engine = Macsec._engine_type(secy)
                 if engine is None:
                     continue
                 key = (
