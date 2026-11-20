@@ -55,3 +55,28 @@ def items(snappi_list):
         return []
     return [snappi_list[i] for i in range(len(snappi_list))]
 
+
+
+def topology_port_order(ixnetwork):
+    """Port names in the order of the IxNetwork topologies. snappi_ixnetwork
+    creates one topology "Topology <port name>" per port, and a per port
+    global (Globals.Topology.<protocol>) is indexed in that order."""
+    prefix = "Topology "
+    names = []
+    for topology in ixnetwork.Topology.find():
+        name = topology.Name
+        names.append(name[len(prefix):] if name.startswith(prefix) else name)
+    return names
+
+
+def write_per_port(multivalue, values_by_port, default, port_order):
+    """Write a per port global. One value for every port becomes a single
+    value pattern, otherwise a value list in topology order, with `default`
+    for ports that have no entry."""
+    values = [str(values_by_port.get(port, default)) for port in port_order]
+    if len(values) == 0:
+        values = [str(v) for v in values_by_port.values()] or [str(default)]
+    if len(set(values)) == 1:
+        multivalue.Single(values[0])
+    else:
+        multivalue.ValueList(values)

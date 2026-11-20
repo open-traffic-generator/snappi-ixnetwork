@@ -11,7 +11,11 @@ The hardware engine is the NGPF ``macsec`` node, selected by
 """
 
 from snappi_ixnetwork.device.base import Base
-from snappi_ixnetwork.device.utils import items
+from snappi_ixnetwork.device.utils import (
+    items,
+    topology_port_order,
+    write_per_port,
+)
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.logger import get_ixnet_logger
 
@@ -170,13 +174,12 @@ class MacsecHw(Base):
 
     @staticmethod
     def port_settings(config):
-        """Settings for Globals.Topology.Macsec, as {IxNetwork attribute:
-        value}. KeyGenerationMode is not among them: IxNetwork derives it
-        (read only) from the configuration. They are the same for every hardware port because the
-        IxNetwork global is one multivalue for all ports: differing values
-        are rejected. Returns {} when no hardware secure entity exists.
-        Raises SnappiIxnException(400) for what cannot be realised. Needs no
-        IxNetwork connection."""
+        """Settings for Globals.Topology.Macsec as {port name: {IxNetwork
+        attribute: value}}, for the ports that have an inline crypto secure
+        entity. KeyGenerationMode is not among them: IxNetwork derives it
+        (read only) from the configuration. Ports may differ from each
+        other, as in ixhw-c. Raises SnappiIxnException(400) for what cannot
+        be realised. Needs no IxNetwork connection."""
         logger = get_ixnet_logger(__name__)
         secys_per_port = MacsecHw._secys_per_port(config)
         per_port = MacsecHw._per_port_options(config)
@@ -188,47 +191,102 @@ class MacsecHw(Base):
                 )
         by_port = {}
         for port_name, secys in secys_per_port.items():
+            MacsecHw._validate_uniform(port_name, secys)
             attrs = dict(MacsecHw._PORT_DEFAULTS)
             attrs.update(
                 MacsecHw._port_attrs(port_name, secys, per_port.get(port_name))
             )
             by_port[port_name] = attrs
-        first = None
-        for port_name, attrs in by_port.items():
-            if first is None:
-                first = (port_name, attrs)
-            elif attrs != first[1]:
+        return by_port
+
+    @staticmethod
+    def _rekey_signature(secy):
+        """(rekey mode, rekey behaviour) of the static key Tx, None when the
+        secure entity has no static key Tx rekey."""
+        protocol = secy.get("key_generation_protocol")
+        if protocol is None or protocol.choice != "static_key":
+            return None
+        static_key = protocol.get("static_key")
+        tx = static_key.get("tx") if static_key is not None else None
+        rekey_mode = tx.get("rekey_mode") if tx is not None else None
+        if rekey_mode is None or rekey_mode.choice is None:
+            return None
+        behaviour = None
+        if rekey_mode.choice == "timer_based":
+            behaviour = rekey_mode.timer_based.choice
+        return (rekey_mode.choice, behaviour)
+
+    @staticmethod
+    def _sak_counts(secy):
+        """(Tx SAK count, Rx SAK count) of the static key secure channels"""
+        protocol = secy.get("key_generation_protocol")
+        if protocol is None or protocol.choice != "static_key":
+            return None
+        static_key = protocol.get("static_key")
+        counts = []
+        for direction in ("tx", "rx"):
+            side = (
+                static_key.get(direction) if static_key is not None else None
+            )
+            channels = side.get("secure_channels") if side is not None else None
+            if channels is None or len(channels) == 0:
+                counts.append(0)
+            else:
+                counts.append(len(channels[0].get("saks") or []))
+        return tuple(counts)
+
+    @staticmethod
+    def _encrypt_interface_vlans(secy):
+        encapsulation = secy.data_plane.encapsulation
+        vlan_options = encapsulation.get("vlan_options")
+        if vlan_options is None:
+            return None
+        return vlan_options.get("encrypt_interface_vlans")
+
+    @staticmethod
+    def _validate_uniform(port_name, secys):
+        """The secure entities on one port must agree on these settings,
+        as in ixhw-c (OtgPackMacsec.cs): encrypt_interface_vlans, rekey mode
+        and behaviour and the SAK counts."""
+        checks = (
+            ("encrypt_interface_vlans", MacsecHw._encrypt_interface_vlans),
+            ("static_key tx rekey mode and behaviour", MacsecHw._rekey_signature),
+            ("static_key Tx and Rx SAK counts", MacsecHw._sak_counts),
+        )
+        for label, getter in checks:
+            values = {}
+            for secy in secys:
+                values.setdefault(getter(secy), []).append(secy.get("name"))
+            if len(values) > 1:
                 raise SnappiIxnException(
                     400,
-                    "Inline crypto MACsec per port settings differ between "
-                    "ports %s and %s (%s vs %s). IxNetwork holds them in one "
-                    "global, so they must be the same on every port"
+                    "Port %s: inline crypto secure entities differ in %s "
+                    "(%s). They must be the same on one port"
                     % (
-                        first[0],
                         port_name,
-                        sorted(first[1].items()),
-                        sorted(attrs.items()),
+                        label,
+                        "; ".join(
+                            "%s: %s" % (value, ", ".join(names))
+                            for value, names in sorted(
+                                values.items(), key=lambda i: str(i[0])
+                            )
+                        ),
                     ),
                 )
-        return {} if first is None else dict(first[1])
 
     @staticmethod
     def _port_attrs(port_name, secys, options):
         attrs = {}
-        replay = set()
         for secy in secys:
             encapsulation = secy.data_plane.encapsulation
             rx = encapsulation.get("rx")
-            if rx is not None and rx.get("replay_protection") is not None:
-                replay.add(bool(rx.get("replay_protection")))
-        if len(replay) > 1:
-            raise SnappiIxnException(
-                400,
-                "Port %s: replay_protection differs between secure entities. "
-                "It is a per port setting" % port_name,
-            )
-        if len(replay) == 1:
-            attrs["ReplayProtection"] = replay.pop()
+            if rx is not None and rx.get("replay_protection"):
+                raise SnappiIxnException(
+                    400,
+                    "Secure entity %s on port %s: replay_protection is not "
+                    "supported by inline crypto MACsec"
+                    % (secy.get("name"), port_name),
+                )
         if options is None:
             return attrs
         validate_frames = options.get("validate_frames")
@@ -285,13 +343,34 @@ class MacsecHw(Base):
         """Write the port settings to Globals.Topology.Macsec. Needs the
         topology to exist, so it runs after the configuration is pushed and
         before the protocols start."""
-        attrs = MacsecHw.port_settings(config)
-        if len(attrs) == 0:
+        by_port = MacsecHw.port_settings(config)
+        if len(by_port) == 0:
             return
         logger = get_ixnet_logger(__name__)
         glob = ixnetwork.Globals.Topology.find().Macsec.find()
-        for name, value in sorted(attrs.items()):
-            logger.debug("MACsec per port %s = %s" % (name, value))
-            if isinstance(value, bool):
-                value = "true" if value else "false"
-            getattr(glob, name).Single(str(value))
+        port_order = topology_port_order(ixnetwork)
+        names = set()
+        for attrs in by_port.values():
+            names.update(attrs)
+        for name in sorted(names):
+            values = {
+                port: attrs[name]
+                for port, attrs in by_port.items()
+                if name in attrs
+            }
+            logger.debug("MACsec per port %s = %s" % (name, values))
+            default = MacsecHw._PORT_DEFAULTS.get(name)
+            if default is None:
+                default = sorted(values.values(), key=str)[0]
+            write_per_port(
+                getattr(glob, name),
+                {p: MacsecHw._to_text(v) for p, v in values.items()},
+                MacsecHw._to_text(default),
+                port_order,
+            )
+
+    @staticmethod
+    def _to_text(value):
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        return str(value)

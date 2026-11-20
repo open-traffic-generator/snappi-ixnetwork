@@ -1,5 +1,9 @@
 from snappi_ixnetwork.device.base import Base
-from snappi_ixnetwork.device.utils import items
+from snappi_ixnetwork.device.utils import (
+    items,
+    topology_port_order,
+    write_per_port,
+)
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.logger import get_ixnet_logger
 
@@ -140,12 +144,11 @@ class Mka(Base):
 
     @staticmethod
     def port_settings(config):
-        """Settings for Globals.Topology.Mka as {IxNetwork attribute: value}.
-        IxNetwork keeps them per port and shared by all MKA instances on it,
-        so the first instance on a port wins and a later one that differs is
-        reported with a warning. The global is one multivalue for all ports,
-        so values that differ between ports are rejected. Needs no IxNetwork
-        connection."""
+        """Settings for Globals.Topology.Mka as {port name: {IxNetwork
+        attribute: value}}. IxNetwork keeps them per port and shared by all
+        MKA instances on it, so instances on one port that differ in
+        eapol_ethernet_type are rejected. Different ports may differ, as in
+        ixhw-c. Needs no IxNetwork connection."""
         logger = get_ixnet_logger(__name__)
         per_port = {}
         for port_name, kay in Mka._instances(config):
@@ -158,27 +161,19 @@ class Mka(Base):
             if port_name not in per_port:
                 per_port[port_name] = (kay.get("name"), value)
             elif per_port[port_name][1] != value:
-                logger.warning(
+                raise SnappiIxnException(
+                    400,
                     "MKA %s: eapol_ethernet_type %s differs from %s of %s on "
-                    "port %s. The first instance wins, it is a per port "
-                    "setting" % (
+                    "port %s. It is a per port setting, devices on one port "
+                    "must use the same value"
+                    % (
                         kay.get("name"),
                         value,
                         per_port[port_name][1],
                         per_port[port_name][0],
                         port_name,
-                    )
+                    ),
                 )
-        values = {v for _, v in per_port.values()}
-        if len(values) > 1:
-            raise SnappiIxnException(
-                400,
-                "MKA eapol_ethernet_type differs between ports (%s). IxNetwork "
-                "holds it in one global, so it must be the same on every port"
-                % ", ".join(
-                    "%s: %s" % (p, v) for p, (_, v) in sorted(per_port.items(), key=lambda i: str(i[0]))
-                ),
-            )
         first = Mka.first_test_start_time(config)
         if first is not None:
             for _, kay in Mka._instances(config):
@@ -189,22 +184,26 @@ class Mka(Base):
                         "a per port setting, the first instance wins"
                         % (kay.get("name"), first[0])
                     )
-        attrs = {}
-        if len(values) == 1:
-            # written even when it is the default, so a value left by an
-            # earlier configuration in the same session does not survive
-            attrs["EtherType"] = values.pop()
-        return attrs
+        # written even when it is the default, so a value left by an
+        # earlier configuration in the same session does not survive
+        return {
+            port_name: {"EtherType": value}
+            for port_name, (_, value) in per_port.items()
+        }
 
     @staticmethod
     def apply_port_settings(ixnetwork, config):
         """Write the per port settings, after the configuration is pushed."""
-        attrs = Mka.port_settings(config)
-        if len(attrs) == 0:
+        by_port = Mka.port_settings(config)
+        if len(by_port) == 0:
             return
         glob = ixnetwork.Globals.Topology.find().Mka.find()
-        for name, value in sorted(attrs.items()):
-            getattr(glob, name).Single(str(value))
+        write_per_port(
+            glob.EtherType,
+            {port: attrs["EtherType"] for port, attrs in by_port.items()},
+            Mka._DEFAULT_ETHER_TYPE,
+            topology_port_order(ixnetwork),
+        )
 
     def _is_valid(self, ethernet_name, kay):
         is_valid = True

@@ -1965,10 +1965,26 @@ class TrafficItem(CustomField):
                     stack_names.append(choice)
                 existing_choice_cnt[choice] = have + 1
 
+        # Walk the stacks IxNetwork has on the config element and fill each
+        # one from the snappi header of the same choice.  There are three
+        # cases per stack:
+        #   1. "payloadProtocolType" and "MacsecHw": IxNetwork adds these to
+        #      the flow itself (the latter over a hardware SecY).  snappi
+        #      has no header for them, so they are appended untouched.
+        #   2. the stack has a snappi header: it is configured from it.  An
+        #      SRH header goes through the SRv6 handler, headers after an
+        #      SRH are treated as raw traffic.
+        #   3. IxNetwork has a stack that the flow did not ask for (a
+        #      default one): it is appended with default values.
+        # Which case a stack takes is logged at debug level.
         # Track which snappi_packet indices have been consumed so that duplicate
         # header types (e.g. two IPv6 headers) are matched in order.
         consumed = set()
         inside_srh = False
+        self.logger.debug(
+            "Flow stacks %s, snappi headers %s"
+            % (stack_names, [h.parent.choice for h in snappi_packet])
+        )
         for index, stack in enumerate(stack_names):
             ixn_header_name = self._HEADER_TO_TYPE.get(
                 self._getUhdHeader(stack)
@@ -1979,6 +1995,9 @@ class TrafficItem(CustomField):
             index = "%s-%s" % (ixn_header_name, index + 1)
             xpath = "%s = '%s']" % (ce_path, index)
             if stack in ("payloadProtocolType", "MacsecHw"):
+                self.logger.debug(
+                    "Stack %s added by IxNetwork, appended as is" % stack
+                )
                 self._append_header(xpath, stacks)
             elif stack in snappi_stack_names:
                 # Find the first unconsumed snappi_packet entry with this choice
@@ -2013,6 +2032,10 @@ class TrafficItem(CustomField):
                         is_raw_traffic=inside_srh,
                     )
             else:
+                self.logger.debug(
+                    "Stack %s is not in the flow, appended with defaults"
+                    % stack
+                )
                 self._append_header(xpath, stacks,
                                     getattr(snappi.FlowHeader(), stack))
         return stacks
