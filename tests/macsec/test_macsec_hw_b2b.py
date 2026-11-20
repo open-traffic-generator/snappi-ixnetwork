@@ -5,7 +5,6 @@
 that support it.
 """
 
-import datetime
 import os
 
 import pytest
@@ -119,6 +118,9 @@ def _sessions_up(api, kinds=("Macsec", "StaticMacsec")):
 def _start(api, config, utils, start_capture=False, kinds=("Macsec", "StaticMacsec")):
     """Like utils.start_traffic, but waits for the MACsec sessions to be up
     before transmitting, because traffic is refused while they are not."""
+    # a clean session: nothing left over from an earlier test or config (a
+    # started topology, global settings) can keep the sessions from coming up
+    api.set_config(api.config())
     api.set_config(config)
     if start_capture:
         cs = api.control_state()
@@ -311,37 +313,100 @@ def test_per_port_strict_validate_frames_rejected(api, b2b_raw_config):
     assert "strict" in str(err.value)
 
 
-def _to_mka(config):
-    """Switch both devices of _config() from static key to MKA with a PSK."""
-    cak_name = "F123456789ABCDEF0123456789ABCDEFF123456789ABCDEF0123456789ABCD01"
-    cak_value = "F123456789ABCDEF0123456789ABCD01"
-    for device in config.devices:
-        iface = device.macsec.ethernet_interfaces[0]
+def _config_mka_pairwise_ca(
+    api, b2b_raw_config, frames_tx=500, data_plane="encapsulation"
+):
+    """Two hardware SecYs with MKA (PSK) and pairwise CA on a back to back
+    pair of ports, converted from the gosnappi
+    deviceMacsecPairwiseCaConfigB2B configuration. Like it, this has no
+    layer1 settings, no VLAN and no PSK offsets or start time, uses a short
+    CAK name, per port inline crypto options and a Macsec header in the flow.
+    The flow is named f1 so the helpers of this file can read its metrics.
+    data_plane="no_encapsulation" gives MKA only: no MACsec data plane, no
+    per port options, no flow and no capture."""
+    config = b2b_raw_config
+    config.layer1.clear()
+    config.flows.clear()
+    config.captures.clear()
+    p1, p2 = config.ports
+
+    encapsulation = data_plane == "encapsulation"
+
+    # per port global MACsec data plane settings on each Tx/Rx port
+    for port_name in (p1.name, p2.name) if encapsulation else ():
+        per_port = config.options.per_port_options.add()
+        per_port.port_name = port_name
+        protocol = per_port.protocols.add()
+        protocol.choice = "macsec"
+        acceleration = protocol.macsec.hardware_acceleration
+        acceleration.choice = "inline_crypto"
+        inline = acceleration.inline_crypto
+        inline.rx_sectag_offset = 12
+        inline.type_of_ca.choice = "pairwise_ca"
+        inline.max_ca_count = "two_fifty_six"
+
+    def add_peer(name, eth_name, mac, ip, gateway, port):
+        device = config.devices.add()
+        device.name = name
+        eth = device.ethernets.add()
+        eth.name = eth_name
+        eth.mac = mac
+        eth.connection.port_name = port.name
+        ipv4 = eth.ipv4_addresses.add()
+        ipv4.name = name + "v4"
+        ipv4.address = ip
+        ipv4.gateway = gateway
+        ipv4.prefix = 24
+
+        iface = device.macsec.ethernet_interfaces.add()
+        iface.eth_name = eth.name
         secy = iface.secure_entity
-        mac = [e for e in device.ethernets if e.name == iface.eth_name][0].mac
+        secy.name = name + "-secy"
+        secy.data_plane.choice = data_plane
+        if encapsulation:
+            crypto = secy.data_plane.encapsulation.crypto_engine
+            crypto.choice = "encrypt_decrypt"
+            crypto.encrypt_decrypt.hardware_acceleration.choice = (
+                "inline_crypto"
+            )
+
         secy.key_generation_protocol.choice = "mka"
-        kay = secy.key_generation_protocol.mka
-        kay.name = "mka_" + device.name
-        kay.basic.key_derivation_function = "aes_cmac_128"
-        # the key chain starts at this time, so use the current one
-        now = datetime.datetime.now(datetime.timezone.utc)
-        kay.basic.psk_chain_start_time.choice = "utc"
-        utc = kay.basic.psk_chain_start_time.utc
-        utc.day, utc.month, utc.year = now.day, now.month, now.year
-        utc.hour, utc.minute, utc.second = now.hour, now.minute, now.second
-        kay.basic.key_source.choice = "psk"
-        psk = kay.basic.key_source.psks.add()
-        psk.cak_name = cak_name
-        psk.cak_value = cak_value
-        psk.start_offset_time.hh = 0
-        psk.start_offset_time.mm = 0
-        # the key must be valid for a while (a zero length key never starts
-        # MKA)
-        psk.end_offset_time.hh = 22
-        psk.end_offset_time.mm = 0
-        sc = kay.tx.secure_channels.add()
-        sc.name = "txsc_" + device.name
-        sc.system_id = mac
+        mka = secy.key_generation_protocol.mka
+        mka.name = name + "-mka"
+        mka.basic.key_source.choice = "psk"
+        psk = mka.basic.key_source.psks.add()
+        psk.cak_value = "0123456789ABCDEF0123456789ABCDEF"
+        psk.cak_name = "AABBCCDD"
+        channel = mka.tx.secure_channels.add()
+        channel.name = name + "-sc"
+        channel.system_id = mac
+
+    add_peer("d1", "d1Eth", "00:00:11:01:01:01", "1.1.1.1", "1.1.1.2", p1)
+    add_peer("d2", "d2Eth", "00:00:22:02:02:02", "1.1.1.2", "1.1.1.1", p2)
+
+    if not encapsulation:
+        return config
+
+    flow = config.flows.flow(name="f1")[-1]
+    flow.metrics.enable = True
+    flow.size.fixed = 128
+    flow.duration.fixed_packets.packets = frames_tx
+    flow.rate.pps = 50
+    flow.tx_rx.device.tx_names = ["d1v4"]
+    flow.tx_rx.device.rx_names = ["d2v4"]
+    eth = flow.packet.ethernet()[-1]
+    eth.src.value = "00:00:11:01:01:01"
+    eth.dst.choice = "auto"
+    flow.packet.macsec()
+    ipv4 = flow.packet.ipv4()[-1]
+    ipv4.src.value = "100.1.1.1"
+    ipv4.dst.value = "100.1.1.2"
+
+    cap = config.captures.add()
+    cap.name = "c1"
+    cap.port_names = [p2.name]
+    cap.format = cap.PCAPNG
+    return config
 
 
 def _mka_metrics(api):
@@ -354,12 +419,10 @@ def _mka_metrics(api):
 def test_hardware_mka_b2b_traffic(api, b2b_raw_config, utils):
     """H4: MKA with a PSK on two hardware SecYs, then protected traffic. The
     static SAK pools are not written, the keys come from MKA."""
-    config = _config(api, b2b_raw_config, "inline_crypto")
-    _to_mka(config)
-    cap = config.captures.add()
-    cap.name = "c1"
-    cap.port_names = [config.ports[1].name]
-    cap.format = cap.PCAPNG
+    # a clean session, so topologies of an earlier test that are still started
+    # do not block the new configuration
+    api.set_config(api.config())
+    config = _config_mka_pairwise_ca(api, b2b_raw_config)
     _start(api, config, utils, start_capture=True)
     utils.wait_for(
         lambda: all(m.live_peer_count == 1 for m in _mka_metrics(api)),
@@ -407,13 +470,10 @@ def test_protocol_stop_and_start_cycles_hardware_sessions(
 def test_no_encapsulation_mka_b2b(api, b2b_raw_config, utils):
     """H16: MKA only (no MACsec data plane) on two devices, the MKA sessions
     come up and see one live peer."""
-    config = _config(api, b2b_raw_config, "none")
-    _to_mka(config)
-    for device in config.devices:
-        secy = device.macsec.ethernet_interfaces[0].secure_entity
-        secy.data_plane.choice = "no_encapsulation"
-    config.flows.clear()
-    _start_protocols = _start  # same start sequence, no flow is configured
+    api.set_config(api.config())
+    config = _config_mka_pairwise_ca(
+        api, b2b_raw_config, data_plane="no_encapsulation"
+    )
     api.set_config(config)
     cs = api.control_state()
     cs.protocol.all.state = cs.protocol.all.START
