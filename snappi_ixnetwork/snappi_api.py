@@ -1193,13 +1193,12 @@ class Api(snappi.Api):
             while content["state"] == "IN_PROGRESS":
                 time.sleep(0.2)
                 response = self._request("GET", content["url"])
-        if response.headers.get("Content-Type"):
-            if response.headers["Content-Type"] == "application/json":
-                return response.json()
-            elif (
-                response.headers["Content-Type"] == "application/octet-stream"
-            ):
-                return response.content
+        content_type = response.headers.get("Content-Type", "")
+        media_type = content_type.split(";", 1)[0].strip().lower()
+        if media_type == "application/json":
+            return response.json()
+        if media_type == "application/octet-stream":
+            return response.content
         return response
 
     def _remove(self, ixn_obj, items):
