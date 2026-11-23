@@ -1,3 +1,6 @@
+from snappi_ixnetwork.device.macsec import Macsec
+
+
 class Validation(object):
     """Validate the configuration
 
@@ -16,6 +19,7 @@ class Validation(object):
         self.__check_config_objects(self._api.snappi_config, item_ids=[])
         if len(self._unique_name_errors) > 0:
             raise NameError(", ".join(self._unique_name_errors))
+        Macsec.validate_config(self._api.snappi_config)
 
     def __check_config_objects(self, config_item, item_ids):
         if config_item is None:
