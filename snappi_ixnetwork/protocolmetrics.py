@@ -87,6 +87,7 @@ class ProtocolMetrics(object):
         ],
         # hardware (inline crypto) MACsec views only count receive side
         # packets and bytes, the remaining OTG fields are reported as 0
+        #TBD: We can merge the macsec and macsec_hw views if needed for unified reporting
         "macsec_hw": [
             ("name", "Device Group", str),
             ("session_state", "Status", str),

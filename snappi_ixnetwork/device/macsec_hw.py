@@ -245,8 +245,8 @@ class MacsecHw(Base):
 
     @staticmethod
     def _validate_uniform(port_name, secys):
-        """The secure entities on one port must agree on these settings,
-        as in ixhw-c (OtgPackMacsec.cs): encrypt_interface_vlans, rekey mode
+        """The secure entities on one port must agree on these settings, 
+        i.e., encrypt_interface_vlans, rekey mode
         and behaviour and the SAK counts."""
         checks = (
             ("encrypt_interface_vlans", MacsecHw._encrypt_interface_vlans),

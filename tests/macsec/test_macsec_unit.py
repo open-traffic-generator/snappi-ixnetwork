@@ -110,8 +110,6 @@ def _status(excinfo):
     return excinfo.value.status_code
 
 
-# U18: software regression
-
 
 def test_encrypt_only_static_key_baseline():
     env = _Env()
@@ -135,7 +133,7 @@ def test_encrypt_only_static_key_baseline():
     env.ngpf.api.ixn_objects.set.assert_called_with("d1_secy", node)
 
 
-# U2 / U3 / U4: cipher suites, SAK pools
+# cipher suites, SAK pools
 
 
 @pytest.mark.parametrize(
@@ -176,7 +174,7 @@ def test_rx_secure_channel_dut_sci_mapped():
     assert _value(node, "dutSciPortId") == 7
 
 
-# U15: encrypt_decrypt + none -> staticMacsec, stateful
+# encrypt_decrypt + none -> staticMacsec, stateful
 
 
 def test_encrypt_decrypt_sw_uses_static_macsec_stateful():
@@ -382,7 +380,7 @@ def test_inline_crypto_sak_length_checked():
     assert _status(excinfo) == 400
 
 
-# U27: encrypt_only options
+# encrypt_only options
 
 
 def test_encrypt_only_send_gratuitous_arp_mapped():
@@ -397,7 +395,7 @@ def test_encrypt_only_send_gratuitous_arp_mapped():
     assert env.node("d1")["sendGratArp"] is False
 
 
-# U14 / U14b: no_encapsulation
+# no_encapsulation
 
 
 def test_no_encapsulation_with_mka_builds_no_macsec_node():
@@ -423,7 +421,7 @@ def test_no_encapsulation_with_static_key_is_rejected():
     assert _status(excinfo) == 400
 
 
-# U16: empty secure channels / SAKs
+# empty secure channels / SAKs
 
 
 def test_empty_secure_channels_accepted_without_index_error():
@@ -463,7 +461,7 @@ def test_missing_saks_rejected():
     assert _status(excinfo) == 400
 
 
-# U21: SAK length against cipher suite
+# SAK length against cipher suite
 
 
 @pytest.mark.parametrize(
@@ -490,7 +488,7 @@ def test_sak_with_0x_prefix_accepted():
     env.build()
 
 
-# U22: pn_based rekey on software
+# pn_based rekey on software
 
 
 @pytest.mark.parametrize("engine", ["encrypt_only", "encrypt_decrypt"])
@@ -525,7 +523,7 @@ def test_timer_based_rekey_mapped():
     assert node["periodicRekeyInterval"] == 60
 
 
-# U23: replay settings are warned about and not written
+# replay settings are warned about and not written
 
 
 def test_replay_settings_warn_and_are_not_written():
@@ -542,7 +540,7 @@ def test_replay_settings_warn_and_are_not_written():
     assert "replayWindowSize" not in node and "replayProtection" not in node
 
 
-# U17: per secure entity dispatch (B1, B2)
+# per secure entity dispatch 
 
 
 def test_dynamic_key_is_decided_per_secure_entity():
@@ -588,7 +586,7 @@ def test_every_interface_is_checked_for_data_plane():
     assert "staticMacsec" in env.ixn_ethernets["d1_eth2"]
 
 
-# U13: conflicting engines / key generation on one device or port
+# conflicting engines / key generation on one device or port
 
 
 def test_mixed_engines_in_one_device_rejected():
@@ -631,8 +629,7 @@ def test_key_generation_on_different_ports_accepted():
     Macsec.validate_config(env.config)
 
 
-# U28: LAG MACsec
-
+# LAG MACsec
 
 def test_lag_port_macsec_rejected():
     config = snappi.Api().config()
@@ -654,7 +651,7 @@ def test_lag_without_macsec_accepted():
     Macsec.validate_config(config)
 
 
-# U24: MKA key source
+# MKA key source
 
 
 def test_mka_msk_key_source_rejected():
@@ -952,7 +949,7 @@ def test_apply_port_settings_without_hardware_touches_nothing():
 
 
 # ---------------------------------------------------------------------------
-# MKA per port settings (phase 4) and auto_macsec helper (phase 5)
+# MKA per port settings and auto_macsec helper
 
 
 def _mka_basic(device):

@@ -147,8 +147,8 @@ class Mka(Base):
         """Settings for Globals.Topology.Mka as {port name: {IxNetwork
         attribute: value}}. IxNetwork keeps them per port and shared by all
         MKA instances on it, so instances on one port that differ in
-        eapol_ethernet_type are rejected. Different ports may differ, as in
-        ixhw-c. Needs no IxNetwork connection."""
+        eapol_ethernet_type are rejected. Different ports may differ. 
+        Needs no IxNetwork connection."""
         logger = get_ixnet_logger(__name__)
         per_port = {}
         for port_name, kay in Mka._instances(config):
