@@ -95,6 +95,16 @@ class Vport(object):
         "speed_800_gbps": "eighthundredgig",
     }
 
+    _PORT_MODE_MAP = {
+        "mode_macsec_128": "macsec128",
+        "mode_macsec_256": "macsec256",
+        "mode_high_stream": "highstream",
+        "mode_rocev2": "rocev2",
+    }
+
+    # aggregation modes containing these are never selected as mode_default
+    _NON_DEFAULT_MODE_KEYWORDS = ["macsec", "highstream", "rocev2"]
+
     _ADVERTISE_MAP = {
         "advertise_one_thousand_mbps": "speed1000",
         "advertise_one_hundred_fd_mbps": "speed100fd",
@@ -491,11 +501,18 @@ class Vport(object):
         aggregation_mode = None
         if layer1.speed in Vport._SPEED_MODE_MAP:
             card = self._api.select_chassis_card(vport)
-            mode = Vport._SPEED_MODE_MAP[layer1.speed]
-            for available_mode in card["availableModes"]:
-                if re.search(mode, available_mode.lower()) is not None:
-                    aggregation_mode = available_mode
-                    break
+            port_mode = layer1.get("mode", with_default=True)
+            aggregation_mode = Vport.select_aggregation_mode(
+                Vport._SPEED_MODE_MAP[layer1.speed],
+                port_mode,
+                card["aggregationMode"],
+                card["availableModes"],
+            )
+            if aggregation_mode is None and port_mode != "mode_no_change":
+                raise Exception(
+                    "Mode %s is not supported for speed %s on %s"
+                    % (port_mode, layer1.speed, card["description"])
+                )
         if (
             aggregation_mode is not None
             and aggregation_mode != card["aggregationMode"]
@@ -507,6 +524,45 @@ class Vport(object):
             imports.append(
                 {"xpath": card["xpath"], "aggregationMode": aggregation_mode}
             )
+
+    @staticmethod
+    def select_aggregation_mode(
+        speed_regex, port_mode, current_mode, available_modes
+    ):
+        """Select the card aggregation mode for a layer1 speed and mode
+
+        mode_default selects a mode matching the speed which is not any of
+        the special modes in _NON_DEFAULT_MODE_KEYWORDS (e.g. not macsec).
+        mode_no_change retains the current aggregation mode if it already
+        matches the speed, else it prefers the mode_default selection and
+        falls back to any mode matching the speed.
+        Any other mode selects a mode matching both the speed and the mode.
+        Returns None if no available mode matches.
+        """
+        candidates = [
+            available_mode
+            for available_mode in available_modes
+            if re.search(speed_regex, available_mode.lower()) is not None
+        ]
+        if port_mode in Vport._PORT_MODE_MAP:
+            keyword = Vport._PORT_MODE_MAP[port_mode]
+            candidates = [c for c in candidates if keyword in c.lower()]
+            return candidates[0] if len(candidates) > 0 else None
+        default_candidates = [
+            c
+            for c in candidates
+            if not any(
+                keyword in c.lower()
+                for keyword in Vport._NON_DEFAULT_MODE_KEYWORDS
+            )
+        ]
+        if port_mode == "mode_default":
+            candidates = default_candidates
+        elif current_mode in candidates:
+            return current_mode
+        else:
+            candidates = default_candidates + candidates
+        return candidates[0] if len(candidates) > 0 else None
 
     def _set_auto_negotiation(self, vport, layer1, imports):
         if layer1.speed.endswith("_mbps") or layer1.speed == "speed_1_gbps":

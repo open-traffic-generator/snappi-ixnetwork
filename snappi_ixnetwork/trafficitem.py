@@ -4,6 +4,7 @@ from snappi_ixnetwork.timer import Timer
 from snappi_ixnetwork.logger import get_ixnet_logger
 from snappi_ixnetwork.exceptions import SnappiIxnException
 from snappi_ixnetwork.customfield import CustomField
+from snappi_ixnetwork.device.macsec import Macsec
 from snappi_ixnetwork.device.rocev2 import RoCEv2
 
 
@@ -102,6 +103,9 @@ class TrafficItem(CustomField):
         "vxlan": "vxlan",
         "ethernetARP": "arp",
         "macsec": "macsec",
+        # added by IxNetwork for flows over a hardware MACsec SecY, there is
+        # no snappi header for it
+        "MacsecHw": "MacsecHw",
         "payloadProtocolType": "payloadProtocolType",
         "icmpv2": "icmp",
         "icmpv6": "icmpv6",
@@ -126,6 +130,7 @@ class TrafficItem(CustomField):
         "vxlan": "vxlan",
         "arp": "ethernetARP",
         "macsec": "macsec",
+        "MacsecHw": "MacsecHw",
         "payloadProtocolType": "payloadProtocolType",
         "icmp": "icmpv2",
         "icmpv6": "icmpv6",
@@ -742,8 +747,9 @@ class TrafficItem(CustomField):
             if flow.tx_rx.choice == "port":
                 tr_type = "raw"
                 ep = getattr(flow.tx_rx, "port")
-                tx_objs = ["%s/protocols" % ports.get(ep.tx_name)]
-                rx_objs = ["%s/protocols" % ports.get(ep.rx_name)]
+                tx_objs, rx_objs = self._get_port_endpoints(
+                    ep, ports, flow.name
+                )
                 tr["trafficItem"][-1]["endpointSet"][0]["sources"] = [
                     o for o in tx_objs
                 ]
@@ -830,6 +836,16 @@ class TrafficItem(CustomField):
                     # 0xPQRS is ethernet type. When MACsec header is the first ethernet type, it is 0x88E5
                     # When clear text VLAN enabled, it is TPID e.g. 0x8810.
                     tr["trafficItem"][-1]["enableMacsecEgressOnlyAutoConfig"] = True
+                    others = Macsec.engines_on_port(
+                        self._api.snappi_config, eotr_port_name
+                    ) - {"encrypt_only"}
+                    if len(others) > 0:
+                        self._api.warning(
+                            "auto_macsec filter on port %s: the signature is "
+                            "specific to encrypt_only devices, but the port "
+                            "has %s secure entities. Their frames are not "
+                            "matched" % (eotr_port_name, ", ".join(sorted(others)))
+                        )
                     self.logger.debug(
                         "Auto MACsec filter. MACsec auto signature is applied as filter for egress only tracking at port %s"
                         % eotr_port_name
@@ -1326,10 +1342,59 @@ class TrafficItem(CustomField):
             prev_was_srh = False
         return [config_elem]
 
+    def _get_rx_port_names(self, ep, flow_name):
+        """Return the list of rx port names of a port endpoint, taken from
+        either rx_names or the single rx_name."""
+        rx_names = ep.rx_names
+        rx_name = ep.rx_name
+        has_names = rx_names is not None and len(rx_names) > 0
+        if has_names and rx_name is not None:
+            raise ValueError(
+                "Only one of port rx_name and rx_names can be set "
+                "in flow %s" % flow_name
+            )
+        if has_names:
+            if len(rx_names) != len(set(rx_names)):
+                raise ValueError(
+                    "All names in port rx_names must be unique "
+                    "for flow %s" % flow_name
+                )
+            return list(rx_names)
+        if rx_name is None:
+            raise ValueError(
+                "Either port rx_name or rx_names must be set "
+                "in flow %s" % flow_name
+            )
+        return [rx_name]
+
+    def _get_port_endpoints(self, ep, ports, flow_name):
+        """Return (tx_objs, rx_objs) IxNetwork protocol xpaths for a port
+        endpoint."""
+        if ep.tx_name is None:
+            raise ValueError(
+                "Port tx_name must be set in flow %s" % flow_name
+            )
+        names = [ep.tx_name] + self._get_rx_port_names(ep, flow_name)
+        for name in names:
+            if ports.get(name) is None:
+                raise NameError(
+                    "Port %s used in flow %s does not exist"
+                    % (name, flow_name)
+                )
+        tx_objs = ["%s/protocols" % ports.get(ep.tx_name)]
+        rx_objs = [
+            "%s/protocols" % ports.get(n)
+            for n in self._get_rx_port_names(ep, flow_name)
+        ]
+        return tx_objs, rx_objs
+
     def _get_mesh_type(self, flow):
         self.logger.debug("Getting mesh type")
         if flow.tx_rx.choice == "port":
-            mesh_type = "oneToOne"
+            if len(self._get_rx_port_names(flow.tx_rx.port, flow.name)) > 1:
+                mesh_type = "manyToMany"
+            else:
+                mesh_type = "oneToOne"
         else:
             device = flow.tx_rx.device
             if device.mode == "mesh" or device.mode is None:
@@ -1900,10 +1965,26 @@ class TrafficItem(CustomField):
                     stack_names.append(choice)
                 existing_choice_cnt[choice] = have + 1
 
+        # Walk the stacks IxNetwork has on the config element and fill each
+        # one from the snappi header of the same choice.  There are three
+        # cases per stack:
+        #   1. "payloadProtocolType" and "MacsecHw": IxNetwork adds these to
+        #      the flow itself (the latter over a hardware SecY).  snappi
+        #      has no header for them, so they are appended untouched.
+        #   2. the stack has a snappi header: it is configured from it.  An
+        #      SRH header goes through the SRv6 handler, headers after an
+        #      SRH are treated as raw traffic.
+        #   3. IxNetwork has a stack that the flow did not ask for (a
+        #      default one): it is appended with default values.
+        # Which case a stack takes is logged at debug level.
         # Track which snappi_packet indices have been consumed so that duplicate
         # header types (e.g. two IPv6 headers) are matched in order.
         consumed = set()
         inside_srh = False
+        self.logger.debug(
+            "Flow stacks %s, snappi headers %s"
+            % (stack_names, [h.parent.choice for h in snappi_packet])
+        )
         for index, stack in enumerate(stack_names):
             ixn_header_name = self._HEADER_TO_TYPE.get(
                 self._getUhdHeader(stack)
@@ -1913,7 +1994,10 @@ class TrafficItem(CustomField):
                 raise SnappiIxnException("400", msg)
             index = "%s-%s" % (ixn_header_name, index + 1)
             xpath = "%s = '%s']" % (ce_path, index)
-            if stack == "payloadProtocolType":
+            if stack in ("payloadProtocolType", "MacsecHw"):
+                self.logger.debug(
+                    "Stack %s added by IxNetwork, appended as is" % stack
+                )
                 self._append_header(xpath, stacks)
             elif stack in snappi_stack_names:
                 # Find the first unconsumed snappi_packet entry with this choice
@@ -1948,6 +2032,10 @@ class TrafficItem(CustomField):
                         is_raw_traffic=inside_srh,
                     )
             else:
+                self.logger.debug(
+                    "Stack %s is not in the flow, appended with defaults"
+                    % stack
+                )
                 self._append_header(xpath, stacks,
                                     getattr(snappi.FlowHeader(), stack))
         return stacks
@@ -2416,7 +2504,11 @@ class TrafficItem(CustomField):
             self._api._traffic_item.find(State="^started$")
             if len(self._api._traffic_item) == 0:
                 with Timer(self._api, "Flows clear statistics"):
-                    self._api._ixnetwork.ClearStats(
+                    # Clear only port/traffic stats. ClearStats also clears
+                    # protocol stats (e.g. "Clear Stats LACP"), which can
+                    # hang and block later actions such as route withdraw
+                    # (ApplyOnTheFly).
+                    self._api._ixnetwork.ClearPortsAndTrafficStats(
                         [
                             "waitForPortStatsRefresh",
                             "waitForTrafficStatsRefresh",
@@ -2455,6 +2547,18 @@ class TrafficItem(CustomField):
                 if len(self._api._traffic_item) > 0:
                     with Timer(self._api, "Flows pause"):
                         self._api._traffic_item.PauseStatelessTraffic(True)
+
+    def _get_cell(self, row, internal_name, column_type=str):
+        """Read a statistics cell. The lookup must happen here and not in the
+        arguments of _set_result_value, otherwise a column that is missing
+        from the view (e.g. Tx Bytes) raises before the numeric default
+        in _set_result_value can apply."""
+        try:
+            return row[internal_name]
+        except Exception:
+            if column_type.__name__ in ["float", "int"]:
+                return 0
+            raise
 
     def _set_result_value(
         self, row, column_name, column_value, column_type=str
@@ -2641,7 +2745,9 @@ class TrafficItem(CustomField):
                             self._set_result_value(
                                 flow_row,
                                 external_name,
-                                row[internal_name],
+                                self._get_cell(
+                                    row, internal_name, external_type
+                                ),
                                 external_type,
                             )
                         except Exception as e:
@@ -2688,7 +2794,9 @@ class TrafficItem(CustomField):
                             self._set_result_value(
                                 flow_row,
                                 external_name,
-                                row[internal_name],
+                                self._get_cell(
+                                    row, internal_name, external_type
+                                ),
                                 external_type,
                             )
                         except Exception as e:
@@ -2837,7 +2945,9 @@ class TrafficItem(CustomField):
                         self._set_result_value(
                             result_flow_row,
                             external_name,
-                            row[internal_name],
+                            self._get_cell(
+                                row, internal_name, external_type
+                            ),
                             external_type,
                         )
                     except Exception as exception_err:
@@ -3100,7 +3210,9 @@ class TrafficItem(CustomField):
                         self._set_result_value(
                             flow_row,
                             external_name,
-                            row[internal_name],
+                            self._get_cell(
+                                row, internal_name, external_type
+                            ),
                             external_type,
                         )
                     except Exception as e:
@@ -3347,8 +3459,9 @@ class TrafficItem(CustomField):
             if flow.tx_rx.choice == "port":
                 tr_type = "raw"
                 ep = getattr(flow.tx_rx, "port")
-                tx_objs = ["%s/protocols" % ports.get(ep.tx_name)]
-                rx_objs = ["%s/protocols" % ports.get(ep.rx_name)]
+                tx_objs, rx_objs = self._get_port_endpoints(
+                    ep, ports, flow.name
+                )
                 tr["trafficItem"][-1]["endpointSet"][0]["sources"] = [
                     o for o in tx_objs
                 ]

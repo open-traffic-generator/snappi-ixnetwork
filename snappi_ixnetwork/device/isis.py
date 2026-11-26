@@ -33,7 +33,7 @@ class Isis(Base):
             "ixn_attr": "authType",
             "enum_map": {"md5": "md5", "password": "password"},
         },
-        "mde5": "md5",
+        "md5": "md5",
         "password": "password",
     }
 

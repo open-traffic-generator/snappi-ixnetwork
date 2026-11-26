@@ -93,5 +93,5 @@ def captures_ok(api, cfg, utils, packets, name, icmp_echo):
                 
                 pkt_count += 1
 
-    print("Captured ICMPv6 packets: ", pkt_count)
+    print("Captured ICMPv4 packets: ", pkt_count)
     assert pkt_count >= packets # both data and control packets are captured, so pkt_count can be greater than packets
