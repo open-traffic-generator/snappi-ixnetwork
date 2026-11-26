@@ -26,6 +26,8 @@ class Ngpf(Base):
         "BgpV6Peer": "ipv6",
         "BgpV4RouteRange": "ipv4",
         "BgpV6RouteRange": "ipv6",
+        "BgpL3vpnV4RouteRange": "ipv4",
+        "BgpL3vpnV6RouteRange": "ipv6",
         "DeviceIpv4Loopback": "ipv4",
         "DeviceIpv6Loopback": "ipv6",
         "VxlanV4Tunnel": "ipv4",
@@ -447,10 +449,15 @@ class Ngpf(Base):
             prefixes_by_field = self._bgp.get_learned_prefixes(
                 peer_obj, bgp_prefix_req, families, session_index
             )
+            vpn_prefixes_by_field = self._bgp.get_learned_vpn_routes(
+                peer_obj, families, session_index
+            )
             entry = results.setdefault(
                 peer_name, {"bgp_peer_name": peer_name}
             )
             for field, prefixes in prefixes_by_field.items():
+                entry.setdefault(field, []).extend(prefixes)
+            for field, prefixes in vpn_prefixes_by_field.items():
                 entry.setdefault(field, []).extend(prefixes)
 
         return {
